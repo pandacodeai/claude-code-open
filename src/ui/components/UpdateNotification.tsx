@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { updateManager } from '../../updater/index.js';
+import { t } from '../../i18n/index.js';
 
 interface UpdateNotificationProps {
   checkOnMount?: boolean;
@@ -69,7 +70,7 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
       {updateStatus === 'checking' && (
         <Box>
           <Text color="gray" dimColor>
-            Auto-updating…
+            {t('update.checking')}
           </Text>
         </Box>
       )}
@@ -83,13 +84,13 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
         >
           <Box flexDirection="column">
             <Text color="green" bold>
-              🎉 Update Available!
+              🎉 {t('update.available')}
             </Text>
             <Text color="gray">
-              A new version ({latestVersion}) is available.
+              {t('update.newVersion', { version: latestVersion })}
             </Text>
             <Text color="gray" dimColor>
-              Run: npm install -g @anthropic-ai/claude-code
+              {t('update.runCommand')}
             </Text>
           </Box>
         </Box>
@@ -98,7 +99,7 @@ export const UpdateNotification: React.FC<UpdateNotificationProps> = ({
       {updateStatus === 'error' && error && (
         <Box>
           <Text color="yellow" dimColor>
-            Update check failed: {error}
+            {t('update.checkFailed', { error })}
           </Text>
         </Box>
       )}

@@ -14,6 +14,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import type { TodoItem } from '../../types/index.js';
+import { t } from '../../i18n/index.js';
 
 interface TodoListProps {
   todos: TodoItem[];
@@ -40,7 +41,7 @@ const ProgressBar: React.FC<{ current: number; total: number; width?: number }> 
     <Box flexDirection="column">
       <Box>
         <Text color="cyan" bold>
-          Progress: {current}/{total} ({percentage}%)
+          {t('todo.progress', { current, total, percentage })}
         </Text>
       </Box>
       <Box>
@@ -196,7 +197,7 @@ export const TodoList: React.FC<TodoListProps> = ({
         marginY={1}
       >
         <Text bold color="cyan">
-          Tasks
+          {t('todo.title')}
         </Text>
 
         {showProgressBar && (
@@ -209,7 +210,7 @@ export const TodoList: React.FC<TodoListProps> = ({
         {inProgressTodos.length > 0 && (
           <>
             <TodoGroup
-              title="⚡ In Progress"
+              title={`⚡ ${t('todo.inProgress')}`}
               todos={inProgressTodos}
               selectedIndex={selectedIndex}
               startIndex={currentIndex}
@@ -226,7 +227,7 @@ export const TodoList: React.FC<TodoListProps> = ({
         {pendingTodos.length > 0 && (
           <>
             <TodoGroup
-              title="📋 Pending"
+              title={`📋 ${t('todo.pending')}`}
               todos={pendingTodos}
               selectedIndex={selectedIndex}
               startIndex={currentIndex}
@@ -242,7 +243,7 @@ export const TodoList: React.FC<TodoListProps> = ({
         {/* 已完成的任务 */}
         {showCompleted && completedTodosInList.length > 0 && (
           <TodoGroup
-            title="✓ Completed"
+            title={`✓ ${t('todo.completed')}`}
             todos={completedTodosInList}
             selectedIndex={selectedIndex}
             startIndex={currentIndex}
@@ -253,7 +254,7 @@ export const TodoList: React.FC<TodoListProps> = ({
         {enableKeyboardNav && (
           <Box marginTop={1}>
             <Text dimColor color="gray">
-              Use ↑↓ to navigate
+              {t('todo.navHint')}
             </Text>
           </Box>
         )}
@@ -265,7 +266,7 @@ export const TodoList: React.FC<TodoListProps> = ({
   return (
     <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1} marginY={1}>
       <Text bold color="cyan">
-        Tasks
+        {t('todo.title')}
       </Text>
 
       {showProgressBar && (
@@ -289,7 +290,7 @@ export const TodoList: React.FC<TodoListProps> = ({
       {enableKeyboardNav && (
         <Box marginTop={1}>
           <Text dimColor color="gray">
-            Use ↑↓ to navigate
+            {t('todo.navHint')}
           </Text>
         </Box>
       )}

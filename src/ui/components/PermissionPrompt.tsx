@@ -25,6 +25,7 @@ import * as path from 'path';
 import { restoreCursorAfterDialog } from '../utils/terminal.js';
 import type { QuickPermissionMode } from './Input.js';
 import { convertFullwidthToHalfwidth, charToDigit } from '../../utils/index.js';
+import { t } from '../../i18n/index.js';
 
 // 重新导出 QuickPermissionMode 类型以便其他模块使用
 export type { QuickPermissionMode };
@@ -116,39 +117,39 @@ export const PermissionPrompt: React.FC<PermissionPromptProps> = ({
   const options = useMemo(() => {
     const opts = [
       {
-        label: 'Yes, allow once',
+        label: t('permission.allowOnce'),
         key: 'y',
         scope: 'once' as PermissionScope,
         allowed: true,
-        description: 'Allow this operation one time only',
+        description: t('permission.allowOnceDesc'),
       },
       {
-        label: 'No, deny',
+        label: t('permission.deny'),
         key: 'n',
         scope: 'once' as PermissionScope,
         allowed: false,
-        description: 'Deny this operation',
+        description: t('permission.denyDesc'),
       },
       {
-        label: 'Allow for this session',
+        label: t('permission.allowSession'),
         key: 's',
         scope: 'session' as PermissionScope,
         allowed: true,
-        description: 'Remember until program exits',
+        description: t('permission.allowSessionDesc'),
       },
       {
-        label: 'Always allow (remember)',
+        label: t('permission.allowAlways'),
         key: 'A',
         scope: 'always' as PermissionScope,
         allowed: true,
-        description: 'Persist to config file',
+        description: t('permission.allowAlwaysDesc'),
       },
       {
-        label: 'Never allow (remember)',
+        label: t('permission.neverAllow'),
         key: 'N',
         scope: 'never' as PermissionScope,
         allowed: false,
-        description: 'Persist denial to config file',
+        description: t('permission.neverAllowDesc'),
       },
     ];
     return opts;
@@ -365,13 +366,13 @@ export const PermissionPrompt: React.FC<PermissionPromptProps> = ({
 
     const maxLength = 80;
     let displayResource = resource;
-    let label = 'Resource';
+    let label = t('permission.resource.default');
 
     switch (type) {
       case 'file_read':
       case 'file_write':
       case 'file_delete':
-        label = 'File';
+        label = t('permission.resource.file');
         // 显示相对路径（如果可能）
         try {
           const cwd = process.cwd();
@@ -383,13 +384,13 @@ export const PermissionPrompt: React.FC<PermissionPromptProps> = ({
         }
         break;
       case 'bash_command':
-        label = 'Command';
+        label = t('permission.resource.command');
         break;
       case 'network_request':
-        label = 'URL';
+        label = t('permission.resource.url');
         break;
       case 'mcp_server':
-        label = 'Server';
+        label = t('permission.resource.server');
         break;
     }
 
@@ -428,18 +429,18 @@ export const PermissionPrompt: React.FC<PermissionPromptProps> = ({
   // 获取权限类型图标和颜色
   const getTypeDisplay = () => {
     const displays: Record<PermissionType, { icon: string; color: string; label: string }> = {
-      file_read: { icon: '📖', color: 'cyan', label: 'File Read' },
-      file_write: { icon: '✏️ ', color: 'yellow', label: 'File Write' },
-      file_delete: { icon: '🗑️ ', color: 'red', label: 'File Delete' },
-      bash_command: { icon: '⚡', color: 'magenta', label: 'Bash Command' },
-      network_request: { icon: '🌐', color: 'blue', label: 'Network Request' },
-      mcp_server: { icon: '🔌', color: 'green', label: 'MCP Server' },
-      plugin_install: { icon: '📦', color: 'yellow', label: 'Plugin Install' },
-      system_config: { icon: '⚙️ ', color: 'red', label: 'System Config' },
-      elevated_command: { icon: '🔐', color: 'red', label: '管理员权限' },  // v2.1.28
+      file_read: { icon: '📖', color: 'cyan', label: t('permission.type.fileRead') },
+      file_write: { icon: '✏️ ', color: 'yellow', label: t('permission.type.fileWrite') },
+      file_delete: { icon: '🗑️ ', color: 'red', label: t('permission.type.fileDelete') },
+      bash_command: { icon: '⚡', color: 'magenta', label: t('permission.type.bashCommand') },
+      network_request: { icon: '🌐', color: 'blue', label: t('permission.type.networkRequest') },
+      mcp_server: { icon: '🔌', color: 'green', label: t('permission.type.mcpServer') },
+      plugin_install: { icon: '📦', color: 'yellow', label: t('permission.type.pluginInstall') },
+      system_config: { icon: '⚙️ ', color: 'red', label: t('permission.type.systemConfig') },
+      elevated_command: { icon: '🔐', color: 'red', label: t('permission.type.elevatedCommand') },
     };
 
-    return displays[type] || { icon: '🔧', color: 'white', label: 'Unknown' };
+    return displays[type] || { icon: '🔧', color: 'white', label: t('permission.type.unknown') };
   };
 
   const typeDisplay = getTypeDisplay();
@@ -455,7 +456,7 @@ export const PermissionPrompt: React.FC<PermissionPromptProps> = ({
       {/* 标题行 */}
       <Box>
         <Text color={isDangerous ? 'red' : 'yellow'} bold>
-          {isDangerous ? '⚠️  DANGEROUS OPERATION - Permission Required' : '🔐 Permission Required'}
+          {isDangerous ? `⚠️  ${t('permission.titleDangerous')}` : `🔐 ${t('permission.title')}`}
         </Text>
       </Box>
 
@@ -483,7 +484,7 @@ export const PermissionPrompt: React.FC<PermissionPromptProps> = ({
       {rememberedPatterns.length > 0 && (
         <Box marginTop={1}>
           <Text color="green" dimColor>
-            ℹ  Similar patterns already remembered: {rememberedPatterns.join(', ')}
+            ℹ  {t('permission.similarPatterns', { patterns: rememberedPatterns.join(', ') })}
           </Text>
         </Box>
       )}
@@ -492,7 +493,7 @@ export const PermissionPrompt: React.FC<PermissionPromptProps> = ({
       {isDangerous && !isElevated && (
         <Box marginTop={1} paddingX={1} borderStyle="single" borderColor="red">
           <Text color="red" bold>
-            ⚠️  WARNING: This operation could be destructive!
+            ⚠️  {t('permission.warningDestructive')}
           </Text>
         </Box>
       )}
@@ -501,14 +502,14 @@ export const PermissionPrompt: React.FC<PermissionPromptProps> = ({
       {isElevated && (
         <Box marginTop={1} paddingX={1} borderStyle="double" borderColor="yellow" flexDirection="column">
           <Text color="yellow" bold>
-            🔐 需要管理员权限
+            🔐 {t('permission.elevated.title')}
           </Text>
           <Text color="gray">
             {process.platform === 'win32'
-              ? '批准后将弹出 Windows UAC 对话框'
+              ? t('permission.elevated.win32')
               : process.platform === 'darwin'
-              ? '批准后将弹出 macOS 密码输入对话框'
-              : '批准后需要输入 sudo 密码'}
+              ? t('permission.elevated.darwin')
+              : t('permission.elevated.linux')}
           </Text>
         </Box>
       )}
@@ -547,7 +548,7 @@ export const PermissionPrompt: React.FC<PermissionPromptProps> = ({
         <Box marginTop={2} flexDirection="column">
           <Box>
             <Text color="yellow" bold>
-              Provide feedback (optional):
+              {t('permission.feedbackPrompt')}
             </Text>
           </Box>
           <Box marginTop={1} borderStyle="single" borderColor="gray" paddingX={1}>
@@ -564,7 +565,7 @@ export const PermissionPrompt: React.FC<PermissionPromptProps> = ({
           </Box>
           <Box marginTop={1}>
             <Text color="gray" dimColor>
-              Enter: submit and deny · ESC: cancel
+              {t('permission.feedbackHint')}
             </Text>
           </Box>
         </Box>
@@ -577,19 +578,19 @@ export const PermissionPrompt: React.FC<PermissionPromptProps> = ({
           {/* 主操作提示 */}
           <Box justifyContent="space-between">
             <Text color="gray" dimColor>
-              ↑/↓ navigate · enter select · shortcut key
+              {t('permission.footerNav')}
             </Text>
             <Text color="cyan" dimColor>
-              Tab: auto-complete
+              {t('permission.footerTab')}
             </Text>
           </Box>
           {/* Shift+Tab 快捷键提示 - 官方 v2.1.2 功能 */}
           <Box justifyContent="space-between">
             <Text color="gray" dimColor>
-              y: allow once · n: deny · s: session
+              {t('permission.footerShortcuts')}
             </Text>
             <Text color="cyan" dimColor>
-              Shift+Tab: mode switch
+              {t('permission.footerShiftTab')}
             </Text>
           </Box>
         </Box>
@@ -599,7 +600,7 @@ export const PermissionPrompt: React.FC<PermissionPromptProps> = ({
       {quickMode !== 'default' && (
         <Box marginTop={1}>
           <Text color="green" bold>
-            {quickMode === 'acceptEdits' ? '✓ Auto-accept edits mode' : '✓ Plan mode'}
+            {quickMode === 'acceptEdits' ? `✓ ${t('permission.autoAcceptEdits')}` : `✓ ${t('permission.planMode')}`}
           </Text>
         </Box>
       )}

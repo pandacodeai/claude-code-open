@@ -3,6 +3,7 @@ import App from './App';
 import SwarmConsole from './pages/SwarmConsole/index.tsx';
 import BlueprintPage from './pages/BlueprintPage';
 import TopNavBar from './components/swarm/TopNavBar';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { ProjectProvider, useProject } from './contexts/ProjectContext';
 import type { Session, SessionActions } from './types';
 
@@ -123,28 +124,34 @@ function RootContent() {
       <div style={{ flex: 1, overflow: 'hidden', minHeight: 0, display: 'flex' }}>
         {/* 所有页面始终挂载，通过 display:none 隐藏非活跃页面，避免切换时丢失状态和 WebSocket 连接 */}
         <div style={pageStyle('chat')}>
-          <App
-            onNavigateToBlueprint={navigateToBlueprintPage}
-            onNavigateToSwarm={navigateToSwarmPage}
-            onNavigateToCode={navigateToCodePage}
-            showCodePanel={showCodePanel}
-            onToggleCodePanel={toggleCodePanel}
-            showSettings={showSettings}
-            onCloseSettings={() => setShowSettings(false)}
-            onSessionsChange={setSessions}
-            onSessionIdChange={setCurrentSessionId}
-            onConnectedChange={setConnected}
-            registerSessionActions={handleRegisterSessionActions}
-          />
+          <ErrorBoundary name="Chat">
+            <App
+              onNavigateToBlueprint={navigateToBlueprintPage}
+              onNavigateToSwarm={navigateToSwarmPage}
+              onNavigateToCode={navigateToCodePage}
+              showCodePanel={showCodePanel}
+              onToggleCodePanel={toggleCodePanel}
+              showSettings={showSettings}
+              onCloseSettings={() => setShowSettings(false)}
+              onSessionsChange={setSessions}
+              onSessionIdChange={setCurrentSessionId}
+              onConnectedChange={setConnected}
+              registerSessionActions={handleRegisterSessionActions}
+            />
+          </ErrorBoundary>
         </div>
         <div style={pageStyle('swarm')}>
-          <SwarmConsole initialBlueprintId={swarmBlueprintId} />
+          <ErrorBoundary name="Swarm Console">
+            <SwarmConsole initialBlueprintId={swarmBlueprintId} />
+          </ErrorBoundary>
         </div>
         <div style={pageStyle('blueprint')}>
-          <BlueprintPage
-            initialBlueprintId={selectedBlueprintId}
-            onNavigateToSwarm={navigateToSwarmPage}
-          />
+          <ErrorBoundary name="Blueprint">
+            <BlueprintPage
+              initialBlueprintId={selectedBlueprintId}
+              onNavigateToSwarm={navigateToSwarmPage}
+            />
+          </ErrorBoundary>
         </div>
       </div>
     </div>
@@ -156,8 +163,10 @@ function RootContent() {
  */
 export default function Root() {
   return (
-    <ProjectProvider>
-      <RootContent />
-    </ProjectProvider>
+    <ErrorBoundary name="Application">
+      <ProjectProvider>
+        <RootContent />
+      </ProjectProvider>
+    </ErrorBoundary>
   );
 }

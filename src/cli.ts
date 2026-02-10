@@ -310,6 +310,10 @@ program
       }
     }
 
+    // i18n 初始化：从 settings.json 的 language 字段读取语言偏好
+    const { initI18n } = await import('./i18n/index.js');
+    await initI18n(settingsConfig.language);
+
     // v2.1.32: 将 --add-dir 传递给 Skill 模块以自动加载额外目录的 skills
     if (options.addDir && Array.isArray(options.addDir)) {
       const { setAdditionalDirectories } = await import('./tools/skill.js');

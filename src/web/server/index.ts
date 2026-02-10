@@ -66,13 +66,29 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<vo
   const conversationManager = new ConversationManager(cwd, model);
   await conversationManager.initialize();
 
+  // 检测开发模式（需要在 CORS 配置之前）
+  const isDev = process.env.NODE_ENV !== 'production' && !process.argv[1]?.includes('dist');
+
   // 中间件
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true }));
 
-  // CORS 配置
+  // CORS 配置：开发模式全开，生产模式限制为同源
   app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
+    if (isDev) {
+      res.header('Access-Control-Allow-Origin', '*');
+    } else {
+      // 生产模式：只允许同源请求，不设置 Access-Control-Allow-Origin
+      // 浏览器同源请求不需要 CORS 头
+      const origin = req.headers.origin;
+      if (origin) {
+        const requestHost = new URL(origin).host;
+        const serverHost = `${host === '0.0.0.0' ? 'localhost' : host}:${port}`;
+        if (requestHost === serverHost || requestHost === `localhost:${port}` || requestHost === `127.0.0.1:${port}`) {
+          res.header('Access-Control-Allow-Origin', origin);
+        }
+      }
+    }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     if (req.method === 'OPTIONS') {
@@ -113,8 +129,7 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<vo
   const aiHoverRouter = await import('./routes/ai-hover.js');
   app.use('/api/ai-hover', aiHoverRouter.default);
 
-  // 检测开发模式
-  const isDev = process.env.NODE_ENV !== 'production' && !process.argv[1]?.includes('dist');
+  // 前端静态文件路径
   const clientPath = path.join(__dirname, '../client');
   const clientDistPath = path.join(clientPath, 'dist');
 

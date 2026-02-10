@@ -914,6 +914,16 @@ body {
   max-width: 1000px;
   margin: 0 auto;
   z-index: 20;
+  /* 自动隐藏动画 */
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 自动隐藏状态：向下滑出，类似操作系统任务栏 */
+.input-area.auto-hidden {
+  transform: translateY(calc(100% - 4px));
+  opacity: 0;
+  pointer-events: none;
 }
 
 .input-container {

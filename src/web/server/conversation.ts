@@ -40,6 +40,11 @@ import {
   isSessionMemoryEnabled,
 } from '../../context/session-memory.js';
 import { initNotebookManager, getNotebookManager } from '../../memory/notebook.js';
+import { registerMcpServer, connectMcpServer, createMcpTools, getMcpServers, callMcpTool, type McpToolDefinition } from '../../tools/mcp.js';
+import { getChromeIntegrationConfig } from '../../chrome-mcp/index.js';
+import { CHROME_MCP_TOOLS } from '../../chrome-mcp/tools.js';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // ============================================================================
 // 网络错误重试相关常量
@@ -275,6 +280,11 @@ interface SessionState {
   needsHistoryResend?: boolean;
   /** 用于取消正在执行的工具（如 Bash 命令）的 AbortController */
   currentAbortController?: AbortController;
+  /** 正在流式生成的助手消息内容（用于浏览器刷新后恢复中间状态） */
+  streamingContent?: {
+    thinkingText: string;
+    textContent: string;
+  };
 }
 
 /**
@@ -288,6 +298,14 @@ export class ConversationManager {
   private mcpConfigManager: McpConfigManager;
   private unifiedMemory: UnifiedMemory;
   private options?: { verbose?: boolean };
+  /** Chrome MCP 系统提示（与官方 wbA() 一致） */
+  private chromeSystemPrompt?: string;
+  /**
+   * MCP 工具列表（与官方 mcp.tools 对应）
+   * 官方架构：内置工具(registry) + MCP工具(state) 分离管理，查询时合并
+   * 对应官方 LM6() / DV6() 合并逻辑
+   */
+  private mcpTools: Array<{ name: string; description: string; inputSchema: any; isMcp?: boolean }> = [];
 
   constructor(cwd: string, defaultModel: string = 'opus', options?: { verbose?: boolean }) {
     this.cwd = cwd;
@@ -332,8 +350,125 @@ export class ConversationManager {
     // Skills 会在 SkillTool 第一次执行时延迟初始化
     // 此时在 runWithCwd 上下文中，可以正确获取工作目录
 
+    // 【与官方架构一致】加载 Chrome MCP 集成
+    // 官方模式：Chrome MCP 工具放入 mcp.tools（state），不注册到 toolRegistry
+    // 通过 registerMcpServer() 预注册到 MCP 服务器映射，使 McpTool.execute() 可用
+    try {
+      const chromeConfig = await getChromeIntegrationConfig();
+      if (chromeConfig) {
+        for (const [name, config] of Object.entries(chromeConfig.mcpConfig)) {
+          try {
+            configManager.addMcpServer(name, config as any);
+          } catch {
+            // 可能已存在，忽略
+          }
+          // 注册到 MCP 服务器映射（预加载工具定义，使执行时可用）
+          registerMcpServer(name, config as any, CHROME_MCP_TOOLS as any);
+          // 将工具定义加入 mcpTools（对应官方 mcp.tools state）
+          for (const tool of (CHROME_MCP_TOOLS as any[])) {
+            this.mcpTools.push({
+              name: `mcp__${name}__${tool.name}`,
+              description: tool.description || '',
+              inputSchema: tool.inputSchema || { type: 'object', properties: {} },
+              isMcp: true,
+            });
+          }
+        }
+        this.chromeSystemPrompt = chromeConfig.systemPrompt;
+        console.log(`[ConversationManager] Chrome MCP 工具已加载 (${this.mcpTools.length} tools)`);
+      }
+    } catch (error) {
+      console.warn('[ConversationManager] Chrome 集成加载失败:', error);
+    }
+
+    // 【与 CLI cli.ts:382-391 一致】自动加载并连接所有配置的 MCP 服务器
+    try {
+      await this.initializeAllMcpServers();
+    } catch (error) {
+      console.warn('[ConversationManager] MCP 服务器初始化失败:', error);
+    }
+
     // 确保工具已注册
     console.log(`[ConversationManager] 已注册 ${toolRegistry.getAll().length} 个工具`);
+  }
+
+  /**
+   * 初始化所有配置的 MCP 服务器
+   * 官方模式：连接服务器后，工具定义放入 mcpTools（state），不注册到 toolRegistry
+   * 对应官方 useManageMcpConnections hook (e8q) 的状态更新逻辑
+   */
+  private async initializeAllMcpServers(): Promise<void> {
+    const mcpServerConfigs = configManager.getMcpServers();
+    const serverNames = Object.keys(mcpServerConfigs);
+    if (serverNames.length === 0) return;
+
+    const disabledServers = this.getDisabledMcpServers();
+    let connectedCount = 0;
+    let failedCount = 0;
+
+    const connectionPromises = serverNames.map(async (name) => {
+      const config = mcpServerConfigs[name];
+      if (disabledServers.includes(name)) return;
+
+      try {
+        registerMcpServer(name, config);
+        const connected = await connectMcpServer(name);
+        if (connected) {
+          connectedCount++;
+          // 获取工具定义并加入 mcpTools（对应官方 state 更新）
+          const tools = await createMcpTools(name);
+          for (const tool of tools) {
+            this.mcpTools.push({
+              name: tool.name,
+              description: tool.description,
+              inputSchema: tool.getInputSchema(),
+              isMcp: true,
+            });
+          }
+        } else {
+          failedCount++;
+        }
+      } catch {
+        failedCount++;
+      }
+    });
+
+    await Promise.all(connectionPromises);
+
+    if (connectedCount > 0 || failedCount > 0) {
+      console.log(`[ConversationManager] MCP: ${connectedCount} connected, ${failedCount} failed`);
+    }
+  }
+
+  /**
+   * 获取禁用的 MCP 服务器列表（与 CLI cli.ts:2610-2636 一致）
+   */
+  private getDisabledMcpServers(): string[] {
+    try {
+      const homeDir = process.env.HOME || process.env.USERPROFILE || '~';
+      const globalDir = process.env.CLAUDE_CONFIG_DIR || path.join(homeDir, '.claude');
+      const configPaths = [
+        path.join(this.cwd, '.claude', 'settings.local.json'),
+        path.join(this.cwd, '.claude', 'settings.json'),
+        path.join(globalDir, 'settings.json'),
+      ];
+      for (const configPath of configPaths) {
+        try {
+          if (fs.existsSync(configPath)) {
+            const content = fs.readFileSync(configPath, 'utf-8');
+            const config = JSON.parse(content);
+            if (config.disabledMcpServers && Array.isArray(config.disabledMcpServers)) {
+              return config.disabledMcpServers;
+            }
+          }
+        } catch {
+          // 忽略单个文件读取错误
+        }
+      }
+    } catch {
+      // 忽略
+    }
+    return [];
   }
 
   /**
@@ -545,6 +680,24 @@ export class ConversationManager {
   }
 
   /**
+   * 获取实时历史记录（用于浏览器刷新恢复）
+   * 当会话正在处理中时，chatHistory 可能不完整（缺少工具调用的中间 turn），
+   * 此方法从 state.messages 实时构建完整历史，确保所有中间步骤都能显示。
+   */
+  getLiveHistory(sessionId: string): ChatMessage[] {
+    const state = this.sessions.get(sessionId);
+    if (!state) return [];
+
+    // 如果会话不在处理中，chatHistory 应该是完整的
+    if (!state.isProcessing) {
+      return state.chatHistory;
+    }
+
+    // 会话处理中：从 messages 实时构建，确保包含所有中间工具调用 turn
+    return this.convertMessagesToChatHistory(state.messages);
+  }
+
+  /**
    * 清除历史
    */
   clearHistory(sessionId: string): void {
@@ -583,9 +736,10 @@ export class ConversationManager {
       if (state.isProcessing && state.ws && state.ws !== ws && state.ws.readyState === 1 /* OPEN */) {
         console.warn(`[ConversationManager] 会话 ${sessionId} 正在处理中，WebSocket 被新连接替换（可能是页面刷新或多标签页）`);
       }
-      // 如果会话正在处理中，标记需要在处理完成后重发 history
+      // 如果会话正在处理中且 WebSocket 实际发生了变化（页面刷新），标记完成后重发 history
       // 因为刷新后客户端没有 currentMessageRef
-      if (state.isProcessing) {
+      // 注意：插话（interrupt）场景下 ws 是同一个连接，不应设置此标记
+      if (state.isProcessing && state.ws !== ws) {
         state.needsHistoryResend = true;
         console.log(`[ConversationManager] 会话 ${sessionId} 处理中 ws 被替换，标记完成后重发 history`);
       }
@@ -615,6 +769,14 @@ export class ConversationManager {
       return true;
     }
     return false;
+  }
+
+  /**
+   * 获取会话正在流式生成的中间内容（用于浏览器刷新后恢复）
+   */
+  getStreamingContent(sessionId: string): { thinkingText: string; textContent: string } | undefined {
+    const state = this.sessions.get(sessionId);
+    return state?.streamingContent;
   }
 
   /**
@@ -660,6 +822,8 @@ export class ConversationManager {
     if (state) {
       state.permissionHandler.updateConfig(config);
       console.log(`[ConversationManager] 权限配置已更新 (session: ${sessionId}):`, config);
+    } else {
+      console.warn(`[ConversationManager] 权限配置更新失败: 会话 ${sessionId} 不存在 (config: ${JSON.stringify(config)})`);
     }
   }
 
@@ -755,11 +919,8 @@ export class ConversationManager {
         for (const attachment of mediaAttachments) {
           chatContentItems.push({
             type: 'image' as const,
-            source: {
-              type: 'base64',
-              media_type: attachment.mimeType,
-              data: attachment.data,
-            },
+            mediaType: attachment.mimeType,
+            data: attachment.data,
           });
         }
       }
@@ -813,6 +974,9 @@ export class ConversationManager {
       // 标记本次迭代是否已有内容流式输出到前端
       // 如果有内容已输出，则不进行自动重试（避免前端内容重复）
       let hasStreamedContent = false;
+
+      // 初始化流式中间内容追踪（用于浏览器刷新后恢复）
+      state.streamingContent = { thinkingText: '', textContent: '' };
 
       // OAuth Token 自动刷新检查（在调用 API 之前）
       try {
@@ -920,6 +1084,10 @@ export class ConversationManager {
                 thinkingStarted = true;
               }
               if (event.thinking) {
+                // 追踪 thinking 内容（用于浏览器刷新恢复）
+                if (state.streamingContent) {
+                  state.streamingContent.thinkingText += event.thinking;
+                }
                 callbacks.onThinkingDelta?.(event.thinking);
               }
               break;
@@ -932,6 +1100,10 @@ export class ConversationManager {
               if (event.text) {
                 hasStreamedContent = true;
                 currentTextContent += event.text;
+                // 追踪 text 内容（用于浏览器刷新恢复）
+                if (state.streamingContent) {
+                  state.streamingContent.textContent += event.text;
+                }
                 callbacks.onTextDelta?.(event.text);
               }
               break;
@@ -1124,6 +1296,9 @@ export class ConversationManager {
             },
           };
           state.chatHistory.push(assistantChatEntry);
+
+          // 流式内容已完成，清除中间追踪（不再需要刷新恢复）
+          state.streamingContent = undefined;
 
           // WAL：追加聊天历史条目
           if (sessionId) {
@@ -1613,7 +1788,11 @@ export class ConversationManager {
   ): Promise<{ success: boolean; output?: string; error?: string; data?: ToolResultData; newMessages?: Array<{ role: 'user'; content: any[] }> }> {
     const tool = toolRegistry.get(toolUse.name);
 
-    if (!tool) {
+    // MCP 工具不在 toolRegistry 中，通过 mcpTools state 管理
+    // 对应官方架构：MCP 工具通过 callMcpTool() 直接执行
+    const isMcpTool = !tool && toolUse.name.startsWith('mcp__');
+
+    if (!tool && !isMcpTool) {
       const error = `未知工具: ${toolUse.name}`;
       callbacks.onToolResult?.(toolUse.id, false, undefined, error);
       return { success: false, error };
@@ -1938,8 +2117,38 @@ export class ConversationManager {
         }
       }
 
-      // 执行其他工具
-      const result = await tool.execute(toolUse.input);
+      // MCP 工具执行：解析 mcp__{serverName}__{toolName} 格式，调用 callMcpTool()
+      if (isMcpTool) {
+        const parts = toolUse.name.split('__');
+        // 格式: mcp__{serverName}__{toolName}
+        const mcpServerName = parts[1];
+        const mcpToolName = parts.slice(2).join('__');
+
+        if (!mcpServerName || !mcpToolName) {
+          const error = `Invalid MCP tool name format: ${toolUse.name}`;
+          callbacks.onToolResult?.(toolUse.id, false, undefined, error);
+          return { success: false, error };
+        }
+
+        const mcpResult = await callMcpTool(mcpServerName, mcpToolName, toolUse.input);
+        const mcpOutput = mcpResult.output || mcpResult.error || JSON.stringify(mcpResult);
+        const truncatedMcpOutput = mcpOutput.length > 50000
+          ? mcpOutput.slice(0, 50000) + '\n... (输出已截断)'
+          : mcpOutput;
+
+        // PostToolUse Hook
+        try {
+          await runPostToolUseHooks(toolUse.name, toolUse.input, truncatedMcpOutput, hookSessionId);
+        } catch (hookError) {
+          console.warn(`[Hook] PostToolUse hook 执行失败:`, hookError);
+        }
+
+        callbacks.onToolResult?.(toolUse.id, mcpResult.success, truncatedMcpOutput, mcpResult.error ? mcpResult.error : undefined);
+        return { success: mcpResult.success, output: truncatedMcpOutput, error: mcpResult.error };
+      }
+
+      // 执行其他工具（内置 registry 工具）
+      const result = await tool!.execute(toolUse.input);
 
       // 构建结构化数据
       const data = this.buildToolResultData(toolUse.name, toolUse.input, result);
@@ -2339,6 +2548,16 @@ export class ConversationManager {
         // 笔记本加载失败不影响主流程
       }
 
+      // 构建 MCP 服务器信息（用于 getMcpInstructions）
+      const mcpServerInfos: Array<{ name: string; type: string; instructions?: string }> = [];
+      for (const [name, server] of getMcpServers()) {
+        mcpServerInfos.push({
+          name,
+          type: server.connected ? 'connected' : 'disconnected',
+          instructions: (server.config as any)?.instructions,
+        });
+      }
+
       // 构建提示上下文（与 CLI loop.ts 保持一致）
       const promptContext = {
         workingDir: state.session.cwd,
@@ -2355,6 +2574,8 @@ export class ConversationManager {
         language: configManager.get('language'),
         // Agent 笔记本内容
         notebookSummary,
+        // MCP 服务器信息（用于系统提示中的 MCP 指令）
+        mcpServers: mcpServerInfos.length > 0 ? mcpServerInfos : undefined,
       };
 
       // 使用官方的 SystemPromptBuilder
@@ -2368,6 +2589,11 @@ export class ConversationManager {
       console.warn('[ConversationManager] Failed to build system prompt, using default:', error);
       // 降级到默认提示
       prompt = this.getDefaultSystemPrompt();
+    }
+
+    // 【与 CLI cli.ts:397-398 一致】如果 Chrome 集成已启用，前置 Chrome 系统提示
+    if (this.chromeSystemPrompt) {
+      prompt = `${this.chromeSystemPrompt}\n\n${prompt}`;
     }
 
     // 如果有追加提示，添加到默认提示后
@@ -2489,17 +2715,23 @@ Guidelines:
     const state = this.sessions.get(sessionId);
     const config = state?.toolFilterConfig || { mode: 'all' };
 
-    const allTools = toolRegistry.getAll();
+    // 内置工具
+    const builtinTools = toolRegistry.getAll().map(tool => ({
+      name: tool.name,
+      description: tool.description,
+      enabled: this.isToolEnabled(tool.name, config),
+      category: this.getToolCategory(tool.name),
+    }));
 
-    return allTools.map(tool => {
-      const enabled = this.isToolEnabled(tool.name, config);
-      return {
-        name: tool.name,
-        description: tool.description,
-        enabled,
-        category: this.getToolCategory(tool.name),
-      };
-    });
+    // MCP 工具
+    const mcpToolInfos = this.mcpTools.map(tool => ({
+      name: tool.name,
+      description: tool.description,
+      enabled: this.isToolEnabled(tool.name, config),
+      category: 'mcp' as string,
+    }));
+
+    return [...builtinTools, ...mcpToolInfos];
   }
 
   /**
@@ -2585,19 +2817,41 @@ Guidelines:
     const state = this.sessions.get(sessionId);
     const config = state?.toolFilterConfig || { mode: 'all' };
 
+    // 1. 内置工具（来自 toolRegistry，对应官方 C0(ctx)）
     const allTools = toolRegistry.getAll();
-
-    // 根据配置过滤工具，同时排除 Chat Tab 不适用的工具
-    const filteredTools = allTools.filter(tool =>
+    const filteredBuiltinTools = allTools.filter(tool =>
       this.isToolEnabled(tool.name, config) &&
       !ConversationManager.CHAT_EXCLUDED_TOOLS.has(tool.name)
     );
 
-    return filteredTools.map(tool => ({
+    const builtinDefs = filteredBuiltinTools.map(tool => ({
       name: tool.name,
       description: tool.description,
       inputSchema: tool.getInputSchema(),
     }));
+
+    // 2. MCP 工具（来自 mcpTools state，对应官方 JQ1(mcp.tools, ctx)）
+    const filteredMcpTools = this.mcpTools.filter(tool =>
+      this.isToolEnabled(tool.name, config)
+    );
+
+    const mcpDefs = filteredMcpTools.map(tool => ({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: tool.inputSchema,
+    }));
+
+    // 3. 合并并去重（对应官方 LM6() / DV6()：$x([...builtinTools, ...mcpTools], "name")）
+    const seen = new Set<string>();
+    const merged: any[] = [];
+    for (const tool of [...builtinDefs, ...mcpDefs]) {
+      if (!seen.has(tool.name)) {
+        seen.add(tool.name);
+        merged.push(tool);
+      }
+    }
+
+    return merged;
   }
 
   // ============ 会话持久化方法 ============
@@ -2784,8 +3038,8 @@ Guidelines:
             const imgBlock = block as any;
             chatMsg.content.push({
               type: 'image',
-              source: imgBlock.source,
-              fileName: imgBlock.fileName,
+              mediaType: imgBlock.source?.media_type || 'image/png',
+              data: imgBlock.source?.data || '',
             });
           } else if (block.type === 'tool_use') {
             const toolBlock = block as ToolUseBlock;

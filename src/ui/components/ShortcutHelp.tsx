@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { Box, Text } from 'ink';
+import { t } from '../../i18n/index.js';
 
 interface Shortcut {
   key: string;
@@ -19,32 +20,32 @@ interface ShortcutHelpProps {
 
 const SHORTCUTS: Shortcut[] = [
   // 导航
-  { key: '?', description: 'Show/hide this help', category: 'General' },
-  { key: 'Ctrl+C', description: 'Cancel current operation / Exit', category: 'General' },
-  { key: 'Ctrl+L', description: 'Clear screen', category: 'General' },
-  { key: 'Escape', description: 'Cancel / Go back', category: 'General' },
+  { key: '?', description: t('shortcut.showHelp'), category: t('shortcut.category.general') },
+  { key: 'Ctrl+C', description: t('shortcut.cancel'), category: t('shortcut.category.general') },
+  { key: 'Ctrl+L', description: t('shortcut.clearScreen'), category: t('shortcut.category.general') },
+  { key: 'Escape', description: t('shortcut.goBack'), category: t('shortcut.category.general') },
 
   // 输入
-  { key: 'Enter', description: 'Submit message', category: 'Input' },
-  { key: '↑/↓', description: 'Navigate history', category: 'Input' },
-  { key: 'Tab', description: 'Autocomplete command', category: 'Input' },
-  { key: 'Ctrl+G', description: 'Open in external editor', category: 'Input' },
+  { key: 'Enter', description: t('shortcut.submit'), category: t('shortcut.category.input') },
+  { key: '↑/↓', description: t('shortcut.navigateHistory'), category: t('shortcut.category.input') },
+  { key: 'Tab', description: t('shortcut.autocomplete'), category: t('shortcut.category.input') },
+  { key: 'Ctrl+G', description: t('shortcut.externalEditor'), category: t('shortcut.category.input') },
 
   // 模型
-  { key: 'Alt+P', description: 'Switch model (opus → sonnet → haiku)', category: 'Model' },
-  { key: 'Ctrl+M', description: 'Switch model (alternative)', category: 'Model' },
+  { key: 'Alt+P', description: t('shortcut.switchModel'), category: t('shortcut.category.model') },
+  { key: 'Ctrl+M', description: t('shortcut.switchModelAlt'), category: t('shortcut.category.model') },
 
   // 任务管理
-  { key: 'Ctrl+B', description: 'Move current task to background', category: 'Tasks' },
-  { key: 'Ctrl+T', description: 'Show/hide todos', category: 'Tasks' },
+  { key: 'Ctrl+B', description: t('shortcut.backgroundTask'), category: t('shortcut.category.tasks') },
+  { key: 'Ctrl+T', description: t('shortcut.toggleTodos'), category: t('shortcut.category.tasks') },
 
   // 命令
-  { key: '/help', description: 'Show all commands', category: 'Commands' },
-  { key: '/clear', description: 'Clear conversation', category: 'Commands' },
-  { key: '/compact', description: 'Compact conversation history', category: 'Commands' },
-  { key: '/model', description: 'Switch model', category: 'Commands' },
-  { key: '/status', description: 'Show session status', category: 'Commands' },
-  { key: '/doctor', description: 'Run diagnostics', category: 'Commands' },
+  { key: '/help', description: t('shortcut.showCommands'), category: t('shortcut.category.commands') },
+  { key: '/clear', description: t('shortcut.clearConversation'), category: t('shortcut.category.commands') },
+  { key: '/compact', description: t('shortcut.compactHistory'), category: t('shortcut.category.commands') },
+  { key: '/model', description: t('shortcut.switchModelCmd'), category: t('shortcut.category.commands') },
+  { key: '/status', description: t('shortcut.showStatus'), category: t('shortcut.category.commands') },
+  { key: '/doctor', description: t('shortcut.runDiagnostics'), category: t('shortcut.category.commands') },
 ];
 
 export const ShortcutHelp: React.FC<ShortcutHelpProps> = ({ isVisible, onClose }) => {
@@ -63,10 +64,10 @@ export const ShortcutHelp: React.FC<ShortcutHelpProps> = ({ isVisible, onClose }
     >
       <Box justifyContent="space-between" marginBottom={1}>
         <Text color="cyan" bold>
-          ⌨️  Keyboard Shortcuts
+          ⌨️  {t('shortcut.title')}
         </Text>
         <Text color="gray" dimColor>
-          Press ? or Esc to close
+          {t('shortcut.closeHint')}
         </Text>
       </Box>
 
@@ -94,7 +95,7 @@ export const ShortcutHelp: React.FC<ShortcutHelpProps> = ({ isVisible, onClose }
 
       <Box marginTop={1}>
         <Text color="gray" dimColor>
-          Tip: Type /help for all available slash commands
+          {t('shortcut.tip')}
         </Text>
       </Box>
     </Box>

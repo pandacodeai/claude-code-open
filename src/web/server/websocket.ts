@@ -1691,7 +1691,7 @@ function sendMessage(ws: WebSocket, message: ServerMessage): void {
     ws.send(JSON.stringify(message));
   } else {
     // 记录丢弃的消息类型，便于排查消息丢失问题
-    const sessionId = (message.payload as any)?.sessionId || '';
+    const sessionId = ('payload' in message ? (message.payload as any)?.sessionId : '') || '';
     console.warn(`[WebSocket] 消息被丢弃 (ws.readyState=${ws.readyState}): type=${message.type}, session=${sessionId}`);
   }
 }
@@ -2742,8 +2742,9 @@ async function handleSessionSwitch(
         client.projectPath = sessionData.metadata.projectPath;
       }
 
-      // 获取会话历史
-      const history = conversationManager.getHistory(sessionId);
+      // 获取会话历史（使用 getLiveHistory：处理中时从 messages 实时构建，确保工具调用中间 turn 不丢失）
+      const history = conversationManager.getLiveHistory(sessionId);
+      console.log(`[WebSocket] handleSessionSwitch: sessionId=${sessionId}, history.length=${history.length}, isProcessing=${conversationManager.isSessionProcessing(sessionId)}`);
 
       sendMessage(ws, {
         type: 'session_switched',
@@ -2769,16 +2770,48 @@ async function handleSessionSwitch(
         } as any);
       }
 
-      // 如果会话正在处理中（如页面刷新），通知客户端当前状态
-      // 关键修复：补发 message_start，让客户端建立 currentMessageRef
-      // 否则后续的流式事件 (text_delta, tool_use_start 等) 因为 currentMessageRef 为 null 而被丢弃
+      // 如果会话正在处理中（如页面刷新），恢复流式状态
+      // 补发 message_start + 已累积的内容，让客户端立即显示已生成的内容
       const isProcessing = conversationManager.isSessionProcessing(sessionId);
       if (isProcessing) {
+        const resumeMessageId = `resume-${Date.now()}`;
         // 补发 message_start，客户端收到后会创建 currentMessageRef
         sendMessage(ws, {
           type: 'message_start',
-          payload: { messageId: `resume-${Date.now()}`, sessionId },
+          payload: { messageId: resumeMessageId, sessionId },
         });
+
+        // 获取已累积的流式中间内容，补发给客户端
+        // 这样用户刷新后能立即看到 API 已经生成的内容，而不是空气泡
+        const streamingContent = conversationManager.getStreamingContent(sessionId);
+        if (streamingContent) {
+          // 补发 thinking 内容（如果有）
+          if (streamingContent.thinkingText) {
+            sendMessage(ws, {
+              type: 'thinking_start',
+              payload: { messageId: resumeMessageId, sessionId },
+            });
+            sendMessage(ws, {
+              type: 'thinking_delta',
+              payload: { messageId: resumeMessageId, text: streamingContent.thinkingText, sessionId },
+            });
+            // 如果已有 text 内容，说明 thinking 已经结束
+            if (streamingContent.textContent) {
+              sendMessage(ws, {
+                type: 'thinking_complete',
+                payload: { messageId: resumeMessageId, sessionId },
+              });
+            }
+          }
+          // 补发 text 内容（如果有）
+          if (streamingContent.textContent) {
+            sendMessage(ws, {
+              type: 'text_delta',
+              payload: { messageId: resumeMessageId, text: streamingContent.textContent, sessionId },
+            });
+          }
+        }
+
         sendMessage(ws, {
           type: 'status',
           payload: { status: 'streaming', message: '对话处理中...', sessionId },

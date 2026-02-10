@@ -7,6 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text } from 'ink';
 import { useTerminalWidth } from '../hooks/useTerminalSize.js';
 import { isDemoMode } from '../../utils/env-check.js';
+import { t } from '../../i18n/index.js';
 
 interface WelcomeScreenProps {
   version: string;
@@ -108,10 +109,10 @@ const formatTimeAgo = (timestamp: string): string => {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${diffDays}d ago`;
+  if (diffMins < 1) return t('welcome.justNow');
+  if (diffMins < 60) return t('welcome.minutesAgo', { count: diffMins });
+  if (diffHours < 24) return t('welcome.hoursAgo', { count: diffHours });
+  return t('welcome.daysAgo', { count: diffDays });
 };
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
@@ -150,8 +151,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
   // 欢迎消息
   const welcomeMessage = username
-    ? `Welcome back ${username}!`
-    : 'Welcome to Claude Code!';
+    ? t('welcome.welcomeBack', { username })
+    : t('welcome.welcomeTo');
 
   // 格式化工作目录 (截断过长路径)
   const formatCwd = (path: string, maxLen: number) => {
@@ -228,7 +229,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         <Box flexDirection="column" width={rightPanelWidth}>
           {/* Recent Activity */}
           <Box flexDirection="column" marginBottom={1}>
-            <Text color={claudeColor} bold>Recent activity</Text>
+            <Text color={claudeColor} bold>{t('welcome.recentActivity')}</Text>
             {recentActivity.length > 0 ? (
               <>
                 {recentActivity.slice(0, 2).map((activity, i) => (
@@ -238,22 +239,22 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     <Text>{truncateText(activity.description, rightPanelWidth - 12)}</Text>
                   </Text>
                 ))}
-                <Text dimColor italic>/resume for more</Text>
+                <Text dimColor italic>{t('welcome.resumeForMore')}</Text>
               </>
             ) : (
-              <Text dimColor>No recent activity</Text>
+              <Text dimColor>{t('welcome.noRecentActivity')}</Text>
             )}
           </Box>
 
           {/* What's new */}
           <Box flexDirection="column">
-            <Text color={claudeColor} bold>What's new</Text>
+            <Text color={claudeColor} bold>{t('welcome.whatsNew')}</Text>
             {displayWhatsNew.slice(0, 3).map((item, i) => (
               <Text key={i} dimColor>
                 {truncateText(item, rightPanelWidth - 2)}
               </Text>
             ))}
-            <Text dimColor italic>/release-notes for more</Text>
+            <Text dimColor italic>{t('welcome.releaseNotes')}</Text>
           </Box>
         </Box>
       </Box>

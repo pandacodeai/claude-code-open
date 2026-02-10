@@ -11,7 +11,9 @@
       "Bash(docker*)",
       "Write(*.sh)",
       "Write(*.bat)",
-      "Edit(*.yml)"
+      "Edit(*.yml)",
+      "Write(*.md)",
+      "Write(*.ts)"
     ],
     "deny": []
   }

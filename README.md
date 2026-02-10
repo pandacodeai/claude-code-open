@@ -1,12 +1,13 @@
-# The world needs an open-source Claude Code.It will become the foundational infrastructure of AI in the future, running on every PC.
+# The world needs an open-source Claude Code. It will become the foundational infrastructure of AI in the future, running on every PC.
 
 [![Website](https://img.shields.io/badge/Website-claude--code--open.vercel.app-blue?style=flat-square)](https://www.chatbi.site)
 [![GitHub Stars](https://img.shields.io/github/stars/kill136/claude-code-open?style=flat-square)](https://github.com/kill136/claude-code-open)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+[![Node](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-brightgreen?style=flat-square)](https://nodejs.org)
 
-🌐 **[visit website](https://www.chatbi.site)** | 📖 **[中文文档](README.zh-CN.md)**
+[visit website](https://www.chatbi.site) | [中文文档](README.zh-CN.md)
 
-A reverse-engineered restoration based on `@anthropic-ai/claude-code` v2.1.29.
+A reverse-engineered restoration based on `@anthropic-ai/claude-code` v2.1.37.
 
 **For educational and research purposes only.**
 
@@ -18,6 +19,23 @@ For the official Claude Code, please install the official version:
 ```bash
 npm install -g @anthropic-ai/claude-code
 ```
+
+## Features at a Glance
+
+- **29+ Built-in Tools** - File ops, search, execution, web access, task management, and more
+- **Web UI** - Full-featured browser interface with React frontend and WebSocket communication
+- **Blueprint Multi-Agent System** - Lead agent, autonomous workers, task queue, and real-time coordination
+- **Internationalization (i18n)** - Chinese and English language support
+- **Unified Memory System** - Vector store, BM25 search, intent extraction, conversation memory
+- **MCP Protocol** - Full Model Context Protocol support with auto-discovery
+- **Multi-Provider** - Anthropic, AWS Bedrock, Google Vertex AI
+- **Extended Thinking** - Extended reasoning mode support
+- **Fast Mode** - Penguin mode for faster responses
+- **Proxy Server** - Share your Claude subscription across devices
+- **WeChat Bot** - WeChat messaging integration
+- **Docker Support** - Containerized deployment
+- **Teams** - Team collaboration features
+- **Plugin & Hook System** - Extensible architecture with lifecycle hooks
 
 ## Installation
 
@@ -32,7 +50,34 @@ npm run build
 npm link
 ```
 
+### Docker Deployment
+
+```bash
+# Build Docker image
+docker build -t claude-code-open .
+
+# For users in China (with mirror acceleration)
+docker build --build-arg REGISTRY=docker.1ms.run -t claude-code-open .
+
+# Run CLI
+docker run -it \
+  -e ANTHROPIC_API_KEY=your-api-key \
+  -v $(pwd):/workspace \
+  -v ~/.claude:/root/.claude \
+  claude-code-open
+
+# Run Web UI
+docker run -it \
+  -e ANTHROPIC_API_KEY=your-api-key \
+  -p 3456:3456 \
+  -v $(pwd):/workspace \
+  -v ~/.claude:/root/.claude \
+  claude-code-open node /app/dist/web-cli.js --host 0.0.0.0
+```
+
 ## Usage
+
+### CLI Mode
 
 ```bash
 # Interactive mode
@@ -44,14 +89,59 @@ node dist/cli.js
 # With initial prompt
 node dist/cli.js "Hello, please analyze this project"
 
-# Print mode
+# Print mode (non-interactive)
 node dist/cli.js -p "Explain this code"
 
-# Specify model
+# Specify model (opus/sonnet/haiku)
 node dist/cli.js -m opus "Complex task"
 
 # Resume last session
 node dist/cli.js --resume
+
+# List sessions
+node dist/cli.js --list
+
+# Fork a session
+node dist/cli.js --fork <session-id>
+```
+
+### Web UI Mode
+
+```bash
+# Development mode
+npm run web
+
+# Production mode
+npm run web:start
+
+# Custom port and host
+npm run web -- -p 8080 -H 0.0.0.0
+
+# With ngrok public tunnel
+npm run web -- --ngrok
+```
+
+### Proxy Server Mode
+
+Share your Claude subscription with other devices:
+
+```bash
+# Start proxy server
+npm run proxy
+# or after building
+node dist/proxy-cli.js --proxy-key my-secret
+
+# Client usage (on other devices)
+export ANTHROPIC_API_KEY="my-secret"
+export ANTHROPIC_BASE_URL="http://your-server-ip:8082"
+claude
+```
+
+### WeChat Bot Mode
+
+```bash
+# Start WeChat bot
+npm run wechat
 ```
 
 ## Configuration
@@ -61,359 +151,231 @@ Set up your API key:
 **Linux/macOS:**
 ```bash
 export ANTHROPIC_API_KEY=your-api-key
-# or
-export CLAUDE_API_KEY=your-api-key
-```
-
-**Windows Command Prompt:**
-```cmd
-set ANTHROPIC_API_KEY=your-api-key
-# or
-set CLAUDE_API_KEY=your-api-key
 ```
 
 **Windows PowerShell:**
 ```powershell
 $env:ANTHROPIC_API_KEY="your-api-key"
-# or
-$env:CLAUDE_API_KEY="your-api-key"
 ```
 
 ### Environment Variables
 
-| Variable                        | Description            | Default |
-| ------------------------------- | ---------------------- | ------- |
-| `ANTHROPIC_API_KEY`             | API Key                | -       |
-| `BASH_MAX_OUTPUT_LENGTH`        | Max Bash output length | 30000   |
-| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | Max output tokens      | 32000   |
-| `CLAUDE_TELEMETRY_ENABLED`      | Enable telemetry       | true    |
+| Variable | Description | Default |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` / `CLAUDE_API_KEY` | API Key | - |
+| `CLAUDE_CODE_LANG` | Language (en/zh) | auto-detect |
+| `BASH_MAX_OUTPUT_LENGTH` | Max Bash output length | 30000 |
+| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | Max output tokens | 32000 |
+| `USE_BUILTIN_RIPGREP` | Use system ripgrep | false |
+
+### Multi-Provider Support
+
+In addition to Anthropic's direct API, the project supports:
+
+- **AWS Bedrock** - Set `ANTHROPIC_BEDROCK=1` and configure AWS credentials
+- **Google Vertex AI** - Set `ANTHROPIC_VERTEX=1` and configure GCP credentials
 
 ## Project Structure
 
 ```
 src/
-├── index.ts                # Main export barrel
 ├── cli.ts                  # CLI entry point (Commander.js)
+├── web-cli.ts              # Web UI entry point
+├── proxy-cli.ts            # Proxy server entry point
+├── wechat-cli.ts           # WeChat bot entry point
+├── index.ts                # Main export barrel
+│
 ├── core/                   # Core engine
 │   ├── client.ts           # Anthropic API client (streaming, retry, cost)
 │   ├── session.ts          # Session state management
 │   ├── loop.ts             # Conversation orchestrator
-│   └── context.ts          # Context management & summarization
-├── tools/                  # 25+ tools
+│   └── backgroundTasks.ts  # Async background task processing
+│
+├── tools/                  # 29+ tools
+│   ├── base.ts             # BaseTool class & ToolRegistry
 │   ├── bash.ts             # Bash execution (sandbox support)
 │   ├── file.ts             # Read/Write/Edit/MultiEdit
 │   ├── search.ts           # Glob/Grep search
 │   ├── web.ts              # WebFetch/WebSearch
 │   ├── todo.ts             # TodoWrite task management
-│   ├── agent.ts            # Task/TaskOutput sub-agents
+│   ├── task-v2.ts          # Task sub-agents (v2)
 │   ├── notebook.ts         # Jupyter Notebook editing
 │   ├── planmode.ts         # EnterPlanMode/ExitPlanMode
-│   ├── mcp.ts              # MCP protocol (ListMcpResources/ReadMcpResource)
+│   ├── mcp.ts              # MCP protocol tools
 │   ├── ask.ts              # AskUserQuestion
 │   ├── tmux.ts             # Tmux multi-terminal (Linux/macOS)
 │   ├── skill.ts            # Skill system
-│   ├── lsp.ts              # LSP integration (diagnostics, hover, references)
-│   └── sandbox.ts          # Bubblewrap sandbox (Linux)
-├── ui/                     # Ink/React UI framework
-│   ├── App.tsx             # Main app component
-│   └── components/         # Reusable UI components
-│       ├── Spinner.tsx
-│       ├── Message.tsx
-│       ├── ToolCall.tsx
-│       ├── TodoList.tsx
-│       ├── PermissionPrompt.tsx
-│       └── StatusBar.tsx
+│   ├── lsp.ts              # LSP integration
+│   └── blueprint/          # Blueprint multi-agent tools
+│
+├── web/                    # Web UI system
+│   ├── server/             # Express + WebSocket backend
+│   │   ├── index.ts        # Server entry
+│   │   ├── websocket.ts    # WebSocket handler
+│   │   ├── conversation.ts # Conversation manager
+│   │   ├── session-manager.ts
+│   │   ├── auth-manager.ts # Authentication
+│   │   ├── routes/         # API routes
+│   │   └── handlers/       # Request handlers
+│   └── client/             # React frontend
+│       └── src/
+│           ├── App.tsx
+│           ├── components/ # UI components
+│           ├── hooks/      # Custom hooks
+│           └── contexts/   # React contexts
+│
+├── blueprint/              # Blueprint multi-agent system
+│   ├── smart-planner.ts    # Intelligent task planner
+│   ├── lead-agent.ts       # Lead agent coordinator
+│   ├── autonomous-worker.ts # Autonomous worker
+│   ├── task-queue.ts       # Task priority queue
+│   ├── task-reviewer.ts    # Quality reviewer
+│   ├── realtime-coordinator.ts # Real-time coordination
+│   └── model-selector.ts   # Adaptive model selection
+│
 ├── agents/                 # Specialized sub-agents
-│   ├── explore.ts          # Codebase exploration agent
-│   ├── plan.ts             # Implementation planning agent
-│   └── guide.ts            # Claude Code documentation agent
-├── auth/                   # Authentication
-│   ├── oauth.ts            # OAuth flow
-│   └── api-key.ts          # API key management
-├── session/                # Session persistence
-│   ├── manager.ts          # Session lifecycle
-│   ├── storage.ts          # Disk persistence (~/.claude/sessions/)
-│   └── export.ts           # Markdown export
-├── context/                # Context management
-│   ├── estimator.ts        # Token estimation
-│   ├── compressor.ts       # Message summarization
-│   └── budget.ts           # Token budget tracking
-├── parser/                 # Code parsing
-│   ├── tree-sitter.ts      # Tree-sitter WASM integration
-│   └── languages/          # Language-specific parsers
-├── search/                 # Search utilities
-│   ├── ripgrep.ts          # Vendored ripgrep binary
-│   └── glob.ts             # File pattern matching
-├── hooks/                  # Hook system
-│   ├── registry.ts         # Hook registration
-│   └── executor.ts         # Hook execution
-├── mcp/                    # MCP protocol
-│   ├── client.ts           # MCP client
-│   ├── server.ts           # MCP server connection
-│   └── registry.ts         # MCP server registry
+│   ├── explore.ts          # Codebase exploration
+│   ├── plan.ts             # Implementation planning
+│   ├── guide.ts            # Documentation guide
+│   ├── parallel.ts         # Parallel execution
+│   ├── monitor.ts          # Monitoring agent
+│   └── resume.ts           # Session resume agent
+│
+├── memory/                 # Unified memory system
+│   ├── unified-memory.ts   # Memory manager
+│   ├── chat-memory.ts      # Conversation memory
+│   ├── vector-store.ts     # Vector storage
+│   ├── bm25-engine.ts      # BM25 text search
+│   ├── embedder.ts         # Embedding model
+│   └── intent-extractor.ts # Intent extraction
+│
+├── i18n/                   # Internationalization
+│   ├── index.ts            # t() function, initialization
+│   └── locales/            # en.ts, zh.ts
+│
+├── teams/                  # Team management
+├── mcp/                    # MCP protocol (full implementation)
 ├── permissions/            # Permission system
-│   ├── manager.ts          # Permission requests
-│   └── modes.ts            # Permission modes (accept/bypass/plan)
-├── config/                 # Configuration
-│   ├── loader.ts           # Load from ~/.claude/settings.json
-│   └── env.ts              # Environment variable handling
-├── telemetry/              # Telemetry
-│   ├── collector.ts        # Event collection
-│   └── analytics.ts        # Local analytics (not uploaded)
-├── skills/                 # Skills system
-│   ├── loader.ts           # Load from ~/.claude/skills/
-│   └── registry.ts         # Skill registration
-├── commands/               # Slash commands
-│   ├── registry.ts         # Command registration
-│   └── builtin/            # Built-in commands (/help, /clear, etc.)
+├── session/                # Session persistence
+├── context/                # Context management & summarization
+├── config/                 # Configuration management
+├── models/                 # Model config (Anthropic/Bedrock/Vertex)
+├── hooks/                  # Hook system
 ├── plugins/                # Plugin system
-│   ├── manager.ts          # Plugin lifecycle
-│   └── loader.ts           # Plugin discovery
-├── models/                 # Model configuration
-│   ├── registry.ts         # Model definitions
-│   └── pricing.ts          # Token pricing
-├── network/                # Network utilities
-│   ├── proxy.ts            # Proxy support
-│   └── retry.ts            # Retry logic
+├── commands/               # Slash commands
+├── auth/                   # Authentication (API Key + OAuth)
+├── parser/                 # Code parsing (Tree-sitter WASM)
+├── search/                 # Search (ripgrep integration)
+├── proxy/                  # Proxy server
+├── providers/              # Cloud providers (Anthropic/Bedrock/Vertex)
+├── fast-mode/              # Fast mode / Penguin mode
+├── lsp/                    # Language Server Protocol
+├── ui/                     # Terminal UI (Ink/React)
 ├── streaming/              # Streaming I/O
-│   ├── parser.ts           # JSON message streaming
-│   └── writer.ts           # Stream writing
-├── security/               # Security features
-│   ├── validator.ts        # Input validation
-│   └── sanitizer.ts        # Output sanitization
+├── telemetry/              # Local telemetry
 ├── types/                  # TypeScript definitions
-│   ├── tools.ts            # Tool types
-│   ├── session.ts          # Session types
-│   └── config.ts           # Configuration types
 └── utils/                  # Utility functions
-    ├── fs.ts               # File system helpers
-    ├── path.ts             # Path utilities
-    └── time.ts             # Time formatting
 ```
 
-## Implemented Tools (25+)
+## Implemented Tools (29+)
 
-| Tool                   | Status         | Description                                                                    |
-| ---------------------- | -------------- | ------------------------------------------------------------------------------ |
-| **File Operations**    |                |                                                                                |
-| Read                   | ✅ Complete     | File reading with image/PDF/Notebook support + external modification detection |
-| Write                  | ✅ Complete     | File writing with overwrite protection                                         |
-| Edit                   | ✅ Complete     | File editing (string replacement)                                              |
-| MultiEdit              | ✅ Complete     | Batch file editing (atomic operations)                                         |
-| **Search & Discovery** |                |                                                                                |
-| Glob                   | ✅ Complete     | File pattern matching                                                          |
-| Grep                   | ✅ Complete     | Content search (ripgrep-based) with official output format                     |
-| **Execution**          |                |                                                                                |
-| Bash                   | ✅ Complete     | Command execution with background & sandbox support                            |
-| TaskOutput             | ✅ Complete     | Get background command/agent output (unified UUID/task_id format)              |
-| KillShell              | ✅ Complete     | Terminate background processes                                                 |
-| **Web Access**         |                |                                                                                |
-| WebFetch               | ✅ Complete     | Web page fetching with caching                                                 |
-| WebSearch              | ⚠️ Needs config | Web search (requires API configuration)                                        |
-| **Task Management**    |                |                                                                                |
-| TodoWrite              | ✅ Complete     | Task management with auto-reminder system                                      |
-| Task                   | ✅ Complete     | Sub-agents (explore, plan, guide, etc.)                                        |
-| **Planning**           |                |                                                                                |
-| EnterPlanMode          | ✅ Complete     | Enter plan mode with permission system                                         |
-| ExitPlanMode           | ✅ Complete     | Exit plan mode                                                                 |
-| **Interaction**        |                |                                                                                |
-| AskUserQuestion        | ✅ Complete     | Ask user questions (multiSelect, options, validation)                          |
-| **Code Tools**         |                |                                                                                |
-| NotebookEdit           | ✅ Complete     | Jupyter Notebook cell editing (replace/insert/delete)                          |
-| LSP*                   | ✅ Complete     | Language Server Protocol integration (diagnostics, hover, references)          |
-| **Integration**        |                |                                                                                |
-| ListMcpResources       | ✅ Complete     | List MCP resources                                                             |
-| ReadMcpResource        | ✅ Complete     | Read MCP resource                                                              |
-| Skill                  | ✅ Complete     | Skill system with args parameter and permission checks                         |
-| **Terminal**           |                |                                                                                |
-| Tmux                   | ✅ Complete     | Multi-terminal session management (Linux/macOS)                                |
+| Tool | Status | Description |
+| --- | --- | --- |
+| **File Operations** | | |
+| Read | Complete | File reading with image/PDF/Notebook support + external modification detection |
+| Write | Complete | File writing with overwrite protection |
+| Edit | Complete | File editing (string replacement) |
+| MultiEdit | Complete | Batch file editing (atomic operations) |
+| **Search & Discovery** | | |
+| Glob | Complete | File pattern matching |
+| Grep | Complete | Content search (ripgrep-based) with official output format |
+| **Execution** | | |
+| Bash | Complete | Command execution with background & sandbox support |
+| TaskOutput | Complete | Get background command/agent output (unified UUID/task_id format) |
+| KillShell | Complete | Terminate background processes |
+| **Web Access** | | |
+| WebFetch | Complete | Web page fetching with caching |
+| WebSearch | Complete | Server-side web search |
+| **Task Management** | | |
+| TodoWrite | Complete | Task management with auto-reminder system |
+| Task | Complete | Sub-agents (explore, plan, guide, etc.) |
+| **Planning** | | |
+| EnterPlanMode | Complete | Enter plan mode with permission system |
+| ExitPlanMode | Complete | Exit plan mode |
+| **Interaction** | | |
+| AskUserQuestion | Complete | Ask user questions (multiSelect, options, validation) |
+| **Code Tools** | | |
+| NotebookEdit | Complete | Jupyter Notebook cell editing (replace/insert/delete) |
+| LSP | Complete | Language Server Protocol integration |
+| **Integration** | | |
+| MCP Tools | Complete | ListMcpResources, ReadMcpResource, MCPSearch |
+| Skill | Complete | Skill system with args parameter and permission checks |
+| **Terminal** | | |
+| Tmux | Complete | Multi-terminal session management (Linux/macOS) |
+| **Multi-Agent** | | |
+| Blueprint Tools | Complete | GenerateBlueprint, StartLeadAgent, DispatchWorker, etc. |
+| Teammate | Complete | Team collaboration tools |
 
-*LSP tools available when language servers are configured
+## Key Features
 
-## Features
+### Web UI
 
-### OAuth Authentication
-
-Supports both API Key and OAuth authentication:
-
-```typescript
-import { initAuth, startOAuthLogin, setApiKey } from './auth';
-
-// Using API Key
-setApiKey('your-api-key', true); // true for persistence
-
-// Or using OAuth login
-await startOAuthLogin({
-  clientId: 'your-client-id',
-  scope: ['read', 'write'],
-});
-```
-
-### Session Persistence & Recovery
-
-Automatic conversation saving and restoration:
-
-```typescript
-import { SessionManager, listSessions, loadSession } from './session';
-
-const manager = new SessionManager({ autoSave: true });
-
-// Start new session or resume
-const session = manager.start({
-  model: 'claude-sonnet-4-20250514',
-  resume: true, // Try to resume last session
-});
-
-// List all sessions
-const sessions = listSessions({ limit: 10 });
-
-// Export as Markdown
-const markdown = manager.export();
-```
-
-### Context Management
-
-Intelligent context compression and summarization:
-
-```typescript
-import { ContextManager, estimateTokens } from './context';
-
-const context = new ContextManager({
-  maxTokens: 180000,
-  summarizeThreshold: 0.7, // Start compressing at 70%
-  keepRecentMessages: 10,
-});
-
-// Add conversation turn
-context.addTurn(userMessage, assistantMessage);
-
-// Get optimized messages
-const messages = context.getMessages();
-
-// Manual compaction
-context.compact();
-```
-
-### Code Parser
-
-Multi-language code analysis support:
-
-```typescript
-import { parseFile, parseCode, detectLanguage } from './parser';
-
-// Detect language
-const lang = detectLanguage('app.tsx'); // 'typescript'
-
-// Parse file
-const parsed = parseFile('/path/to/file.ts');
-console.log(parsed.classes);    // Class definitions
-console.log(parsed.functions);  // Function definitions
-console.log(parsed.imports);    // Import statements
-console.log(parsed.exports);    // Export statements
-```
-
-Supported languages: JavaScript, TypeScript, Python, Go, Rust, Java, C/C++, Ruby, PHP, Swift, Kotlin, Scala, etc.
-
-### Vendored Ripgrep
-
-Built-in ripgrep support, no system installation required:
-
-```typescript
-import { search, listFiles, getRipgrepVersion } from './search/ripgrep';
-
-// Search content
-const results = await search({
-  pattern: 'function.*async',
-  glob: '*.ts',
-  ignoreCase: true,
-});
-
-// List files
-const files = await listFiles({
-  glob: '**/*.tsx',
-  hidden: false,
-});
-```
-
-### Telemetry & Analytics
-
-Local usage statistics (data is not uploaded):
-
-```typescript
-import { telemetry, getTelemetryStats } from './telemetry';
-
-// Record session
-telemetry.startSession('claude-sonnet-4-20250514');
-telemetry.recordMessage('user', 100);
-telemetry.recordToolCall('Bash', true, 50);
-telemetry.endSession();
-
-// Get statistics
-const stats = getTelemetryStats();
-console.log(stats.totalSessions);
-console.log(stats.totalTokens);
-```
-
-### Ink/React UI Framework
-
-Complete terminal UI component system:
-- `Spinner` - Loading animations
-- `ToolCall` - Tool call display
-- `Message` - Message display
-- `Input` - Input box
-- `Header` - Header bar
-- `TodoList` - Task list
-- `PermissionPrompt` - Permission confirmation
-- `StatusBar` - Status bar
-
-### Sandbox Support (Bubblewrap)
-
-**Linux only:** If `bubblewrap` is installed, Bash commands will execute in a sandbox for enhanced security:
+A full-featured browser-based interface built with React and Express:
 
 ```bash
-# Ubuntu/Debian
-sudo apt install bubblewrap
-
-# Arch Linux
-sudo pacman -S bubblewrap
+npm run web
+# Open http://localhost:3456
 ```
 
-**Note for Windows/macOS users:**
-- Bubblewrap sandbox is only available on Linux
-- Windows and macOS users can use WSL (Windows Subsystem for Linux) to enable sandbox support
-- Alternatively, commands will run without sandboxing (use with caution)
+Features:
+- Real-time WebSocket communication
+- Session management and persistence
+- Blueprint visualization
+- Code browser with syntax highlighting
+- Swarm multi-agent console
+- Terminal integration
+- OAuth and API key authentication
 
-Sandbox can be disabled with `dangerouslyDisableSandbox: true` parameter.
+### Blueprint Multi-Agent System
 
-### Hooks System
+Orchestrate complex tasks with multiple AI agents:
 
-Execute custom scripts before/after tool calls:
+- **Smart Planner** - Intelligent task decomposition and planning
+- **Lead Agent** - Coordinates worker agents and tracks progress
+- **Autonomous Workers** - Independent task execution
+- **Task Queue** - Priority-based task scheduling
+- **Task Reviewer** - Quality assurance and verification
+- **Real-time Coordinator** - Agent communication and synchronization
+- **Model Selector** - Adaptive model selection per task complexity
 
-```json
-// .claude/settings.json
-{
-  "hooks": [
-    {
-      "event": "PreToolUse",
-      "matcher": "Bash",
-      "command": "/path/to/script.sh",  // Linux/macOS: .sh, Windows: .bat or .ps1
-      "blocking": true
-    }
-  ]
-}
+### Internationalization (i18n)
+
+Built-in support for Chinese and English:
+
+```bash
+# Set language via environment variable
+export CLAUDE_CODE_LANG=zh
+
+# Or configure in settings.json
+{ "language": "zh" }
 ```
 
-Supported events:
-- `PreToolUse` - Before tool call
-- `PostToolUse` - After tool call
-- `PrePromptSubmit` - Before submission
-- `PostPromptSubmit` - After submission
-- `Notification` - Notifications
-- `Stop` - Stop
+Detection priority: `settings.json` > `CLAUDE_CODE_LANG` > system locale > default (en)
 
-### MCP Protocol Support
+### Unified Memory System
 
-Connect to MCP (Model Context Protocol) servers:
+Persistent memory across conversations:
+
+- **Vector Store** - Semantic similarity search
+- **BM25 Engine** - Full-text search
+- **Chat Memory** - Conversation history
+- **Intent Extractor** - Understanding user intent
+- **Link Memory** - URL and reference tracking
+- **Identity Memory** - User context persistence
+
+### MCP Protocol
+
+Full Model Context Protocol implementation:
 
 ```json
 // .claude/settings.json
@@ -422,249 +384,105 @@ Connect to MCP (Model Context Protocol) servers:
     "filesystem": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path"]  // Use absolute path
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path"]
     }
   }
 }
 ```
 
-**Path examples:**
-- Linux/macOS: `"/home/user/projects"` or `"/Users/user/projects"`
-- Windows: `"C:\\Users\\user\\projects"` (use double backslashes in JSON)
+Supports stdio, HTTP, and SSE transports with auto-discovery.
 
-### Tmux Multi-terminal
+### Proxy Server
 
-**Linux/macOS only:** Manage multiple terminal sessions:
-```javascript
-// Create session
-{ action: "new", session_name: "dev-server" }
+Share your Claude subscription across devices:
 
-// Send command
-{ action: "send", session_name: "dev-server", command: "npm run dev" }
-
-// Capture output
-{ action: "capture", session_name: "dev-server" }
-```
-
-**Note for Windows users:**
-- Tmux is not available natively on Windows
-- Use WSL (Windows Subsystem for Linux) to access Tmux
-- Alternative: Use Windows Terminal with multiple tabs/panes
-
-### Skills & Custom Commands
-
-Load from the following directories:
-- **Linux/macOS:** `~/.claude/skills/` and `.claude/commands/`
-- **Windows:** `%USERPROFILE%\.claude\skills\` and `.claude\commands\`
-
-Features:
-- Skills: Reusable prompt templates
-- Slash Commands: Custom command extensions
-
-### Enhanced API Client
-
-- Exponential backoff retry (up to 4 times)
-- Automatic cost calculation
-- Token usage statistics
-- Multi-model pricing support
-
-### Proxy Server (Share Your Subscription) 🔥
-
-Share your Claude subscription with other devices via a transparent proxy server.
-
-**Quick Start:**
 ```bash
-# Build first
-npm run build
-
-# Start proxy server (auto-detect local credentials)
 node dist/proxy-cli.js --proxy-key my-secret
-
-# Or specify API key manually
-node dist/proxy-cli.js --proxy-key my-secret --anthropic-key sk-ant-xxx
 ```
 
-**Client Usage (on other devices):**
-```bash
-# Linux/macOS
-export ANTHROPIC_API_KEY="my-secret"
-export ANTHROPIC_BASE_URL="http://your-server-ip:8082"
-claude
+Key features:
+- Auto token refresh for expired OAuth tokens
+- Billing header preservation
+- Beta header management
+- Identity injection
+- Transparent SSE streaming forwarding
+- `/health` and `/stats` endpoints
 
-# Windows PowerShell
-$env:ANTHROPIC_API_KEY="my-secret"
-$env:ANTHROPIC_BASE_URL="http://your-server-ip:8082"
-claude
-```
+### Hooks System
 
-**OAuth Credentials Configuration:**
-
-The proxy automatically reads OAuth credentials from `~/.claude/.credentials.json`:
+Execute custom scripts before/after tool calls:
 
 ```json
 {
-  "claudeAiOauth": {
-    "accessToken": "your-access-token",
-    "refreshToken": "sk-ant-ort01-xxx",
-    "expiresAt": 1770324445878,
-    "scopes": ["user:inference", "user:profile", "user:sessions:claude_code"],
-    "subscriptionType": null,
-    "rateLimitTier": null
-  },
-  "oauthAccount": {
-    "accountUuid": "your-account-uuid"
-  }
+  "hooks": [
+    {
+      "event": "PreToolUse",
+      "matcher": "Bash",
+      "command": "/path/to/script.sh",
+      "blocking": true
+    }
+  ]
 }
 ```
 
-**Key Features:**
-- ✅ **Auto Token Refresh** - Automatically refreshes expired OAuth tokens
-- ✅ **Billing Header Preservation** - Maintains proper `x-anthropic-billing-header` block structure
-- ✅ **Beta Header Management** - Correctly handles `prompt-caching-scope` and `oauth` betas
-- ✅ **Identity Injection** - Ensures Claude Code identity is properly placed (after billing header)
-- ✅ **Transparent Forwarding** - Full SSE streaming support, no response modification
+Events: `PreToolUse`, `PostToolUse`, `PrePromptSubmit`, `PostPromptSubmit`, `Notification`, `Stop`
 
-**Endpoints:**
-- `/health` - Health check with token status
-- `/stats` - Request statistics
+### Extended Thinking
+
+Support for Claude's extended reasoning mode, enabling deeper analysis and more thorough problem-solving.
+
+### Fast Mode
+
+Penguin mode for faster responses using the same model with optimized output speed. Toggle with `/fast`.
+
+### Sandbox Support (Bubblewrap)
+
+**Linux only:** Bash commands execute in a sandboxed environment for enhanced security.
+
+```bash
+# Ubuntu/Debian
+sudo apt install bubblewrap
+```
 
 ## Slash Commands
 
-- `/help` - Show help
-- `/clear` - Clear conversation history
-- `/save` - Save session
-- `/stats` - Show statistics
-- `/tools` - List tools
-- `/model` - Switch model
-- `/resume` - Resume session
-- `/compact` - Compress context
-- `/exit` - Exit
+| Command | Description |
+| --- | --- |
+| `/help` | Show help |
+| `/clear` | Clear conversation history |
+| `/status` | Show session status |
+| `/resume` | Resume a previous session |
+| `/context` | Show context usage |
+| `/compact` | Compress conversation history |
+| `/rename` | Rename current session |
+| `/export` | Export session (JSON/Markdown) |
+| `/transcript` | Export session transcript |
+| `/config` | View configuration |
+| `/tools` | List available tools |
+| `/model` | View/switch model |
+| `/fast` | Toggle fast mode |
+| `/exit` | Exit |
 
 ## Testing
 
-This project includes comprehensive testing:
-
 ```bash
-# Run all tests
-npm test
-
-# Run with UI
-npm run test:ui
-
-# Run specific test suites
-npm run test:unit          # Unit tests
-npm run test:integration   # Integration tests
-npm run test:e2e          # End-to-end tests
-
-# Run with coverage
-npm run test:coverage
-
-# Watch mode
-npm run test:watch
+npm test                    # Run all tests (vitest)
+npm run test:unit           # Unit tests only
+npm run test:integration    # Integration tests
+npm run test:e2e            # End-to-end CLI tests
+npm run test:coverage       # Run with coverage report
+npm run test:watch          # Watch mode
+npm run test:ui             # Vitest UI
 ```
-
-### Test Structure
-- **Unit Tests** (`src/**/*.test.ts`) - Individual component tests
-- **Integration Tests** (`tests/integration/`) - Multi-component interaction tests
-- **E2E Tests** (`tests/e2e/`) - Full CLI workflow tests
-- **Tool Tests** (`tests/tools/`) - Individual tool functionality tests
-
-## Recent Improvements
-
-### v2.1.27 Enhancements (Latest) 🔥
-
-**Proxy Server OAuth Fix - Critical Bug Resolution:**
-- ✅ **Billing Header Block Preservation** - Fixed proxy corrupting `x-anthropic-billing-header` block structure
-  - **Root Cause**: Proxy was prepending Claude Code identity to the billing header block, breaking API validation
-  - **Fix**: Identity injection now skips billing header blocks and inserts identity as a separate block after billing header
-  - API error "This credential is only authorized for use with Claude Code" is now resolved
-- ✅ **Beta Header Management** - v4 forward path now correctly removes `prompt-caching-scope` beta
-  - Aligned with `buildForwardHeaders()` logic to prevent cache_control format mismatch
-- 📁 Files modified: [server.ts](src/proxy/server.ts#L598-L632) (identity injection), [server.ts](src/proxy/server.ts#L919-L932) (beta filtering)
-
-### v2.1.14 Enhancements 🎉
-
-**Core Features:**
-- ✅ **Bash History Autocomplete** ⭐ - Type partial command + Tab to complete from bash/zsh history
-  - Reads system history files (~/.bash_history, ~/.zsh_history)
-  - Dual-source integration (UI session + system history)
-  - Smart priority ranking (recent UI commands prioritized)
-  - Maximum 15 suggestions (aligned with official vx0=15)
-  - Performance optimized with 60s caching and deduplication
-
-**UI Improvements:**
-- ✅ **Plugin Search** - Real-time search in installed plugins list (type to filter by name/description)
-- ✅ **Git SHA Pinning** - Pin plugins to specific git commit SHAs for exact version control
-
-**Critical Fixes:**
-- ✅ **Context Window Blocking** - Fixed regression: blocking threshold increased from 65% to 98%
-- ✅ **Memory Leaks** - Fixed parallel sub-agent crashes and shell stream resource cleanup
-- ✅ **@ Symbol in Bash** - Fixed incorrect file autocomplete trigger in bash mode
-- ✅ **Slash Command Selection** - Fixed autocomplete selecting wrong command (e.g., /context vs /compact)
-- ✅ **/feedback URL Fix** - Long descriptions no longer generate invalid GitHub URLs (6000 char limit)
-
-**Implementation:**
-- 📁 New: `src/tools/bash-history.ts` (320 lines) - System history file reader
-- 📁 Enhanced: `src/ui/autocomplete/bash-history.ts` - UI integration with dual-source logic
-- 🧪 Testing: `tests/bash-history.test.ts` (180 lines) - Complete test coverage
-
-### v2.1.9 Enhancements
-- ✅ **auto:N syntax** - Configure MCP tool search auto-enable threshold (context window percentage 0-100)
-- ✅ **plansDirectory setting** - Customize where plan files are stored
-- ✅ **External editor (Ctrl+G)** - Support in AskUserQuestion "Other" input field
-- ✅ **Session URL attribution** - Add session URL to commits and PRs from web sessions
-- ✅ **${CLAUDE_SESSION_ID}** - String substitution support for skills to access current session ID
-- ✅ **PreToolUse additionalContext** - Hooks can return additional context to the model
-- ✅ **Parallel tool call fix** - Fixed orphan tool_result blocks API error in long sessions
-- ✅ **MCP reconnection fix** - Fixed hanging when cached connection promise never resolves
-- ✅ **Kitty Ctrl+Z fix** - Fixed suspend not working in Kitty keyboard protocol terminals
-
-### v2.1.4+ Enhancements
-- ✅ **Tool-level error handling & retry** - Exponential backoff for transient failures
-- ✅ **LSP URI handling** - Enhanced URI parsing and location validation
-- ✅ **Grep output format** - 100% match with official implementation
-- ✅ **OAuth authentication** - Streamlined auth flow and system prompt formatting
-- ✅ **AskUserQuestion** - Full parity with official (multiSelect, validation)
-- ✅ **Shell ID format** - Unified UUID/task_id format across all background tasks
-- ✅ **Tool result persistence** - Automatic saving of tool execution results
-- ✅ **Permission dialog flow** - Complete permission request workflow
-- ✅ **TodoWrite auto-reminders** - Official reminder system for task tracking
-- ✅ **Plan mode permissions** - Permission checks integrated into planning tools
-- ✅ **File modification detection** - Alerts when files are modified externally
-- ✅ **Skill args parameter** - Full skill argument passing and permission system
-- ✅ **NotebookEdit insert mode** - Fixed cell insertion position logic
-
-## Comparison with Official Version
-
-| Component              | Status | Notes                                       |
-| ---------------------- | ------ | ------------------------------------------- |
-| **Core Architecture**  | ✅ 100% | Three-layer design (Entry → Engine → Tools) |
-| **CLI Interface**      | ✅ 100% | All commands & flags implemented            |
-| **Tool System**        | ✅ 100% | 25+ tools with full feature parity          |
-| **API Client**         | ✅ 100% | Streaming, retry, cost calculation          |
-| **Permission System**  | ✅ 100% | Accept/bypass/plan modes                    |
-| **Error Handling**     | ✅ 100% | Tool-level retry with exponential backoff   |
-| **File Operations**    | ✅ 100% | External modification detection             |
-| **Background Tasks**   | ✅ 100% | Unified UUID/task_id format                 |
-| **Output Formatting**  | ✅ 100% | Grep, LSP, and all tools match official     |
-| **Sandbox**            | ✅ 100% | Bubblewrap isolation (Linux)                |
-| **Hooks**              | ✅ 100% | Complete event system                       |
-| **MCP**                | ✅ 100% | Full protocol support                       |
-| **UI Components**      | ✅ 100% | Ink/React framework with auto-scroll        |
-| **Skills/Commands**    | ✅ 100% | Args, permissions, discovery                |
-| **Authentication**     | ✅ 100% | API Key + OAuth                             |
-| **Session Management** | ✅ 100% | Persistence, recovery, export               |
-| **Context Management** | ✅ 100% | Auto-summarization                          |
-| **Code Parser**        | ✅ 100% | Tree-sitter WASM                            |
-| **Telemetry**          | ✅ 100% | Local analytics                             |
-
-**Overall Accuracy: ~100%** (based on public API and behavioral analysis)
 
 ## Development
 
 ```bash
 # Development mode (using tsx)
 npm run dev
+
+# Web UI development
+npm run web
 
 # Build
 npm run build
@@ -678,10 +496,14 @@ npx tsc --noEmit
 - **TypeScript** - Type safety
 - **Anthropic SDK** - API calls
 - **Ink + React** - Terminal UI
+- **Express + WebSocket** - Web UI backend
+- **React** - Web UI frontend
 - **Commander** - CLI framework
 - **Chalk** - Terminal colors
-- **Glob** - File matching
 - **Zod** - Schema validation
+- **Tree-sitter** - Code parsing (WASM)
+- **better-sqlite3** - Local database
+- **Vitest** - Testing framework
 
 ## Community
 

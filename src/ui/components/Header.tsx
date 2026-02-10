@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { isDemoMode } from '../../utils/env-check.js';
+import { t } from '../../i18n/index.js';
 
 // 官方 claude 颜色 (clawd_body)
 const CLAUDE_COLOR = '#D77757'; // rgb(215,119,87)
@@ -81,13 +82,13 @@ export const Header: React.FC<HeaderProps> = React.memo(({
   const getConnectionLabel = () => {
     switch (connectionStatus) {
       case 'connected':
-        return 'Connected';
+        return t('header.connected');
       case 'connecting':
-        return 'Connecting...';
+        return t('header.connecting');
       case 'disconnected':
-        return 'Disconnected';
+        return t('header.disconnected');
       case 'error':
-        return 'Connection Error';
+        return t('header.connectionError');
       default:
         return '';
     }
@@ -119,7 +120,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
       indicators.push(
         <React.Fragment key="bg-task">
           <Text color={runningTaskCount > 0 ? 'yellow' : 'blue'}>
-            {runningTaskCount > 0 ? '🔄' : '✓'} {backgroundTaskCount} task{backgroundTaskCount > 1 ? 's' : ''}
+            {runningTaskCount > 0 ? '🔄' : '✓'} {backgroundTaskCount > 1 ? t('header.tasks', { count: backgroundTaskCount }) : t('header.task', { count: backgroundTaskCount })}
           </Text>
         </React.Fragment>
       );
@@ -166,7 +167,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           {isPlanMode && (
             <>
               <Text dimColor> · </Text>
-              <Text color="magenta" bold>📋 PLAN MODE</Text>
+              <Text color="magenta" bold>📋 {t('header.planMode')}</Text>
             </>
           )}
           {cwd && (
@@ -179,7 +180,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         <Box>
           {hasUpdate && latestVersion && (
             <>
-              <Text color="green">🎉 v{latestVersion} available</Text>
+              <Text color="green">🎉 {t('header.updateAvailableShort', { version: latestVersion })}</Text>
               <Text dimColor> · </Text>
             </>
           )}
@@ -212,14 +213,14 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           {hasUpdate && latestVersion && (
             <>
               <Text dimColor> · </Text>
-              <Text color="green" bold>Update Available: v{latestVersion}</Text>
+              <Text color="green" bold>{t('header.updateAvailable', { version: latestVersion })}</Text>
             </>
           )}
         </Box>
         <Box>
           {username && (
             <>
-              <Text bold>Welcome back {username}!</Text>
+              <Text bold>{t('header.welcomeBack', { username })}</Text>
               <Text dimColor> · </Text>
             </>
           )}
@@ -240,9 +241,9 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           borderColor="magenta"
         >
           <Text color="magenta" bold>
-            📋 PLAN MODE ACTIVE
+            📋 {t('header.planModeActive')}
           </Text>
-          <Text dimColor> - Read-only exploration mode. Use /plan exit to submit plan.</Text>
+          <Text dimColor> - {t('header.planModeHint')}</Text>
         </Box>
       )}
 
@@ -262,7 +263,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
         </Box>
         {showShortcutHint && (
           <Text color="gray" dimColor>
-            Press ? for shortcuts
+            {t('header.pressForShortcuts')}
           </Text>
         )}
       </Box>
@@ -283,7 +284,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           borderColor="green"
         >
           <Text color="green">
-            🎉 New version available! Run:
+            🎉 {t('header.newVersionAvailable')}
           </Text>
           <Text color="green" bold> npm install -g claude-code-open</Text>
         </Box>

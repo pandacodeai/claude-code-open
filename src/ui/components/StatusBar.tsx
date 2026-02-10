@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { Box, Text } from 'ink';
+import { t } from '../../i18n/index.js';
 
 /**
  * PR 审核状态类型
@@ -182,7 +183,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
           {/* 消息数 */}
           <Text color="gray">
-            <Text color="white">{messageCount}</Text> msgs
+            <Text color="white">{messageCount}</Text> {t('status.msgs')}
           </Text>
 
           {/* Token 详情 */}
@@ -191,14 +192,14 @@ export const StatusBar: React.FC<StatusBarProps> = ({
               <Text color="white">{formatTokens(inputTokens || 0)}</Text>
               <Text color="gray">/</Text>
               <Text color="white">{formatTokens(outputTokens || 0)}</Text>
-              <Text color="gray"> tokens</Text>
+              <Text color="gray"> {t('status.tokens')}</Text>
             </Text>
           )}
 
           {/* Token 总数（兼容旧版） */}
           {tokenCount !== undefined && inputTokens === undefined && (
             <Text color="gray">
-              <Text color="white">{formatTokens(tokenCount)}</Text> tokens
+              <Text color="white">{formatTokens(tokenCount)}</Text> {t('status.tokens')}
             </Text>
           )}
 
@@ -229,7 +230,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         <Box gap={2}>
           {/* 处理状态 */}
           {isProcessing && (
-            <Text color="yellow">⚙ Processing...</Text>
+            <Text color="yellow">⚙ {t('status.processing')}</Text>
           )}
 
           {/* 会话时长 */}

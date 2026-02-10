@@ -10,6 +10,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { trustManager, type TrustState } from '../../trust/index.js';
+import { t } from '../../i18n/index.js';
 
 /**
  * 信任对话框变体配置
@@ -27,42 +28,34 @@ interface TrustDialogVariant {
  * 信任对话框变体
  * 与官方 Claude Code 一致
  */
-const TRUST_DIALOG_VARIANTS: Record<string, TrustDialogVariant> = {
-  default: {
-    title: 'Trust this folder?',
-    bodyText: `Claude Code will be working in this folder.
-
-This means I can:
-- Read any file in this folder
-- Create, edit, or delete files
-- Run commands (like npm, git, tests, ls, rm)
-- Use tools defined in .mcp.json`,
-    showDetailedPermissions: false,
-    learnMoreText: 'Learn more',
-    yesButtonLabel: 'Yes, continue',
-    noButtonLabel: 'No, exit',
-  },
-  normalize_action: {
-    title: 'Accessing workspace:',
-    bodyText: `Quick safety check: Is this a project you created or one you trust? (Like your own code, a well-known open source project, or work from your team). If not, take a moment to review what's in this folder first.
-
-Claude Code'll be able to read, edit, and execute files here.`,
-    showDetailedPermissions: false,
-    learnMoreText: 'Security guide',
-    yesButtonLabel: 'Yes, I trust this folder',
-    noButtonLabel: 'No, exit',
-  },
-  explicit: {
-    title: 'Do you want to work in this folder?',
-    bodyText: `In order to work in this folder, we need your permission for Claude Code to read, edit, and execute files.
-
-If this folder has malicious code or untrusted scripts, Claude Code could run them while trying to help.`,
-    showDetailedPermissions: false,
-    learnMoreText: 'Security guide',
-    yesButtonLabel: 'Yes, I trust this folder',
-    noButtonLabel: 'No, exit',
-  },
-};
+function getTrustDialogVariants(): Record<string, TrustDialogVariant> {
+  return {
+    default: {
+      title: t('trust.default.title'),
+      bodyText: t('trust.default.body'),
+      showDetailedPermissions: false,
+      learnMoreText: t('trust.default.learnMore'),
+      yesButtonLabel: t('trust.default.yes'),
+      noButtonLabel: t('trust.default.no'),
+    },
+    normalize_action: {
+      title: t('trust.normalize.title'),
+      bodyText: t('trust.normalize.body'),
+      showDetailedPermissions: false,
+      learnMoreText: t('trust.normalize.learnMore'),
+      yesButtonLabel: t('trust.normalize.yes'),
+      noButtonLabel: t('trust.normalize.no'),
+    },
+    explicit: {
+      title: t('trust.explicit.title'),
+      bodyText: t('trust.explicit.body'),
+      showDetailedPermissions: false,
+      learnMoreText: t('trust.explicit.learnMore'),
+      yesButtonLabel: t('trust.explicit.yes'),
+      noButtonLabel: t('trust.explicit.no'),
+    },
+  };
+}
 
 export interface TrustDialogProps {
   /** 要信任的目录 */
@@ -89,7 +82,8 @@ export const TrustDialog: React.FC<TrustDialogProps> = ({
 
   // 确定对话框变体
   const variant = forcedVariant || trustManager.getTrustDialogVariant(directory);
-  const config = TRUST_DIALOG_VARIANTS[variant] || TRUST_DIALOG_VARIANTS.default;
+  const variants = getTrustDialogVariants();
+  const config = variants[variant] || variants.default;
 
   // 实际是否为 home 目录
   const actualIsHomeDirectory = isHomeDirectory ?? trustManager.isHomeDirectory(directory);
@@ -164,7 +158,7 @@ export const TrustDialog: React.FC<TrustDialogProps> = ({
         {actualIsHomeDirectory && (
           <Text color="yellow" dimColor>
             {' '}
-            (home directory)
+            ({t('trust.homeDirectory')})
           </Text>
         )}
       </Box>
@@ -182,8 +176,7 @@ export const TrustDialog: React.FC<TrustDialogProps> = ({
       {actualIsHomeDirectory && (
         <Box marginBottom={1} borderStyle="single" borderColor="yellow" padding={1}>
           <Text color="yellow">
-            Note: You are running from your home directory. Accepting trust will enable
-            features like hooks and skills that can execute code.
+            {t('trust.homeWarning')}
           </Text>
         </Box>
       )}
@@ -213,14 +206,14 @@ export const TrustDialog: React.FC<TrustDialogProps> = ({
       {/* 帮助提示 */}
       <Box marginTop={1}>
         <Text dimColor>
-          Use arrow keys to select, Enter to confirm, Esc to cancel
+          {t('trust.navHint')}
         </Text>
       </Box>
 
       {/* 处理中状态 */}
       {isProcessing && (
         <Box marginTop={1}>
-          <Text color="blue">Processing...</Text>
+          <Text color="blue">{t('trust.processing')}</Text>
         </Box>
       )}
     </Box>

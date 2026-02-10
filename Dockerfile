@@ -1,11 +1,14 @@
 # ============================================
 # Stage 1: Build
 # ============================================
-FROM node:18-slim AS builder
+# 使用 REGISTRY 参数支持 Docker Hub 镜像加速
+# 默认直连，国内用户构建时加: --build-arg REGISTRY=docker.1ms.run
+ARG REGISTRY=docker.io
+FROM ${REGISTRY}/library/node:18-slim AS builder
 
-# 使用中科大镜像源（解决国内网络问题）
-RUN sed -i 's|deb.debian.org|mirrors.ustc.edu.cn|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null; \
-    sed -i 's|deb.debian.org|mirrors.ustc.edu.cn|g' /etc/apt/sources.list 2>/dev/null; \
+# 替换为阿里云镜像源
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null; \
+    sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list 2>/dev/null; \
     true
 
 RUN apt-get update && apt-get install -y --fix-missing \
@@ -27,11 +30,12 @@ RUN npm run build
 # ============================================
 # Stage 2: Production
 # ============================================
-FROM node:18-slim
+ARG REGISTRY=docker.io
+FROM ${REGISTRY}/library/node:18-slim
 
-# 使用中科大镜像源
-RUN sed -i 's|deb.debian.org|mirrors.ustc.edu.cn|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null; \
-    sed -i 's|deb.debian.org|mirrors.ustc.edu.cn|g' /etc/apt/sources.list 2>/dev/null; \
+# 替换为阿里云镜像源
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null; \
+    sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list 2>/dev/null; \
     true
 
 # 运行时依赖

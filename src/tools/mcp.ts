@@ -46,7 +46,7 @@ interface McpServerState {
   connectionPromise?: Promise<boolean>;
 }
 
-interface McpToolDefinition {
+export interface McpToolDefinition {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;

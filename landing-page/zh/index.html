@@ -16,9 +16,9 @@
     </script>
 
     <!-- SEO Meta Tags -->
-    <title>Claude Code Open - 开源AI编程助手CLI工具 | 学习Claude Code架构</title>
-    <meta name="description" content="Claude Code Open是一个教育性开源项目，通过逆向工程重新实现Claude Code CLI。包含25+工具、完整的会话管理、MCP支持等功能。">
-    <meta name="keywords" content="Claude Code, AI编程助手, CLI工具, 开源, TypeScript, Anthropic, 逆向工程, 学习项目">
+    <title>Claude Code Open - 开源AI编程助手 | CLI + Web UI + 多智能体协作</title>
+    <meta name="description" content="Claude Code Open是一个教育性开源项目，完整重现Claude Code CLI v2.1.33+。拥有Web UI全栈IDE、Agent Teams多智能体协作、Blueprint可视化工作流、35+工具、插件系统、i18n国际化等企业级功能。">
+    <meta name="keywords" content="Claude Code, AI编程助手, CLI工具, Web UI, Agent Teams, 多智能体, Blueprint, 开源, TypeScript, Anthropic, MCP协议, 插件系统">
     <meta name="author" content="Claude Code Open Community">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://www.chatbi.site/zh/">
@@ -26,16 +26,16 @@
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://www.chatbi.site/zh/">
-    <meta property="og:title" content="Claude Code Open - 开源AI编程助手CLI工具">
-    <meta property="og:description" content="通过逆向工程学习Claude Code架构，25+内置工具，完整会话管理，MCP协议支持。">
+    <meta property="og:title" content="Claude Code Open - 开源AI编程助手 | CLI + Web UI + 多智能体">
+    <meta property="og:description" content="完整重现Claude Code，拥有Web UI全栈IDE、Agent Teams多智能体协作、Blueprint工作流引擎、35+工具、插件系统等企业级功能。">
     <meta property="og:image" content="https://www.chatbi.site/og-image.png">
     <meta property="og:locale" content="zh_CN">
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="https://www.chatbi.site/zh/">
-    <meta name="twitter:title" content="Claude Code Open - 开源AI编程助手CLI工具">
-    <meta name="twitter:description" content="通过逆向工程学习Claude Code架构，25+内置工具，完整会话管理，MCP协议支持。">
+    <meta name="twitter:title" content="Claude Code Open - 开源AI编程助手 | CLI + Web UI + 多智能体">
+    <meta name="twitter:description" content="完整重现Claude Code，拥有Web UI全栈IDE、Agent Teams多智能体协作、Blueprint工作流引擎、35+工具、插件系统等企业级功能。">
     <meta name="twitter:image" content="https://www.chatbi.site/og-image.png">
 
     <!-- Structured Data -->
@@ -102,14 +102,15 @@
     <header class="hero">
         <div class="container">
             <div class="hero-content">
-                <div class="hero-badge">开源学习项目</div>
+                <div class="hero-badge">开源 &middot; 全功能 &middot; 生产级</div>
                 <h1 class="hero-title">
-                    通过逆向工程<br>
-                    <span class="gradient-text">深入理解 Claude Code</span>
+                    不只是 CLI，<br>
+                    <span class="gradient-text">一个完整的 AI 编程平台</span>
                 </h1>
                 <p class="hero-description">
-                    基于公开API和类型定义，完整重现Claude Code CLI v2.1.4的核心功能。
-                    25+内置工具、会话管理、MCP协议支持，是学习AI编程助手架构的绝佳资源。
+                    从 Claude Code CLI v2.1.33 的完整复刻出发，我们构建了远超原版的能力：
+                    Web UI 全栈 IDE、Agent Teams 多智能体协作、Blueprint 可视化工作流、
+                    35+ 内置工具、插件系统、i18n 国际化 —— 开箱即用的 AI 编程平台。
                 </p>
                 <div class="hero-buttons">
                     <a href="#quickstart" class="btn btn-primary">
@@ -126,12 +127,16 @@
                 </div>
                 <div class="hero-stats">
                     <div class="stat">
-                        <span class="stat-value">25+</span>
+                        <span class="stat-value">35+</span>
                         <span class="stat-label">内置工具</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-value">TypeScript</span>
-                        <span class="stat-label">技术栈</span>
+                        <span class="stat-value">Web UI</span>
+                        <span class="stat-label">全栈 IDE</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value">多智能体</span>
+                        <span class="stat-label">Agent Teams</span>
                     </div>
                     <div class="stat">
                         <span class="stat-value">MIT</span>
@@ -152,12 +157,14 @@
                     <div class="terminal-body">
                         <pre><code><span class="prompt">$</span> npm run dev
 
-<span class="info">Claude Code Open v2.1.4</span>
-<span class="success">✓</span> 已加载 25 个工具
-<span class="success">✓</span> 会话管理已启动
-<span class="success">✓</span> MCP 服务器已连接
+<span class="info">Claude Code Open v2.1.33</span>
+<span class="success">✓</span> 已加载 35+ 工具 (含 Agent Teams, Blueprint)
+<span class="success">✓</span> Web UI 已启动 → http://localhost:3000
+<span class="success">✓</span> MCP 服务器已连接 (3 个)
+<span class="success">✓</span> 插件系统就绪 · i18n: zh-CN
+<span class="success">✓</span> Agent Teams 就绪 · 支持多智能体协作
 
-<span class="prompt">></span> <span class="cursor">分析这个代码库的架构</span></code></pre>
+<span class="prompt">></span> <span class="cursor">创建一个3人团队来重构这个模块</span></code></pre>
                     </div>
                 </div>
             </div>
@@ -168,39 +175,69 @@
     <section id="features" class="features">
         <div class="container">
             <div class="section-header">
-                <h2 class="section-title">核心功能特性</h2>
-                <p class="section-subtitle">完整复现Claude Code的核心能力，深入理解每个模块的设计思想</p>
+                <h2 class="section-title">12 大核心能力</h2>
+                <p class="section-subtitle">从 CLI 到 Web UI，从单体到多智能体，全面超越原版 Claude Code</p>
             </div>
             <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">🛠️</div>
-                    <h3>25+ 内置工具</h3>
-                    <p>Bash、Read、Write、Edit、Glob、Grep、WebFetch、WebSearch、Task等完整工具集</p>
+                <div class="feature-card featured-card">
+                    <div class="feature-icon">🌐</div>
+                    <h3>Web UI 全栈 IDE</h3>
+                    <p>基于 React + Express + WebSocket 的完整 Web 界面。代码浏览器、终端模拟、实时消息流、OAuth 认证、设置面板 —— 在浏览器中获得完整的 AI 编程体验</p>
+                </div>
+                <div class="feature-card featured-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3>Agent Teams 多智能体</h3>
+                    <p>创建 AI 团队进行协作开发。支持团队创建、成员管理、智能体间消息通信、共享上下文记忆，让多个 Agent 并行解决复杂问题</p>
+                </div>
+                <div class="feature-card featured-card">
+                    <div class="feature-icon">📋</div>
+                    <h3>Blueprint 工作流引擎</h3>
+                    <p>可视化设计多智能体工作流。支持蓝图生成、Lead Agent 调度、Worker 分派、任务计划更新、端到端测试触发，实现复杂任务自动编排</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">💾</div>
-                    <h3>会话管理</h3>
-                    <p>完整的会话持久化，支持30天自动过期，可恢复历史对话</p>
+                    <div class="feature-icon">🛠️</div>
+                    <h3>35+ 内置工具</h3>
+                    <p>文件操作、搜索分析、Shell 执行、Web 抓取、任务管理、Notebook、Plan 模式、Skill 系统、LSP 集成等全方位工具链</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🔌</div>
                     <h3>MCP 协议支持</h3>
-                    <p>Model Context Protocol完整实现，可扩展外部工具服务</p>
+                    <p>完整的 Model Context Protocol 实现。MCPSearch 发现服务、Resource 读取、动态工具注册，无缝对接外部工具生态</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">🎨</div>
-                    <h3>React + Ink UI</h3>
-                    <p>现代化终端UI框架，流畅的交互体验</p>
+                    <div class="feature-icon">🧩</div>
+                    <h3>插件 & Hooks 系统</h3>
+                    <p>可插拔的扩展架构。PluginManager 管理生命周期，Hooks 系统支持 pre/post 工具执行钩子，自定义命令与 Skill 系统无限扩展</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🌍</div>
+                    <h3>i18n 国际化</h3>
+                    <p>自研轻量级国际化框架，支持中英文切换。UI 文本、落地页、CLI 提示全面本地化，面向全球开发者</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🧠</div>
+                    <h3>智能上下文管理</h3>
+                    <p>Token 估算、自动摘要压缩、Memory Card 系统、Vectra 向量搜索、Neural Caching 神经缓存 —— 无限对话上下文不再是梦</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🔍</div>
-                    <h3>智能代码分析</h3>
-                    <p>Tree-sitter WASM多语言解析，精准代码理解</p>
+                    <h3>代码深度分析</h3>
+                    <p>Tree-sitter WASM 多语言解析、LSP 集成、调用图可视化、影响分析。比 grep 更懂你的代码</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🐳</div>
+                    <h3>Docker 一键部署</h3>
+                    <p>Docker Compose 容器化部署，附带安装脚本（Shell & PowerShell）。支持 Windows / macOS / Linux 全平台</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔐</div>
+                    <h3>OAuth 代理共享</h3>
+                    <p>透明代理架构让 Claude 订阅可在多设备间共享。完整的 OAuth 管理、权限控制、信任对话系统</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">⚡</div>
-                    <h3>流式响应</h3>
-                    <p>实时流式输出，大幅提升交互响应速度</p>
+                    <h3>流式 & 实时通信</h3>
+                    <p>JSON 流式 API、WebSocket 实时消息、tRPC 类型安全通信。从 CLI 到 Web UI 全链路实时响应</p>
                 </div>
             </div>
         </div>
@@ -210,8 +247,8 @@
     <section id="architecture" class="architecture">
         <div class="container">
             <div class="section-header">
-                <h2 class="section-title">三层架构设计</h2>
-                <p class="section-subtitle">清晰的分层架构，易于理解和扩展</p>
+                <h2 class="section-title">五层架构设计</h2>
+                <p class="section-subtitle">从入口到扩展，每一层都经过精心设计</p>
             </div>
             <div class="architecture-diagram">
                 <div class="arch-layer">
@@ -220,8 +257,9 @@
                         <h3>入口层 Entry Layer</h3>
                     </div>
                     <div class="arch-layer-content">
-                        <code>src/cli.ts</code> - CLI参数解析<br>
-                        <code>src/index.ts</code> - 主导出文件
+                        <code>src/cli.ts</code> - Commander.js CLI 参数解析<br>
+                        <code>src/web/</code> - Express + WebSocket Web 服务端<br>
+                        <code>src/web/client/</code> - React + Vite Web 客户端
                     </div>
                 </div>
                 <div class="arch-arrow">↓</div>
@@ -231,9 +269,9 @@
                         <h3>核心引擎 Core Engine</h3>
                     </div>
                     <div class="arch-layer-content">
-                        <code>client.ts</code> - API封装与重试<br>
-                        <code>session.ts</code> - 会话状态管理<br>
-                        <code>loop.ts</code> - 对话循环编排
+                        <code>client.ts</code> - Anthropic API 封装 (重试 / Token 计算 / 成本追踪)<br>
+                        <code>session.ts</code> - 会话状态 + SQLite 持久化<br>
+                        <code>loop.ts</code> - 对话循环编排 + 多轮工具调用
                     </div>
                 </div>
                 <div class="arch-arrow">↓</div>
@@ -243,9 +281,32 @@
                         <h3>工具系统 Tool System</h3>
                     </div>
                     <div class="arch-layer-content">
-                        <code>BaseTool</code> - 工具基类<br>
-                        <code>ToolRegistry</code> - 动态工具管理<br>
-                        25+ 内置工具实现
+                        <code>BaseTool</code> → <code>ToolRegistry</code> 动态注册<br>
+                        35+ 内置工具：文件 / 搜索 / Shell / Web / 任务 / Notebook / Plan / Skill / LSP
+                    </div>
+                </div>
+                <div class="arch-arrow">↓</div>
+                <div class="arch-layer">
+                    <div class="arch-layer-header">
+                        <span class="layer-number">4</span>
+                        <h3>智能体层 Agent Layer</h3>
+                    </div>
+                    <div class="arch-layer-content">
+                        <code>src/agents/</code> - Agent 编排 / 并行执行 / Resume<br>
+                        <code>src/teams/</code> - Agent Teams 团队创建 / 消息通信 / 上下文共享<br>
+                        <code>Blueprint</code> - 可视化工作流：Lead Agent → Worker 分派 → E2E 测试
+                    </div>
+                </div>
+                <div class="arch-arrow">↓</div>
+                <div class="arch-layer">
+                    <div class="arch-layer-header">
+                        <span class="layer-number">5</span>
+                        <h3>扩展层 Extension Layer</h3>
+                    </div>
+                    <div class="arch-layer-content">
+                        <code>PluginManager</code> - 插件生命周期管理<br>
+                        <code>Hooks</code> - Pre/Post 工具执行钩子<br>
+                        <code>MCP</code> - 外部工具协议 · <code>i18n</code> - 国际化 · <code>Skills</code> - 自定义命令
                     </div>
                 </div>
             </div>
@@ -257,9 +318,211 @@
         <div class="container">
             <div class="section-header">
                 <h2 class="section-title">技术博客</h2>
-                <p class="section-subtitle">深入逆向工程 Claude Code 的技术探索</p>
+                <p class="section-subtitle">6 篇深度技术文章，记录我们从零构建 AI 编程平台的每一步</p>
             </div>
             <div class="blog-posts">
+
+                <!-- Blog 1: Web UI -->
+                <article class="blog-post featured">
+                    <div class="blog-post-header">
+                        <span class="blog-tag">重磅功能</span>
+                        <span class="blog-date">2026年2月</span>
+                    </div>
+                    <h3>Web UI：从终端走向浏览器，打造全栈 AI IDE</h3>
+                    <div class="blog-content">
+                        <h4>为什么需要 Web UI？</h4>
+                        <p>CLI 是开发者的利器，但它有天然的局限：无法展示富文本、不支持多窗口布局、缺少可视化调试能力。我们的目标是：<strong>在浏览器中获得和 VSCode 一样流畅的 AI 编程体验，同时保留 CLI 的全部能力</strong>。</p>
+
+                        <h4>技术架构</h4>
+                        <p>Web UI 采用经典的三层架构，每一层都经过精心选型：</p>
+                        <ul>
+                            <li><strong>客户端</strong> — React 18 + Vite + TypeScript。多页路由支持 AuthPage（OAuth 登录）、BlueprintPage（工作流编辑器）、CodeBrowserPage（代码浏览）、SwarmConsole（多智能体控制台）</li>
+                            <li><strong>通信层</strong> — WebSocket 实时双向消息 + tRPC 类型安全 API。消息流、工具调用状态、Agent 进度全部实时推送</li>
+                            <li><strong>服务端</strong> — Express.js + Better-SQLite3。SessionManager 管理会话持久化，PermissionHandler 处理权限控制，TaskManager 协调后台任务，TerminalManager 对接 xterm.js 终端模拟</li>
+                        </ul>
+
+                        <h4>核心组件一览</h4>
+                        <p>Web UI 包含 30+ 精心设计的 React 组件：</p>
+                        <ul>
+                            <li><strong>消息系统</strong> — MarkdownContent 渲染器、ToolCall 可视化、PermissionDialog 权限确认、UserQuestionDialog 交互式问答</li>
+                            <li><strong>代码浏览器</strong> — 虚拟化 TreeView 文件树、语法高亮、调用图可视化</li>
+                            <li><strong>配置面板</strong> — Hooks 配置、权限管理、API 设置、缓存控制、MCP 服务器管理、插件管理</li>
+                            <li><strong>终端集成</strong> — 基于 xterm.js 的完整终端模拟，可在 Web 中直接执行命令</li>
+                        </ul>
+
+                        <h4>OAuth 认证流程</h4>
+                        <p>我们实现了完整的 OAuth 认证体系：用户通过 AuthPage 登录后，OAuthManager 管理 token 生命周期，自动刷新、多设备同步。这意味着你可以在任何有浏览器的设备上安全地使用 Claude 编程助手。</p>
+
+                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1)); border-radius: 8px;">
+                            <strong>亮点数据：</strong>30+ React 组件 · WebSocket 实时通信 · 4 个独立页面 · xterm.js 终端 · SQLite 持久化 · OAuth 全流程
+                        </p>
+                    </div>
+                    <div class="blog-footer">
+                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/web" target="_blank" class="btn btn-outline btn-small">
+                            查看 Web UI 源码 →
+                        </a>
+                    </div>
+                </article>
+
+                <!-- Blog 2: Agent Teams -->
+                <article class="blog-post featured">
+                    <div class="blog-post-header">
+                        <span class="blog-tag">多智能体</span>
+                        <span class="blog-date">2026年1月</span>
+                    </div>
+                    <h3>Agent Teams：当一个 AI 不够用，就让一群 AI 协作</h3>
+                    <div class="blog-content">
+                        <h4>单一 Agent 的瓶颈</h4>
+                        <p>单个 Claude 实例处理复杂任务时，面临上下文窗口限制、专注力分散、无法并行等问题。我们的答案是：<strong>让多个 Agent 组成团队，每个成员专注自己的职责，通过消息系统协作完成大型任务</strong>。</p>
+
+                        <h4>架构设计</h4>
+                        <p>Agent Teams 系统由四个核心工具组成：</p>
+                        <div class="code-block" style="margin: 1rem 0;">
+                            <code>TeamCreate    — 创建团队，定义团队目标和成员角色<br>
+TeamSendMessage — 团队成员间发送消息，共享发现和进度<br>
+Teammate      — v2.1.32+ 新增，单个队友的上下文管理<br>
+TeamDelete    — 任务完成后清理团队资源</code>
+                        </div>
+
+                        <h4>消息通信机制</h4>
+                        <p>每个 Agent 拥有独立的上下文窗口和工具权限，通过结构化消息进行通信。TeamSendMessage 支持定向消息（发送给特定成员）和广播消息（全队共享），确保信息在正确的时间到达正确的人。</p>
+
+                        <h4>上下文记忆共享</h4>
+                        <p>团队成员通过 Memory 系统共享关键发现。当一个 Agent 分析出代码的关键架构信息，它可以将这些知识持久化到共享记忆中，其他成员无需重复劳动即可获取这些洞察。</p>
+
+                        <h4>典型使用场景</h4>
+                        <ul>
+                            <li><strong>大型重构</strong> — 3 个 Agent 分别负责前端、后端、测试，并行重构同一系统</li>
+                            <li><strong>代码审查</strong> — 安全审查员 + 性能审查员 + 架构审查员各司其职</li>
+                            <li><strong>文档生成</strong> — 一个 Agent 分析代码，一个编写文档，一个生成示例</li>
+                        </ul>
+
+                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(34, 211, 238, 0.1), rgba(99, 102, 241, 0.1)); border-radius: 8px;">
+                            <strong>核心能力：</strong>团队创建/删除 · 成员角色定义 · 定向/广播消息 · 共享记忆 · 并行执行 · 进度监控
+                        </p>
+                    </div>
+                    <div class="blog-footer">
+                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/teams" target="_blank" class="btn btn-outline btn-small">
+                            查看 Teams 源码 →
+                        </a>
+                    </div>
+                </article>
+
+                <!-- Blog 3: Blueprint -->
+                <article class="blog-post featured">
+                    <div class="blog-post-header">
+                        <span class="blog-tag">工作流引擎</span>
+                        <span class="blog-date">2026年1月</span>
+                    </div>
+                    <h3>Blueprint：用可视化工作流编排多智能体任务</h3>
+                    <div class="blog-content">
+                        <h4>从手动调度到自动编排</h4>
+                        <p>Agent Teams 让多智能体协作成为可能，但手动管理团队分工仍然繁琐。Blueprint 系统在此基础上更进一步：<strong>你描述目标，系统自动生成执行计划、分配任务、调度 Worker、验证结果</strong>。</p>
+
+                        <h4>七大核心工具</h4>
+                        <ul>
+                            <li><strong>Blueprint</strong> — 定义项目蓝图，描述最终目标和约束条件</li>
+                            <li><strong>GenerateBlueprint</strong> — AI 自动分析蓝图，生成可执行的任务分解</li>
+                            <li><strong>GenerateDesign</strong> — 根据蓝图生成详细的技术设计方案</li>
+                            <li><strong>StartLeadAgent</strong> — 启动主控 Agent，负责全局调度和决策</li>
+                            <li><strong>UpdateTaskPlan</strong> — 动态更新任务计划，响应执行中的变化</li>
+                            <li><strong>DispatchWorker</strong> — 分派 Worker Agent 执行具体子任务</li>
+                            <li><strong>TriggerE2ETest</strong> — 触发端到端测试，验证整体交付质量</li>
+                        </ul>
+
+                        <h4>工作流执行过程</h4>
+                        <div class="code-block" style="margin: 1rem 0;">
+                            <code>用户描述目标 → GenerateBlueprint 生成计划<br>
+  → StartLeadAgent 启动主控<br>
+    → DispatchWorker 分派任务到各 Worker<br>
+      → Worker 并行执行，通过消息汇报进度<br>
+        → Lead Agent 动态调整 (UpdateTaskPlan)<br>
+          → TriggerE2ETest 验证最终结果</code>
+                        </div>
+
+                        <h4>Web UI 中的 Blueprint 编辑器</h4>
+                        <p>在 BlueprintPage 中，你可以可视化地查看整个工作流的执行状态：哪些 Worker 在运行、任务进度如何、哪里出现了阻塞。Swarm Console 提供了 Agent Explorer、任务树、Worker 面板等丰富的监控工具。</p>
+
+                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(236, 72, 153, 0.1)); border-radius: 8px;">
+                            <strong>自动化链路：</strong>目标描述 → 蓝图生成 → 设计方案 → Lead Agent → Worker 分派 → E2E 验证 —— 全流程自动化
+                        </p>
+                    </div>
+                    <div class="blog-footer">
+                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/web/client/src/components/swarm" target="_blank" class="btn btn-outline btn-small">
+                            查看 Blueprint UI 源码 →
+                        </a>
+                    </div>
+                </article>
+
+                <!-- Blog 4: Plugin & Hooks -->
+                <article class="blog-post">
+                    <div class="blog-post-header">
+                        <span class="blog-tag">架构设计</span>
+                        <span class="blog-date">2026年1月</span>
+                    </div>
+                    <h3>插件 & Hooks：用 3 个设计模式打造无限可扩展的工具系统</h3>
+                    <div class="blog-content">
+                        <h4>为什么可扩展性至关重要</h4>
+                        <p>AI 编程工具的生命力在于生态。一个封闭的系统终将被淘汰，而一个开放的平台可以汇聚社区的力量不断进化。我们从第一天就把可扩展性作为核心设计目标。</p>
+
+                        <h4>三大设计模式</h4>
+                        <p><strong>1. Registry Pattern — ToolRegistry</strong></p>
+                        <p>所有工具通过 ToolRegistry 动态注册和管理。每个工具继承 BaseTool，定义 Zod schema 输入校验和 execute() 方法。支持运行时添加/移除工具，allow/disallow 列表控制工具可见性。</p>
+
+                        <p><strong>2. Plugin Pattern — PluginManager</strong></p>
+                        <p>插件系统提供完整的生命周期管理：加载 → 初始化 → 激活 → 停用 → 卸载。插件可以注册新工具、修改现有行为、添加 UI 组件。插件目录支持全局（<code>~/.claude/plugins/</code>）和项目级（<code>.claude/plugins/</code>）。</p>
+
+                        <p><strong>3. Observer Pattern — Hooks System</strong></p>
+                        <p>Hooks 系统让你在任何工具执行前后注入自定义逻辑。Pre-hook 可以拦截、修改甚至取消工具调用，Post-hook 可以处理结果、记录审计日志。这是实现安全审计、自定义审批流的基础设施。</p>
+
+                        <h4>Skill 系统 — 自定义命令</h4>
+                        <p>Skill 系统允许创建可复用的命令模板，存放在 <code>~/.claude/skills/</code> 或 <code>.claude/commands/</code> 目录。一条 <code>/commit</code> 斜杠命令背后，是一个完整的提交工作流模板。</p>
+
+                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 211, 238, 0.1)); border-radius: 8px;">
+                            <strong>扩展方式：</strong>ToolRegistry 动态注册 · PluginManager 生命周期 · Hooks pre/post 钩子 · Skill 自定义命令 · MCP 外部协议
+                        </p>
+                    </div>
+                    <div class="blog-footer">
+                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/plugins" target="_blank" class="btn btn-outline btn-small">
+                            查看插件系统源码 →
+                        </a>
+                    </div>
+                </article>
+
+                <!-- Blog 5: i18n -->
+                <article class="blog-post">
+                    <div class="blog-post-header">
+                        <span class="blog-tag">国际化</span>
+                        <span class="blog-date">2026年2月</span>
+                    </div>
+                    <h3>i18n：为什么我们没用现成框架，而是从零搭建国际化系统</h3>
+                    <div class="blog-content">
+                        <h4>现有方案的问题</h4>
+                        <p>i18next、react-intl 等成熟框架功能强大，但对我们的场景来说太重了。我们需要的是：CLI 和 Web UI 共用一套翻译、零运行时依赖、支持动态加载、Tree-shaking 友好。</p>
+
+                        <h4>自研方案的核心设计</h4>
+                        <ul>
+                            <li><strong>统一翻译文件</strong> — 中英文翻译以 JSON 格式存放在 <code>src/i18n/</code> 目录，CLI 和 Web UI 共用同一份翻译源</li>
+                            <li><strong>类型安全</strong> — TypeScript 类型推导确保每个翻译 key 都有对应值，编译期就能发现缺失翻译</li>
+                            <li><strong>按需加载</strong> — 语言包支持动态 import，只加载当前语言，减小 bundle 体积</li>
+                            <li><strong>落地页双语</strong> — 两个独立 HTML 文件 + 语言切换链接，零 JS 开销实现多语言落地页</li>
+                        </ul>
+
+                        <h4>覆盖范围</h4>
+                        <p>国际化不只是 UI 文本翻译。我们覆盖了：CLI 提示语、错误信息、工具描述、Web UI 界面、落地页、配置说明 —— 确保中文用户获得完全原生的体验。</p>
+
+                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(234, 179, 8, 0.1), rgba(249, 115, 22, 0.1)); border-radius: 8px;">
+                            <strong>设计原则：</strong>零依赖 · 类型安全 · CLI/Web 共用 · 按需加载 · 编译期校验
+                        </p>
+                    </div>
+                    <div class="blog-footer">
+                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/i18n" target="_blank" class="btn btn-outline btn-small">
+                            查看 i18n 源码 →
+                        </a>
+                    </div>
+                </article>
+
+                <!-- Blog 6: Original OAuth Blog (kept) -->
                 <article class="blog-post featured">
                     <div class="blog-post-header">
                         <span class="blog-tag">深度解析</span>

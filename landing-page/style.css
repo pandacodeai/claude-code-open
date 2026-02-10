@@ -361,10 +361,20 @@ section {
     transition: var(--transition);
 }
 
+.feature-card.featured-card {
+    border-color: var(--primary);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(34, 211, 238, 0.05) 100%);
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+}
+
 .feature-card:hover {
     transform: translateY(-4px);
     border-color: var(--primary);
     box-shadow: 0 0 30px rgba(99, 102, 241, 0.15);
+}
+
+.feature-card.featured-card:hover {
+    box-shadow: 0 0 40px rgba(99, 102, 241, 0.25);
 }
 
 .feature-icon {
@@ -524,6 +534,9 @@ section {
 .blog-posts {
     max-width: 900px;
     margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
 }
 
 .blog-post {
@@ -740,6 +753,10 @@ section {
 
     .features-grid {
         grid-template-columns: repeat(2, 1fr);
+    }
+
+    .hero-stats {
+        flex-wrap: wrap;
     }
 }
 

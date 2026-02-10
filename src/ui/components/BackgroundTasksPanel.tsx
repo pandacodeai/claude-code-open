@@ -9,6 +9,7 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import type { TaskSummary } from '../../core/backgroundTasks.js';
 import { isBackgroundTasksDisabled } from '../../utils/env-check.js';
+import { t } from '../../i18n/index.js';
 
 /**
  * 格式化任务持续时间为人类可读格式
@@ -59,16 +60,16 @@ export const BackgroundTasksPanel: React.FC<BackgroundTasksPanelProps> = ({
     >
       <Box marginBottom={1}>
         <Text bold color="cyan">
-          📋 Background Tasks ({stats.total})
+          📋 {t('bgTasks.title', { count: stats.total })}
         </Text>
         <Text dimColor> - </Text>
-        <Text color="green">Running: {stats.running}</Text>
+        <Text color="green">{t('bgTasks.running', { count: stats.running })}</Text>
         <Text dimColor> | </Text>
-        <Text color="blue">Completed: {stats.completed}</Text>
+        <Text color="blue">{t('bgTasks.completed', { count: stats.completed })}</Text>
         {stats.failed > 0 && (
           <>
             <Text dimColor> | </Text>
-            <Text color="red">Failed: {stats.failed}</Text>
+            <Text color="red">{t('bgTasks.failed', { count: stats.failed })}</Text>
           </>
         )}
       </Box>
@@ -122,12 +123,12 @@ export const BackgroundTasksPanel: React.FC<BackgroundTasksPanelProps> = ({
 
       {tasks.length > 5 && (
         <Box marginTop={1}>
-          <Text dimColor>... and {tasks.length - 5} more tasks</Text>
+          <Text dimColor>{t('bgTasks.moreTasks', { count: tasks.length - 5 })}</Text>
         </Box>
       )}
 
       <Box marginTop={1}>
-        <Text dimColor>Press Ctrl+B to close | Use /tasks to manage</Text>
+        <Text dimColor>{t('bgTasks.hint')}</Text>
       </Box>
     </Box>
   );
