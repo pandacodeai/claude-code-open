@@ -161,7 +161,13 @@ function Install-Npm {
         npm install --no-optional --legacy-peer-deps
     }
 
-    Write-Info "Building project..."
+    Write-Info "Building frontend..."
+    Push-Location src\web\client
+    npm install
+    npm run build
+    Pop-Location
+
+    Write-Info "Building backend..."
     npm run build
 
     Write-Info "Linking globally..."

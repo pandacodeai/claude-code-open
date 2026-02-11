@@ -206,8 +206,15 @@ install_npm() {
     info "Installing dependencies..."
     npm install
 
-    # Build
-    info "Building project..."
+    # Build frontend
+    info "Building frontend..."
+    cd src/web/client
+    npm install
+    npm run build
+    cd ../../..
+
+    # Build backend
+    info "Building backend..."
     npm run build
 
     # Global link
