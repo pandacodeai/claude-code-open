@@ -46,7 +46,7 @@ program
   .option('-m, --model <model>', '默认模型 (opus/sonnet/haiku)', 'sonnet')
   .option('-d, --dir <directory>', '工作目录', process.cwd())
   .option('--ngrok', '启用 ngrok 公网隧道 (需要 NGROK_AUTHTOKEN 环境变量)', false)
-  .option('--no-open', '不自动打开浏览器', false)
+  .option('--no-open', '不自动打开浏览器')
   .action(async (options) => {
     console.log(`
 ╔═══════════════════════════════════════════════════════════╗
