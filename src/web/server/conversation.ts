@@ -2829,6 +2829,7 @@ Guidelines:
         userInteractionHandler: new UserInteractionHandler(),
         taskManager: new TaskManager(),
         permissionHandler: new PermissionHandler({ mode: (permissionMode as any) || 'default' }),
+        rewindManager: new RewindManager(sessionId),
         toolFilterConfig: (sessionData as any).toolFilterConfig || {
           mode: 'all', // 默认允许所有工具
         },

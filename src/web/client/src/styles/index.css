@@ -657,6 +657,34 @@ body {
   animation: fadeIn 0.4s var(--ease-spring);
 }
 
+/* 消息主容器 - 横向布局 */
+.message-main {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+/* 用户消息的主容器应该反向排列（按钮在左边） */
+.message.user .message-main {
+  flex-direction: row-reverse;
+}
+
+/* 消息内容包装器 */
+.message-content-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 右侧按钮栏 */
+.message-actions-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 28px; /* 对齐消息内容顶部 */
+  flex-shrink: 0;
+}
+
 /* 对齐官方 Hh4: compact_boundary 分隔线 */
 .compact-boundary {
   display: flex;
@@ -784,10 +812,11 @@ body {
   font-size: 11px;
 }
 
-/* 消息操作按钮（header 中的回滚按钮） */
+/* 消息操作按钮 - 统一样式 */
 .message-action-button {
-  margin-left: auto;
-  padding: 4px 8px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   background: transparent;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
@@ -799,7 +828,6 @@ body {
   align-items: center;
   justify-content: center;
   opacity: 0.7;
-  min-width: 28px;
   user-select: none;
 }
 
@@ -815,40 +843,17 @@ body {
   transform: scale(0.95);
 }
 
-/* 消息底部区域 */
+/* 复制按钮特殊样式 */
+.message-copy-button {
+  font-size: 14px;
+}
+
+/* 消息底部区域（已废弃，但保留以防其他地方使用） */
 .message-footer {
   display: flex;
   justify-content: flex-end;
   padding: 8px 0 0;
   margin-top: 8px;
-}
-
-/* 复制按钮 */
-.message-copy-button {
-  padding: 4px 12px;
-  background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  opacity: 0.7;
-  user-select: none;
-}
-
-.message-copy-button:hover {
-  background: var(--bg-tertiary);
-  color: var(--accent-primary);
-  border-color: var(--accent-primary);
-  opacity: 1;
-}
-
-.message-copy-button:active {
-  transform: scale(0.98);
 }
 
 .message-content {

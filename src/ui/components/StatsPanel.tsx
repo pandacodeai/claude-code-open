@@ -392,9 +392,9 @@ function getFunComparison(stats: StatsData, totalTokens: number): string {
     for (const book of matchedBooks) {
       const ratio = totalTokens / book.tokens;
       if (ratio >= 2) {
-        comparisons.push(`You've used ~${Math.floor(ratio)}x more tokens than ${book.name}`);
+        comparisons.push(t('stats.tokenCompareMore', { ratio: Math.floor(ratio), name: book.name }));
       } else {
-        comparisons.push(`You've used the same number of tokens as ${book.name}`);
+        comparisons.push(t('stats.tokenCompareSame', { name: book.name }));
       }
     }
   }
@@ -405,7 +405,7 @@ function getFunComparison(stats: StatsData, totalTokens: number): string {
     for (const time of TIME_COMPARISONS) {
       const ratio = durationMins / time.minutes;
       if (ratio >= 2) {
-        comparisons.push(`Your longest session is ~${Math.floor(ratio)}x longer than ${time.name}`);
+        comparisons.push(t('stats.timeCompare', { ratio: Math.floor(ratio), name: time.name }));
       }
     }
   }
@@ -629,7 +629,7 @@ const ModelsTab: React.FC<{
                   <Text color="gray">({percentage}%)</Text>
                 </Text>
                 <Text color="gray">
-                  {'  '}In: {formatTokens(usage.inputTokens)} {'\u00B7'} Out: {formatTokens(usage.outputTokens)}
+                  {'  '}{t('stats.in')}: {formatTokens(usage.inputTokens)} {'\u00B7'} {t('stats.out')}: {formatTokens(usage.outputTokens)}
                 </Text>
               </Box>
             );
@@ -646,7 +646,7 @@ const ModelsTab: React.FC<{
                   <Text color="gray">({percentage}%)</Text>
                 </Text>
                 <Text color="gray">
-                  {'  '}In: {formatTokens(usage.inputTokens)} {'\u00B7'} Out: {formatTokens(usage.outputTokens)}
+                  {'  '}{t('stats.in')}: {formatTokens(usage.inputTokens)} {'\u00B7'} {t('stats.out')}: {formatTokens(usage.outputTokens)}
                 </Text>
               </Box>
             );

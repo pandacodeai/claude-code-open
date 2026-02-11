@@ -358,38 +358,42 @@ export function Message({
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
       >
-        <div className="message-header">
-          <span className="message-role">{role === 'user' ? '你' : 'Claude'}</span>
-          {message.model && <span>({message.model})</span>}
+        <div className="message-main">
+          <div className="message-content-wrapper">
+            <div className="message-header">
+              <span className="message-role">{role === 'user' ? '你' : 'Claude'}</span>
+              {message.model && <span>({message.model})</span>}
+            </div>
+            {Array.isArray(content)
+              ? content.map(renderContent)
+              : <MarkdownContent content={content as unknown as string} />
+            }
+          </div>
 
-          {/* 回滚按钮 */}
-          {showRewindButton && isHovering && (
-            <button
-              className="message-action-button message-rewind-button"
-              onClick={handleRewindClick}
-              title="Rewind to this message"
-            >
-              ↻
-            </button>
+          {/* 右侧按钮区域 */}
+          {isHovering && (
+            <div className="message-actions-sidebar">
+              {/* 回滚按钮 */}
+              {showRewindButton && (
+                <button
+                  className="message-action-button message-rewind-button"
+                  onClick={handleRewindClick}
+                  title="Rewind to this message"
+                >
+                  ↻
+                </button>
+              )}
+              {/* 复制按钮 */}
+              <button
+                className="message-action-button message-copy-button"
+                onClick={handleCopyMessage}
+                title="Copy message"
+              >
+                {copyButtonText}
+              </button>
+            </div>
           )}
         </div>
-        {Array.isArray(content)
-          ? content.map(renderContent)
-          : <MarkdownContent content={content as unknown as string} />
-        }
-
-        {/* 消息底部操作区 */}
-        {isHovering && (
-          <div className="message-footer">
-            <button
-              className="message-copy-button"
-              onClick={handleCopyMessage}
-              title="Copy message"
-            >
-              {copyButtonText} 复制
-            </button>
-          </div>
-        )}
       </div>
 
       {/* 回滚菜单 */}

@@ -742,23 +742,25 @@ const zh: Record<LocaleKeys, string> = {
   'triggerE2E.noOutput': 'E2E 测试完成，无文本输出。(success: {{success}})',
   'triggerE2E.startFailed': '## E2E 测试启动失败\n\n**错误**：{{error}}\n\n可能的原因：\n1. 应用未在预期 URL 启动\n2. 测试配置错误\n3. 浏览器环境问题',
 
-  // ============ Permission Dialog - CLI fallback (loop.ts) ============
-  'permission.cli.title': '权限请求',
-  'permission.cli.tool': '工具：{{toolName}}',
-  'permission.cli.reason': '原因：{{reason}}',
-  'permission.cli.input': '输入：{{input}}',
-  'permission.cli.options': '选项：',
-  'permission.cli.allowOnce': '  [y] 是，允许一次',
-  'permission.cli.deny': '  [n] 否，拒绝',
-  'permission.cli.allowSession': '  [a] 本次会话始终允许',
-  'permission.cli.prompt': '请选择 [y/n/a]：',
-  'permission.cli.granted': '已授权本次请求',
-  'permission.cli.grantedAll': "已授权本次会话所有 '{{toolName}}' 请求",
-  'permission.cli.denied': '权限已拒绝',
-
   // ============ SelectInput ============
   'selectInput.hint': '↑/↓ 导航 · 回车选择 · Esc 返回',
   'selectInput.unavailable': '（不可用）',
+
+  // ============ ClaudeMdImportDialog - validation ============
+  'claudemd.validationError': '错误：{{error}}',
+  'claudemd.fileTooLarge': '文件超过 40KB 限制',
+  'claudemd.cannotRead': '无法读取文件：{{error}}',
+  'claudemd.cannotReadShort': '无法读取文件',
+
+  // ============ MessageSelector ============
+  'rewind.files': '文件',
+
+  // ============ StatsPanel - fun comparisons ============
+  'stats.tokenCompareMore': '你已使用约 {{name}} {{ratio}} 倍的 token',
+  'stats.tokenCompareSame': '你使用的 token 数量与 {{name}} 相当',
+  'stats.timeCompare': '你最长的会话约为 {{name}} 的 {{ratio}} 倍',
+  'stats.in': '输入',
+  'stats.out': '输出',
 };
 
 export default zh;

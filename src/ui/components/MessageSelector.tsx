@@ -135,7 +135,7 @@ export function MessageSelector({
                   {msg.preview}
                 </Text>
                 {msg.hasFileChanges && (
-                  <Text color="yellow"> [files]</Text>
+                  <Text color="yellow"> [{t('rewind.files')}]</Text>
                 )}
               </Box>
 

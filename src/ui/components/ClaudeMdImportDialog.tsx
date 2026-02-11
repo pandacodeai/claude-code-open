@@ -185,7 +185,7 @@ const FileItem: React.FC<{
       {/* 验证错误 */}
       {file.validationError && (
         <Box marginLeft={4}>
-          <Text color="red">Error: {file.validationError}</Text>
+          <Text color="red">{t('claudemd.validationError', { error: file.validationError })}</Text>
         </Box>
       )}
 
@@ -536,10 +536,10 @@ export function scanClaudeMdFiles(cwd: string): ClaudeMdFile[] {
 
         // 验证文件大小
         if (stats.size > 40 * 1024) {
-          fileInfo.validationError = 'File exceeds 40KB limit';
+          fileInfo.validationError = t('claudemd.fileTooLarge');
         }
       } catch (error) {
-        fileInfo.validationError = `Cannot read file: ${error}`;
+        fileInfo.validationError = t('claudemd.cannotRead', { error: String(error) });
       }
     }
 
@@ -567,14 +567,14 @@ export function scanClaudeMdFiles(cwd: string): ClaudeMdFile[] {
             modifiedAt: stats.mtime,
             preview: content.slice(0, 500),
             includes: extractIncludes(content),
-            validationError: stats.size > 40 * 1024 ? 'File exceeds 40KB limit' : undefined,
+            validationError: stats.size > 40 * 1024 ? t('claudemd.fileTooLarge') : undefined,
           });
         } catch {
           files.push({
             path: rulePath,
             source: 'rules',
             exists: true,
-            validationError: 'Cannot read file',
+            validationError: t('claudemd.cannotReadShort'),
           });
         }
       }

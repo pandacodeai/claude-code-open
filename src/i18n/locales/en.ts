@@ -740,23 +740,25 @@ const en = {
   'cli.github.commitPush': '  2. Commit and push the workflow file',
   'cli.github.openPr': '  3. Open a PR to test the integration',
 
-  // ============ Permission Dialog - CLI fallback (loop.ts) ============
-  'permission.cli.title': 'Permission Request',
-  'permission.cli.tool': 'Tool: {{toolName}}',
-  'permission.cli.reason': 'Reason: {{reason}}',
-  'permission.cli.input': 'Input: {{input}}',
-  'permission.cli.options': 'Options:',
-  'permission.cli.allowOnce': '  [y] Yes, allow once',
-  'permission.cli.deny': '  [n] No, deny',
-  'permission.cli.allowSession': '  [a] Always allow for this session',
-  'permission.cli.prompt': 'Your choice [y/n/a]: ',
-  'permission.cli.granted': 'Permission granted for this request',
-  'permission.cli.grantedAll': "Permission granted for all '{{toolName}}' requests in this session",
-  'permission.cli.denied': 'Permission denied',
-
   // ============ SelectInput ============
   'selectInput.hint': '↑/↓ to navigate · enter to select · esc to go back',
   'selectInput.unavailable': '(unavailable)',
+
+  // ============ ClaudeMdImportDialog - validation ============
+  'claudemd.validationError': 'Error: {{error}}',
+  'claudemd.fileTooLarge': 'File exceeds 40KB limit',
+  'claudemd.cannotRead': 'Cannot read file: {{error}}',
+  'claudemd.cannotReadShort': 'Cannot read file',
+
+  // ============ MessageSelector ============
+  'rewind.files': 'files',
+
+  // ============ StatsPanel - fun comparisons ============
+  'stats.tokenCompareMore': "You've used ~{{ratio}}x more tokens than {{name}}",
+  'stats.tokenCompareSame': "You've used the same number of tokens as {{name}}",
+  'stats.timeCompare': 'Your longest session is ~{{ratio}}x longer than {{name}}',
+  'stats.in': 'In',
+  'stats.out': 'Out',
 } as const;
 
 export type LocaleKeys = keyof typeof en;
