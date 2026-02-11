@@ -14,6 +14,8 @@ import { ConversationManager } from './conversation.js';
 import { setupWebSocket } from './websocket.js';
 import { setupApiRoutes } from './routes/api.js';
 import { setupConfigApiRoutes } from './routes/config-api.js';
+import { initI18n } from '../../i18n/index.js';
+import { configManager } from '../../config/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,9 +26,14 @@ export interface WebServerOptions {
   cwd?: string;
   model?: string;
   ngrok?: boolean;
+  open?: boolean;
 }
 
-export async function startWebServer(options: WebServerOptions = {}): Promise<void> {
+export interface WebServerResult {
+  conversationManager: ConversationManager;
+}
+
+export async function startWebServer(options: WebServerOptions = {}): Promise<WebServerResult> {
   // 设置 CLAUDE_CODE_ENTRYPOINT 环境变量（如果未设置）
   // 官方 Claude Code 使用此变量标识启动入口点
   // WebUI 模式使用 'claude-vscode' 以匹配官方的 VSCode 扩展入口
@@ -40,6 +47,7 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<vo
     cwd = process.cwd(),
     model = process.env.CLAUDE_MODEL || 'opus',
     ngrok: enableNgrok = process.env.ENABLE_NGROK === 'true' || !!process.env.NGROK_AUTHTOKEN,
+    open: autoOpen = process.env.CLAUDE_WEB_NO_OPEN !== 'true',
   } = options;
 
   // 创建 Express 应用
@@ -61,6 +69,9 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<vo
     }
     // 其他路径（如 Vite HMR）由 Vite 处理，不需要在这里处理
   });
+
+  // 初始化 i18n（WebUI server 需要独立初始化，CLI 入口有自己的初始化）
+  await initI18n(configManager.getAll().language);
 
   // 创建对话管理器
   const conversationManager = new ConversationManager(cwd, model);
@@ -130,7 +141,10 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<vo
   app.use('/api/ai-hover', aiHoverRouter.default);
 
   // 前端静态文件路径
-  const clientPath = path.join(__dirname, '../client');
+  // 在生产环境下，代码在 dist/web/server，需要找到 src/web/client/dist
+  // 在开发环境下，代码在 src/web/server，需要找到 src/web/client
+  const projectRoot = path.join(__dirname, '../../..');
+  const clientPath = path.join(projectRoot, 'src/web/client');
   const clientDistPath = path.join(clientPath, 'dist');
 
   if (isDev) {
@@ -139,7 +153,7 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<vo
       const { createServer: createViteServer } = await import('vite');
       const vite = await createViteServer({
         root: clientPath,
-        server: { middlewareMode: true },
+        server: { middlewareMode: true, allowedHosts: true },
         appType: 'spa',
       });
       app.use(vite.middlewares);
@@ -162,19 +176,33 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<vo
 
   // 启动服务器
   await new Promise<void>((resolve) => {
-    server.listen(port, host, () => {
+    server.listen(port, host, async () => {
       const displayHost = host === '0.0.0.0' ? 'localhost' : host;
+      const url = `http://${displayHost}:${port}`;
       console.log(`\n🌐 Claude Code WebUI 已启动`);
-      console.log(`   地址: http://${displayHost}:${port}`);
+      console.log(`   地址: ${url}`);
       console.log(`   WebSocket: ws://${displayHost}:${port}/ws`);
       console.log(`   工作目录: ${cwd}`);
       console.log(`   模型: ${model}`);
+
+      // 自动打开浏览器
+      if (autoOpen) {
+        try {
+          const open = (await import('open')).default;
+          await open(url);
+          console.log(`   🌍 已在浏览器中打开`);
+        } catch (error) {
+          console.log(`   ⚠️  无法自动打开浏览器，请手动访问上述地址`);
+        }
+      }
+
       resolve();
     });
   });
 
-  // 如果启用了 ngrok，创建公网隧道
-  if (enableNgrok) {
+  // 如果启用了 ngrok 或设置了 NGROK_AUTHTOKEN，创建公网隧道
+  const shouldEnableNgrok = enableNgrok || !!process.env.NGROK_AUTHTOKEN;
+  if (shouldEnableNgrok) {
     try {
       const ngrok = await import('@ngrok/ngrok');
 
@@ -240,6 +268,8 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<vo
 
   process.on('SIGINT', () => gracefulShutdown('SIGINT'));
   process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+  return { conversationManager };
 }
 
 function setupStaticFiles(app: express.Application, clientDistPath: string) {

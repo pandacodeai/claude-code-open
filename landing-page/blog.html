@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>一键部署你的专属 Claude AI 助手 | Claude Code Open</title>
+    <meta name="description" content="无需复杂配置，一行命令即可在本地部署完整的 Claude AI 助手。支持 Web UI、自动打开浏览器、预设 API 配置，让 AI 助手触手可及。">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .blog-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            line-height: 1.8;
+        }
+
+        .blog-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .blog-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #191919;
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+
+        .blog-meta {
+            color: #666;
+            font-size: 0.95rem;
+            margin-bottom: 10px;
+        }
+
+        .blog-tags {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .blog-tag {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .blog-content {
+            font-size: 1.1rem;
+            color: #333;
+        }
+
+        .blog-content h2 {
+            font-size: 1.8rem;
+            color: #191919;
+            margin-top: 50px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            border-left: 4px solid #667eea;
+            padding-left: 16px;
+        }
+
+        .blog-content h3 {
+            font-size: 1.4rem;
+            color: #333;
+            margin-top: 35px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .blog-content p {
+            margin-bottom: 20px;
+        }
+
+        .blog-content ul, .blog-content ol {
+            margin-bottom: 20px;
+            padding-left: 30px;
+        }
+
+        .blog-content li {
+            margin-bottom: 10px;
+        }
+
+        .blog-content code {
+            background: #f5f5f5;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+            color: #e83e8c;
+        }
+
+        .blog-content pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 25px 0;
+            line-height: 1.6;
+        }
+
+        .blog-content pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+            font-size: 0.95em;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 30px 0;
+        }
+
+        .highlight-box p:last-child {
+            margin-bottom: 0;
+        }
+
+        .screenshot {
+            width: 100%;
+            max-width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            margin: 30px 0;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .feature-card {
+            background: white;
+            border: 2px solid #f0f0f0;
+            border-radius: 12px;
+            padding: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            border-color: #667eea;
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+
+        .feature-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #191919;
+            margin-bottom: 10px;
+        }
+
+        .feature-desc {
+            color: #666;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .cta-section {
+            text-align: center;
+            margin: 60px 0;
+            padding: 50px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            color: white;
+        }
+
+        .cta-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 30px;
+        }
+
+        .cta-button {
+            background: white;
+            color: #667eea;
+            padding: 15px 40px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+
+        .cta-button.secondary {
+            background: transparent;
+            color: white;
+            border: 2px solid white;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 30px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .comparison-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .comparison-table td {
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .check-icon {
+            color: #10b981;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .blog-title {
+                font-size: 1.8rem;
+            }
+
+            .blog-content {
+                font-size: 1rem;
+            }
+
+            .blog-content h2 {
+                font-size: 1.5rem;
+            }
+
+            .cta-title {
+                font-size: 1.5rem;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .cta-button {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="blog-container">
+        <header class="blog-header">
+            <h1 class="blog-title">一键部署你的专属 Claude AI 助手</h1>
+            <div class="blog-meta">
+                <span>📅 2026年2月11日</span> · <span>📖 5分钟阅读</span> · <span>✍️ Claude Code Team</span>
+            </div>
+            <div class="blog-tags">
+                <span class="blog-tag">AI助手</span>
+                <span class="blog-tag">一键安装</span>
+                <span class="blog-tag">开源项目</span>
+                <span class="blog-tag">Web界面</span>
+            </div>
+        </header>
+
+        <article class="blog-content">
+            <div class="highlight-box">
+                <p><strong>🎉 重大更新！</strong>我们刚刚发布了全新的一键安装功能！现在，无需任何复杂配置，只需<strong>一行命令</strong>，即可在你的电脑上部署完整的 Claude AI 助手。</p>
+            </div>
+
+            <h2>🚀 为什么你需要本地 AI 助手？</h2>
+
+            <p>在这个 AI 飞速发展的时代，拥有一个<strong>随时可用、完全受控</strong>的 AI 助手变得越来越重要。想象一下：</p>
+
+            <ul>
+                <li>🔒 <strong>数据隐私</strong>：所有对话、文件处理都在本地进行，不用担心敏感信息泄露</li>
+                <li>⚡ <strong>即时响应</strong>：无需等待，双击启动，浏览器自动打开，即刻使用</li>
+                <li>🎯 <strong>定制化</strong>：预设你的 API 配置，一次设置，永久使用</li>
+                <li>💻 <strong>跨平台</strong>：Windows、macOS、Linux 全平台支持</li>
+            </ul>
+
+            <h2>✨ 全新安装体验：真正的"一键部署"</h2>
+
+            <p>我们深知用户最痛恨复杂的安装步骤。因此，我们设计了<strong>业界最简单的安装流程</strong>：</p>
+
+            <h3>Windows 用户</h3>
+            <pre><code>irm https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.ps1 | iex</code></pre>
+
+            <h3>macOS / Linux 用户</h3>
+            <pre><code>curl -fsSL https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.sh | bash</code></pre>
+
+            <p>就是这么简单！复制一行命令，粘贴到终端，回车，剩下的交给我们。</p>
+
+            <h2>🎁 安装后你会得到什么？</h2>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🖥️</div>
+                    <div class="feature-title">桌面快捷方式</div>
+                    <div class="feature-desc">双击即可启动，就像打开本地应用一样简单</div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🌐</div>
+                    <div class="feature-title">自动打开浏览器</div>
+                    <div class="feature-desc">启动后浏览器自动打开 Web UI，零手动操作</div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">⚙️</div>
+                    <div class="feature-title">预设 API 配置</div>
+                    <div class="feature-desc">默认配置已就绪，安装完成即可使用</div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🔧</div>
+                    <div class="feature-title">完整功能支持</div>
+                    <div class="feature-desc">29+ 工具、Blueprint 系统、MCP 协议全支持</div>
+                </div>
+            </div>
+
+            <h2>🆚 对比官方 Claude Code</h2>
+
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>特性</th>
+                        <th>官方 Claude Code</th>
+                        <th>Claude Code Open</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>安装方式</strong></td>
+                        <td>npm 全局安装</td>
+                        <td><span class="check-icon">✓</span> 一键安装脚本</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Web 界面</strong></td>
+                        <td>仅命令行</td>
+                        <td><span class="check-icon">✓</span> 完整 React Web UI</td>
+                    </tr>
+                    <tr>
+                        <td><strong>桌面快捷方式</strong></td>
+                        <td>❌</td>
+                        <td><span class="check-icon">✓</span> 自动创建</td>
+                    </tr>
+                    <tr>
+                        <td><strong>自动打开浏览器</strong></td>
+                        <td>❌</td>
+                        <td><span class="check-icon">✓</span> 启动即开</td>
+                    </tr>
+                    <tr>
+                        <td><strong>预设配置</strong></td>
+                        <td>手动配置</td>
+                        <td><span class="check-icon">✓</span> 自动预设</td>
+                    </tr>
+                    <tr>
+                        <td><strong>多语言支持</strong></td>
+                        <td>仅英文</td>
+                        <td><span class="check-icon">✓</span> 中英双语</td>
+                    </tr>
+                    <tr>
+                        <td><strong>开源</strong></td>
+                        <td>闭源</td>
+                        <td><span class="check-icon">✓</span> MIT 开源</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h2>📖 安装后的完整体验</h2>
+
+            <h3>第一步：运行安装命令</h3>
+            <p>打开你的终端（Windows 用 PowerShell，macOS/Linux 用 Terminal），粘贴安装命令，回车。</p>
+
+            <h3>第二步：喝杯咖啡 ☕</h3>
+            <p>脚本会自动完成以下工作：</p>
+            <ul>
+                <li>✅ 克隆最新代码</li>
+                <li>✅ 安装后端依赖</li>
+                <li>✅ 构建前端界面</li>
+                <li>✅ 编译后端代码</li>
+                <li>✅ 创建桌面快捷方式</li>
+                <li>✅ 配置环境变量</li>
+            </ul>
+
+            <h3>第三步：双击启动</h3>
+            <p>安装完成后，桌面上会出现 <strong>"Claude Code WebUI"</strong> 快捷方式。双击它：</p>
+            <ul>
+                <li>🚀 服务器自动启动</li>
+                <li>🌐 浏览器自动打开 <code>http://localhost:3456</code></li>
+                <li>💬 立即开始与 Claude 对话</li>
+            </ul>
+
+            <h2>🛠️ 技术亮点</h2>
+
+            <h3>1. 智能路径解析</h3>
+            <p>安装脚本使用运行时环境变量（<code>%USERPROFILE%</code>），确保在任何用户账户下都能正常工作。</p>
+
+            <h3>2. 前端构建优化</h3>
+            <p>通过配置 TypeScript 的 <code>exclude</code> 选项，避免前端构建时检查后端代码，大幅提升构建速度和成功率。</p>
+
+            <h3>3. 容错机制</h3>
+            <p>对于需要编译的原生模块（如 tree-sitter），我们将其设置为可选依赖，即使编译失败也不影响核心功能。</p>
+
+            <h3>4. 跨平台兼容</h3>
+            <p>一套代码，三个平台，统一体验。无论你用什么操作系统，都能享受相同的功能。</p>
+
+            <h2>🎯 适合谁使用？</h2>
+
+            <ul>
+                <li><strong>开发者</strong>：需要 AI 辅助编程、代码审查、技术问答</li>
+                <li><strong>研究人员</strong>：处理大量文档、数据分析、学术写作</li>
+                <li><strong>内容创作者</strong>：文章润色、创意生成、多语言翻译</li>
+                <li><strong>企业用户</strong>：需要私有化部署、数据安全可控</li>
+                <li><strong>AI 爱好者</strong>：想要探索 AI 能力、学习提示词工程</li>
+            </ul>
+
+            <h2>🔐 安全与隐私</h2>
+
+            <p>我们深知数据安全的重要性：</p>
+            <ul>
+                <li>✅ <strong>本地运行</strong>：所有计算和处理都在你的电脑上进行</li>
+                <li>✅ <strong>开源透明</strong>：完整源码可审计，没有后门</li>
+                <li>✅ <strong>API 可控</strong>：你可以使用自己的 API 密钥，或自建服务器</li>
+                <li>✅ <strong>零遥测</strong>：不收集任何使用数据或统计信息</li>
+            </ul>
+
+            <div class="cta-section">
+                <h2 class="cta-title">准备好体验了吗？</h2>
+                <p>只需一行命令，30 秒完成安装</p>
+                <div class="cta-buttons">
+                    <a href="https://github.com/kill136/claude-code-open" class="cta-button">
+                        查看 GitHub
+                    </a>
+                    <a href="https://www.chatbi.site" class="cta-button secondary">
+                        访问官网
+                    </a>
+                </div>
+            </div>
+
+            <h2>💬 社区与支持</h2>
+
+            <p>加入我们不断成长的社区：</p>
+            <ul>
+                <li>⭐ <strong>GitHub</strong>: <a href="https://github.com/kill136/claude-code-open">给我们一个 Star</a></li>
+                <li>🐛 <strong>问题反馈</strong>: <a href="https://github.com/kill136/claude-code-open/issues">提交 Issue</a></li>
+                <li>📚 <strong>文档</strong>: 完整的中英文文档持续更新中</li>
+                <li>🤝 <strong>贡献</strong>: 欢迎 Pull Request，一起让它变得更好</li>
+            </ul>
+
+            <h2>🌟 结语</h2>
+
+            <p>在 AI 时代，每个人都应该拥有属于自己的 AI 助手。我们希望通过 <strong>Claude Code Open</strong>，让这个愿景成为现实。</p>
+
+            <p>不需要复杂的配置，不需要昂贵的硬件，只需要一行命令。你的专属 AI 助手，就在你的指尖。</p>
+
+            <div class="highlight-box">
+                <p><strong>🎁 限时彩蛋：</strong>早期用户可以免费获得技术支持和优先功能建议权。立即安装，加入我们的社区！</p>
+            </div>
+
+            <p style="text-align: center; margin-top: 50px; color: #666;">
+                <em>让 AI 为你工作，而不是你为 AI 工作。</em>
+            </p>
+        </article>
+    </div>
+
+    <footer style="text-align: center; padding: 40px 20px; background: #f9f9f9; margin-top: 60px;">
+        <p style="color: #666; margin-bottom: 10px;">© 2026 Claude Code Open. All rights reserved.</p>
+        <p style="color: #999; font-size: 0.9rem;">
+            <a href="https://github.com/kill136/claude-code-open" style="color: #667eea; text-decoration: none;">GitHub</a> ·
+            <a href="https://www.chatbi.site" style="color: #667eea; text-decoration: none;">Official Website</a> ·
+            <a href="https://github.com/kill136/claude-code-open/blob/main/LICENSE" style="color: #667eea; text-decoration: none;">MIT License</a>
+        </p>
+    </footer>
+</body>
+</html>

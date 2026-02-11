@@ -5,6 +5,7 @@ import BlueprintPage from './pages/BlueprintPage';
 import TopNavBar from './components/swarm/TopNavBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ProjectProvider, useProject } from './contexts/ProjectContext';
+import { LanguageProvider } from './i18n';
 import type { Session, SessionActions } from './types';
 
 type Page = 'chat' | 'swarm' | 'blueprint';
@@ -164,9 +165,11 @@ function RootContent() {
 export default function Root() {
   return (
     <ErrorBoundary name="Application">
-      <ProjectProvider>
-        <RootContent />
-      </ProjectProvider>
+      <LanguageProvider>
+        <ProjectProvider>
+          <RootContent />
+        </ProjectProvider>
+      </LanguageProvider>
     </ErrorBoundary>
   );
 }

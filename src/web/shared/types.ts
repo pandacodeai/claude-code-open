@@ -72,6 +72,7 @@ export type ClientMessage =
   | { type: 'get_history' }
   | { type: 'clear_history' }
   | { type: 'set_model'; payload: { model: string } }
+  | { type: 'set_language'; payload: { language: string } }
   | { type: 'slash_command'; payload: { command: string } }
   | { type: 'permission_response'; payload: PermissionResponsePayload }
   | { type: 'permission_config'; payload: PermissionConfigPayload }
@@ -159,7 +160,10 @@ export type ClientMessage =
   | { type: 'terminal:create'; payload: { cwd?: string; cols?: number; rows?: number } }
   | { type: 'terminal:input'; payload: { terminalId: string; data: string } }
   | { type: 'terminal:resize'; payload: { terminalId: string; cols: number; rows: number } }
-  | { type: 'terminal:destroy'; payload: { terminalId: string } };
+  | { type: 'terminal:destroy'; payload: { terminalId: string } }
+  // Rewind 消息
+  | { type: 'rewind_preview'; payload: { messageId: string; option: 'code' | 'conversation' | 'both' } }
+  | { type: 'rewind_execute'; payload: { messageId: string; option: 'code' | 'conversation' | 'both' } };
 
 /**
  * 服务端发送的消息类型
@@ -294,7 +298,10 @@ export type ServerMessage =
   // 终端消息
   | { type: 'terminal:created'; payload: { terminalId: string } }
   | { type: 'terminal:output'; payload: { terminalId: string; data: string } }
-  | { type: 'terminal:exit'; payload: { terminalId: string; exitCode: number } };
+  | { type: 'terminal:exit'; payload: { terminalId: string; exitCode: number } }
+  // Rewind 消息
+  | { type: 'rewind_preview'; payload: { success: boolean; preview?: any } }
+  | { type: 'rewind_success'; payload: { success: boolean; result?: any; messages?: any[] } };
 
 // ============ 消息负载类型 ============
 

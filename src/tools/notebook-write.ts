@@ -9,6 +9,7 @@
 import { BaseTool } from './base.js';
 import type { ToolResult, ToolDefinition } from '../types/index.js';
 import { getNotebookManager, type NotebookType } from '../memory/notebook.js';
+import { t } from '../i18n/index.js';
 
 export interface NotebookWriteInput {
   /** 笔记本类型 */

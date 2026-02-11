@@ -64,24 +64,171 @@ function Test-Git {
     return $false
 }
 
+# --- Create Desktop Shortcut ---
+function New-DesktopShortcut {
+    param(
+        [string]$Type,
+        [string]$InstallPath
+    )
+
+    Write-Info "Creating desktop shortcut..."
+
+    $DesktopPath = [Environment]::GetFolderPath("Desktop")
+    $ShortcutPath = Join-Path $DesktopPath "Claude Code WebUI.lnk"
+
+    try {
+        $WshShell = New-Object -ComObject WScript.Shell
+        $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
+
+        if ($Type -eq "npm") {
+            # npm installation: create a batch file and shortcut to it
+            $BatDir = Join-Path $env:USERPROFILE ".local\bin"
+            if (!(Test-Path $BatDir)) { New-Item -ItemType Directory -Path $BatDir -Force | Out-Null }
+
+            $BatPath = Join-Path $BatDir "claude-web-launch.bat"
+            $WebCliPath = Join-Path $InstallPath "dist\web-cli.js"
+
+            # Build batch file content with runtime environment variables
+            $BatContent = @"
+@echo off
+cd /d "%USERPROFILE%"
+
+REM Set default API configuration
+set "ANTHROPIC_BASE_URL=http://13.113.224.168:8082"
+set "ANTHROPIC_API_KEY=my-secret"
+
+echo Starting Claude Code WebUI...
+echo API URL: %ANTHROPIC_BASE_URL%
+echo Server will be accessible from: http://0.0.0.0:3456
+echo Press Ctrl+C to stop the server
+echo.
+
+REM Run the script directly with node
+node "%USERPROFILE%\.claude-code-open\dist\web-cli.js" -H 0.0.0.0
+
+pause
+"@
+            Set-Content -Path $BatPath -Value $BatContent -Encoding ASCII
+
+            $Shortcut.TargetPath = $BatPath
+            $Shortcut.Description = "Launch Claude Code Web Interface"
+            $Shortcut.WorkingDirectory = "$env:USERPROFILE"
+        }
+        elseif ($Type -eq "docker") {
+            # Docker installation: create a batch file and shortcut to it
+            $BatPath = Join-Path $env:USERPROFILE ".local\bin\claude-web.bat"
+            $BatContent = @"
+@echo off
+cd /d "%USERPROFILE%"
+echo Starting Claude Code WebUI...
+echo Press Ctrl+C to stop the server
+echo.
+docker run -it --rm -p 3456:3456 -e ANTHROPIC_API_KEY=%ANTHROPIC_API_KEY% -v "%USERPROFILE%\.claude:/root/.claude" -v "%cd%:/workspace" $DockerImage claude-web
+pause
+"@
+            Set-Content -Path $BatPath -Value $BatContent -Encoding ASCII
+
+            $Shortcut.TargetPath = $BatPath
+            $Shortcut.Description = "Launch Claude Code Web Interface (Docker)"
+            $Shortcut.WorkingDirectory = "$env:USERPROFILE"
+        }
+
+        $Shortcut.Save()
+        Write-Ok "Desktop shortcut created: $ShortcutPath"
+    }
+    catch {
+        Write-Warn "Failed to create desktop shortcut: $_"
+    }
+}
+
+# --- Helper: Clone and verify repository ---
+function Clone-Repository {
+    param(
+        [string]$RepoUrl,
+        [string]$InstallDir
+    )
+
+    Write-Info "Cloning repository... (this may take a while)"
+    git clone -b private_web_ui --progress $RepoUrl $InstallDir 2>&1 | Write-Host
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Git clone failed. Please check your network connection and try again."
+    }
+    if (-not (Test-Path $InstallDir)) {
+        Write-Error "Installation directory was not created. Git clone may have failed."
+    }
+
+    # Verify critical directories exist
+    $CriticalDirs = @(
+        (Join-Path $InstallDir "src"),
+        (Join-Path $InstallDir "src\web"),
+        (Join-Path $InstallDir "src\web\client")
+    )
+    foreach ($dir in $CriticalDirs) {
+        if (-not (Test-Path $dir)) {
+            Write-Error "Critical directory missing: $dir`nGit clone appears to be incomplete. Please delete $InstallDir and try again."
+        }
+    }
+}
+
 # --- Install via npm ---
 function Install-Npm {
     Write-Info "Installing via npm (from source)..."
 
     if (Test-Path $InstallDir) {
-        Write-Info "Updating existing installation..."
-        Push-Location $InstallDir
-        git pull origin main
+        # Check if it's a valid git repository
+        $GitDir = Join-Path $InstallDir ".git"
+        if (Test-Path $GitDir) {
+            Write-Info "Updating existing installation..."
+            Push-Location $InstallDir
+            git pull origin private_web_ui
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "Git pull failed. Please check your network connection."
+            }
+        } else {
+            Write-Warn "Existing directory is not a git repository. Removing and re-installing..."
+            Remove-Item -Recurse -Force $InstallDir
+            Clone-Repository -RepoUrl $RepoUrl -InstallDir $InstallDir
+            Push-Location $InstallDir
+        }
     } else {
-        Write-Info "Cloning repository..."
-        git clone $RepoUrl $InstallDir
+        Clone-Repository -RepoUrl $RepoUrl -InstallDir $InstallDir
         Push-Location $InstallDir
     }
 
     Write-Info "Installing dependencies..."
-    npm install
+    npm install --legacy-peer-deps
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warn "Some native modules failed to compile, trying without optional dependencies..."
+        npm install --no-optional --legacy-peer-deps
+    }
 
-    Write-Info "Building project..."
+    Write-Info "Building frontend..."
+
+    # Verify frontend directory exists
+    $FrontendDir = Join-Path $InstallDir "src\web\client"
+    if (-not (Test-Path $FrontendDir)) {
+        Write-Error @"
+Frontend directory not found: $FrontendDir
+
+This usually means the git clone was incomplete. Please try:
+  1. Delete the directory: Remove-Item -Recurse -Force $InstallDir
+  2. Re-run the installation script
+  3. If the problem persists, try manual installation from GitHub
+"@
+    }
+
+    Push-Location src\web\client
+    npm install
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Frontend npm install failed."
+    }
+    npm run build
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Frontend build failed."
+    }
+    Pop-Location
+
+    Write-Info "Building backend..."
     npm run build
 
     Write-Info "Linking globally..."
@@ -89,17 +236,25 @@ function Install-Npm {
 
     Pop-Location
 
+    # Create desktop shortcut
+    New-DesktopShortcut -Type "npm" -InstallPath $InstallDir
+
     Write-Ok "Installation complete via npm!"
     Write-Host ""
     Write-Host "  Usage:" -ForegroundColor White
     Write-Host "    claude                        " -ForegroundColor Green -NoNewline; Write-Host "# Interactive mode"
     Write-Host "    claude `"your prompt`"           " -ForegroundColor Green -NoNewline; Write-Host "# With prompt"
     Write-Host "    claude -p `"your prompt`"        " -ForegroundColor Green -NoNewline; Write-Host "# Print mode"
+    Write-Host "    claude-web                    " -ForegroundColor Green -NoNewline; Write-Host "# Start WebUI"
     Write-Host ""
     Write-Host "  Set your API key:" -ForegroundColor White
     Write-Host '    $env:ANTHROPIC_API_KEY = "sk-..."' -ForegroundColor Yellow
     Write-Host '    # Or permanently:' -ForegroundColor DarkGray
     Write-Host '    [Environment]::SetEnvironmentVariable("ANTHROPIC_API_KEY", "sk-...", "User")' -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  Desktop Shortcut:" -ForegroundColor White
+    Write-Host "    A shortcut has been created on your desktop" -ForegroundColor Cyan
+    Write-Host "    Double-click it to start Claude Code WebUI" -ForegroundColor Cyan
     Write-Host ""
 }
 
@@ -135,6 +290,9 @@ docker run -it --rm ^
         Write-Warn "Added $BinDir to user PATH. Please restart your terminal."
     }
 
+    # Create desktop shortcut
+    New-DesktopShortcut -Type "docker"
+
     Write-Ok "Installation complete via Docker!"
     Write-Host ""
     Write-Host "  Usage:" -ForegroundColor White
@@ -143,6 +301,10 @@ docker run -it --rm ^
     Write-Host ""
     Write-Host "  Set your API key:" -ForegroundColor White
     Write-Host '    $env:ANTHROPIC_API_KEY = "sk-..."' -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  Desktop Shortcut:" -ForegroundColor White
+    Write-Host "    A shortcut has been created on your desktop" -ForegroundColor Cyan
+    Write-Host "    Double-click it to start Claude Code WebUI" -ForegroundColor Cyan
     Write-Host ""
 }
 
