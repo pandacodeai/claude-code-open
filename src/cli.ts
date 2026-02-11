@@ -26,6 +26,7 @@ import { createPluginCommand } from './plugins/cli.js';
 import type { PermissionMode, OutputFormat, InputFormat } from './types/index.js';
 import { VERSION_FULL } from './version.js';
 import { resetTerminalTitle } from './utils/platform.js';
+import { t, initI18n } from './i18n/index.js';
 import { disconnectAllMcpServers } from './tools/mcp.js';
 import {
   isPenguinEnabled,
@@ -267,11 +268,11 @@ program
 
     // 🔍 提前验证系统提示选项的互斥性
     if (options.systemPrompt && options.systemPromptFile) {
-      process.stderr.write(chalk.red('Error: Cannot use both --system-prompt and --system-prompt-file. Please use only one.\n'));
+      process.stderr.write(chalk.red(t('cli.misc.sysPromptBothError') + '\n'));
       process.exit(1);
     }
     if (options.appendSystemPrompt && options.appendSystemPromptFile) {
-      process.stderr.write(chalk.red('Error: Cannot use both --append-system-prompt and --append-system-prompt-file. Please use only one.\n'));
+      process.stderr.write(chalk.red(t('cli.misc.appendPromptBothError') + '\n'));
       process.exit(1);
     }
 
@@ -390,7 +391,7 @@ program
       await initializeAllMcpServers(options.verbose, options.strictMcpConfig);
     } catch (error) {
       if (options.debug) {
-        console.warn(chalk.yellow('[MCP] Failed to initialize some MCP servers:'), error);
+        console.warn(chalk.yellow(`[MCP] ${t('cli.misc.mcpInitFailed')}`), error);
       }
     }
 
@@ -407,13 +408,13 @@ program
       try {
         const filePath = path.resolve(options.systemPromptFile);
         if (!fs.existsSync(filePath)) {
-          process.stderr.write(chalk.red(`Error: System prompt file not found: ${filePath}\n`));
+          process.stderr.write(chalk.red(t('cli.misc.sysPromptFileNotFound', { path: filePath }) + '\n'));
           process.exit(1);
         }
         systemPrompt = fs.readFileSync(filePath, 'utf-8');
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
-        process.stderr.write(chalk.red(`Error reading system prompt file: ${errorMsg}\n`));
+        process.stderr.write(chalk.red(t('cli.misc.sysPromptFileError', { error: errorMsg }) + '\n'));
         process.exit(1);
       }
     }
@@ -424,13 +425,13 @@ program
       try {
         const filePath = path.resolve(options.appendSystemPromptFile);
         if (!fs.existsSync(filePath)) {
-          process.stderr.write(chalk.red(`Error: Append system prompt file not found: ${filePath}\n`));
+          process.stderr.write(chalk.red(t('cli.misc.appendPromptFileNotFound', { path: filePath }) + '\n'));
           process.exit(1);
         }
         appendSystemPrompt = fs.readFileSync(filePath, 'utf-8');
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
-        process.stderr.write(chalk.red(`Error reading append system prompt file: ${errorMsg}\n`));
+        process.stderr.write(chalk.red(t('cli.misc.appendPromptFileError', { error: errorMsg }) + '\n'));
         process.exit(1);
       }
     }
@@ -469,7 +470,7 @@ program
     const isSetupOnlyMode = options.initOnly || options.maintenance;
 
     if (shouldRunSetupHook) {
-      console.log(chalk.cyan('\n🔧 Running Setup hook...\n'));
+      console.log(chalk.cyan(`\n🔧 ${t('cli.setup.running')}\n`));
 
       // 添加新的 Setup hook 事件类型
       const setupHookResult = await runHooks({ 
@@ -478,7 +479,7 @@ program
       });
 
       if (setupHookResult.some(r => !r.success)) {
-        console.error(chalk.red('\n❌ Setup hook failed\n'));
+        console.error(chalk.red(`\n❌ ${t('cli.setup.failed')}\n`));
         const failed = setupHookResult.filter(r => !r.success);
         failed.forEach(r => {
           if (r.error) {
@@ -489,15 +490,15 @@ program
         if (isSetupOnlyMode) {
           process.exit(1);
         } else {
-          console.log(chalk.yellow('Continuing with session despite setup errors...\n'));
+          console.log(chalk.yellow(t('cli.setup.continuing') + '\n'));
         }
       } else {
-        console.log(chalk.green('✓ Setup hook completed successfully\n'));
+        console.log(chalk.green(`✓ ${t('cli.setup.completed')}\n`));
       }
 
       // 如果是 --init-only 或 --maintenance 模式，在 Setup hook 后退出
       if (isSetupOnlyMode) {
-        console.log(chalk.gray('Exiting after setup (--init-only mode)\n'));
+        console.log(chalk.gray(t('cli.setup.exitingInit') + '\n'));
         process.exit(0);
       }
     }
@@ -514,11 +515,11 @@ program
       const { initializeLSPManager } = await import('./lsp/index.js');
       const workspaceRoot = process.cwd();
       await initializeLSPManager(workspaceRoot);
-      console.log(chalk.dim('[LSP] Language servers initialized'));
+      console.log(chalk.dim(`[LSP] ${t('cli.misc.lspInitialized')}`));
     } catch (error) {
       // LSP 初始化失败不应该阻止程序运行
       if (options.debug) {
-        console.warn(chalk.yellow('[LSP] Failed to initialize language servers:'), error);
+        console.warn(chalk.yellow(`[LSP] ${t('cli.misc.lspFailed')}`), error);
       }
     }
 
@@ -627,11 +628,11 @@ program
               console.log(chalk.dim(`[StructuredOutput] Properties: ${Object.keys(schema.properties || {}).join(', ')}`));
             }
           } else {
-            console.error(chalk.red('Error: Invalid JSON Schema provided'));
+            console.error(chalk.red(t('cli.misc.invalidJsonSchema')));
             process.exit(1);
           }
         } else {
-          console.error(chalk.red('Error: Failed to parse JSON Schema'));
+          console.error(chalk.red(t('cli.misc.jsonSchemaParseError')));
           process.exit(1);
         }
       }
@@ -739,8 +740,8 @@ async function runTuiInterface(
       })
     );
   } catch (error) {
-    console.error(chalk.red('Failed to start TUI interface:'), error);
-    console.log(chalk.yellow('Falling back to text interface...'));
+    console.error(chalk.red(t('cli.misc.tuiFailed')), error);
+    console.log(chalk.yellow(t('cli.misc.tuiFallback')));
     await runTextInterface(prompt, options, modelMap, systemPrompt);
   }
 }
@@ -801,10 +802,10 @@ async function runTextInterface(
     if (sessions.length > 0) {
       const session = loadSession(sessions[0].id);
       if (session) {
-        console.log(chalk.green(`Continuing session: ${sessions[0].id}`));
+        console.log(chalk.green(t('cli.session.continuing', { id: sessions[0].id })));
       }
     } else {
-      console.log(chalk.yellow('No recent session found, starting new session'));
+      console.log(chalk.yellow(t('cli.session.noRecent')));
     }
   } else if (options.resume !== undefined) {
     if (options.resume === true || options.resume === '') {
@@ -847,12 +848,12 @@ async function runTextInterface(
           // 设置到 loop
           loop.setSession(forkedSession);
 
-          console.log(chalk.green(`✓ Forked session from: ${options.resume.slice(0, 8)}`));
-          console.log(chalk.green(`  New session ID: ${forkedSessionData.metadata.id.slice(0, 8)}`));
-          console.log(chalk.gray(`  Copied ${forkedSessionData.messages.length} messages`));
-          console.log(chalk.gray(`  This is a new independent session based on the original`));
+          console.log(chalk.green(`✓ ${t('cli.session.forked', { id: options.resume.slice(0, 8) })}`));
+          console.log(chalk.green(`  ${t('cli.session.newId', { id: forkedSessionData.metadata.id.slice(0, 8) })}`));
+          console.log(chalk.gray(`  ${t('cli.session.copiedMessages', { count: forkedSessionData.messages.length })}`));
+          console.log(chalk.gray(`  ${t('cli.session.independent')}`));
         } else {
-          console.log(chalk.yellow(`Session ${options.resume} not found, starting new session`));
+          console.log(chalk.yellow(t('cli.session.notFound', { id: options.resume })));
         }
       } else {
         // 正常恢复会话
@@ -862,11 +863,11 @@ async function runTextInterface(
           // v2.1.32: 如果用户没有指定 --agent，但会话保存了 agent 值，则复用
           if (!options.agent && session.getAgent()) {
             options.agent = session.getAgent();
-            console.log(chalk.gray(`  Re-using agent from previous session: ${options.agent}`));
+            console.log(chalk.gray(`  ${t('cli.session.reusingAgent', { agent: options.agent })}`));
           }
-          console.log(chalk.green(`Resumed session: ${options.resume}`));
+          console.log(chalk.green(t('cli.session.resumed', { id: options.resume })));
         } else {
-          console.log(chalk.yellow(`Session ${options.resume} not found, starting new session`));
+          console.log(chalk.yellow(t('cli.session.notFound', { id: options.resume })));
         }
       }
     }
@@ -887,10 +888,10 @@ async function runTextInterface(
             : options.fromPr;
           console.log(chalk.green(`Resumed session linked to ${prInfo}`));
         } else {
-          console.log(chalk.yellow(`Failed to load session for PR ${options.fromPr}, starting new session`));
+          console.log(chalk.yellow(t('cli.session.prLoadFailed', { pr: options.fromPr })));
         }
       } else {
-        console.log(chalk.yellow(`No session found for PR ${options.fromPr}, starting new session`));
+        console.log(chalk.yellow(t('cli.session.prNotFound', { pr: options.fromPr })));
       }
     }
   }
@@ -1004,7 +1005,7 @@ async function runTextInterface(
 
       // 退出命令
       if (input.toLowerCase() === 'exit' || input.toLowerCase() === 'quit') {
-        console.log(chalk.yellow('\nGoodbye!'));
+        console.log(chalk.yellow(`\n${t('cli.misc.goodbye')}`));
         // 自动记忆：提取本次对话值得记住的信息
         console.error(chalk.gray('[AutoMemory] 正在保存对话记忆...'));
         await loop.autoMemorize();
@@ -1051,12 +1052,12 @@ mcpCommand
   .option('-p, --port <port>', 'Port to listen on', '3000')
   .option('--stdio', 'Use stdio transport instead of HTTP')
   .action(async (options) => {
-    console.log(chalk.bold('\n🚀 Starting Claude Code MCP Server\n'));
+    console.log(chalk.bold(`\n🚀 ${t('cli.mcp.startingServer')}\n`));
 
     // MCP Server 功能 - 占位实现
-    console.log(chalk.cyan(`Transport: ${options.stdio ? 'stdio' : `HTTP on port ${options.port}`}`));
+    console.log(chalk.cyan(t('cli.mcp.transport', { transport: options.stdio ? 'stdio' : `HTTP on port ${options.port}` })));
     console.log();
-    console.log(chalk.yellow('⚠️  MCP Server functionality is not yet implemented.'));
+    console.log(chalk.yellow(`⚠️  ${t('cli.mcp.notImplemented')}`));
     console.log(chalk.gray('This feature allows Claude Code to act as an MCP server,'));
     console.log(chalk.gray('exposing its tools to other MCP-compatible applications.'));
     console.log();
@@ -1103,7 +1104,7 @@ mcpCommand
           const readline = await import('readline');
           const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
           clientSecret = await new Promise<string>((resolve) => {
-            rl.question('Enter OAuth client secret: ', (answer) => {
+            rl.question(t('cli.mcp.enterSecret'), (answer) => {
               rl.close();
               resolve(answer);
             });
@@ -1120,7 +1121,7 @@ mcpCommand
       };
 
       configManager.addMcpServer(name, serverConfig);
-      console.log(chalk.green(`✓ Added SSE MCP server: ${name}${oauth ? ' (with OAuth)' : ''}`));
+      console.log(chalk.green(`✓ ${oauth ? t('cli.mcp.addedSseOauth', { name }) : t('cli.mcp.addedSse', { name })}`));
     } else {
       // stdio 服务器
       configManager.addMcpServer(name, {
@@ -1129,7 +1130,7 @@ mcpCommand
         args: args || [],
         env,
       });
-      console.log(chalk.green(`✓ Added stdio MCP server: ${name}`));
+      console.log(chalk.green(`✓ ${t('cli.mcp.addedStdio', { name })}`));
     }
   });
 
@@ -1140,9 +1141,9 @@ mcpCommand
   .option('-s, --scope <scope>', 'Configuration scope (local, user, project)', 'local')
   .action((name, options) => {
     if (configManager.removeMcpServer(name)) {
-      console.log(chalk.green(`✓ Removed MCP server: ${name}`));
+      console.log(chalk.green(`✓ ${t('cli.mcp.removed', { name })}`));
     } else {
-      console.log(chalk.red(`MCP server not found: ${name}`));
+      console.log(chalk.red(t('cli.mcp.notFound', { name })));
     }
   });
 
@@ -1156,11 +1157,11 @@ mcpCommand
     const serverNames = Object.keys(servers);
 
     if (serverNames.length === 0) {
-      console.log('No MCP servers configured.');
+      console.log(t('cli.mcp.noServers'));
       return;
     }
 
-    console.log(chalk.bold('\nConfigured MCP Servers:\n'));
+    console.log(chalk.bold(`\n${t('cli.mcp.configuredServers')}\n`));
 
     // 如果请求状态，需要连接服务器检测
     if (options.status) {
@@ -1184,21 +1185,21 @@ mcpCommand
           const status = getServerStatus(name);
 
           if (connected && status) {
-            console.log(chalk.green(`    Status: Connected`));
+            console.log(chalk.green(`    ${t('cli.mcp.statusConnected')}`));
             console.log(chalk.gray(`    Tools: ${status.toolCount}`));
             console.log(chalk.gray(`    Resources: ${status.resourceCount}`));
           } else {
-            console.log(chalk.yellow(`    Status: Not connected`));
+            console.log(chalk.yellow(`    ${t('cli.mcp.statusNotConnected')}`));
           }
         } catch (err) {
-          console.log(chalk.red(`    Status: Error - ${err instanceof Error ? err.message : err}`));
+          console.log(chalk.red(`    ${t('cli.mcp.statusError', { error: err instanceof Error ? err.message : String(err) })}`));
         }
       }
 
       // v2.1.6 修复: 确保所有启动的 MCP 进程都被清理
-      console.log(chalk.gray('\nCleaning up MCP server processes...'));
+      console.log(chalk.gray(`\n${t('cli.mcp.cleaningUp')}`));
       await cleanupMcpServers(true); // resetFlag = true 允许后续再次清理
-      console.log(chalk.gray('Done.'));
+      console.log(chalk.gray(t('cli.mcp.done')));
     } else {
       // 不检查状态，只显示配置
       serverNames.forEach(name => {
@@ -1226,7 +1227,7 @@ mcpCommand
     const config = servers[name];
 
     if (!config) {
-      console.log(chalk.red(`\nMCP server not found: ${name}\n`));
+      console.log(chalk.red(`\n${t('cli.mcp.notFound', { name })}\n`));
       return;
     }
 
@@ -1263,15 +1264,15 @@ mcpCommand
         const status = getServerStatus(name);
 
         if (connected && status) {
-          console.log(chalk.green(`  Status: Connected`));
+          console.log(chalk.green(`  ${t('cli.mcp.statusConnected')}`));
           console.log(`  Capabilities: ${status.capabilities.join(', ') || 'none'}`);
           console.log(`  Tools: ${status.toolCount}`);
           console.log(`  Resources: ${status.resourceCount}`);
         } else {
-          console.log(chalk.yellow(`  Status: Not connected`));
+          console.log(chalk.yellow(`  ${t('cli.mcp.statusNotConnected')}`));
         }
       } catch (err) {
-        console.log(chalk.red(`  Status: Error - ${err instanceof Error ? err.message : err}`));
+        console.log(chalk.red(`  ${t('cli.mcp.statusError', { error: err instanceof Error ? err.message : String(err) })}`));
       }
 
       // v2.1.6 修复: 确保启动的 MCP 进程被清理
@@ -1297,25 +1298,25 @@ mcpCommand
 
       // 验证配置格式
       if (!config.type || !['stdio', 'sse', 'http'].includes(config.type)) {
-        console.log(chalk.red('\n❌ Invalid server type. Must be "stdio", "sse", or "http"\n'));
+        console.log(chalk.red(`\n❌ ${t('cli.mcp.invalidType')}\n`));
         return;
       }
 
       if (config.type === 'stdio' && !config.command) {
-        console.log(chalk.red('\n❌ stdio server requires "command" field\n'));
+        console.log(chalk.red(`\n❌ ${t('cli.mcp.stdioRequiresCmd')}\n`));
         return;
       }
 
       if ((config.type === 'sse' || config.type === 'http') && !config.url) {
-        console.log(chalk.red('\n❌ SSE/HTTP server requires "url" field\n'));
+        console.log(chalk.red(`\n❌ ${t('cli.mcp.sseRequiresUrl')}\n`));
         return;
       }
 
       configManager.addMcpServer(name, config);
-      console.log(chalk.green(`\n✓ Added MCP server: ${name}\n`));
+      console.log(chalk.green(`\n✓ ${t('cli.mcp.addedServer', { name })}\n`));
       console.log(chalk.gray(`Config: ${JSON.stringify(config, null, 2)}\n`));
     } catch (error) {
-      console.log(chalk.red(`\n❌ Invalid JSON: ${error instanceof Error ? error.message : error}\n`));
+      console.log(chalk.red(`\n❌ ${t('cli.mcp.invalidJson', { error: error instanceof Error ? error.message : String(error) })}\n`));
     }
   });
 
@@ -1653,13 +1654,13 @@ program
 
     const ghStatus = await checkGitHubCLI();
     if (!ghStatus.installed) {
-      console.log(chalk.yellow('⚠️  GitHub CLI (gh) is not installed.'));
-      console.log(chalk.gray('   Install it from: https://cli.github.com/\n'));
+      console.log(chalk.yellow(`⚠️  ${t('cli.github.ghNotInstalled')}`));
+      console.log(chalk.gray(`   ${t('cli.github.installFrom')}\n`));
     } else if (!ghStatus.authenticated) {
-      console.log(chalk.yellow('⚠️  GitHub CLI is not authenticated.'));
-      console.log(chalk.gray('   Run: gh auth login\n'));
+      console.log(chalk.yellow(`⚠️  ${t('cli.github.ghNotAuth')}`));
+      console.log(chalk.gray(`   ${t('cli.github.runGhAuth')}\n`));
     } else {
-      console.log(chalk.green('✓ GitHub CLI is installed and authenticated'));
+      console.log(chalk.green(`✓ ${t('cli.github.ghReady')}`));
     }
 
     const result = await setupGitHubWorkflow(process.cwd());
@@ -1667,11 +1668,11 @@ program
     if (result.success) {
       console.log(chalk.green(`\n✓ ${result.message}`));
       console.log(chalk.gray(`  Path: ${result.workflowPath}`));
-      console.log(chalk.bold('\nNext steps:'));
-      console.log('  1. Add ANTHROPIC_API_KEY to your repository secrets');
-      console.log('     Settings → Secrets → Actions → New repository secret');
-      console.log('  2. Commit and push the workflow file');
-      console.log('  3. Open a PR to test the integration');
+      console.log(chalk.bold(`\n${t('cli.github.nextSteps')}`));
+      console.log(t('cli.github.addSecret'));
+      console.log(t('cli.github.settingsPath'));
+      console.log(t('cli.github.commitPush'));
+      console.log(t('cli.github.openPr'));
     } else {
       console.log(chalk.yellow(`\n⚠️  ${result.message}`));
       if (result.workflowPath) {
@@ -1692,7 +1693,7 @@ program
 
     const ghStatus = await checkGitHubCLI();
     if (!ghStatus.authenticated) {
-      console.log(chalk.red('GitHub CLI is not authenticated. Run: gh auth login'));
+      console.log(chalk.red(`${t('cli.github.ghNotAuth')} ${t('cli.github.runGhAuth')}`));
       return;
     }
 
@@ -1899,30 +1900,27 @@ program
         const authResult = await startOAuthLogin({ accountType });
 
         if (authResult && authResult.accessToken) {
-          console.log(chalk.green('\n✅ OAuth Login Successful!\n'));
-          console.log('Authentication Details:');
+          console.log(chalk.green(`\n✅ ${t('cli.auth.oauthSuccess')}\n`));
+          console.log(t('cli.auth.authDetails'));
           console.log(`  • Type: OAuth`);
           console.log(`  • Access Token: ${authResult.accessToken.substring(0, 20)}...`);
           if (authResult.expiresAt) {
             console.log(`  • Expires At: ${new Date(authResult.expiresAt).toLocaleString()}`);
           }
-          console.log('\nCredentials saved to: ~/.claude/auth.json\n');
-          console.log('You can now use Claude Code with your OAuth credentials.\n');
-          console.log('To verify your authentication:');
+          console.log(`\n${t('cli.auth.credsSaved')}\n`);
+          console.log(`${t('cli.auth.canUseNow')}\n`);
+          console.log(t('cli.auth.toVerify'));
           console.log(chalk.gray('  claude doctor'));
           console.log(chalk.gray('  claude api test\n'));
         } else {
           throw new Error('OAuth login returned invalid result');
         }
       } catch (error) {
-        console.log(chalk.red('\n❌ OAuth Login Failed\n'));
+        console.log(chalk.red(`\n❌ ${t('cli.auth.oauthFailed')}\n`));
         console.log(`Error: ${error instanceof Error ? error.message : String(error)}\n`);
-        console.log('This educational project includes the OAuth framework, but full');
-        console.log('OAuth integration requires:');
-        console.log('  • Official OAuth client registration');
-        console.log('  • Valid authorization endpoints');
-        console.log('  • Proper redirect URI configuration\n');
-        console.log('For immediate use, please try:');
+        console.log(t('cli.auth.oauthFrameworkNote'));
+        console.log();
+        console.log(t('cli.auth.forImmediate'));
         console.log(chalk.cyan('  claude login --api-key     Setup with API key'));
         console.log(chalk.cyan('  claude setup-token         Quick API key setup\n'));
       }
@@ -1936,7 +1934,7 @@ program
   .action(async () => {
     const { logout, isAuthenticated, getAuthType, getAuth } = await import('./auth/index.js');
 
-    console.log(chalk.bold('\n🔐 Claude Code Logout\n'));
+    console.log(chalk.bold(`\n🔐 ${t('cli.auth.logoutTitle')}\n`));
 
     // 检查当前认证状态
     const wasAuthenticated = isAuthenticated();
@@ -1944,9 +1942,9 @@ program
     const currentAuthInfo = getAuth();
 
     if (!wasAuthenticated) {
-      console.log('No active session found.');
-      console.log('\nYou are not currently authenticated.\n');
-      console.log('To login:');
+      console.log(t('cli.auth.noActiveSession'));
+      console.log(`\n${t('cli.auth.notAuthenticated')}\n`);
+      console.log(t('cli.auth.toLogin'));
       console.log(chalk.gray('  claude login              Show login options'));
       console.log(chalk.gray('  claude login --api-key    Setup with API key'));
       console.log(chalk.gray('  claude login --oauth      OAuth login'));
@@ -2003,8 +2001,8 @@ program
     }
 
     // 构建退出消息
-    console.log(chalk.green('✅ Logout Successful\n'));
-    console.log('Previous Authentication:');
+    console.log(chalk.green(`✅ ${t('cli.auth.logoutSuccess')}\n`));
+    console.log(t('cli.auth.prevAuth'));
     console.log(`  • Type: ${authType || 'Unknown'}`);
     if (currentAuthInfo?.accessToken) {
       console.log(`  • Access Token: ${currentAuthInfo.accessToken.substring(0, 20)}...`);
@@ -2013,18 +2011,18 @@ program
       console.log(`  • API Key: ${currentAuthInfo.apiKey.substring(0, 15)}...`);
     }
 
-    console.log('\nCleared:');
+    console.log(`\n${t('cli.auth.cleared')}`);
     for (const item of clearedItems) {
       console.log(`  • ${item}`);
     }
 
-    console.log('\nTo completely remove all authentication:\n');
-    console.log('1. Remove environment variables:');
+    console.log(`\n${t('cli.auth.toCompletelyRemove')}\n`);
+    console.log(t('cli.auth.removeEnvVars'));
     console.log(chalk.gray('   unset ANTHROPIC_API_KEY'));
     console.log(chalk.gray('   unset CLAUDE_API_KEY\n'));
-    console.log('2. Verify credentials cleared:');
+    console.log(t('cli.auth.verifyCleared'));
     console.log(chalk.gray('   ls -la ~/.claude/\n'));
-    console.log('To login again:');
+    console.log(t('cli.auth.toLoginAgain'));
     console.log(chalk.gray('  claude login              Show login options'));
     console.log(chalk.gray('  claude login --api-key    Setup with API key'));
     console.log(chalk.gray('  claude login --oauth      OAuth login\n'));
@@ -2050,26 +2048,26 @@ apiCommand
         try {
           const creds = JSON.parse(fs.readFileSync(credentialsFile, 'utf-8'));
           if (!creds.apiKey) {
-            console.log(chalk.red('\n❌ No API key found\n'));
-            console.log('Please set up your API key:');
+            console.log(chalk.red(`\n❌ ${t('cli.api.noKeyFound')}\n`));
+            console.log(t('cli.api.setupKey'));
             console.log(chalk.gray('  claude login --api-key     Setup with API key'));
             console.log(chalk.gray('  claude setup-token         Quick API key setup\n'));
             return;
           }
         } catch {
-          console.log(chalk.red('\n❌ No API key found\n'));
+          console.log(chalk.red(`\n❌ ${t('cli.api.noKeyFound')}\n`));
           return;
         }
       } else {
-        console.log(chalk.red('\n❌ No API key found\n'));
-        console.log('Please set up your API key:');
+        console.log(chalk.red(`\n❌ ${t('cli.api.noKeyFound')}\n`));
+        console.log(t('cli.api.setupKey'));
         console.log(chalk.gray('  claude login --api-key     Setup with API key'));
         console.log(chalk.gray('  claude setup-token         Quick API key setup\n'));
         return;
       }
     }
 
-    console.log(chalk.cyan('\n🤖 Sending query to Claude API...\n'));
+    console.log(chalk.cyan(`\n🤖 ${t('cli.api.sendingQuery')}\n`));
 
     try {
       const client = new Anthropic({ apiKey });
@@ -2089,7 +2087,7 @@ apiCommand
       const textContent = response.content.find((block) => block.type === 'text');
       const responseText = textContent && 'text' in textContent ? textContent.text : 'No text response';
 
-      console.log(chalk.bold('Response:\n'));
+      console.log(chalk.bold(`${t('cli.api.response')}\n`));
       console.log(responseText);
 
       console.log(chalk.gray('\n─────────────────────────────────────'));
@@ -2097,7 +2095,7 @@ apiCommand
       console.log(chalk.gray(`Model: ${response.model}`));
       console.log(chalk.gray(`Stop reason: ${response.stop_reason}\n`));
     } catch (error) {
-      console.log(chalk.red(`\n❌ API Error: ${error instanceof Error ? error.message : String(error)}\n`));
+      console.log(chalk.red(`\n❌ ${t('cli.api.apiError', { error: error instanceof Error ? error.message : String(error) })}\n`));
     }
   });
 
@@ -2141,7 +2139,7 @@ apiCommand
   .action(async () => {
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
 
-    console.log(chalk.bold('\n🧪 Testing API Connection\n'));
+    console.log(chalk.bold(`\n🧪 ${t('cli.api.testingConnection')}\n`));
 
     // 获取 API key
     const apiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
@@ -2151,19 +2149,19 @@ apiCommand
         try {
           const creds = JSON.parse(fs.readFileSync(credentialsFile, 'utf-8'));
           if (!creds.apiKey) {
-            console.log(chalk.red('❌ API Key Not Found\n'));
-            console.log('Please set up your API key:');
+            console.log(chalk.red(`❌ ${t('cli.api.keyNotFound')}\n`));
+            console.log(t('cli.api.setupKey'));
             console.log(chalk.gray('  claude login --api-key'));
             console.log(chalk.gray('  claude setup-token\n'));
             return;
           }
         } catch {
-          console.log(chalk.red('❌ API Key Not Found\n'));
+          console.log(chalk.red(`❌ ${t('cli.api.keyNotFound')}\n`));
           return;
         }
       } else {
-        console.log(chalk.red('❌ API Key Not Found\n'));
-        console.log('Please set up your API key:');
+        console.log(chalk.red(`❌ ${t('cli.api.keyNotFound')}\n`));
+        console.log(t('cli.api.setupKey'));
         console.log(chalk.gray('  claude login --api-key'));
         console.log(chalk.gray('  claude setup-token\n'));
         return;
@@ -2172,13 +2170,13 @@ apiCommand
 
     // 验证 API key 格式
     if (!apiKey.startsWith('sk-ant-')) {
-      console.log(chalk.yellow('⚠️  Invalid API Key Format\n'));
-      console.log('Your API key should start with "sk-ant-"');
+      console.log(chalk.yellow(`⚠️  ${t('cli.api.invalidKeyFormat')}\n`));
+      console.log(t('cli.api.keyFormatHint'));
       console.log(`Current key: ${apiKey.substring(0, 15)}...\n`);
       return;
     }
 
-    console.log(chalk.cyan('Sending test request...\n'));
+    console.log(chalk.cyan(`${t('cli.api.sendingTest')}\n`));
 
     try {
       const client = new Anthropic({ apiKey });
@@ -2194,8 +2192,8 @@ apiCommand
         ],
       });
 
-      console.log(chalk.green('✅ API Connection Successful\n'));
-      console.log('API Key Status:');
+      console.log(chalk.green(`✅ ${t('cli.api.connectionSuccess')}\n`));
+      console.log(t('cli.api.keyStatus'));
       console.log('  • Format: Valid (sk-ant-...)');
       console.log('  • Authentication: ✓ Successful');
       console.log(`  • API Key: ${apiKey.substring(0, 20)}...\n`);
@@ -2204,11 +2202,11 @@ apiCommand
       console.log(`  • Input tokens: ${response.usage.input_tokens}`);
       console.log(`  • Output tokens: ${response.usage.output_tokens}`);
       console.log('  • Response time: < 1s\n');
-      console.log('Your API connection is working correctly!\n');
+      console.log(`${t('cli.api.connectionWorking')}\n`);
     } catch (error) {
-      console.log(chalk.red('❌ API Connection Failed\n'));
+      console.log(chalk.red(`❌ ${t('cli.api.connectionFailed')}\n`));
       console.log(`Error: ${error instanceof Error ? error.message : String(error)}\n`);
-      console.log('Common Issues:\n');
+      console.log(`${t('cli.api.commonIssues')}\n`);
       console.log('1. Invalid API Key:');
       console.log('   • Verify the key at https://platform.claude.com/settings/keys');
       console.log('   • Try regenerating your API key\n');
@@ -2326,7 +2324,7 @@ async function showLoginSelectorUI(): Promise<void> {
         const authResult = await startOAuthLogin({ accountType });
 
         if (authResult && authResult.accessToken) {
-          console.log(chalk.green('\n✅ OAuth Login Successful!\n'));
+          console.log(chalk.green(`\n✅ ${t('cli.auth.oauthSuccess')}\n`));
           if (authResult.email) {
             console.log(`Logged in as ${authResult.email}`);
           }
@@ -2353,7 +2351,7 @@ async function showLoginSelectorUI(): Promise<void> {
           throw new Error('OAuth login failed');
         }
       } catch (error) {
-        console.log(chalk.red(`\n❌ OAuth Login Failed: ${error instanceof Error ? error.message : String(error)}\n`));
+        console.log(chalk.red(`\n❌ ${t('cli.auth.oauthFailed')}: ${error instanceof Error ? error.message : String(error)}\n`));
         console.log(chalk.yellow('Alternative setup methods:\n'));
         console.log('1. Use API key (recommended for developers):');
         console.log(chalk.gray('   claude login --api-key\n'));
@@ -2796,7 +2794,7 @@ async function handleSlashCommand(input: string, loop: ConversationLoop): Promis
 
     case 'exit':
     case 'quit':
-      console.log(chalk.yellow('\nGoodbye!'));
+      console.log(chalk.yellow(`\n${t('cli.misc.goodbye')}`));
       // 自动记忆：提取本次对话值得记住的信息
       console.error(chalk.gray('[AutoMemory] 正在保存对话记忆...'));
       await loop.autoMemorize();

@@ -3289,30 +3289,48 @@ Guidelines:
 
     console.log(`[ConversationManager] 执行回滚: sessionId=${sessionId}, messageId=${messageId}, option=${option}`);
 
-    // 防御性检查：如果旧 session 没有 rewindManager，创建一个新的
-    if (!state.rewindManager) {
-      console.warn(`[ConversationManager] 会话 ${sessionId} 缺少 rewindManager，正在创建新实例`);
-      state.rewindManager = new RewindManager(sessionId);
+    const result: any = { success: true, option };
+
+    // 回滚对话（操作 chatHistory，因为前端传来的是 chatHistory 的 ID）
+    if (option === 'conversation' || option === 'both') {
+      const messageIndex = state.chatHistory.findIndex(m => m.id === messageId);
+      if (messageIndex < 0) {
+        console.error(`[ConversationManager] 未找到消息: ${messageId}`);
+        return { success: false, option, error: '未找到要回滚的消息' };
+      }
+
+      const originalCount = state.chatHistory.length;
+      // 删除该消息及之后的所有消息（回到消息发送之前的状态）
+      state.chatHistory = state.chatHistory.slice(0, messageIndex);
+      const messagesRemoved = originalCount - state.chatHistory.length;
+
+      console.log(`[ConversationManager] 回滚对话成功: 删除了 ${messagesRemoved} 条消息, 剩余 ${state.chatHistory.length} 条`);
+      result.conversationResult = {
+        messagesRemoved,
+        newMessageCount: state.chatHistory.length,
+      };
     }
 
-    // 设置消息变更回调
-    const onMessagesChange = (newMessages: Message[]) => {
-      state.messages = newMessages;
-      // 同步更新 chatHistory
-      state.chatHistory = this.convertMessagesToChatHistory(newMessages);
-    };
+    // 回滚代码（使用 RewindManager 的文件历史功能）
+    if (option === 'code' || option === 'both') {
+      // 防御性检查：如果旧 session 没有 rewindManager，创建一个新的
+      if (!state.rewindManager) {
+        console.warn(`[ConversationManager] 会话 ${sessionId} 缺少 rewindManager，正在创建新实例`);
+        state.rewindManager = new RewindManager(sessionId);
+      }
 
-    state.rewindManager.setMessages(state.messages, onMessagesChange);
+      const codeResult = state.rewindManager.getFileHistoryManager().rewindToMessage(messageId);
+      result.codeResult = codeResult;
 
-    // 执行回滚
-    const result = await state.rewindManager.rewind(messageId, option);
-
-    if (result.success) {
-      console.log(`[ConversationManager] 回滚成功:`, result);
-    } else {
-      console.error(`[ConversationManager] 回滚失败:`, result.error);
+      if (!codeResult.success) {
+        console.warn(`[ConversationManager] 代码回滚失败: ${codeResult.error}`);
+        // 不阻止整个操作，只记录警告
+      } else {
+        console.log(`[ConversationManager] 代码回滚成功: ${codeResult.filesChanged.length} 个文件被恢复`);
+      }
     }
 
+    console.log(`[ConversationManager] 回滚完成:`, result);
     return result;
   }
 

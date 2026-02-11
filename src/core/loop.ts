@@ -10,6 +10,7 @@ import { runWithCwd, runGeneratorWithCwd } from './cwd-context.js';
 import { isToolSearchEnabled } from '../tools/mcp.js';
 import { isDeferredTool, getDiscoveredToolsFromMessages } from '../mcp/tools.js';
 import type { Message, ContentBlock, ToolDefinition, PermissionMode, AnyContentBlock, ToolResult } from '../types/index.js';
+import { t } from '../i18n/index.js';
 
 // ============================================================================
 // 官方 v2.1.2 AppState 类型定义 - 响应式状态管理
@@ -1754,23 +1755,36 @@ export class ConversationLoop {
     }
 
     // 4. 显示权限请求对话框
-    console.log(chalk.yellow('\n┌─────────────────────────────────────────┐'));
-    console.log(chalk.yellow('│          Permission Request             │'));
-    console.log(chalk.yellow('├─────────────────────────────────────────┤'));
-    console.log(chalk.yellow(`│ Tool: ${toolName.padEnd(33)}│`));
+    const permTitle = t('permission.cli.title');
+    const permTool = t('permission.cli.tool', { toolName });
+    const boxWidth = 41;
+    const titlePad = Math.max(0, boxWidth - permTitle.length);
+    const titleLeft = Math.floor(titlePad / 2);
+    const titleRight = titlePad - titleLeft;
+    console.log(chalk.yellow('\n┌' + '─'.repeat(boxWidth) + '┐'));
+    console.log(chalk.yellow('│' + ' '.repeat(titleLeft) + permTitle + ' '.repeat(titleRight) + '│'));
+    console.log(chalk.yellow('├' + '─'.repeat(boxWidth) + '┤'));
+    const toolLine = ' ' + permTool;
+    console.log(chalk.yellow('│' + toolLine + ' '.repeat(Math.max(0, boxWidth - toolLine.length)) + '│'));
     if (message) {
-      const displayMessage = message.length > 33 ? message.slice(0, 30) + '...' : message;
-      console.log(chalk.yellow(`│ Reason: ${displayMessage.padEnd(31)}│`));
+      const reasonLabel = t('permission.cli.reason', { reason: '' });
+      const maxLen = boxWidth - reasonLabel.length - 1;
+      const displayMessage = message.length > maxLen ? message.slice(0, maxLen - 3) + '...' : message;
+      const reasonLine = ' ' + t('permission.cli.reason', { reason: displayMessage });
+      console.log(chalk.yellow('│' + reasonLine + ' '.repeat(Math.max(0, boxWidth - reasonLine.length)) + '│'));
     }
     if (toolInput && typeof toolInput === 'object') {
-      const inputStr = JSON.stringify(toolInput).slice(0, 30);
-      console.log(chalk.yellow(`│ Input: ${inputStr.padEnd(32)}│`));
+      const inputLabel = t('permission.cli.input', { input: '' });
+      const maxLen = boxWidth - inputLabel.length - 1;
+      const inputStr = JSON.stringify(toolInput).slice(0, maxLen);
+      const inputLine = ' ' + t('permission.cli.input', { input: inputStr });
+      console.log(chalk.yellow('│' + inputLine + ' '.repeat(Math.max(0, boxWidth - inputLine.length)) + '│'));
     }
-    console.log(chalk.yellow('└─────────────────────────────────────────┘'));
-    console.log('\nOptions:');
-    console.log('  [y] Yes, allow once');
-    console.log('  [n] No, deny');
-    console.log('  [a] Always allow for this session');
+    console.log(chalk.yellow('└' + '─'.repeat(boxWidth) + '┘'));
+    console.log('\n' + t('permission.cli.options'));
+    console.log(t('permission.cli.allowOnce'));
+    console.log(t('permission.cli.deny'));
+    console.log(t('permission.cli.allowSession'));
 
     // 5. 等待用户输入
     const rl = readline.createInterface({
@@ -1779,19 +1793,19 @@ export class ConversationLoop {
     });
 
     return new Promise((resolve) => {
-      rl.question('\nYour choice [y/n/a]: ', (answer) => {
+      rl.question('\n' + t('permission.cli.prompt'), (answer) => {
         rl.close();
 
         const choice = answer.trim().toLowerCase();
 
         switch (choice) {
           case 'y':
-            console.log(chalk.green('✓ Permission granted for this request'));
+            console.log(chalk.green('✓ ' + t('permission.cli.granted')));
             resolve(true);
             break;
 
           case 'a':
-            console.log(chalk.green(`✓ Permission granted for all '${toolName}' requests in this session`));
+            console.log(chalk.green('✓ ' + t('permission.cli.grantedAll', { toolName })));
             // 实现会话级权限记忆
             this.session.addAlwaysAllowedTool(toolName);
             resolve(true);
@@ -1799,7 +1813,7 @@ export class ConversationLoop {
 
           case 'n':
           default:
-            console.log(chalk.red('✗ Permission denied'));
+            console.log(chalk.red('✗ ' + t('permission.cli.denied')));
             resolve(false);
             break;
         }

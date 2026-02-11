@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { convertFullwidthToHalfwidth, charToDigit } from '../../utils/index.js';
+import { t } from '../../i18n/index.js';
 
 interface SelectOption<T = string> {
   label: string;
@@ -28,7 +29,7 @@ export function SelectInput<T = string>({
   onSelect,
   onCancel,
   title,
-  hint = '↑/↓ to navigate · enter to select · esc to go back',
+  hint = t('selectInput.hint'),
   initialIndex = 0,
 }: SelectInputProps<T>) {
   const [selectedIndex, setSelectedIndex] = useState(initialIndex);
@@ -110,7 +111,7 @@ export function SelectInput<T = string>({
               {isDisabled && (
                 <Text color="gray" dimColor>
                   {' '}
-                  (unavailable)
+                  {t('selectInput.unavailable')}
                 </Text>
               )}
             </Box>

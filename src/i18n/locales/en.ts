@@ -739,6 +739,24 @@ const en = {
   'cli.github.settingsPath': '     Settings → Secrets → Actions → New repository secret',
   'cli.github.commitPush': '  2. Commit and push the workflow file',
   'cli.github.openPr': '  3. Open a PR to test the integration',
+
+  // ============ Permission Dialog - CLI fallback (loop.ts) ============
+  'permission.cli.title': 'Permission Request',
+  'permission.cli.tool': 'Tool: {{toolName}}',
+  'permission.cli.reason': 'Reason: {{reason}}',
+  'permission.cli.input': 'Input: {{input}}',
+  'permission.cli.options': 'Options:',
+  'permission.cli.allowOnce': '  [y] Yes, allow once',
+  'permission.cli.deny': '  [n] No, deny',
+  'permission.cli.allowSession': '  [a] Always allow for this session',
+  'permission.cli.prompt': 'Your choice [y/n/a]: ',
+  'permission.cli.granted': 'Permission granted for this request',
+  'permission.cli.grantedAll': "Permission granted for all '{{toolName}}' requests in this session",
+  'permission.cli.denied': 'Permission denied',
+
+  // ============ SelectInput ============
+  'selectInput.hint': '↑/↓ to navigate · enter to select · esc to go back',
+  'selectInput.unavailable': '(unavailable)',
 } as const;
 
 export type LocaleKeys = keyof typeof en;
