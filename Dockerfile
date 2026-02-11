@@ -55,17 +55,15 @@ WORKDIR /app
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
+COPY .claude/skills /app/.claude/skills
 
 # 安装 playwright-cli 并下载 Chromium
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN npm install -g @playwright/cli@latest \
     && npx playwright install chromium
 
-# 预置 playwright-cli SKILL
-COPY skills/playwright-cli/SKILL.md /app/skills/playwright-cli/SKILL.md
-
 # 创建 .claude 目录（会被 volume 覆盖，但保底存在）
-RUN mkdir -p /root/.claude
+RUN mkdir -p /root/.claude /app/.claude/skills/playwright-cli
 
 # 入口脚本
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh

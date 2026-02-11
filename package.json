@@ -33,6 +33,7 @@
     "feishu": "tsx src/feishu-cli.ts",
     "feishu:webui": "tsx src/feishu-cli.ts --webui",
     "feishu:start": "node dist/feishu-cli.js",
+    "install:playwright": "npm install -g @playwright/cli && npx playwright install chromium",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:integration": "vitest tests/integration",

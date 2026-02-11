@@ -48,7 +48,26 @@ npm run build
 
 # Link globally (optional)
 npm link
+
+# Optional: Install Playwright CLI (browser automation)
+npm run install:playwright
 ```
+
+### Browser Automation Support
+
+To use browser automation features (Playwright CLI), install manually:
+
+```bash
+npm run install:playwright
+```
+
+This will:
+- Install `@playwright/cli` globally
+- Download Chromium browser (~200MB)
+
+**Note:**
+- Docker deployment includes Playwright CLI by default
+- npm deployment excludes it to keep the package lightweight
 
 ### Docker Deployment
 

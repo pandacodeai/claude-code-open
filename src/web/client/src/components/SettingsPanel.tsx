@@ -14,6 +14,8 @@ import {
   ConfigImportExport,
   CacheManagementPanel,
 } from './config';
+import { useLanguage } from '../i18n';
+import type { Locale } from '../i18n';
 
 interface SettingsPanelProps {
   isOpen: boolean;
@@ -36,19 +38,19 @@ type SettingsTab =
   | 'plugins'
   | 'about';
 
-// Tab 配置
-const TAB_CONFIG: { id: SettingsTab; label: string; icon: string }[] = [
-  { id: 'general', label: 'General', icon: '⚙️' },
-  { id: 'model', label: 'Model', icon: '🤖' },
-  { id: 'api', label: 'API Advanced', icon: '🔧' },
-  { id: 'permissions', label: 'Permissions', icon: '🔐' },
-  { id: 'hooks', label: 'Hooks', icon: '🪝' },
-  { id: 'system', label: 'System', icon: '💾' },
-  { id: 'cache', label: 'Cache', icon: '📊' },
-  { id: 'import-export', label: 'Import/Export', icon: '📦' },
-  { id: 'mcp', label: 'MCP', icon: '🔌' },
-  { id: 'plugins', label: 'Plugins', icon: '🧩' },
-  { id: 'about', label: 'About', icon: 'ℹ️' },
+// Tab id -> i18n key 映射
+const TAB_KEYS: { id: SettingsTab; i18nKey: string; icon: string }[] = [
+  { id: 'general', i18nKey: 'settings.tab.general', icon: '⚙️' },
+  { id: 'model', i18nKey: 'settings.tab.model', icon: '🤖' },
+  { id: 'api', i18nKey: 'settings.tab.apiAdvanced', icon: '🔧' },
+  { id: 'permissions', i18nKey: 'settings.tab.permissions', icon: '🔐' },
+  { id: 'hooks', i18nKey: 'settings.tab.hooks', icon: '🪝' },
+  { id: 'system', i18nKey: 'settings.tab.system', icon: '💾' },
+  { id: 'cache', i18nKey: 'settings.tab.cache', icon: '📊' },
+  { id: 'import-export', i18nKey: 'settings.tab.importExport', icon: '📦' },
+  { id: 'mcp', i18nKey: 'settings.tab.mcp', icon: '🔌' },
+  { id: 'plugins', i18nKey: 'settings.tab.plugins', icon: '🧩' },
+  { id: 'about', i18nKey: 'settings.tab.about', icon: 'ℹ️' },
 ];
 
 export function SettingsPanel({
@@ -59,9 +61,7 @@ export function SettingsPanel({
   onSendMessage,
 }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
-  const [language, setLanguage] = useState<string>(() => {
-    return localStorage.getItem('claude-code-language') || 'en';
-  });
+  const { locale, setLocale, t } = useLanguage();
 
   if (!isOpen) return null;
 
@@ -71,43 +71,43 @@ export function SettingsPanel({
     }
   };
 
+  const handleLanguageChange = (lang: string) => {
+    setLocale(lang as Locale);
+    onSendMessage?.({ type: 'set_language', payload: { language: lang } });
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'general':
         return (
           <div className="settings-section">
-            <h3>General Settings</h3>
+            <h3>{t('settings.general.title')}</h3>
             <p className="settings-description">
-              Configure general application settings.
+              {t('settings.general.description')}
             </p>
             <div className="setting-item">
-              <label>Theme</label>
+              <label>{t('settings.general.theme')}</label>
               <select className="setting-select" disabled>
-                <option value="dark">Dark (Default)</option>
-                <option value="light">Light</option>
+                <option value="dark">{t('settings.general.theme.dark')}</option>
+                <option value="light">{t('settings.general.theme.light')}</option>
               </select>
             </div>
             <div className="setting-item">
-              <label>Language</label>
+              <label>{t('settings.general.language')}</label>
               <select
                 className="setting-select"
-                value={language}
-                onChange={(e) => {
-                  const lang = e.target.value;
-                  setLanguage(lang);
-                  localStorage.setItem('claude-code-language', lang);
-                  onSendMessage?.({ type: 'set_language', payload: { language: lang } });
-                }}
+                value={locale}
+                onChange={(e) => handleLanguageChange(e.target.value)}
               >
                 <option value="en">English</option>
                 <option value="zh">中文</option>
               </select>
             </div>
             <div className="setting-item">
-              <label>Auto-save Sessions</label>
+              <label>{t('settings.general.autoSave')}</label>
               <select className="setting-select" disabled>
-                <option value="true">Enabled</option>
-                <option value="false">Disabled</option>
+                <option value="true">{t('settings.general.enabled')}</option>
+                <option value="false">{t('settings.general.disabled')}</option>
               </select>
             </div>
           </div>
@@ -116,43 +116,34 @@ export function SettingsPanel({
       case 'model':
         return (
           <div className="settings-section">
-            <h3>Model Settings</h3>
+            <h3>{t('settings.model.title')}</h3>
             <p className="settings-description">
-              Choose which Claude model to use for conversations.
+              {t('settings.model.description')}
             </p>
             <div className="setting-item">
-              <label>Default Model</label>
+              <label>{t('settings.model.defaultModel')}</label>
               <select
                 className="setting-select"
                 value={model}
                 onChange={(e) => onModelChange(e.target.value)}
               >
-                <option value="opus">Claude Opus 4.5 (Most capable)</option>
-                <option value="sonnet">Claude Sonnet 4.5 (Balanced)</option>
-                <option value="haiku">Claude Haiku 4.5 (Fastest)</option>
+                <option value="opus">{t('settings.model.opus.name')}</option>
+                <option value="sonnet">{t('settings.model.sonnet.name')}</option>
+                <option value="haiku">{t('settings.model.haiku.name')}</option>
               </select>
             </div>
             <div className="model-info">
               <div className="model-card">
-                <h4>Claude Opus 4.5</h4>
-                <p>
-                  Most intelligent and capable model. Best for complex reasoning,
-                  analysis, and creative tasks. Extended thinking capabilities.
-                </p>
+                <h4>{t('settings.model.opus.title')}</h4>
+                <p>{t('settings.model.opus.desc')}</p>
               </div>
               <div className="model-card">
-                <h4>Claude Sonnet 4.5</h4>
-                <p>
-                  Balanced performance. Great for most coding tasks and general
-                  assistance. Good speed-to-capability ratio.
-                </p>
+                <h4>{t('settings.model.sonnet.title')}</h4>
+                <p>{t('settings.model.sonnet.desc')}</p>
               </div>
               <div className="model-card">
-                <h4>Claude Haiku 4.5</h4>
-                <p>
-                  Fastest and most cost-effective. Ideal for simple tasks and
-                  quick responses.
-                </p>
+                <h4>{t('settings.model.haiku.title')}</h4>
+                <p>{t('settings.model.haiku.desc')}</p>
               </div>
             </div>
           </div>
@@ -162,7 +153,6 @@ export function SettingsPanel({
         return (
           <ApiConfigPanel
             onSave={() => {
-              // 配置保存后刷新
               console.log('API config saved');
             }}
             onClose={onClose}
@@ -221,51 +211,49 @@ export function SettingsPanel({
       case 'about':
         return (
           <div className="settings-section">
-            <h3>About Claude Code WebUI</h3>
+            <h3>{t('settings.about.title')}</h3>
             <p className="settings-description">
-              An educational reverse-engineering project that recreates Claude Code CLI.
+              {t('settings.about.description')}
             </p>
             <div className="about-info">
               <p>
-                <strong>Version:</strong> 2.1.4 (Educational)
+                <strong>{t('settings.about.version')}:</strong> 2.1.4 (Educational)
               </p>
               <p>
-                <strong>Repository:</strong> github.com/kill136/claude-code-open
+                <strong>{t('settings.about.repository')}:</strong> github.com/kill136/claude-code-open
               </p>
               <p>
-                <strong>License:</strong> Educational Use Only
+                <strong>{t('settings.about.license')}:</strong> {t('settings.about.licenseValue')}
               </p>
             </div>
             <div className="about-disclaimer">
               <p>
-                <strong>Disclaimer:</strong> This is NOT the official Claude Code
-                source. It is a learning project based on public APIs and type
-                definitions.
+                <strong>{t('settings.about.disclaimer')}:</strong> {t('settings.about.disclaimerText')}
               </p>
             </div>
 
             <div className="about-features">
-              <h4>Features</h4>
+              <h4>{t('settings.about.features')}</h4>
               <ul>
-                <li>25+ integrated tools for file operations and code analysis</li>
-                <li>Session management with persistence</li>
-                <li>MCP (Model Context Protocol) server support</li>
-                <li>Plugin system for extensibility</li>
-                <li>Multi-model support (Opus, Sonnet, Haiku)</li>
-                <li>File attachments and image support</li>
-                <li>Slash commands for quick actions</li>
+                <li>{t('settings.about.feature1')}</li>
+                <li>{t('settings.about.feature2')}</li>
+                <li>{t('settings.about.feature3')}</li>
+                <li>{t('settings.about.feature4')}</li>
+                <li>{t('settings.about.feature5')}</li>
+                <li>{t('settings.about.feature6')}</li>
+                <li>{t('settings.about.feature7')}</li>
               </ul>
             </div>
 
             <div className="about-links">
-              <h4>Useful Links</h4>
+              <h4>{t('settings.about.links')}</h4>
               <p>
                 <a
                   href="https://docs.anthropic.com/en/docs/claude-code"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Claude Code Documentation
+                  {t('settings.about.link.docs')}
                 </a>
               </p>
               <p>
@@ -274,7 +262,7 @@ export function SettingsPanel({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  MCP Documentation
+                  {t('settings.about.link.mcp')}
                 </a>
               </p>
               <p>
@@ -283,7 +271,7 @@ export function SettingsPanel({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  GitHub Repository
+                  {t('settings.about.link.github')}
                 </a>
               </p>
             </div>
@@ -299,21 +287,21 @@ export function SettingsPanel({
     <div className="settings-panel-overlay" onClick={handleOverlayClick}>
       <div className="settings-panel">
         <div className="settings-header">
-          <h2>Settings</h2>
+          <h2>{t('settings.title')}</h2>
           <button className="settings-close-btn" onClick={onClose}>
             &times;
           </button>
         </div>
         <div className="settings-body">
           <nav className="settings-nav">
-            {TAB_CONFIG.map((tab) => (
+            {TAB_KEYS.map((tab) => (
               <div
                 key={tab.id}
                 className={`settings-nav-item ${activeTab === tab.id ? 'active' : ''}`}
                 onClick={() => setActiveTab(tab.id)}
               >
                 <span className="settings-nav-icon">{tab.icon}</span>
-                {tab.label}
+                {t(tab.i18nKey)}
               </div>
             ))}
           </nav>

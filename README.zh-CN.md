@@ -48,7 +48,26 @@ npm run build
 
 # 全局链接（可选）
 npm link
+
+# 可选：安装 Playwright CLI（浏览器自动化）
+npm run install:playwright
 ```
+
+### 浏览器自动化支持
+
+如需使用浏览器自动化功能（Playwright CLI），需手动安装：
+
+```bash
+npm run install:playwright
+```
+
+这会：
+- 全局安装 `@playwright/cli`
+- 下载 Chromium 浏览器（约 200MB）
+
+**注意：**
+- Docker 部署已内置 Playwright CLI，无需额外安装
+- npm 部署默认不包含，按需安装
 
 ### Docker 部署
 
