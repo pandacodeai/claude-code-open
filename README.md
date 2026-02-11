@@ -37,13 +37,52 @@ npm install -g @anthropic-ai/claude-code
 - **Teams** - Team collaboration features
 - **Plugin & Hook System** - Extensible architecture with lifecycle hooks
 
-## Installation
+## Quick Installation (Recommended)
+
+### One-Click Install Script
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.ps1 | iex
+```
+
+**macOS / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.sh | bash
+```
+
+The install script will automatically:
+- ✅ Clone the repository
+- ✅ Install all dependencies
+- ✅ Build frontend and backend
+- ✅ Create desktop shortcut
+- ✅ Preset API configuration
+- ✅ Link global commands
+
+**After installation:**
+1. Double-click the desktop shortcut "Claude Code WebUI"
+2. Browser automatically opens http://localhost:3456
+3. Start using!
+
+### Manual Installation
+
+If you prefer manual installation or development setup:
 
 ```bash
+# Clone repository
+git clone https://github.com/kill136/claude-code-open.git
+cd claude-code-open
+
 # Install dependencies
 npm install
 
-# Build the project
+# Build frontend
+cd src/web/client
+npm install
+npm run build
+cd ../../..
+
+# Build backend
 npm run build
 
 # Link globally (optional)

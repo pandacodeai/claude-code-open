@@ -37,13 +37,52 @@ npm install -g @anthropic-ai/claude-code
 - **团队协作** - 团队管理功能
 - **插件与 Hook 系统** - 可扩展架构，支持生命周期钩子
 
-## 安装
+## 快速安装（推荐）
+
+### 一键安装脚本
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.ps1 | iex
+```
+
+**macOS / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.sh | bash
+```
+
+安装脚本会自动完成：
+- ✅ 克隆代码仓库
+- ✅ 安装所有依赖
+- ✅ 构建前端和后端
+- ✅ 创建桌面快捷方式
+- ✅ 预设 API 配置
+- ✅ 全局命令链接
+
+**安装完成后：**
+1. 双击桌面快捷方式 "Claude Code WebUI"
+2. 浏览器自动打开 http://localhost:3456
+3. 开始使用！
+
+### 手动安装
+
+如果你想手动安装或进行开发：
 
 ```bash
+# 克隆仓库
+git clone https://github.com/kill136/claude-code-open.git
+cd claude-code-open
+
 # 安装依赖
 npm install
 
-# 构建项目
+# 构建前端
+cd src/web/client
+npm install
+npm run build
+cd ../../..
+
+# 构建后端
 npm run build
 
 # 全局链接（可选）
