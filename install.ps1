@@ -148,9 +148,31 @@ function Install-Npm {
         Write-Info "Updating existing installation..."
         Push-Location $InstallDir
         git pull origin private_web_ui
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "Git pull failed. Please check your network connection."
+        }
     } else {
-        Write-Info "Cloning repository..."
-        git clone -b private_web_ui $RepoUrl $InstallDir
+        Write-Info "Cloning repository... (this may take a while)"
+        git clone -b private_web_ui --progress $RepoUrl $InstallDir 2>&1 | Write-Host
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "Git clone failed. Please check your network connection and try again."
+        }
+        if (-not (Test-Path $InstallDir)) {
+            Write-Error "Installation directory was not created. Git clone may have failed."
+        }
+
+        # Verify critical directories exist
+        $CriticalDirs = @(
+            (Join-Path $InstallDir "src"),
+            (Join-Path $InstallDir "src\web"),
+            (Join-Path $InstallDir "src\web\client")
+        )
+        foreach ($dir in $CriticalDirs) {
+            if (-not (Test-Path $dir)) {
+                Write-Error "Critical directory missing: $dir`nGit clone appears to be incomplete. Please delete $InstallDir and try again."
+            }
+        }
+
         Push-Location $InstallDir
     }
 
@@ -162,9 +184,29 @@ function Install-Npm {
     }
 
     Write-Info "Building frontend..."
+
+    # Verify frontend directory exists
+    $FrontendDir = Join-Path $InstallDir "src\web\client"
+    if (-not (Test-Path $FrontendDir)) {
+        Write-Error @"
+Frontend directory not found: $FrontendDir
+
+This usually means the git clone was incomplete. Please try:
+  1. Delete the directory: Remove-Item -Recurse -Force $InstallDir
+  2. Re-run the installation script
+  3. If the problem persists, try manual installation from GitHub
+"@
+    }
+
     Push-Location src\web\client
     npm install
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Frontend npm install failed."
+    }
     npm run build
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Frontend build failed."
+    }
     Pop-Location
 
     Write-Info "Building backend..."
