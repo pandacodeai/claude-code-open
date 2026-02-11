@@ -505,39 +505,31 @@ export function McpPanel({ onClose, onSendMessage }: McpPanelProps) {
       onSendMessage({ type: 'mcp_list' });
     }
 
-    // 模拟数据加载
-    const loadServers = async () => {
-      // 模拟延迟
-      await new Promise((resolve) => setTimeout(resolve, 500));
+    // 直接设置模拟数据（移除延迟）
+    const mockServers: McpServerEntry[] = [
+      {
+        name: 'claude-in-chrome',
+        type: 'stdio',
+        command: 'npx',
+        args: ['-y', '@anthropic-ai/claude-in-chrome-mcp'],
+        enabled: true,
+        status: 'connected',
+        scope: 'user',
+        toolsCount: 5,
+        resourcesCount: 0,
+        promptsCount: 0,
+        tools: [
+          { name: 'mcp__claude-in-chrome__javascript_tool', serverName: 'claude-in-chrome', description: 'Execute JavaScript in browser' },
+          { name: 'mcp__claude-in-chrome__read_page', serverName: 'claude-in-chrome', description: 'Read page accessibility tree', isReadOnly: true },
+          { name: 'mcp__claude-in-chrome__find', serverName: 'claude-in-chrome', description: 'Find elements on page', isReadOnly: true },
+          { name: 'mcp__claude-in-chrome__navigate', serverName: 'claude-in-chrome', description: 'Navigate to URL' },
+          { name: 'mcp__claude-in-chrome__computer', serverName: 'claude-in-chrome', description: 'Mouse and keyboard actions' },
+        ],
+      },
+    ];
 
-      // 模拟数据
-      const mockServers: McpServerEntry[] = [
-        {
-          name: 'claude-in-chrome',
-          type: 'stdio',
-          command: 'npx',
-          args: ['-y', '@anthropic-ai/claude-in-chrome-mcp'],
-          enabled: true,
-          status: 'connected',
-          scope: 'user',
-          toolsCount: 5,
-          resourcesCount: 0,
-          promptsCount: 0,
-          tools: [
-            { name: 'mcp__claude-in-chrome__javascript_tool', serverName: 'claude-in-chrome', description: 'Execute JavaScript in browser' },
-            { name: 'mcp__claude-in-chrome__read_page', serverName: 'claude-in-chrome', description: 'Read page accessibility tree', isReadOnly: true },
-            { name: 'mcp__claude-in-chrome__find', serverName: 'claude-in-chrome', description: 'Find elements on page', isReadOnly: true },
-            { name: 'mcp__claude-in-chrome__navigate', serverName: 'claude-in-chrome', description: 'Navigate to URL' },
-            { name: 'mcp__claude-in-chrome__computer', serverName: 'claude-in-chrome', description: 'Mouse and keyboard actions' },
-          ],
-        },
-      ];
-
-      setServers(mockServers);
-      setLoading(false);
-    };
-
-    loadServers();
+    setServers(mockServers);
+    setLoading(false);
   }, [onSendMessage]);
 
   const handleSelect = (server: McpServerEntry) => {

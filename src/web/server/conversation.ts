@@ -41,6 +41,7 @@ import { registerMcpServer, connectMcpServer, createMcpTools, getMcpServers, cal
 import { getChromeIntegrationConfig } from '../../chrome-mcp/index.js';
 import { CHROME_MCP_TOOLS } from '../../chrome-mcp/tools.js';
 import { RewindManager, type RewindOption } from '../../rewind/index.js';
+import { MarketplaceManager } from '../../plugins/marketplace.js';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -304,6 +305,8 @@ export class ConversationManager {
    * 对应官方 LM6() / DV6() 合并逻辑
    */
   private mcpTools: Array<{ name: string; description: string; inputSchema: any; isMcp?: boolean }> = [];
+  /** 插件市场管理器 */
+  private marketplaceManager?: MarketplaceManager;
 
   constructor(cwd: string, defaultModel: string = 'opus', options?: { verbose?: boolean }) {
     this.cwd = cwd;
@@ -320,6 +323,16 @@ export class ConversationManager {
    * 初始化
    */
   async initialize(): Promise<void> {
+    // 初始化插件市场管理器
+    const { pluginManager } = await import('../../plugins/index.js');
+    this.marketplaceManager = new MarketplaceManager(pluginManager);
+    console.log('[ConversationManager] 插件市场管理器已初始化');
+
+    // 后台注册默认 marketplace（不阻塞启动）
+    this.marketplaceManager.ensureDefaultMarketplace().catch((err) => {
+      console.error('[ConversationManager] 默认 marketplace 注册失败:', err);
+    });
+
     // 注册蓝图工具（仅 Web 模式需要，CLI 模式不加载）
     registerBlueprintTools();
 
@@ -468,39 +481,87 @@ export class ConversationManager {
   }
 
   /**
-   * 根据认证信息构建 ClaudeClient 配置
-   * 与核心 loop.ts 逻辑保持一致
+   * 读取 WebUI 保存在 settings.json 中的原始自定义 API 配置
+   * 直接读文件而非 configManager.getAll()，避免被环境变量覆盖
    */
-  private buildClientConfig(model: string): { model: string; apiKey?: string; authToken?: string; timeout?: number } {
-    const auth = getAuth();
-    const config: { model: string; apiKey?: string; authToken?: string; timeout?: number } = {
-      model: this.getModelId(model),
+  private getWebUiApiConfig(): { apiBaseUrl?: string; customModelName?: string; authPriority?: string; apiKey?: string } {
+    try {
+      const settingsPath = configManager.getConfigPaths().userSettings;
+      if (fs.existsSync(settingsPath)) {
+        const raw = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+        return {
+          apiBaseUrl: raw.apiBaseUrl,
+          customModelName: raw.customModelName,
+          authPriority: raw.authPriority,
+          apiKey: raw.apiKey,
+        };
+      }
+    } catch {
+      // 读取失败不影响正常流程
+    }
+    return {};
+  }
+
+  /**
+   * 根据认证信息构建 ClaudeClient 配置
+   * 与核心 loop.ts 逻辑保持一致，同时支持 WebUI 自定义 API 配置
+   *
+   * 优先级：WebUI 页面配置 > 环境变量 > OAuth
+   */
+  private buildClientConfig(model: string): { model: string; apiKey?: string; authToken?: string; baseUrl?: string; timeout?: number } {
+    // 读取 WebUI 保存的原始自定义配置（不经过 configManager 合并，避免被环境变量覆盖）
+    const webUiConfig = this.getWebUiApiConfig();
+    const authPriority = webUiConfig.authPriority || 'auto';
+
+    const config: { model: string; apiKey?: string; authToken?: string; baseUrl?: string; timeout?: number } = {
+      model: webUiConfig.customModelName || this.getModelId(model),
       timeout: 300000,  // 5分钟 API 请求超时（对齐核心 loop.ts）
     };
 
-    if (auth) {
-      if (auth.type === 'api_key' && auth.apiKey) {
-        config.apiKey = auth.apiKey;
-      } else if (auth.type === 'oauth') {
-        // 检查是否有 user:inference scope (Claude.ai 订阅用户)
-        // 注意：auth.scopes 是数组形式，auth.scope 是旧格式
-        const scopes = auth.scopes || auth.scope || [];
-        const hasInferenceScope = scopes.includes('user:inference');
+    // 设置自定义 API 地址
+    if (webUiConfig.apiBaseUrl) {
+      config.baseUrl = webUiConfig.apiBaseUrl;
+    }
 
-        // 获取 OAuth token（可能是 authToken 或 accessToken）
-        const oauthToken = auth.authToken || auth.accessToken;
-
-        if (hasInferenceScope && oauthToken) {
-          // Claude.ai 订阅用户可以直接使用 OAuth token
-          config.authToken = oauthToken;
-        } else if (auth.oauthApiKey) {
-          // Console 用户使用创建的 API Key
-          config.apiKey = auth.oauthApiKey;
-        }
+    // 根据 authPriority 决定认证方式
+    if (authPriority === 'apiKey' && webUiConfig.apiKey) {
+      // 强制使用 WebUI 配置的 API Key
+      config.apiKey = webUiConfig.apiKey;
+    } else if (authPriority === 'oauth') {
+      // 强制使用 OAuth，走现有逻辑
+      this.applyOAuthConfig(config);
+    } else {
+      // auto 模式：WebUI 配置了 apiKey 就优先用，否则走现有 getAuth() 逻辑
+      if (webUiConfig.apiKey) {
+        config.apiKey = webUiConfig.apiKey;
+      } else {
+        this.applyOAuthConfig(config);
       }
     }
 
     return config;
+  }
+
+  /**
+   * 应用 OAuth/getAuth() 认证配置（从原 buildClientConfig 逻辑提取）
+   */
+  private applyOAuthConfig(config: { apiKey?: string; authToken?: string }): void {
+    const auth = getAuth();
+    if (!auth) return;
+
+    if (auth.type === 'api_key' && auth.apiKey) {
+      config.apiKey = auth.apiKey;
+    } else if (auth.type === 'oauth') {
+      const scopes = auth.scopes || auth.scope || [];
+      const hasInferenceScope = scopes.includes('user:inference');
+      const oauthToken = auth.authToken || auth.accessToken;
+
+      if (hasInferenceScope && oauthToken) {
+        config.authToken = oauthToken;
+      } else if (auth.oauthApiKey) {
+        config.apiKey = auth.oauthApiKey;
+      }
+    }
   }
 
   /**
@@ -543,14 +604,13 @@ export class ConversationManager {
       if (newConfig.authToken) {
         // 创建新的客户端实例
         state.client = new ClaudeClient({
-          apiKey: newConfig.apiKey,
-          authToken: newConfig.authToken,
+          ...newConfig,
         });
         console.log('[ConversationManager] 客户端已更新为新的 OAuth token');
       } else if (newConfig.apiKey) {
         // OAuth 用户可能使用 API Key
         state.client = new ClaudeClient({
-          apiKey: newConfig.apiKey,
+          ...newConfig,
           authToken: undefined,
         });
         console.log('[ConversationManager] 客户端已更新为 OAuth API Key');
@@ -591,7 +651,10 @@ export class ConversationManager {
 
     // 使用与核心 loop.ts 一致的认证逻辑
     const clientConfig = this.buildClientConfig(model || this.defaultModel);
-    const client = new ClaudeClient(clientConfig);
+    const client = new ClaudeClient({
+      ...clientConfig,
+      timeout: clientConfig.timeout,
+    });
 
     // 创建用户交互处理器
     const userInteractionHandler = new UserInteractionHandler();
@@ -667,7 +730,10 @@ export class ConversationManager {
       state.model = model;
       // 使用与核心 loop.ts 一致的认证逻辑
       const clientConfig = this.buildClientConfig(model);
-      state.client = new ClaudeClient(clientConfig);
+      state.client = new ClaudeClient({
+        ...clientConfig,
+        timeout: clientConfig.timeout,
+      });
     }
   }
 
@@ -2811,7 +2877,10 @@ Guidelines:
       await session.initializeGitInfo();
 
       const clientConfig = this.buildClientConfig(sessionData.currentModel || this.defaultModel);
-      const client = new ClaudeClient(clientConfig);
+      const client = new ClaudeClient({
+        ...clientConfig,
+        timeout: clientConfig.timeout,
+      });
 
       // 如果 chatHistory 为空但 messages 不为空，从 messages 构建 chatHistory
       let chatHistory = sessionData.chatHistory || [];
@@ -3236,6 +3305,112 @@ Guidelines:
     } catch (error) {
       console.error(`[ConversationManager] 卸载插件失败:`, error);
       return false;
+    }
+  }
+
+  /**
+   * 获取 marketplace 和可发现的插件列表
+   * 对应官方 CLI 的 loadData 逻辑
+   */
+  async discoverMarketplacePlugins(): Promise<import('../shared/types.js').PluginDiscoverPayload> {
+    try {
+      if (!this.marketplaceManager) {
+        return { marketplaces: [], availablePlugins: [] };
+      }
+
+      // 1. 获取所有 marketplace
+      const knownMarketplaces = await this.marketplaceManager.getMarketplaces();
+      const marketplaces: import('../shared/types.js').MarketplaceItem[] = [];
+
+      for (const [name, entry] of Object.entries(knownMarketplaces)) {
+        // 获取该 marketplace 的插件数量
+        const plugins = await this.marketplaceManager.listAvailablePlugins(name);
+        const sourceStr = entry.source.source === 'github'
+          ? `github.com/${entry.source.repo}`
+          : entry.source.source === 'git'
+            ? entry.source.url
+            : entry.source.source === 'directory'
+              ? entry.source.path
+              : entry.source.source === 'url'
+                ? entry.source.url
+                : String(entry.source.source);
+
+        marketplaces.push({
+          name,
+          source: sourceStr,
+          pluginCount: plugins.length,
+          autoUpdate: entry.autoUpdate,
+          lastUpdated: entry.lastUpdated,
+        });
+      }
+
+      // 2. 获取所有可发现的插件
+      const availablePlugins = await this.marketplaceManager.listAvailablePlugins();
+
+      return {
+        marketplaces,
+        availablePlugins: availablePlugins.map(p => ({
+          pluginId: p.pluginId,
+          name: p.name,
+          version: p.version,
+          description: p.description,
+          author: p.author,
+          marketplaceName: p.marketplaceName || '',
+          installCount: p.installCount,
+          tags: p.tags,
+        })),
+      };
+    } catch (error) {
+      console.error('[ConversationManager] 获取插件市场数据失败:', error);
+      return { marketplaces: [], availablePlugins: [] };
+    }
+  }
+
+  /**
+   * 安装插件
+   * @param pluginId 插件标识符，支持：
+   *   - npm包名: "plugin-name" 或 "@scope/plugin-name"
+   *   - git仓库: "https://github.com/user/repo.git"
+   *   - http地址: "https://example.com/plugin.tar.gz"
+   *   - 本地路径: "/path/to/plugin"
+   */
+  async installPlugin(pluginId: string): Promise<{ success: boolean; plugin?: any; error?: string }> {
+    try {
+      if (!this.marketplaceManager) {
+        return { success: false, error: '插件市场管理器未初始化' };
+      }
+
+      console.log(`[ConversationManager] 开始安装插件: ${pluginId}`);
+
+      // 使用 MarketplaceManager 安装插件
+      const result = await this.marketplaceManager.installPlugin(pluginId);
+
+      if (!result.success || !result.plugin) {
+        return {
+          success: false,
+          error: result.error || '插件安装失败',
+        };
+      }
+
+      const state = result.plugin;
+      console.log(`[ConversationManager] 插件已安装: ${state.metadata.name}@${state.metadata.version}`);
+
+      return {
+        success: true,
+        plugin: {
+          name: state.metadata.name,
+          version: state.metadata.version,
+          description: state.metadata.description,
+          author: state.metadata.author,
+          enabled: state.enabled,
+          loaded: state.loaded,
+          path: state.path,
+        },
+      };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[ConversationManager] 安装插件失败:`, errorMsg);
+      return { success: false, error: errorMsg };
     }
   }
 

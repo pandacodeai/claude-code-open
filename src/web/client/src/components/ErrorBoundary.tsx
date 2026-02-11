@@ -4,6 +4,7 @@
  */
 
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
+import { getTranslation } from '../i18n';
 
 interface Props {
   children: ReactNode;
@@ -44,6 +45,8 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
+      const t = getTranslation;
+
       return (
         <div style={{
           display: 'flex',
@@ -62,10 +65,10 @@ export class ErrorBoundary extends Component<Props, State> {
           </div>
           <h2 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: 600 }}>
             {this.props.name ? `${this.props.name} ` : ''}
-            {'\u53D1\u751F\u4E86\u9519\u8BEF'}
+            {t('error.title')}
           </h2>
           <p style={{ margin: '0 0 24px', color: '#888', fontSize: '14px', maxWidth: '500px', textAlign: 'center' }}>
-            {this.state.error?.message || '\u672A\u77E5\u9519\u8BEF'}
+            {this.state.error?.message || t('error.unknown')}
           </p>
           <div style={{ display: 'flex', gap: '12px' }}>
             <button
@@ -80,7 +83,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 fontSize: '14px',
               }}
             >
-              {'\u91CD\u8BD5'}
+              {t('error.retry')}
             </button>
             <button
               onClick={this.handleReload}
@@ -94,7 +97,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 fontSize: '14px',
               }}
             >
-              {'\u91CD\u65B0\u52A0\u8F7D\u9875\u9762'}
+              {t('error.reload')}
             </button>
           </div>
         </div>

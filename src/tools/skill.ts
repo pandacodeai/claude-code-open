@@ -1080,7 +1080,7 @@ function formatSkillListItem(skill: SkillDefinition): string {
  * - 截断格式：当描述太长时截断
  * - 超短格式：只显示名称
  */
-function formatSkillsList(skills: SkillDefinition[], contextWindowSize?: number): string {
+export function formatSkillsList(skills: SkillDefinition[], contextWindowSize?: number): string {
   if (skills.length === 0) {
     return '';
   }

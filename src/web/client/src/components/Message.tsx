@@ -9,6 +9,8 @@ import { RegressionResultCard } from './continuous/RegressionResultCard';
 import { CycleReviewCard } from './continuous/CycleReviewCard';
 import { NotebookOutputRenderer } from './NotebookOutputRenderer';
 import { RewindMenu, RewindOption } from './RewindMenu';
+import { SkillMessage, isSkillMessage } from './SkillMessage';
+import { useLanguage } from '../i18n';
 import { coordinatorApi } from '../api/blueprint';
 import type { ChatMessage, ChatContent, ToolUse, NotebookOutputData } from '../types';
 
@@ -53,6 +55,7 @@ export function Message({
   const [rewindMenuPosition, setRewindMenuPosition] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
   const [copyButtonText, setCopyButtonText] = useState('📋');
+  const { t } = useLanguage();
 
   // 获取内容数组
   const contentArray = Array.isArray(content) ? content : [];
@@ -82,7 +85,7 @@ export function Message({
       setShowRewindMenu(false);
     } catch (error) {
       console.error('[Message] 回滚失败:', error);
-      alert('回滚失败: ' + (error instanceof Error ? error.message : String(error)));
+      alert(t('message.rewindFailed', { error: error instanceof Error ? error.message : String(error) }));
     }
   };
 
@@ -98,7 +101,7 @@ export function Message({
       if (item.type === 'text' && item.text) {
         texts.push(item.text);
       } else if (item.type === 'thinking' && item.text) {
-        texts.push(`[Thinking]\n${item.text}`);
+        texts.push(`${t('message.thinking')}\n${item.text}`);
       }
     }
     return texts.join('\n\n');
@@ -127,6 +130,10 @@ export function Message({
 
   const renderContent = (item: ChatContent, index: number) => {
     if (item.type === 'text') {
+      // 检查是否是 Skill 消息
+      if (isSkillMessage(item.text)) {
+        return <SkillMessage key={index} text={item.text} />;
+      }
       return <MarkdownContent key={index} content={item.text} />;
     }
     if (item.type === 'image') {
@@ -137,7 +144,7 @@ export function Message({
         <div key={index} className="image-container">
           <img
             src={imgSrc}
-            alt={item.fileName || '上传的图片'}
+            alt={item.fileName || t('message.uploadedImage')}
             className="message-image"
           />
           {item.fileName && (
@@ -271,7 +278,7 @@ export function Message({
             gap: '8px',
           }}>
             <span style={{ fontSize: '16px' }}>🎨</span>
-            <span>UI 设计图 - {item.projectName}</span>
+            <span>{t('message.designImage', { name: item.projectName })}</span>
             <span style={{
               marginLeft: 'auto',
               fontSize: '11px',
@@ -285,7 +292,7 @@ export function Message({
           <div style={{ padding: '8px' }}>
             <img
               src={item.imageUrl}
-              alt={`${item.projectName} UI 设计图`}
+              alt={t('message.designImage', { name: item.projectName })}
               style={{
                 width: '100%',
                 maxHeight: '600px',
@@ -318,8 +325,8 @@ export function Message({
       <div className="compact-boundary">
         <div className="compact-boundary__line" />
         <span className="compact-boundary__label">
-          ✻ Conversation compacted
-          {!isTranscriptMode && <span className="compact-boundary__hint"> (Ctrl+O for history)</span>}
+          ✻ {t('message.compactBoundary')}
+          {!isTranscriptMode && <span className="compact-boundary__hint"> {t('message.compactBoundaryHint')}</span>}
         </span>
         <div className="compact-boundary__line" />
       </div>
@@ -333,9 +340,9 @@ export function Message({
       <div className="compact-summary">
         <div className="compact-summary__header">
           <span className="compact-summary__icon">✻</span>
-          <span className="compact-summary__title">Compact summary</span>
+          <span className="compact-summary__title">{t('message.compactSummary')}</span>
           {!isTranscriptMode && (
-            <span className="compact-summary__hint"> (Ctrl+O to expand)</span>
+            <span className="compact-summary__hint"> {t('message.compactSummaryHint')}</span>
           )}
         </div>
         {isTranscriptMode && summaryText && (
@@ -361,7 +368,7 @@ export function Message({
         <div className="message-main">
           <div className="message-content-wrapper">
             <div className="message-header">
-              <span className="message-role">{role === 'user' ? '你' : 'Claude'}</span>
+              <span className="message-role">{role === 'user' ? t('message.role.user') : t('message.role.assistant')}</span>
               {message.model && <span>({message.model})</span>}
             </div>
             {Array.isArray(content)
@@ -378,7 +385,7 @@ export function Message({
                 <button
                   className="message-action-button message-rewind-button"
                   onClick={handleRewindClick}
-                  title="Rewind to this message"
+                  title={t('message.rewindTooltip')}
                 >
                   ↻
                 </button>
@@ -387,7 +394,7 @@ export function Message({
               <button
                 className="message-action-button message-copy-button"
                 onClick={handleCopyMessage}
-                title="Copy message"
+                title={t('message.copyTooltip')}
               >
                 {copyButtonText}
               </button>

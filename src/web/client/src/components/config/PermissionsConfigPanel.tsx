@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useLanguage } from '../../i18n';
 import '../../styles/config-panels.css';
 
 // ============ 类型定义 ============
@@ -41,6 +42,7 @@ interface PermissionsConfig {
 // ============ 主组件 ============
 
 export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: ConfigPanelProps) {
+  const { t } = useLanguage();
   const [config, setConfig] = useState<PermissionsConfig>({
     defaultMode: 'default',
     tools: { allow: [], deny: [] },
@@ -108,49 +110,49 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
   return (
     <div className="permissions-config-panel">
       <div className="config-panel-header">
-        <h3>权限配置</h3>
+        <h3>{t('permissions.title')}</h3>
         <p className="config-description">
-          配置 Claude Code 的权限系统，控制工具、文件、命令和网络访问权限
+          {t('permissions.description')}
         </p>
       </div>
 
       {/* 默认权限模式 */}
       <section className="config-section">
-        <h4 className="config-section-title">默认权限模式</h4>
+        <h4 className="config-section-title">{t('permissions.mode.title')}</h4>
         <p className="config-section-description">
-          选择默认的权限检查行为
+          {t('permissions.mode.description')}
         </p>
         <div className="setting-item">
-          <label className="setting-label">权限模式</label>
+          <label className="setting-label">{t('permissions.mode.label')}</label>
           <select
             className="setting-select"
             value={config.defaultMode}
             onChange={(e) => setConfig({ ...config, defaultMode: e.target.value as any })}
           >
-            <option value="default">默认 (每次询问权限)</option>
-            <option value="acceptEdits">自动接受编辑 (自动接受文件编辑操作)</option>
-            <option value="bypassPermissions">跳过所有权限 (不进行权限检查)</option>
-            <option value="plan">计划模式 (只规划不执行)</option>
+            <option value="default">{t('permissions.mode.default')}</option>
+            <option value="acceptEdits">{t('permissions.mode.acceptEdits')}</option>
+            <option value="bypassPermissions">{t('permissions.mode.bypassPermissions')}</option>
+            <option value="plan">{t('permissions.mode.plan')}</option>
           </select>
           <div className="setting-hint">
-            {config.defaultMode === 'default' && '每次操作都会请求用户确认'}
-            {config.defaultMode === 'acceptEdits' && '自动接受文件编辑，其他操作仍需确认'}
-            {config.defaultMode === 'bypassPermissions' && '跳过所有权限检查，直接执行'}
-            {config.defaultMode === 'plan' && '只生成执行计划，不实际执行任何操作'}
+            {config.defaultMode === 'default' && t('permissions.mode.hint.default')}
+            {config.defaultMode === 'acceptEdits' && t('permissions.mode.hint.acceptEdits')}
+            {config.defaultMode === 'bypassPermissions' && t('permissions.mode.hint.bypassPermissions')}
+            {config.defaultMode === 'plan' && t('permissions.mode.hint.plan')}
           </div>
         </div>
       </section>
 
       {/* 工具权限 */}
       <section className="config-section">
-        <h4 className="config-section-title">工具权限</h4>
+        <h4 className="config-section-title">{t('permissions.tools.title')}</h4>
         <p className="config-section-description">
-          控制允许或禁止使用的工具（白名单/黑名单）
+          {t('permissions.tools.description')}
         </p>
         <div className="setting-item">
           <label className="setting-label">
-            允许的工具 (逗号分隔)
-            <span className="setting-label-hint">留空表示允许所有</span>
+            {t('permissions.tools.allow.label')}
+            <span className="setting-label-hint">{t('permissions.tools.allow.hint')}</span>
           </label>
           <input
             type="text"
@@ -168,13 +170,13 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
             placeholder="Bash, Read, Write, Edit, Glob, Grep"
           />
           <div className="setting-hint">
-            示例: Bash, Read, Write, Edit, Glob, Grep, WebFetch
+            {t('permissions.tools.allow.example')}
           </div>
         </div>
         <div className="setting-item">
           <label className="setting-label">
-            禁止的工具 (逗号分隔)
-            <span className="setting-label-hint">优先级高于允许列表</span>
+            {t('permissions.tools.deny.label')}
+            <span className="setting-label-hint">{t('permissions.tools.deny.hint')}</span>
           </label>
           <input
             type="text"
@@ -192,21 +194,21 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
             placeholder="WebFetch, WebSearch"
           />
           <div className="setting-hint">
-            禁止的工具将完全无法使用，即使在允许列表中
+            {t('permissions.tools.deny.description')}
           </div>
         </div>
       </section>
 
       {/* 路径权限 */}
       <section className="config-section">
-        <h4 className="config-section-title">路径权限</h4>
+        <h4 className="config-section-title">{t('permissions.paths.title')}</h4>
         <p className="config-section-description">
-          使用 glob 模式控制文件系统访问权限
+          {t('permissions.paths.description')}
         </p>
         <div className="setting-item">
           <label className="setting-label">
-            允许的路径 (每行一个 glob 模式)
-            <span className="setting-label-hint">支持 * 和 ** 通配符</span>
+            {t('permissions.paths.allow.label')}
+            <span className="setting-label-hint">{t('permissions.paths.allow.hint')}</span>
           </label>
           <textarea
             className="setting-textarea"
@@ -224,13 +226,13 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
             rows={4}
           />
           <div className="setting-hint">
-            示例: /home/user/**, /project/**/*.ts, ./src/**
+            {t('permissions.paths.allow.example')}
           </div>
         </div>
         <div className="setting-item">
           <label className="setting-label">
-            禁止的路径 (每行一个 glob 模式)
-            <span className="setting-label-hint">优先级最高</span>
+            {t('permissions.paths.deny.label')}
+            <span className="setting-label-hint">{t('permissions.paths.deny.hint')}</span>
           </label>
           <textarea
             className="setting-textarea"
@@ -248,21 +250,21 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
             rows={4}
           />
           <div className="setting-hint">
-            禁止访问的路径，通常是系统关键目录
+            {t('permissions.paths.deny.description')}
           </div>
         </div>
       </section>
 
       {/* 命令权限 */}
       <section className="config-section">
-        <h4 className="config-section-title">命令权限</h4>
+        <h4 className="config-section-title">{t('permissions.commands.title')}</h4>
         <p className="config-section-description">
-          控制允许执行的 Shell 命令 (支持 glob 模式)
+          {t('permissions.commands.description')}
         </p>
         <div className="setting-item">
           <label className="setting-label">
-            允许的命令 (每行一个模式)
-            <span className="setting-label-hint">支持通配符</span>
+            {t('permissions.commands.allow.label')}
+            <span className="setting-label-hint">{t('permissions.commands.allow.hint')}</span>
           </label>
           <textarea
             className="setting-textarea"
@@ -280,13 +282,13 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
             rows={3}
           />
           <div className="setting-hint">
-            示例: git *, npm *, ls *, cat *
+            {t('permissions.commands.allow.example')}
           </div>
         </div>
         <div className="setting-item">
           <label className="setting-label">
-            禁止的命令 (每行一个模式)
-            <span className="setting-label-hint">危险命令黑名单</span>
+            {t('permissions.commands.deny.label')}
+            <span className="setting-label-hint">{t('permissions.commands.deny.hint')}</span>
           </label>
           <textarea
             className="setting-textarea"
@@ -304,21 +306,21 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
             rows={3}
           />
           <div className="setting-hint">
-            禁止的危险命令，防止误操作
+            {t('permissions.commands.deny.description')}
           </div>
         </div>
       </section>
 
       {/* 网络权限 */}
       <section className="config-section">
-        <h4 className="config-section-title">网络权限</h4>
+        <h4 className="config-section-title">{t('permissions.network.title')}</h4>
         <p className="config-section-description">
-          控制允许访问的网络资源 (URL 模式)
+          {t('permissions.network.description')}
         </p>
         <div className="setting-item">
           <label className="setting-label">
-            允许的 URL (每行一个模式)
-            <span className="setting-label-hint">支持通配符</span>
+            {t('permissions.network.allow.label')}
+            <span className="setting-label-hint">{t('permissions.network.allow.hint')}</span>
           </label>
           <textarea
             className="setting-textarea"
@@ -336,13 +338,13 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
             rows={3}
           />
           <div className="setting-hint">
-            示例: https://api.github.com/**, https://*.anthropic.com/**
+            {t('permissions.network.allow.example')}
           </div>
         </div>
         <div className="setting-item">
           <label className="setting-label">
-            禁止的 URL (每行一个模式)
-            <span className="setting-label-hint">URL 黑名单</span>
+            {t('permissions.network.deny.label')}
+            <span className="setting-label-hint">{t('permissions.network.deny.hint')}</span>
           </label>
           <textarea
             className="setting-textarea"
@@ -360,16 +362,16 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
             rows={3}
           />
           <div className="setting-hint">
-            禁止访问的 URL，用于安全控制
+            {t('permissions.network.deny.description')}
           </div>
         </div>
       </section>
 
       {/* 审计日志 */}
       <section className="config-section">
-        <h4 className="config-section-title">审计日志</h4>
+        <h4 className="config-section-title">{t('permissions.audit.title')}</h4>
         <p className="config-section-description">
-          记录所有权限请求和决策，用于安全审计
+          {t('permissions.audit.description')}
         </p>
         <div className="setting-item">
           <label className="setting-checkbox-label">
@@ -384,15 +386,15 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
                 })
               }
             />
-            启用审计日志
+            {t('permissions.audit.enable')}
           </label>
           <div className="setting-hint">
-            记录所有权限请求、批准/拒绝决策和执行结果
+            {t('permissions.audit.enableHint')}
           </div>
         </div>
         {config.audit?.enabled && (
           <div className="setting-item">
-            <label className="setting-label">日志文件路径</label>
+            <label className="setting-label">{t('permissions.audit.logFile')}</label>
             <input
               type="text"
               className="setting-input"
@@ -406,7 +408,7 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
               placeholder="~/.claude/audit.log"
             />
             <div className="setting-hint">
-              留空使用默认路径: ~/.claude/audit.log
+              {t('permissions.audit.logFileHint')}
             </div>
           </div>
         )}
@@ -415,11 +417,11 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
       {/* 操作按钮 */}
       <div className="config-actions">
         <button className="config-btn config-btn-primary" onClick={handleSave}>
-          保存权限配置
+          {t('permissions.save')}
         </button>
         {onClose && (
           <button className="config-btn config-btn-secondary" onClick={onClose}>
-            取消
+            {t('permissions.cancel')}
           </button>
         )}
       </div>

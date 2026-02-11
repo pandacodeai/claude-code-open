@@ -1,2 +1,2 @@
-export { LanguageProvider, useLanguage } from './LanguageContext';
+export { LanguageProvider, useLanguage, getTranslation } from './LanguageContext';
 export type { Locale } from './locales';

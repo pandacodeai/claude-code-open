@@ -9,6 +9,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { TOOL_DISPLAY_NAMES, TOOL_ICONS } from '../utils/constants';
+import { useLanguage } from '../i18n';
 import type { PermissionRequest } from '../types';
 import {
   PermissionDestinationSelector,
@@ -50,6 +51,7 @@ export function PermissionDialog({
 }: PermissionDialogProps) {
   const [remember, setRemember] = useState(false);
   const [destination, setDestination] = useState<PermissionDestination>(defaultDestination);
+  const { t } = useLanguage();
 
   const { tool, args, description, riskLevel, isElevated, elevationReason } = request;
 
@@ -92,11 +94,11 @@ export function PermissionDialog({
   const getRiskLabel = () => {
     switch (riskLevel) {
       case 'high':
-        return 'High Risk';
+        return t('permission.risk.high');
       case 'medium':
-        return 'Medium Risk';
+        return t('permission.risk.medium');
       default:
-        return 'Low Risk';
+        return t('permission.risk.low');
     }
   };
 
@@ -120,6 +122,17 @@ export function PermissionDialog({
   // 是否使用新版回调
   const useNewCallback = !!onRespondWithDestination;
 
+  // 获取平台相关的提权提示
+  const getElevatedHint = () => {
+    if (typeof window !== 'undefined' && navigator.platform?.includes('Win')) {
+      return t('permission.elevated.windows');
+    }
+    if (navigator.platform?.includes('Mac')) {
+      return t('permission.elevated.mac');
+    }
+    return t('permission.elevated.linux');
+  };
+
   return (
     <div className="permission-dialog-overlay">
       <div
@@ -129,13 +142,13 @@ export function PermissionDialog({
         {/* 头部 */}
         <div className="permission-header">
           <span className={`risk-badge ${getRiskClass()}`}>{getRiskLabel()}</span>
-          <h3>Permission Request</h3>
+          <h3>{t('permission.title')}</h3>
         </div>
 
         {/* 内容 */}
         <div className="permission-content">
           <p className="tool-name">
-            Tool: {toolIcon} <strong>{toolDisplayName}</strong>
+            {t('permission.toolLabel')} {toolIcon} <strong>{toolDisplayName}</strong>
           </p>
           <p className="description">{description}</p>
           {args && Object.keys(args).length > 0 && (
@@ -148,15 +161,9 @@ export function PermissionDialog({
           <div className="permission-elevated-warning">
             <div className="elevated-icon">🔐</div>
             <div className="elevated-content">
-              <strong>需要管理员权限</strong>
-              <p>{elevationReason || '此操作需要提升权限才能执行'}</p>
-              <p className="elevated-hint">
-                {typeof window !== 'undefined' && navigator.platform?.includes('Win')
-                  ? '批准后将弹出 Windows UAC 对话框'
-                  : navigator.platform?.includes('Mac')
-                  ? '批准后将弹出 macOS 密码输入对话框'
-                  : '批准后需要输入 sudo 密码'}
-              </p>
+              <strong>{t('permission.elevated.title')}</strong>
+              <p>{elevationReason || t('permission.elevated.defaultReason')}</p>
+              <p className="elevated-hint">{getElevatedHint()}</p>
             </div>
           </div>
         )}
@@ -174,7 +181,7 @@ export function PermissionDialog({
               />
             ) : (
               <div className="permission-destination-inline">
-                <span className="destination-label">Save to:</span>
+                <span className="destination-label">{t('permission.destination.saveLabel')}</span>
                 <PermissionDestinationDropdown
                   currentDestination={destination}
                   onSelect={handleDestinationSelect}
@@ -194,7 +201,7 @@ export function PermissionDialog({
                 checked={remember}
                 onChange={(e) => setRemember(e.target.checked)}
               />
-              Remember this decision
+              {t('permission.remember')}
             </label>
           )}
 
@@ -207,10 +214,10 @@ export function PermissionDialog({
 
           <div className="action-buttons">
             <button className="btn-deny" onClick={handleDeny}>
-              Deny
+              {t('permission.deny')}
             </button>
             <button className="btn-approve" onClick={handleApprove}>
-              Allow
+              {t('permission.allow')}
             </button>
           </div>
         </div>

@@ -13,3 +13,4 @@ export { BlueprintSummaryCard } from './BlueprintSummaryCard';
 export { CodebaseAnalysisDialog } from './CodebaseAnalysisDialog';
 export { NotebookOutputRenderer } from './NotebookOutputRenderer';
 export { DebugPanel } from './DebugPanel';
+export { ArtifactsPanel } from './ArtifactsPanel/ArtifactsPanel';

@@ -16,6 +16,8 @@ export interface MessageProps {
   streaming?: boolean; // 是否正在流式渲染中
   showCopyHint?: boolean; // 显示复制提示
   model?: string; // 使用的模型
+  onCopy?: () => void; // 复制消息回调
+  onRewind?: () => void; // 回滚到此消息回调
 }
 
 // 渲染 Markdown 块组件
@@ -136,6 +138,38 @@ const renderContentBlocks = (blocks: AnyContentBlock[]) => {
   });
 };
 
+// 自定义比较函数 - 避免不必要的重新渲染
+const arePropsEqual = (prev: MessageProps, next: MessageProps): boolean => {
+  // 比较基本属性
+  if (prev.role !== next.role || prev.streaming !== next.streaming || prev.showCopyHint !== next.showCopyHint || prev.model !== next.model) {
+    return false;
+  }
+
+  // 比较回调函数（通过引用比较）
+  if (prev.onCopy !== next.onCopy || prev.onRewind !== next.onRewind) {
+    return false;
+  }
+
+  // 比较 content（支持字符串和数组）
+  if (typeof prev.content === 'string' && typeof next.content === 'string') {
+    return prev.content === next.content;
+  }
+
+  if (Array.isArray(prev.content) && Array.isArray(next.content)) {
+    if (prev.content.length !== next.content.length) {
+      return false;
+    }
+    // 简单的浅比较数组内容
+    return prev.content.every((block, i) => {
+      const nextBlock = next.content[i];
+      return JSON.stringify(block) === JSON.stringify(nextBlock);
+    });
+  }
+
+  // content 类型不同
+  return false;
+};
+
 export const Message: React.FC<MessageProps> = React.memo(({
   role,
   content,
@@ -143,6 +177,8 @@ export const Message: React.FC<MessageProps> = React.memo(({
   streaming = false,
   showCopyHint = false,
   model,
+  onCopy,
+  onRewind,
 }) => {
   const isUser = role === 'user';
   const isSystem = role === 'system';
@@ -190,7 +226,7 @@ export const Message: React.FC<MessageProps> = React.memo(({
     });
   };
 
-  // 用户消息 - 官方风格（只显示 > 符号，内容在同一行）
+  // 用户消息 - 图标在右侧
   // 优先处理用户消息，无论 content 是字符串还是数组
   if (isUser) {
     // 从 content 中提取纯文本（用户消息通常只有文本）
@@ -202,12 +238,19 @@ export const Message: React.FC<MessageProps> = React.memo(({
           .join('\n') || displayedContent;
 
     return (
-      <Box flexDirection="column" marginY={1}>
-        <Box>
-          <Text bold color="blue">{'>'}</Text>
-        </Box>
-        <Box marginLeft={2}>
-          <Text>{userText}</Text>
+      <Box flexDirection="column">
+        {/* 提示符和消息内容 - 图标在最右侧 */}
+        <Box flexDirection="row" justifyContent="space-between">
+          {/* 左侧：提示符和消息文本 */}
+          <Box>
+            <Text bold color="blue">{'> '}</Text>
+            <Text>{userText}</Text>
+          </Box>
+
+          {/* 右侧：图标按钮 */}
+          <Box>
+            <Text dimColor>🔄 📋</Text>
+          </Box>
         </Box>
       </Box>
     );
@@ -262,4 +305,4 @@ export const Message: React.FC<MessageProps> = React.memo(({
       )}
     </Box>
   );
-});
+}, arePropsEqual);

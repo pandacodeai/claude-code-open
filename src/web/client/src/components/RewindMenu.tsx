@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { useLanguage } from '../i18n';
 import styles from './RewindMenu.module.css';
 
 export type RewindOption = 'code' | 'conversation' | 'both' | 'cancel';
@@ -39,34 +40,35 @@ export function RewindMenu({
 }: RewindMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const { t } = useLanguage();
 
   const options: Array<{ value: RewindOption; label: string; description: string; icon: string; disabled?: boolean }> = [
     {
       value: 'conversation',
-      label: 'Delete this message',
+      label: t('rewind.deleteMessage'),
       description: preview.messagesWillRemove > 1
-        ? `Remove this and ${preview.messagesWillRemove - 1} more message${preview.messagesWillRemove > 2 ? 's' : ''}`
+        ? t('rewind.deleteMessage.descMulti', { count: preview.messagesWillRemove - 1 })
         : preview.messagesWillRemove === 1
-        ? 'Remove this message'
-        : 'No messages to remove',
+        ? t('rewind.deleteMessage.descSingle')
+        : t('rewind.deleteMessage.descNone'),
       icon: '💬',
       disabled: preview.messagesWillRemove === 0,
     },
     {
       value: 'code',
-      label: 'Rewind code before this',
-      description: 'Restore files to before this message',
+      label: t('rewind.rewindCode'),
+      description: t('rewind.rewindCode.desc'),
       icon: '📝',
-      disabled: false, // 总是启用，由后端决定是否有文件可回滚
+      disabled: false,
     },
     {
       value: 'both',
-      label: 'Delete message and rewind code',
+      label: t('rewind.deleteAndRewind'),
       description: preview.messagesWillRemove > 1
-        ? `${preview.messagesWillRemove} messages + code changes`
-        : 'This message + code changes',
+        ? t('rewind.deleteAndRewind.descMulti', { count: preview.messagesWillRemove })
+        : t('rewind.deleteAndRewind.descSingle'),
       icon: '🔄',
-      disabled: false, // 总是启用
+      disabled: false,
     },
   ];
 
@@ -129,7 +131,7 @@ export function RewindMenu({
       }}
     >
       <div className={styles.menuHeader}>
-        <span className={styles.menuTitle}>Rewind to this message</span>
+        <span className={styles.menuTitle}>{t('rewind.title')}</span>
       </div>
 
       {options.map((option, index) => {
@@ -155,7 +157,7 @@ export function RewindMenu({
       })}
 
       <div className={styles.menuFooter}>
-        <div className={styles.hint}>Press ESC to cancel</div>
+        <div className={styles.hint}>{t('rewind.cancelHint')}</div>
       </div>
     </div>
   );

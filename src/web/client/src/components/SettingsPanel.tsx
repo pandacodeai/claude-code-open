@@ -23,6 +23,7 @@ interface SettingsPanelProps {
   model: string;
   onModelChange: (model: string) => void;
   onSendMessage?: (message: any) => void;
+  addMessageHandler?: (handler: (msg: any) => void) => () => void;
 }
 
 type SettingsTab =
@@ -59,6 +60,7 @@ export function SettingsPanel({
   model,
   onModelChange,
   onSendMessage,
+  addMessageHandler,
 }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const { locale, setLocale, t } = useLanguage();
@@ -206,7 +208,7 @@ export function SettingsPanel({
         return <McpPanel onClose={onClose} onSendMessage={onSendMessage} />;
 
       case 'plugins':
-        return <PluginsPanel onClose={onClose} onSendMessage={onSendMessage} />;
+        return <PluginsPanel onClose={onClose} onSendMessage={onSendMessage} addMessageHandler={addMessageHandler} />;
 
       case 'about':
         return (

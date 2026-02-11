@@ -2535,3 +2535,6 @@ export {
   getAutoUpdaterDisabledReason,
 };
 
+// 导出插件市场管理器
+export { MarketplaceManager } from './marketplace.js';
+

@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
+import { useLanguage } from '../i18n';
 import styles from './PermissionDestinationSelector.module.css';
 
 /**
@@ -30,41 +31,75 @@ export interface DestinationConfig {
 }
 
 /**
- * 可用的保存目标配置
+ * 静态目标配置（icon/shortcut/path 不需要翻译）
  */
-export const PERMISSION_DESTINATIONS: DestinationConfig[] = [
+const DESTINATION_CONFIGS: Array<{
+  id: PermissionDestination;
+  labelKey: string;
+  descKey: string;
+  icon: string;
+  shortcut?: string;
+  path?: string;
+}> = [
   {
     id: 'project',
-    label: 'This project',
-    description: 'Save to .claude/settings.json (shared with team)',
+    labelKey: 'permission.destination.project.label',
+    descKey: 'permission.destination.project.desc',
     icon: '📁',
     shortcut: 'P',
     path: '.claude/settings.json',
   },
   {
     id: 'global',
-    label: 'All projects',
-    description: 'Save to ~/.claude/settings.json (global)',
+    labelKey: 'permission.destination.global.label',
+    descKey: 'permission.destination.global.desc',
     icon: '🌐',
     shortcut: 'G',
     path: '~/.claude/settings.json',
   },
   {
     id: 'team',
-    label: 'Shared with team',
-    description: 'Save to .claude/settings.local.json (machine-specific)',
+    labelKey: 'permission.destination.team.label',
+    descKey: 'permission.destination.team.desc',
     icon: '👥',
     shortcut: 'T',
     path: '.claude/settings.local.json',
   },
   {
     id: 'session',
-    label: 'Session only',
-    description: "Don't save (temporary, current session only)",
+    labelKey: 'permission.destination.session.label',
+    descKey: 'permission.destination.session.desc',
     icon: '⏱️',
     shortcut: 'S',
   },
 ];
+
+/**
+ * 用翻译函数生成 PERMISSION_DESTINATIONS
+ */
+function getTranslatedDestinations(t: (key: string) => string): DestinationConfig[] {
+  return DESTINATION_CONFIGS.map((cfg) => ({
+    id: cfg.id,
+    label: t(cfg.labelKey),
+    description: t(cfg.descKey),
+    icon: cfg.icon,
+    shortcut: cfg.shortcut,
+    path: cfg.path,
+  }));
+}
+
+/**
+ * 导出静态版本（向后兼容，用于不在 React 组件内的场景）
+ * 使用英文 fallback
+ */
+export const PERMISSION_DESTINATIONS: DestinationConfig[] = DESTINATION_CONFIGS.map((cfg) => ({
+  id: cfg.id,
+  label: cfg.labelKey, // fallback to key
+  description: cfg.descKey,
+  icon: cfg.icon,
+  shortcut: cfg.shortcut,
+  path: cfg.path,
+}));
 
 /**
  * 组件属性
@@ -104,6 +139,9 @@ export function PermissionDestinationSelector({
   direction = 'vertical',
 }: PermissionDestinationSelectorProps) {
   const [hoveredId, setHoveredId] = useState<PermissionDestination | null>(null);
+  const { t } = useLanguage();
+
+  const destinations = useMemo(() => getTranslatedDestinations(t), [t]);
 
   // 处理选择事件
   const handleSelect = useCallback(
@@ -140,7 +178,7 @@ export function PermissionDestinationSelector({
       }
 
       const key = event.key.toUpperCase();
-      const destination = PERMISSION_DESTINATIONS.find((d) => d.shortcut === key);
+      const destination = destinations.find((d) => d.shortcut === key);
       if (destination) {
         event.preventDefault();
         handleSelect(destination.id);
@@ -149,7 +187,7 @@ export function PermissionDestinationSelector({
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [disabled, handleSelect]);
+  }, [disabled, handleSelect, destinations]);
 
   // 计算容器类名
   const containerClassName = useMemo(() => {
@@ -165,11 +203,11 @@ export function PermissionDestinationSelector({
     <div className={containerClassName} role="radiogroup" aria-label="Permission save location">
       <div className={styles.header}>
         <span className={styles.headerIcon}>📍</span>
-        <span className={styles.headerText}>Where to save this permission?</span>
+        <span className={styles.headerText}>{t('permission.destination.header')}</span>
       </div>
 
       <div className={styles.optionsContainer}>
-        {PERMISSION_DESTINATIONS.map((dest) => {
+        {destinations.map((dest) => {
           const isSelected = currentDestination === dest.id;
           const isHovered = hoveredId === dest.id;
 
@@ -210,7 +248,7 @@ export function PermissionDestinationSelector({
 
       {showShortcuts && (
         <div className={styles.shortcutHint}>
-          Press <kbd>P</kbd>/<kbd>G</kbd>/<kbd>T</kbd>/<kbd>S</kbd> to quick select
+          {t('permission.destination.shortcutHint', { keys: 'P/G/T/S' })}
         </div>
       )}
     </div>
@@ -227,10 +265,13 @@ export function PermissionDestinationDropdown({
   className = '',
 }: Omit<PermissionDestinationSelectorProps, 'compact' | 'direction' | 'showShortcuts' | 'showPaths'>) {
   const [isOpen, setIsOpen] = useState(false);
+  const { t } = useLanguage();
+
+  const destinations = useMemo(() => getTranslatedDestinations(t), [t]);
 
   const currentConfig = useMemo(
-    () => PERMISSION_DESTINATIONS.find((d) => d.id === currentDestination),
-    [currentDestination]
+    () => destinations.find((d) => d.id === currentDestination),
+    [currentDestination, destinations]
   );
 
   const handleSelect = useCallback(
@@ -279,7 +320,7 @@ export function PermissionDestinationDropdown({
 
       {isOpen && (
         <div className={styles.dropdownMenu} role="listbox">
-          {PERMISSION_DESTINATIONS.map((dest) => {
+          {destinations.map((dest) => {
             const isSelected = currentDestination === dest.id;
 
             return (

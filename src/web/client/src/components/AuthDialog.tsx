@@ -4,6 +4,7 @@
  */
 
 import { OAuthLogin } from './auth/OAuthLogin';
+import { useLanguage } from '../i18n';
 import './AuthDialog.css';
 
 interface AuthDialogProps {
@@ -13,6 +14,8 @@ interface AuthDialogProps {
 }
 
 export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
+  const { t } = useLanguage();
+
   if (!isOpen) return null;
 
   const handleSuccess = () => {
@@ -30,8 +33,8 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
     <div className="auth-dialog-backdrop" onClick={handleBackdropClick}>
       <div className="auth-dialog">
         <div className="auth-dialog-header">
-          <h2>登录 Claude Code</h2>
-          <button className="close-btn" onClick={onClose} title="关闭">
+          <h2>{t('auth.title')}</h2>
+          <button className="close-btn" onClick={onClose} title={t('auth.close')}>
             ✕
           </button>
         </div>

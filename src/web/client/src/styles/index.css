@@ -657,32 +657,32 @@ body {
   animation: fadeIn 0.4s var(--ease-spring);
 }
 
-/* 消息主容器 - 横向布局 */
+/* 消息主容器 - 相对定位容器，不使用 flex 避免 hover 时布局抖动 */
 .message-main {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
+  position: relative;
   width: 100%;
 }
 
-/* 用户消息的主容器应该反向排列（按钮在左边） */
+/* 用户消息的主容器 - 按钮在右边 */
 .message.user .message-main {
-  flex-direction: row-reverse;
+  /* 保持一致 */
 }
 
-/* 消息内容包装器 */
+/* 消息内容包装器 - 固定宽度，不受按钮影响 */
 .message-content-wrapper {
-  flex: 1;
+  width: 100%;
   min-width: 0;
 }
 
-/* 右侧按钮栏 */
+/* 右侧按钮栏 - 绝对定位，不参与布局流，避免 hover 时导致内容区域收缩 */
 .message-actions-sidebar {
+  position: absolute;
+  top: 28px;
+  right: -44px; /* 放在消息块右侧外部 */
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding-top: 28px; /* 对齐消息内容顶部 */
-  flex-shrink: 0;
+  z-index: 10;
 }
 
 /* 对齐官方 Hh4: compact_boundary 分隔线 */
@@ -777,9 +777,7 @@ body {
 }
 
 .message.user {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  /* 移除 align-items: flex-end，让消息框宽度和助手消息一致 */
 }
 
 .message.user .message-content {
@@ -1831,6 +1829,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  overflow-y: auto;
 }
 
 .settings-nav-item {
@@ -1857,8 +1856,10 @@ body {
 
 .settings-content {
   flex: 1;
+  min-height: 0;
   padding: 24px;
   overflow-y: auto;
+  position: relative;
 }
 
 .settings-section h3 {

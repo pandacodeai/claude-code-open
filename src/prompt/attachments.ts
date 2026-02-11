@@ -24,6 +24,8 @@ import {
   getTodoListInfo,
 } from './templates.js';
 import { findClaudeMd, parseClaudeMd, generateSystemPromptAddition } from '../rules/index.js';
+import { initializeSkills, getAllSkills, formatSkillsList } from '../tools/skill.js';
+import { runWithCwd } from '../core/cwd-context.js';
 
 /**
  * 附件管理器
@@ -193,7 +195,7 @@ export class AttachmentManager {
     // 始终尝试生成，让 generateSkillListingAttachment 内部决定是否返回空
     attachmentPromises.push(
       this.computeAttachment('skill_listing', () =>
-        this.generateSkillListingAttachment()
+        this.generateSkillListingAttachment(context)
       )
     );
 
@@ -512,13 +514,15 @@ Do not directly edit files - delegate work to teammate agents.
    * 格式为：
    * "The following skills are available for use with the Skill tool:\n\n{formattedList}"
    */
-  private async generateSkillListingAttachment(): Promise<Attachment[]> {
+  private async generateSkillListingAttachment(context: PromptContext): Promise<Attachment[]> {
     try {
-      const { initializeSkills, getAllSkills, formatSkillsList } = require('../tools/skill.js');
-      // 确保 skills 已初始化（内部有 skillsLoaded guard，不会重复加载）
-      await initializeSkills();
+      // 使用 runWithCwd 包装，确保 initializeSkills 能访问正确的工作目录
+      const skills = await runWithCwd(context.workingDir, async () => {
+        // 确保 skills 已初始化（内部有 skillsLoaded guard，不会重复加载）
+        await initializeSkills();
+        return getAllSkills();
+      });
 
-      const skills = getAllSkills();
       if (!skills || skills.length === 0) {
         return [];
       }
@@ -527,7 +531,6 @@ Do not directly edit files - delegate work to teammate agents.
       if (!formattedList) {
         return [];
       }
-
       return [
         {
           type: 'skill_listing' as AttachmentType,
@@ -536,7 +539,8 @@ Do not directly edit files - delegate work to teammate agents.
           priority: 25,
         },
       ];
-    } catch {
+    } catch (error) {
+      console.error('[Attachments] Failed to generate skill listing:', error);
       return [];
     }
   }

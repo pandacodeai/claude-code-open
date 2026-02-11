@@ -1,7 +1,10 @@
 import { useState, useMemo, ReactNode } from 'react';
 import { CliSpinner, CliStatusIndicator } from './common/CliSpinner';
+import { useLanguage } from '../i18n';
 import './CliToolCall.css';
 import type { ToolUse, SubagentToolCall } from '../types';
+import { computeSideBySideDiff } from '../utils/diffUtils';
+import type { DiffRow } from '../utils/diffUtils';
 
 // 默认显示的最大行数（与官方 CLI 保持一致）
 const DEFAULT_MAX_LINES = 10;
@@ -38,6 +41,7 @@ interface ExpandableContentProps {
   totalLines: number;
   expanded: boolean;
   onToggle: () => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }
 
 function ExpandableContent({
@@ -45,7 +49,8 @@ function ExpandableContent({
   maxLines = DEFAULT_MAX_LINES,
   totalLines,
   expanded,
-  onToggle
+  onToggle,
+  t,
 }: ExpandableContentProps) {
   const hiddenLines = totalLines - maxLines;
   const shouldTruncate = !expanded && hiddenLines > 0;
@@ -58,13 +63,13 @@ function ExpandableContent({
       {hiddenLines > 0 && (
         <div className="cli-expand-footer">
           {!expanded && (
-            <span className="cli-hidden-lines">… +{hiddenLines} lines</span>
+            <span className="cli-hidden-lines">{t('cli.hiddenLines', { count: hiddenLines })}</span>
           )}
           <button
             className="cli-expand-btn"
             onClick={(e) => { e.stopPropagation(); onToggle(); }}
           >
-            {expanded ? 'Click to collapse' : 'Click to expand'}
+            {expanded ? t('cli.collapseButton') : t('cli.expandButton')}
           </button>
         </div>
       )}
@@ -117,7 +122,8 @@ function getToolDescription(name: string, input: any): string {
  */
 function BashToolContent({ input, result }: { input: any; result?: any }) {
   const [expanded, setExpanded] = useState(false);
-  const output = result?.output || result?.error || '(no output)';
+  const { t } = useLanguage();
+  const output = result?.output || result?.error || t('cli.noOutput');
   const allLines = output.split('\n');
   const totalLines = allLines.length;
   const maxLines = DEFAULT_MAX_LINES;
@@ -128,18 +134,19 @@ function BashToolContent({ input, result }: { input: any; result?: any }) {
     <div className="cli-bash-content">
       {input?.command && (
         <div className="cli-bash-section">
-          <span className="cli-bash-label">IN</span>
+          <span className="cli-bash-label">{t('cli.inputLabel')}</span>
           <pre className="cli-bash-code">{input.command}</pre>
         </div>
       )}
       {result && (
         <div className="cli-bash-section">
-          <span className="cli-bash-label">OUT</span>
+          <span className="cli-bash-label">{t('cli.outputLabel')}</span>
           <ExpandableContent
             totalLines={totalLines}
             maxLines={maxLines}
             expanded={expanded}
             onToggle={() => setExpanded(!expanded)}
+            t={t}
           >
             <pre className="cli-bash-code cli-bash-output">
               {displayOutput}
@@ -151,67 +158,13 @@ function BashToolContent({ input, result }: { input: any; result?: any }) {
   );
 }
 
-/**
- * Side-by-side diff 行数据
- */
-interface DiffRow {
-  left: { text: string; type: 'unchanged' | 'removed' } | null;
-  right: { text: string; type: 'unchanged' | 'added' } | null;
-}
-
-/**
- * 基于 LCS 的 side-by-side diff 算法
- * 将 old/new 行对齐为左右两列
- */
-function computeSideBySideDiff(oldLines: string[], newLines: string[]): DiffRow[] {
-  const m = oldLines.length;
-  const n = newLines.length;
-
-  // 构建 LCS DP 表
-  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (oldLines[i - 1] === newLines[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1] + 1;
-      } else {
-        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
-      }
-    }
-  }
-
-  // 回溯构建 diff 行（倒序入栈）
-  const stack: DiffRow[] = [];
-  let i = m, j = n;
-  while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
-      stack.push({
-        left: { text: oldLines[i - 1], type: 'unchanged' },
-        right: { text: newLines[j - 1], type: 'unchanged' },
-      });
-      i--; j--;
-    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      stack.push({
-        left: null,
-        right: { text: newLines[j - 1], type: 'added' },
-      });
-      j--;
-    } else {
-      stack.push({
-        left: { text: oldLines[i - 1], type: 'removed' },
-        right: null,
-      });
-      i--;
-    }
-  }
-
-  return stack.reverse();
-}
 
 /**
  * 渲染 Edit 工具内容 - 左右对比 side-by-side diff，支持 Click to expand
  */
 function EditToolContent({ input, result }: { input: any; result?: any }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useLanguage();
   const oldString = input?.old_string || '';
   const newString = input?.new_string || '';
 
@@ -233,9 +186,9 @@ function EditToolContent({ input, result }: { input: any; result?: any }) {
 
   // 生成摘要文本
   const summaryParts: string[] = [];
-  if (removedCount > 0) summaryParts.push(`Removed ${removedCount} line${removedCount > 1 ? 's' : ''}`);
-  if (addedCount > 0) summaryParts.push(`Added ${addedCount} line${addedCount > 1 ? 's' : ''}`);
-  const summary = summaryParts.length > 0 ? summaryParts.join(', ') : 'Modified';
+  if (removedCount > 0) summaryParts.push(t('cli.editRemoved', { count: removedCount }));
+  if (addedCount > 0) summaryParts.push(t('cli.editAdded', { count: addedCount }));
+  const summary = summaryParts.length > 0 ? summaryParts.join(', ') : t('cli.editModified');
 
   return (
     <div className="cli-edit-content">
@@ -251,6 +204,7 @@ function EditToolContent({ input, result }: { input: any; result?: any }) {
         maxLines={maxRows}
         expanded={expanded}
         onToggle={() => setExpanded(!expanded)}
+        t={t}
       >
         <div className="cli-diff-sidebyside">
           {displayRows.map((row, i) => (
@@ -298,6 +252,7 @@ function EditToolContent({ input, result }: { input: any; result?: any }) {
  */
 function WriteToolContent({ input }: { input: any }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useLanguage();
   const content = input?.content || '';
   const allLines = content.split('\n');
   const totalLines = allLines.length;
@@ -307,12 +262,13 @@ function WriteToolContent({ input }: { input: any }) {
 
   return (
     <div className="cli-write-content">
-      <div className="cli-write-info">{totalLines} lines</div>
+      <div className="cli-write-info">{t('cli.linesCount', { count: totalLines })}</div>
       <ExpandableContent
         totalLines={totalLines}
         maxLines={maxLines}
         expanded={expanded}
         onToggle={() => setExpanded(!expanded)}
+        t={t}
       >
         <pre className="cli-write-preview">
           {displayLines.join('\n')}
@@ -349,6 +305,7 @@ function TodoWriteContent({ input }: { input: any }) {
  */
 function ReadToolContent({ input, result }: { input: any; result?: any }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useLanguage();
   const output = result?.output || '';
   const allLines = output.split('\n');
   const totalLines = allLines.length;
@@ -360,12 +317,13 @@ function ReadToolContent({ input, result }: { input: any; result?: any }) {
     <div className="cli-read-content">
       {result && (
         <>
-          <div className="cli-read-info">{totalLines} lines of output</div>
+          <div className="cli-read-info">{t('cli.linesOfOutput', { count: totalLines })}</div>
           <ExpandableContent
             totalLines={totalLines}
             maxLines={maxLines}
             expanded={expanded}
             onToggle={() => setExpanded(!expanded)}
+            t={t}
           >
             <pre className="cli-read-preview">
               {displayLines.join('\n')}
@@ -382,6 +340,7 @@ function ReadToolContent({ input, result }: { input: any; result?: any }) {
  */
 function GrepToolContent({ input, result }: { input: any; result?: any }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useLanguage();
   const output = result?.output || '';
   const allLines = output.split('\n');
   const totalLines = allLines.filter((l: string) => l.trim()).length;
@@ -393,12 +352,13 @@ function GrepToolContent({ input, result }: { input: any; result?: any }) {
     <div className="cli-grep-content">
       {result && (
         <>
-          <div className="cli-grep-info">{totalLines} lines of output</div>
+          <div className="cli-grep-info">{t('cli.linesOfOutput', { count: totalLines })}</div>
           <ExpandableContent
             totalLines={allLines.length}
             maxLines={maxLines}
             expanded={expanded}
             onToggle={() => setExpanded(!expanded)}
+            t={t}
           >
             <pre className="cli-grep-preview">{displayLines.join('\n')}</pre>
           </ExpandableContent>
@@ -450,6 +410,7 @@ function getSubagentToolInput(name: string, input: any): string {
  */
 function CliSubagentTool({ toolCall, index }: { toolCall: SubagentToolCall; index: number }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useLanguage();
   const toolName = CLI_TOOL_NAMES[toolCall.name] || toolCall.name;
   const description = getToolDescription(toolCall.name, toolCall.input);
   const inputText = getSubagentToolInput(toolCall.name, toolCall.input);
@@ -494,7 +455,7 @@ function CliSubagentTool({ toolCall, index }: { toolCall: SubagentToolCall; inde
       {/* 输入区域 - IN 标签 */}
       {inputText && (
         <div className="cli-subagent-section">
-          <span className="cli-subagent-label cli-subagent-label--in">IN</span>
+          <span className="cli-subagent-label cli-subagent-label--in">{t('cli.inputLabel')}</span>
           <pre className="cli-subagent-code">{inputText}</pre>
         </div>
       )}
@@ -503,7 +464,7 @@ function CliSubagentTool({ toolCall, index }: { toolCall: SubagentToolCall; inde
       {hasOutput && expanded && (
         <div className="cli-subagent-section">
           <span className={`cli-subagent-label ${toolCall.error ? 'cli-subagent-label--error' : 'cli-subagent-label--out'}`}>
-            {toolCall.error ? 'ERR' : 'OUT'}
+            {toolCall.error ? t('cli.errorLabel') : t('cli.outputLabel')}
           </span>
           <div className="cli-subagent-output-wrapper">
             <pre className={`cli-subagent-code cli-subagent-output ${toolCall.error ? 'cli-subagent-output--error' : ''}`}>
@@ -511,7 +472,7 @@ function CliSubagentTool({ toolCall, index }: { toolCall: SubagentToolCall; inde
             </pre>
             {shouldTruncateOutput && (
               <div className="cli-subagent-truncated">
-                ... +{totalOutputLines - maxLines} lines
+                {t('cli.hiddenLines', { count: totalOutputLines - maxLines })}
               </div>
             )}
           </div>
@@ -526,6 +487,7 @@ function CliSubagentTool({ toolCall, index }: { toolCall: SubagentToolCall; inde
  */
 export function CliToolCall({ toolUse }: CliToolCallProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const { t } = useLanguage();
   const { name, input, status, result, subagentToolCalls, toolUseCount, lastToolInfo } = toolUse;
 
   const toolName = CLI_TOOL_NAMES[name] || name;
@@ -537,13 +499,13 @@ export function CliToolCall({ toolUse }: CliToolCallProps) {
     if (!isTaskTool) return null;
     const parts: string[] = [];
     if (toolUseCount && toolUseCount > 0) {
-      parts.push(`${toolUseCount} tool uses`);
+      parts.push(t('cli.toolUses', { count: toolUseCount }));
     }
     if (lastToolInfo) {
       parts.push(lastToolInfo);
     }
     return parts.length > 0 ? parts.join(' · ') : null;
-  }, [isTaskTool, toolUseCount, lastToolInfo]);
+  }, [isTaskTool, toolUseCount, lastToolInfo, t]);
 
   // 渲染工具特定内容
   const renderToolContent = () => {
@@ -566,7 +528,7 @@ export function CliToolCall({ toolUse }: CliToolCallProps) {
             {/* Agent 工具日志标记 */}
             <div className="cli-agent-badge">
               <span className="cli-agent-badge-icon">🤖</span>
-              <span className="cli-agent-badge-text">Agent 工具日志</span>
+              <span className="cli-agent-badge-text">{t('cli.agentBadge')}</span>
               <span className="cli-agent-badge-type">{(input as any)?.subagent_type || 'general-purpose'}</span>
             </div>
 
@@ -581,7 +543,7 @@ export function CliToolCall({ toolUse }: CliToolCallProps) {
             {/* 最终结果 */}
             {result && status === 'completed' && (
               <div className="cli-agent-result">
-                <div className="cli-agent-result-header">Agent 返回结果</div>
+                <div className="cli-agent-result-header">{t('cli.agentResult')}</div>
                 <pre className="cli-agent-result-content">
                   {typeof result === 'object' ? (result.output || result.error || JSON.stringify(result, null, 2)) : result}
                 </pre>

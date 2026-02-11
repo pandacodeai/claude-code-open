@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
+import { useLanguage } from '../i18n';
 import { PluginInfo } from '../../shared/types';
 import './PluginsPanel.css';
 
@@ -26,12 +27,7 @@ const ICONS = {
 // Tab 定义
 type TabId = 'discover' | 'installed' | 'marketplaces' | 'errors';
 
-const TAB_LABELS: Record<TabId, string> = {
-  discover: 'Discover',
-  installed: 'Installed',
-  marketplaces: 'Marketplaces',
-  errors: 'Errors',
-};
+// TAB_LABELS 通过 i18n 动态获取
 
 const TAB_ORDER: TabId[] = ['discover', 'installed', 'marketplaces', 'errors'];
 
@@ -62,9 +58,17 @@ interface PluginError {
   timestamp: string;
 }
 
+interface PluginProgress {
+  pluginId: string;
+  step: number;
+  totalSteps: number;
+  message: string;
+}
+
 interface PluginsPanelProps {
   onClose?: () => void;
   onSendMessage?: (message: any) => void;
+  addMessageHandler?: (handler: (msg: any) => void) => () => void;
 }
 
 type ViewMode = 'tabs' | 'details' | 'add-marketplace';
@@ -90,6 +94,7 @@ function TabBar({
   selectedTab: TabId;
   onTabChange: (tab: TabId) => void;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="plugins-tabs">
       {tabs.map((tab) => (
@@ -98,7 +103,7 @@ function TabBar({
           className={`plugins-tab ${selectedTab === tab ? 'active' : ''}`}
           onClick={() => onTabChange(tab)}
         >
-          {TAB_LABELS[tab]}
+          {t(`plugins.tab.${tab}`)}
         </button>
       ))}
     </div>
@@ -113,6 +118,8 @@ function DiscoverTab({
   selectedPlugins,
   loadingPlugins,
   installedPlugins,
+  pluginProgress,
+  simulatedProgress,
   onSelect,
   onDeselect,
   onViewDetails,
@@ -126,6 +133,8 @@ function DiscoverTab({
   selectedPlugins: Set<string>;
   loadingPlugins: Set<string>;
   installedPlugins: Set<string>;
+  pluginProgress: Map<string, PluginProgress>;
+  simulatedProgress: Map<string, number>;
   onSelect: (pluginId: string) => void;
   onDeselect: (pluginId: string) => void;
   onViewDetails: (plugin: MarketplacePlugin) => void;
@@ -135,6 +144,7 @@ function DiscoverTab({
   error?: string;
   noMarketplaces?: boolean;
 }) {
+  const { t } = useLanguage();
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   // 过滤插件
@@ -152,10 +162,10 @@ function DiscoverTab({
   if (noMarketplaces) {
     return (
       <div className="plugins-tab-content">
-        <h4>Discover plugins</h4>
+        <h4>{t('plugins.discover.title')}</h4>
         <div className="plugins-empty">
-          <p>No marketplaces configured.</p>
-          <p>Add a marketplace first with:</p>
+          <p>{t('plugins.discover.noMarketplaces')}</p>
+          <p>{t('plugins.discover.addMarketplaceHint')}</p>
           <code>/plugins marketplace add anthropics/claude-code</code>
         </div>
       </div>
@@ -165,7 +175,7 @@ function DiscoverTab({
   return (
     <div className="plugins-tab-content">
       <div className="plugins-discover-header">
-        <h4>Discover plugins</h4>
+        <h4>{t('plugins.discover.title')}</h4>
         {filteredPlugins.length > 10 && (
           <span className="plugins-count">({selectedIndex + 1}/{filteredPlugins.length})</span>
         )}
@@ -177,7 +187,7 @@ function DiscoverTab({
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Type to search..."
+          placeholder={t('plugins.discover.search')}
           className="plugins-search-input"
         />
       </div>
@@ -191,7 +201,7 @@ function DiscoverTab({
 
       {/* 无搜索结果 */}
       {filteredPlugins.length === 0 && searchQuery && (
-        <div className="plugins-no-results">No plugins match "{searchQuery}"</div>
+        <div className="plugins-no-results">{t('plugins.discover.noPlugins')}</div>
       )}
 
       {/* 插件列表 */}
@@ -236,13 +246,27 @@ function DiscoverTab({
                   <span className="plugins-item-installs">· {formatInstalls(plugin.installCount)} installs</span>
                 )}
               </div>
-              {plugin.description && (
+              {plugin.description && !isLoading && (
                 <div className="plugins-item-desc">
                   {plugin.description.length > 60
                     ? plugin.description.substring(0, 57) + '...'
                     : plugin.description}
                 </div>
               )}
+              {isLoading && (() => {
+                const serverProgress = pluginProgress.get(plugin.pluginId);
+                const simPercent = simulatedProgress.get(plugin.pluginId) ?? 0;
+                const percent = Math.round(simPercent);
+                const msg = serverProgress?.message || t('plugins.discover.installing');
+                return (
+                  <div className="plugins-progress">
+                    <div className="plugins-progress-bar">
+                      <div className="plugins-progress-fill" style={{ width: `${percent}%` }} />
+                    </div>
+                    <span className="plugins-progress-text">{msg} {percent}%</span>
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
@@ -257,7 +281,7 @@ function DiscoverTab({
       <div className="plugins-hint">
         {selectedPlugins.size > 0 && (
           <button className="plugins-install-btn" onClick={onInstall}>
-            Install {selectedPlugins.size} plugin{selectedPlugins.size > 1 ? 's' : ''}
+            {t('plugins.discover.install')} ({selectedPlugins.size})
           </button>
         )}
         <span>Type to search · Space: (de)select · Enter: details</span>
@@ -280,15 +304,15 @@ function InstalledTab({
   onViewDetails: (plugin: PluginInfo) => void;
   onToggle: (pluginName: string, enabled: boolean) => void;
 }) {
+  const { t } = useLanguage();
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   if (plugins.length === 0) {
     return (
       <div className="plugins-tab-content">
-        <h4>Installed Plugins</h4>
+        <h4>{t('plugins.installed.title')}</h4>
         <div className="plugins-empty">
-          <p>No plugins installed.</p>
-          <p>Use the Discover tab to find and install plugins.</p>
+          <p>{t('plugins.installed.noPlugins')}</p>
         </div>
       </div>
     );
@@ -296,7 +320,7 @@ function InstalledTab({
 
   return (
     <div className="plugins-tab-content">
-      <h4>Installed Plugins</h4>
+      <h4>{t('plugins.installed.title')}</h4>
 
       <div className="plugins-list">
         {plugins.map((plugin, index) => (
@@ -329,7 +353,7 @@ function InstalledTab({
                   onToggle(plugin.name, !plugin.enabled);
                 }}
               >
-                {plugin.enabled ? 'Disable' : 'Enable'}
+                {plugin.enabled ? t('plugins.installed.disable') : t('plugins.installed.enable')}
               </button>
               <button
                 className="plugins-action-btn plugins-action-danger"
@@ -338,7 +362,7 @@ function InstalledTab({
                   onUninstall(plugin.name);
                 }}
               >
-                Uninstall
+                {t('plugins.installed.uninstall')}
               </button>
             </div>
           </div>
@@ -366,11 +390,12 @@ function MarketplacesTab({
   onRemove: (name: string) => void;
   onUpdate: (name: string) => void;
 }) {
+  const { t } = useLanguage();
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   return (
     <div className="plugins-tab-content">
-      <h4>Manage marketplaces</h4>
+      <h4>{t('plugins.marketplaces.title')}</h4>
 
       <div className="plugins-list">
         {/* 添加选项 */}
@@ -381,7 +406,7 @@ function MarketplacesTab({
         >
           <span className="plugins-item-icon">{selectedIndex === 0 ? ICONS.pointer : ' '}</span>
           <span className="plugins-add-icon">{ICONS.plus}</span>
-          <span className="plugins-item-name">Add Marketplace</span>
+          <span className="plugins-item-name">{t('plugins.marketplaces.add')}</span>
         </div>
 
         {/* Marketplace 列表 */}
@@ -413,7 +438,7 @@ function MarketplacesTab({
                     onUpdate(marketplace.name);
                   }}
                 >
-                  Update
+                  {t('plugins.marketplaces.update')}
                 </button>
                 <button
                   className="plugins-action-btn plugins-action-danger"
@@ -422,7 +447,7 @@ function MarketplacesTab({
                     onRemove(marketplace.name);
                   }}
                 >
-                  Remove
+                  {t('plugins.marketplaces.remove')}
                 </button>
               </div>
             </div>
@@ -431,7 +456,7 @@ function MarketplacesTab({
       </div>
 
       {marketplaces.length === 0 && (
-        <div className="plugins-empty">No marketplaces configured.</div>
+        <div className="plugins-empty">{t('plugins.marketplaces.noMarketplaces')}</div>
       )}
 
       <div className="plugins-hint">
@@ -451,12 +476,13 @@ function ErrorsTab({
   errors: PluginError[];
   onClear: () => void;
 }) {
+  const { t } = useLanguage();
   if (errors.length === 0) {
     return (
       <div className="plugins-tab-content">
-        <h4>Plugin errors</h4>
+        <h4>{t('plugins.errors.title')}</h4>
         <div className="plugins-success">
-          {ICONS.tick} No errors
+          {ICONS.tick} {t('plugins.errors.noErrors')}
         </div>
       </div>
     );
@@ -464,7 +490,7 @@ function ErrorsTab({
 
   return (
     <div className="plugins-tab-content">
-      <h4>Plugin errors ({errors.length})</h4>
+      <h4>{t('plugins.errors.title')} ({errors.length})</h4>
 
       <div className="plugins-errors-list">
         {errors.map((error, index) => (
@@ -481,7 +507,7 @@ function ErrorsTab({
 
       <div className="plugins-hint">
         <button className="plugins-clear-btn" onClick={onClear}>
-          Clear errors
+          {t('plugins.errors.clear')}
         </button>
       </div>
     </div>
@@ -495,6 +521,8 @@ function PluginDetails({
   plugin,
   isInstalled,
   isInstalling,
+  installProgress,
+  installPercent,
   onInstall,
   onUninstall,
   onBack,
@@ -502,10 +530,13 @@ function PluginDetails({
   plugin: MarketplacePlugin | PluginInfo;
   isInstalled: boolean;
   isInstalling: boolean;
+  installProgress?: PluginProgress;
+  installPercent: number;
   onInstall: () => void;
   onUninstall: () => void;
   onBack: () => void;
 }) {
+  const { t } = useLanguage();
   const name = 'pluginId' in plugin ? plugin.name : plugin.name;
   const version = 'version' in plugin ? plugin.version : undefined;
   const description = plugin.description;
@@ -551,11 +582,23 @@ function PluginDetails({
             </button>
           )}
         </div>
+        {isInstalling && (() => {
+          const percent = Math.round(installPercent);
+          const msg = installProgress?.message || 'Installing...';
+          return (
+            <div className="plugins-details-progress">
+              <div className="plugins-progress-bar">
+                <div className="plugins-progress-fill" style={{ width: `${percent}%` }} />
+              </div>
+              <span className="plugins-progress-text">{msg} {percent}%</span>
+            </div>
+          );
+        })()}
       </div>
 
       <div className="plugins-hint">
         <button className="plugins-btn plugins-btn-secondary" onClick={onBack}>
-          ← Back
+          ← {t('plugins.back')}
         </button>
       </div>
     </div>
@@ -628,7 +671,7 @@ function AddMarketplace({
 /**
  * 插件管理主面板
  */
-export function PluginsPanel({ onClose, onSendMessage }: PluginsPanelProps) {
+export function PluginsPanel({ onClose, onSendMessage, addMessageHandler }: PluginsPanelProps) {
   const [currentTab, setCurrentTab] = useState<TabId>('discover');
   const [viewMode, setViewMode] = useState<ViewMode>('tabs');
 
@@ -641,85 +684,142 @@ export function PluginsPanel({ onClose, onSendMessage }: PluginsPanelProps) {
   // UI 状态
   const [selectedPlugins, setSelectedPlugins] = useState<Set<string>>(new Set());
   const [loadingPlugins, setLoadingPlugins] = useState<Set<string>>(new Set());
+  const [pluginProgress, setPluginProgress] = useState<Map<string, PluginProgress>>(new Map());
+  const [simulatedProgress, setSimulatedProgress] = useState<Map<string, number>>(new Map());
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPlugin, setSelectedPlugin] = useState<MarketplacePlugin | PluginInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
 
-  // 加载数据
+  // 加载数据：通过 WebSocket 获取真实数据
   useEffect(() => {
-    // 发送获取插件列表请求
     if (onSendMessage) {
+      // 请求已安装插件列表
       onSendMessage({ type: 'plugin_list' });
+      // 请求 marketplace 和可发现插件
+      onSendMessage({ type: 'plugin_discover' });
+    }
+  }, [onSendMessage]);
+
+  // 监听 WebSocket 消息：plugin_list_response + plugin_discover_response
+  useEffect(() => {
+    if (!addMessageHandler) {
+      setLoading(false);
+      return;
     }
 
-    // 模拟数据加载
-    const loadData = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+    const unsubscribe = addMessageHandler((msg: any) => {
+      // 已安装插件列表
+      if (msg.type === 'plugin_list_response') {
+        const { plugins } = msg.payload;
+        setInstalledPlugins(plugins || []);
+        setLoading(false);
+      }
 
-      // 模拟 marketplace 数据
-      setMarketplaces([
-        {
-          name: 'anthropic-agent-skills',
-          source: 'github.com/anthropics/claude-code-agent-skills',
-          pluginCount: 15,
-          autoUpdate: true,
-        },
-      ]);
+      // marketplace + 可发现插件
+      if (msg.type === 'plugin_discover_response') {
+        const { marketplaces: mks, availablePlugins } = msg.payload;
+        setMarketplaces((mks || []).map((m: any) => ({
+          name: m.name,
+          source: m.source,
+          pluginCount: m.pluginCount,
+          autoUpdate: m.autoUpdate,
+          lastUpdated: m.lastUpdated,
+        })));
+        setDiscoverPlugins((availablePlugins || []).map((p: any) => ({
+          pluginId: p.pluginId,
+          name: p.name,
+          description: p.description,
+          version: p.version,
+          author: p.author,
+          marketplaceName: p.marketplaceName,
+          installCount: p.installCount,
+          tags: p.tags || [],
+        })));
+        setLoading(false);
+      }
+    });
 
-      // 模拟可发现的插件
-      setDiscoverPlugins([
-        {
-          pluginId: 'document-skills@anthropic-agent-skills',
-          name: 'document-skills',
-          description: 'Document creation and manipulation skills including PDF, DOCX, XLSX, PPTX support',
-          version: '1.0.0',
-          author: 'Anthropic',
-          marketplaceName: 'anthropic-agent-skills',
-          installCount: 25000,
-          tags: [],
-        },
-        {
-          pluginId: 'frontend-design@anthropic-agent-skills',
-          name: 'frontend-design',
-          description: 'Create distinctive, production-grade frontend interfaces with high design quality',
-          version: '1.0.0',
-          author: 'Anthropic',
-          marketplaceName: 'anthropic-agent-skills',
-          installCount: 18000,
-          tags: [],
-        },
-        {
-          pluginId: 'web-artifacts@anthropic-agent-skills',
-          name: 'web-artifacts-builder',
-          description: 'Suite of tools for creating elaborate, multi-component HTML artifacts',
-          version: '1.0.0',
-          author: 'Anthropic',
-          marketplaceName: 'anthropic-agent-skills',
-          installCount: 12000,
-          tags: ['community-managed'],
-        },
-      ]);
+    return unsubscribe;
+  }, [addMessageHandler]);
 
-      // 模拟已安装插件
-      setInstalledPlugins([
-        {
-          name: 'document-skills',
-          version: '1.0.0',
-          description: 'Document creation and manipulation skills',
-          author: 'Anthropic',
-          enabled: true,
-          loaded: true,
-          path: '~/.claude/plugins/document-skills',
-          skills: ['pdf', 'docx', 'xlsx', 'pptx'],
-        },
-      ]);
+  // 模拟渐进进度动画：loading 开始后从 0 递增到 90%
+  useEffect(() => {
+    if (loadingPlugins.size === 0) {
+      setSimulatedProgress(new Map());
+      return;
+    }
 
-      setLoading(false);
-    };
+    const timer = setInterval(() => {
+      setSimulatedProgress((prev: Map<string, number>) => {
+        const next = new Map<string, number>(prev);
+        for (const pluginId of loadingPlugins) {
+          const current = next.get(pluginId) ?? 0;
+          // 越接近 90% 越慢（对数增长曲线）
+          const increment = Math.max(0.5, (90 - current) * 0.08);
+          next.set(pluginId, Math.min(90, current + increment));
+        }
+        return next;
+      });
+    }, 200);
 
-    loadData();
-  }, [onSendMessage]);
+    return () => clearInterval(timer);
+  }, [loadingPlugins]);
+
+  // 监听 WebSocket 消息：安装进度和安装完成
+  useEffect(() => {
+    if (!addMessageHandler) return;
+
+    const unsubscribe = addMessageHandler((msg: any) => {
+      if (msg.type === 'plugin_progress') {
+        const { pluginId, step, totalSteps, message } = msg.payload;
+        setPluginProgress((prev) => {
+          const next = new Map(prev);
+          next.set(pluginId, { pluginId, step, totalSteps, message });
+          return next;
+        });
+      }
+
+      if (msg.type === 'plugin_installed') {
+        // 安装完成：先将进度跳到 100%，短暂延迟后清除
+        setSimulatedProgress((prev: Map<string, number>) => {
+          const next = new Map<string, number>(prev);
+          for (const pluginId of loadingPlugins) {
+            next.set(pluginId, 100);
+          }
+          return next;
+        });
+
+        const installSuccess = msg.payload.success;
+        const installedPlugin = msg.payload.plugin;
+        const installError = msg.payload.error;
+
+        // 延迟 500ms 清除，让用户看到 100% 完成状态
+        setTimeout(() => {
+          setLoadingPlugins(new Set());
+          setPluginProgress(new Map());
+          setSimulatedProgress(new Map());
+
+          if (installSuccess && installedPlugin) {
+            setInstalledPlugins((prev) => {
+              const exists = prev.some((p) => p.name === installedPlugin.name);
+              if (exists) return prev;
+              return [...prev, installedPlugin];
+            });
+          } else if (installError) {
+            setError(installError);
+          }
+
+          // 刷新插件列表
+          if (onSendMessage) {
+            onSendMessage({ type: 'plugin_list' });
+          }
+        }, 500);
+      }
+    });
+
+    return unsubscribe;
+  }, [addMessageHandler, onSendMessage, loadingPlugins]);
 
   // 已安装插件名称集合
   const installedPluginNames = useMemo(
@@ -753,41 +853,51 @@ export function PluginsPanel({ onClose, onSendMessage }: PluginsPanelProps) {
     setViewMode('details');
   };
 
-  // 安装插件
+  // 安装单个插件（核心逻辑）
+  const installSinglePlugin = (pluginId: string) => {
+    setLoadingPlugins((prev) => new Set([...prev, pluginId]));
+
+    if (onSendMessage) {
+      onSendMessage({
+        type: 'plugin_install',
+        payload: { pluginId },
+      });
+    }
+
+    // 清理选中状态
+    setSelectedPlugins((prev) => {
+      const next = new Set(prev);
+      next.delete(pluginId);
+      return next;
+    });
+
+    // 超时兜底：无论是否有 addMessageHandler，60 秒后强制清除 loading
+    setTimeout(() => {
+      setLoadingPlugins((prev) => {
+        if (!prev.has(pluginId)) return prev;
+        const next = new Set(prev);
+        next.delete(pluginId);
+        return next;
+      });
+      setPluginProgress((prev) => {
+        if (!prev.has(pluginId)) return prev;
+        const next = new Map(prev);
+        next.delete(pluginId);
+        return next;
+      });
+      setSimulatedProgress((prev: Map<string, number>) => {
+        if (!prev.has(pluginId)) return prev;
+        const next = new Map<string, number>(prev);
+        next.delete(pluginId);
+        return next;
+      });
+    }, 60000);
+  };
+
+  // 批量安装（从 Discover tab 勾选后点击安装按钮）
   const handleInstall = () => {
     for (const pluginId of selectedPlugins) {
-      setLoadingPlugins((prev) => new Set([...prev, pluginId]));
-
-      // 模拟安装
-      setTimeout(() => {
-        setLoadingPlugins((prev) => {
-          const next = new Set(prev);
-          next.delete(pluginId);
-          return next;
-        });
-        setSelectedPlugins((prev) => {
-          const next = new Set(prev);
-          next.delete(pluginId);
-          return next;
-        });
-
-        // 添加到已安装列表
-        const plugin = discoverPlugins.find((p) => p.pluginId === pluginId);
-        if (plugin) {
-          setInstalledPlugins((prev) => [
-            ...prev,
-            {
-              name: plugin.name,
-              version: plugin.version || '1.0.0',
-              description: plugin.description,
-              author: plugin.author,
-              enabled: true,
-              loaded: true,
-              path: `~/.claude/plugins/${plugin.name}`,
-            },
-          ]);
-        }
-      }, 2000);
+      installSinglePlugin(pluginId);
     }
   };
 
@@ -910,10 +1020,11 @@ export function PluginsPanel({ onClose, onSendMessage }: PluginsPanelProps) {
           plugin={selectedPlugin}
           isInstalled={isInstalled}
           isInstalling={isInstalling}
+          installProgress={pluginProgress.get(pluginId)}
+          installPercent={simulatedProgress.get(pluginId) ?? 0}
           onInstall={() => {
             if ('pluginId' in selectedPlugin) {
-              handleSelectPlugin(selectedPlugin.pluginId);
-              handleInstall();
+              installSinglePlugin(selectedPlugin.pluginId);
             }
           }}
           onUninstall={() => {
@@ -943,6 +1054,8 @@ export function PluginsPanel({ onClose, onSendMessage }: PluginsPanelProps) {
           selectedPlugins={selectedPlugins}
           loadingPlugins={loadingPlugins}
           installedPlugins={installedPluginNames}
+          pluginProgress={pluginProgress}
+          simulatedProgress={simulatedProgress}
           onSelect={handleSelectPlugin}
           onDeselect={handleDeselectPlugin}
           onViewDetails={handleViewPluginDetails}

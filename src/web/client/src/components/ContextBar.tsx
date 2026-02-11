@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useLanguage } from '../i18n';
 import './ContextBar.css';
 
 export interface ContextUsage {
@@ -38,6 +39,7 @@ function getLevel(percentage: number): 'safe' | 'warning' | 'danger' {
 export function ContextBar({ usage, compactState }: ContextBarProps) {
   const [showResult, setShowResult] = useState(false);
   const resultTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const { t } = useLanguage();
 
   // 压缩完成时显示结果 3 秒
   useEffect(() => {
@@ -64,7 +66,7 @@ export function ContextBar({ usage, compactState }: ContextBarProps) {
       {compactState.phase === 'compacting' && (
         <div className="context-bar__compact">
           <span className="context-bar__compact-icon">⟳</span>
-          <span className="context-bar__compact-text">压缩中...</span>
+          <span className="context-bar__compact-text">{t('context.compacting')}</span>
         </div>
       )}
 
@@ -72,7 +74,7 @@ export function ContextBar({ usage, compactState }: ContextBarProps) {
       {showResult && compactState.phase === 'done' && compactState.savedTokens && (
         <div className="context-bar__compact-result">
           <span>✓</span>
-          <span>已节省 {formatTokens(compactState.savedTokens)} tokens</span>
+          <span>{t('context.savedTokens', { tokens: formatTokens(compactState.savedTokens) })}</span>
         </div>
       )}
 

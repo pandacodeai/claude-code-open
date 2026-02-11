@@ -212,7 +212,7 @@ export function setupConfigApiRoutes(app: Express): void {
       });
 
       // 发送一个简单的测试请求
-      const testModel = customModelName || 'claude-3-5-haiku-20241022';
+      const testModel = customModelName || 'claude-haiku-4-5-20251001';
       
       try {
         const response = await client.messages.create({

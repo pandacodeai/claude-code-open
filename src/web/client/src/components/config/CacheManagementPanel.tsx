@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useLanguage } from '../../i18n';
 import { cacheApi } from '../../api/blueprint';
 import '../../styles/config-panels.css';
 
@@ -45,6 +46,7 @@ function formatHitRate(rate: number): string {
 // ============ 主组件 ============
 
 export function CacheManagementPanel({ onSave, onClose }: ConfigPanelProps) {
+  const { t } = useLanguage();
   const [stats, setStats] = useState<CacheStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -59,11 +61,11 @@ export function CacheManagementPanel({ onSave, onClose }: ConfigPanelProps) {
       setStats(data);
     } catch (error) {
       console.error('获取缓存统计失败:', error);
-      setMessage({ type: 'error', text: '获取缓存统计失败' });
+      setMessage({ type: 'error', text: t('cache.stats.empty') });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   // 初始化加载
   useEffect(() => {
@@ -72,20 +74,20 @@ export function CacheManagementPanel({ onSave, onClose }: ConfigPanelProps) {
 
   // 清除所有缓存
   const handleClearAll = async () => {
-    if (!window.confirm('确定要清除所有缓存吗？此操作不可撤销。')) return;
+    if (!window.confirm(t('cache.cleanup.allConfirm'))) return;
 
     setActionLoading('clearAll');
     setMessage(null);
     try {
       const result = await cacheApi.clearAll();
-      setMessage({ type: 'success', text: result.message || '已清除所有缓存' });
+      setMessage({ type: 'success', text: result.message || t('cache.cleanup.all') });
       await fetchStats();
       onSave?.();
     } catch (error) {
       console.error('清除缓存失败:', error);
       setMessage({
         type: 'error',
-        text: error instanceof Error ? error.message : '清除缓存失败'
+        text: error instanceof Error ? error.message : t('cache.cleanup.all')
       });
     } finally {
       setActionLoading(null);
@@ -98,14 +100,14 @@ export function CacheManagementPanel({ onSave, onClose }: ConfigPanelProps) {
     setMessage(null);
     try {
       const result = await cacheApi.clearExpired();
-      setMessage({ type: 'success', text: result.message || '已清除过期缓存' });
+      setMessage({ type: 'success', text: result.message || t('cache.cleanup.expired') });
       await fetchStats();
       onSave?.();
     } catch (error) {
       console.error('清除过期缓存失败:', error);
       setMessage({
         type: 'error',
-        text: error instanceof Error ? error.message : '清除过期缓存失败'
+        text: error instanceof Error ? error.message : t('cache.cleanup.expired')
       });
     } finally {
       setActionLoading(null);
@@ -115,7 +117,7 @@ export function CacheManagementPanel({ onSave, onClose }: ConfigPanelProps) {
   // 清除指定路径的缓存
   const handleClearPath = async () => {
     if (!clearPath.trim()) {
-      setMessage({ type: 'error', text: '请输入要清除的路径' });
+      setMessage({ type: 'error', text: t('cache.path.required') });
       return;
     }
 
@@ -123,7 +125,7 @@ export function CacheManagementPanel({ onSave, onClose }: ConfigPanelProps) {
     setMessage(null);
     try {
       const result = await cacheApi.clearPath(clearPath.trim());
-      setMessage({ type: 'success', text: result.message || '已清除指定路径缓存' });
+      setMessage({ type: 'success', text: result.message || t('cache.path.clear') });
       setClearPath('');
       await fetchStats();
       onSave?.();
@@ -131,7 +133,7 @@ export function CacheManagementPanel({ onSave, onClose }: ConfigPanelProps) {
       console.error('清除路径缓存失败:', error);
       setMessage({
         type: 'error',
-        text: error instanceof Error ? error.message : '清除路径缓存失败'
+        text: error instanceof Error ? error.message : t('cache.path.clear')
       });
     } finally {
       setActionLoading(null);
@@ -144,13 +146,13 @@ export function CacheManagementPanel({ onSave, onClose }: ConfigPanelProps) {
     setMessage(null);
     try {
       const result = await cacheApi.resetStats();
-      setMessage({ type: 'success', text: result.message || '已重置统计数据' });
+      setMessage({ type: 'success', text: result.message || t('cache.stats.reset') });
       await fetchStats();
     } catch (error) {
       console.error('重置统计失败:', error);
       setMessage({
         type: 'error',
-        text: error instanceof Error ? error.message : '重置统计失败'
+        text: error instanceof Error ? error.message : t('cache.stats.reset')
       });
     } finally {
       setActionLoading(null);
@@ -160,7 +162,7 @@ export function CacheManagementPanel({ onSave, onClose }: ConfigPanelProps) {
   if (loading && !stats) {
     return (
       <div className="cache-management-panel">
-        <div className="config-loading">加载缓存统计中...</div>
+        <div className="config-loading">{t('cache.stats.loading')}</div>
       </div>
     );
   }
@@ -168,9 +170,9 @@ export function CacheManagementPanel({ onSave, onClose }: ConfigPanelProps) {
   return (
     <div className="cache-management-panel">
       <div className="config-panel-header">
-        <h3>缓存管理 (Cache Management)</h3>
+        <h3>{t('cache.title')}</h3>
         <p className="config-description">
-          管理蓝图分析的缓存数据，包括代码分析结果、符号信息等。清除缓存后，下次访问时将重新生成分析结果。
+          {t('cache.description')}
         </p>
       </div>
 
@@ -182,33 +184,33 @@ export function CacheManagementPanel({ onSave, onClose }: ConfigPanelProps) {
 
       {/* 缓存统计信息 */}
       <section className="config-section">
-        <h4>缓存统计 (Cache Statistics)</h4>
+        <h4>{t('cache.stats.title')}</h4>
 
         {stats ? (
           <div className="cache-stats-grid">
             <div className="cache-stat-item">
-              <span className="cache-stat-label">缓存文件数</span>
+              <span className="cache-stat-label">{t('cache.stats.fileCount')}</span>
               <span className="cache-stat-value">{stats.total}</span>
             </div>
             <div className="cache-stat-item">
-              <span className="cache-stat-label">总大小</span>
+              <span className="cache-stat-label">{t('cache.stats.totalSize')}</span>
               <span className="cache-stat-value">{formatBytes(stats.size)}</span>
             </div>
             <div className="cache-stat-item">
-              <span className="cache-stat-label">命中次数</span>
+              <span className="cache-stat-label">{t('cache.stats.hits')}</span>
               <span className="cache-stat-value">{stats.hits}</span>
             </div>
             <div className="cache-stat-item">
-              <span className="cache-stat-label">未命中次数</span>
+              <span className="cache-stat-label">{t('cache.stats.misses')}</span>
               <span className="cache-stat-value">{stats.misses}</span>
             </div>
             <div className="cache-stat-item cache-stat-highlight">
-              <span className="cache-stat-label">命中率</span>
+              <span className="cache-stat-label">{t('cache.stats.hitRate')}</span>
               <span className="cache-stat-value">{formatHitRate(stats.hitRate)}</span>
             </div>
           </div>
         ) : (
-          <div className="cache-stats-empty">无法获取缓存统计</div>
+          <div className="cache-stats-empty">{t('cache.stats.empty')}</div>
         )}
 
         <div className="cache-stat-actions">
@@ -217,42 +219,42 @@ export function CacheManagementPanel({ onSave, onClose }: ConfigPanelProps) {
             onClick={fetchStats}
             disabled={loading}
           >
-            {loading ? '刷新中...' : '刷新统计'}
+            {loading ? t('cache.stats.refreshing') : t('cache.stats.refresh')}
           </button>
           <button
             className="config-btn config-btn-secondary config-btn-sm"
             onClick={handleResetStats}
             disabled={actionLoading === 'resetStats'}
           >
-            {actionLoading === 'resetStats' ? '重置中...' : '重置统计'}
+            {actionLoading === 'resetStats' ? t('cache.stats.resetting') : t('cache.stats.reset')}
           </button>
         </div>
       </section>
 
       {/* 缓存清理操作 */}
       <section className="config-section">
-        <h4>缓存清理 (Cache Cleanup)</h4>
+        <h4>{t('cache.cleanup.title')}</h4>
 
         <div className="cache-actions-grid">
           <div className="cache-action-item">
             <div className="cache-action-info">
-              <span className="cache-action-title">清除过期缓存</span>
-              <span className="cache-action-desc">清除已过期的缓存条目，释放存储空间</span>
+              <span className="cache-action-title">{t('cache.cleanup.expired')}</span>
+              <span className="cache-action-desc">{t('cache.cleanup.expiredDesc')}</span>
             </div>
             <button
               className="config-btn config-btn-primary"
               onClick={handleClearExpired}
               disabled={actionLoading === 'clearExpired'}
             >
-              {actionLoading === 'clearExpired' ? '清除中...' : '清除过期'}
+              {actionLoading === 'clearExpired' ? t('cache.cleanup.clearing') : t('cache.cleanup.expiredBtn')}
             </button>
           </div>
 
           <div className="cache-action-item">
             <div className="cache-action-info">
-              <span className="cache-action-title">清除所有缓存</span>
+              <span className="cache-action-title">{t('cache.cleanup.all')}</span>
               <span className="cache-action-desc cache-action-desc-warning">
-                清除全部缓存数据，下次访问时需重新生成
+                {t('cache.cleanup.allDesc')}
               </span>
             </div>
             <button
@@ -260,7 +262,7 @@ export function CacheManagementPanel({ onSave, onClose }: ConfigPanelProps) {
               onClick={handleClearAll}
               disabled={actionLoading === 'clearAll'}
             >
-              {actionLoading === 'clearAll' ? '清除中...' : '清除全部'}
+              {actionLoading === 'clearAll' ? t('cache.cleanup.clearing') : t('cache.cleanup.allBtn')}
             </button>
           </div>
         </div>
@@ -268,20 +270,20 @@ export function CacheManagementPanel({ onSave, onClose }: ConfigPanelProps) {
 
       {/* 指定路径清除 */}
       <section className="config-section">
-        <h4>按路径清除 (Clear by Path)</h4>
+        <h4>{t('cache.path.title')}</h4>
         <p className="config-description">
-          清除指定文件或目录的缓存数据
+          {t('cache.path.description')}
         </p>
 
         <div className="cache-path-input">
           <label className="config-label">
-            <span className="label-text">文件/目录路径</span>
+            <span className="label-text">{t('cache.path.label')}</span>
             <input
               type="text"
               className="config-input"
               value={clearPath}
               onChange={(e) => setClearPath(e.target.value)}
-              placeholder="例如: src/components 或 src/utils/helper.ts"
+              placeholder={t('cache.path.placeholder')}
             />
           </label>
           <button
@@ -289,26 +291,26 @@ export function CacheManagementPanel({ onSave, onClose }: ConfigPanelProps) {
             onClick={handleClearPath}
             disabled={actionLoading === 'clearPath' || !clearPath.trim()}
           >
-            {actionLoading === 'clearPath' ? '清除中...' : '清除'}
+            {actionLoading === 'clearPath' ? t('cache.cleanup.clearing') : t('cache.path.clear')}
           </button>
         </div>
       </section>
 
       {/* 关于缓存 */}
       <section className="config-section">
-        <h4>关于缓存 (About Cache)</h4>
+        <h4>{t('cache.about.title')}</h4>
         <div className="cache-about">
           <p>
-            缓存系统用于存储代码分析结果，包括：
+            {t('cache.about.intro')}
           </p>
           <ul>
-            <li>文件和目录的语义分析结果</li>
-            <li>代码符号的详细信息</li>
-            <li>AI 生成的代码解释和建议</li>
-            <li>调用图和依赖关系数据</li>
+            <li>{t('cache.about.item1')}</li>
+            <li>{t('cache.about.item2')}</li>
+            <li>{t('cache.about.item3')}</li>
+            <li>{t('cache.about.item4')}</li>
           </ul>
           <p>
-            缓存会在文件内容发生变化时自动失效。定期清理过期缓存可以释放存储空间。
+            {t('cache.about.outro')}
           </p>
         </div>
       </section>
@@ -319,7 +321,7 @@ export function CacheManagementPanel({ onSave, onClose }: ConfigPanelProps) {
             className="config-btn config-btn-secondary"
             onClick={onClose}
           >
-            关闭
+            {t('cache.close')}
           </button>
         )}
       </div>

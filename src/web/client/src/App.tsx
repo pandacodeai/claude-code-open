@@ -3,6 +3,7 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { useMessageHandler } from './hooks/useMessageHandler';
 import { useSessionManager } from './hooks/useSessionManager';
 import { useChatInput } from './hooks/useChatInput';
+import { useArtifacts } from './hooks/useArtifacts';
 import {
   Message,
   WelcomeScreen,
@@ -13,6 +14,7 @@ import {
 } from './components';
 import { RewindOption } from './components/RewindMenu';
 import { InputArea } from './components/InputArea';
+import { ArtifactsPanel } from './components/ArtifactsPanel/ArtifactsPanel';
 import { useProject } from './contexts/ProjectContext';
 import { BlueprintDetailContent } from './components/swarm/BlueprintDetailPanel/BlueprintDetailContent';
 import { TerminalPanel } from './components/Terminal/TerminalPanel';
@@ -114,6 +116,9 @@ function AppContent({
     sessionId: sessionId ?? null,
   });
 
+  // 产物面板
+  const artifactsState = useArtifacts(messages);
+
   // 自动滚动到底部
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -155,10 +160,14 @@ function AppContent({
         e.preventDefault();
         setIsTranscriptMode(prev => !prev);
       }
+      if (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        e.preventDefault();
+        artifactsState.setIsPanelOpen(prev => !prev);
+      }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [setIsTranscriptMode]);
+  }, [setIsTranscriptMode, artifactsState.setIsPanelOpen]);
 
   // 对齐官方渲染管线
   const visibleMessages = useMemo(() => {
@@ -270,12 +279,13 @@ function AppContent({
       };
 
       // 临时添加监听器
-      addMessageHandler(successHandler);
-      addMessageHandler(errorHandler);
+      const unsubSuccess = addMessageHandler(successHandler);
+      const unsubError = addMessageHandler(errorHandler);
 
       // 清理监听器
       setTimeout(() => {
-        // TODO: 实现 removeMessageHandler
+        unsubSuccess();
+        unsubError();
       }, 30000);
     });
   }, [send, setMessages, addMessageHandler, messages, chatInput]);
@@ -285,9 +295,11 @@ function AppContent({
 
   // ========================================================================
 
+  const showSplitLayout = showCodePanel || artifactsState.isPanelOpen;
+
   return (
     <div style={{ display: 'flex', height: '100%', width: '100%', flex: 1 }}>
-      <div className="main-content" style={{ flex: 1, ...(showCodePanel ? { flexDirection: 'row' as const } : {}) }}>
+      <div className="main-content" style={{ flex: 1, ...(showSplitLayout ? { flexDirection: 'row' as const } : {}) }}>
         {showCodePanel && (
           <div className="code-panel">
             <BlueprintDetailContent blueprintId="code-browser-standalone" />
@@ -364,6 +376,17 @@ function AppContent({
             projectPath={currentProjectPath}
           />
         </div>
+
+        {artifactsState.isPanelOpen && (
+          <ArtifactsPanel
+            groups={artifactsState.groups}
+            artifacts={artifactsState.artifacts}
+            selectedId={artifactsState.selectedId}
+            selectedArtifact={artifactsState.selectedArtifact}
+            onSelectArtifact={artifactsState.setSelectedId}
+            onClose={() => artifactsState.setIsPanelOpen(false)}
+          />
+        )}
       </div>
 
       {userQuestion && (
@@ -384,6 +407,7 @@ function AppContent({
         model={model}
         onModelChange={setModel}
         onSendMessage={send}
+        addMessageHandler={addMessageHandler}
       />
       <DebugPanel
         isOpen={showDebugPanel}
