@@ -140,39 +140,57 @@ pause
     }
 }
 
+# --- Helper: Clone and verify repository ---
+function Clone-Repository {
+    param(
+        [string]$RepoUrl,
+        [string]$InstallDir
+    )
+
+    Write-Info "Cloning repository... (this may take a while)"
+    git clone -b private_web_ui --progress $RepoUrl $InstallDir 2>&1 | Write-Host
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Git clone failed. Please check your network connection and try again."
+    }
+    if (-not (Test-Path $InstallDir)) {
+        Write-Error "Installation directory was not created. Git clone may have failed."
+    }
+
+    # Verify critical directories exist
+    $CriticalDirs = @(
+        (Join-Path $InstallDir "src"),
+        (Join-Path $InstallDir "src\web"),
+        (Join-Path $InstallDir "src\web\client")
+    )
+    foreach ($dir in $CriticalDirs) {
+        if (-not (Test-Path $dir)) {
+            Write-Error "Critical directory missing: $dir`nGit clone appears to be incomplete. Please delete $InstallDir and try again."
+        }
+    }
+}
+
 # --- Install via npm ---
 function Install-Npm {
     Write-Info "Installing via npm (from source)..."
 
     if (Test-Path $InstallDir) {
-        Write-Info "Updating existing installation..."
-        Push-Location $InstallDir
-        git pull origin private_web_ui
-        if ($LASTEXITCODE -ne 0) {
-            Write-Error "Git pull failed. Please check your network connection."
+        # Check if it's a valid git repository
+        $GitDir = Join-Path $InstallDir ".git"
+        if (Test-Path $GitDir) {
+            Write-Info "Updating existing installation..."
+            Push-Location $InstallDir
+            git pull origin private_web_ui
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "Git pull failed. Please check your network connection."
+            }
+        } else {
+            Write-Warn "Existing directory is not a git repository. Removing and re-installing..."
+            Remove-Item -Recurse -Force $InstallDir
+            Clone-Repository -RepoUrl $RepoUrl -InstallDir $InstallDir
+            Push-Location $InstallDir
         }
     } else {
-        Write-Info "Cloning repository... (this may take a while)"
-        git clone -b private_web_ui --progress $RepoUrl $InstallDir 2>&1 | Write-Host
-        if ($LASTEXITCODE -ne 0) {
-            Write-Error "Git clone failed. Please check your network connection and try again."
-        }
-        if (-not (Test-Path $InstallDir)) {
-            Write-Error "Installation directory was not created. Git clone may have failed."
-        }
-
-        # Verify critical directories exist
-        $CriticalDirs = @(
-            (Join-Path $InstallDir "src"),
-            (Join-Path $InstallDir "src\web"),
-            (Join-Path $InstallDir "src\web\client")
-        )
-        foreach ($dir in $CriticalDirs) {
-            if (-not (Test-Path $dir)) {
-                Write-Error "Critical directory missing: $dir`nGit clone appears to be incomplete. Please delete $InstallDir and try again."
-            }
-        }
-
+        Clone-Repository -RepoUrl $RepoUrl -InstallDir $InstallDir
         Push-Location $InstallDir
     }
 

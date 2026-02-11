@@ -193,12 +193,30 @@ install_npm() {
 
     # Clone or update repo
     if [ -d "$INSTALL_DIR" ]; then
-        info "Updating existing installation..."
-        cd "$INSTALL_DIR"
-        git pull origin private_web_ui
+        # Check if it's a valid git repository
+        if [ -d "$INSTALL_DIR/.git" ]; then
+            info "Updating existing installation..."
+            cd "$INSTALL_DIR"
+            git pull origin private_web_ui
+            if [ $? -ne 0 ]; then
+                error "Git pull failed. Please check your network connection."
+            fi
+        else
+            warn "Existing directory is not a git repository. Removing and re-installing..."
+            rm -rf "$INSTALL_DIR"
+            info "Cloning repository..."
+            git clone -b private_web_ui "$REPO_URL" "$INSTALL_DIR"
+            if [ $? -ne 0 ]; then
+                error "Git clone failed. Please check your network connection and try again."
+            fi
+            cd "$INSTALL_DIR"
+        fi
     else
         info "Cloning repository..."
         git clone -b private_web_ui "$REPO_URL" "$INSTALL_DIR"
+        if [ $? -ne 0 ]; then
+            error "Git clone failed. Please check your network connection and try again."
+        fi
         cd "$INSTALL_DIR"
     fi
 
