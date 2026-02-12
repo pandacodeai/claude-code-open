@@ -13,11 +13,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import type { PluginManager, PluginState } from './index.js';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // ============ 类型定义 (对应官方 schema) ============
 
@@ -182,14 +182,13 @@ function readMarketplaceManifest(installLocation: string): MarketplaceManifest |
 
 // ============ Git 操作 (对应官方 rW1/uyY/IyY) ============
 
-/** 执行 git 命令 */
+/** 执行 git 命令 (使用 execFile 避免 shell 转义问题) */
 async function execGit(args: string[], options?: {
   cwd?: string;
   timeout?: number;
 }): Promise<{ code: number; stdout: string; stderr: string }> {
-  const cmd = `git ${args.join(' ')}`;
   try {
-    const { stdout, stderr } = await execAsync(cmd, {
+    const { stdout, stderr } = await execFileAsync('git', args, {
       cwd: options?.cwd,
       timeout: options?.timeout || 30000,
       env: getGitEnv(),

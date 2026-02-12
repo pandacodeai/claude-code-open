@@ -33,9 +33,12 @@ import type {
   LeadAgentEvent,
   LeadAgentResult,
   TechStack,
+  TaskPlan,
   TaskPlanUpdateInput,
   DEFAULT_SWARM_CONFIG,
 } from './types.js';
+import { isBlueprint } from './types.js';
+import type { BlueprintStatus } from './types.js';
 import { AGENT_TOOL_CONFIGS } from '../agents/tools.js';
 import { UpdateTaskPlanTool } from '../tools/update-task-plan.js';
 import { DispatchWorkerTool } from '../tools/dispatch-worker.js';
@@ -50,6 +53,7 @@ export class LeadAgent extends EventEmitter {
   private config: LeadAgentConfig;
   private swarmConfig: SwarmConfig;
   private blueprint: Blueprint;
+  private sourceType: 'blueprint' | 'taskplan';
   private executionPlan: ExecutionPlan | null;
   private projectPath: string;
   private taskResults: Map<string, TaskResult> = new Map();
@@ -58,7 +62,26 @@ export class LeadAgent extends EventEmitter {
   constructor(config: LeadAgentConfig) {
     super();
     this.config = config;
-    this.blueprint = config.blueprint;
+    this.sourceType = isBlueprint(config.blueprint) ? 'blueprint' : 'taskplan';
+
+    if (this.sourceType === 'taskplan') {
+      const plan = config.blueprint as TaskPlan;
+      this.blueprint = {
+        id: plan.id,
+        name: plan.goal,
+        description: plan.context,
+        projectPath: plan.projectPath,
+        status: 'executing' as BlueprintStatus,
+        requirements: plan.acceptanceCriteria || [plan.goal],
+        techStack: plan.techStack,
+        constraints: plan.constraints,
+        createdAt: plan.createdAt,
+        updatedAt: new Date(),
+      };
+    } else {
+      this.blueprint = config.blueprint as Blueprint;
+    }
+
     this.executionPlan = config.executionPlan || null;
     this.projectPath = config.projectPath;
     // 使用传入的 swarmConfig 或从 DEFAULT_SWARM_CONFIG import
@@ -101,6 +124,10 @@ export class LeadAgent extends EventEmitter {
    * 这是 LeadAgent 的"灵魂"——告诉它它是谁、怎么工作
    */
   private buildSystemPrompt(): string {
+    if (this.sourceType === 'taskplan') {
+      return this.buildTaskPlanSystemPrompt();
+    }
+
     const platform = os.platform();
     const platformInfo = platform === 'win32' ? 'Windows' : platform === 'darwin' ? 'macOS' : 'Linux';
     const shellHint = platform === 'win32'
@@ -307,9 +334,125 @@ ${endpointLines.join('\n')}
   }
 
   /**
+   * TaskPlan 模式的系统提示词（精简版，聚焦任务执行）
+   */
+  private buildTaskPlanSystemPrompt(): string {
+    const platform = os.platform();
+    const platformInfo = platform === 'win32' ? 'Windows' : platform === 'darwin' ? 'macOS' : 'Linux';
+    const shellHint = platform === 'win32'
+      ? '\n- Windows 系统：使用 dir 代替 ls，使用 type 代替 cat'
+      : '';
+    const today = new Date().toISOString().split('T')[0];
+
+    let gitInfo = '';
+    try {
+      const branch = execSync('git rev-parse --abbrev-ref HEAD', {
+        cwd: this.projectPath,
+        encoding: 'utf-8',
+        timeout: 5000,
+      }).trim();
+      gitInfo = `\nGit 分支: ${branch}`;
+    } catch { /* ignore */ }
+
+    const tech = this.blueprint.techStack;
+    let techStackInfo = '';
+    if (tech) {
+      const parts: string[] = [];
+      if (tech.language) parts.push(`语言: ${tech.language}`);
+      if (tech.framework) parts.push(`框架: ${tech.framework}`);
+      if (tech.uiFramework && tech.uiFramework !== 'none') parts.push(`UI: ${tech.uiFramework}`);
+      if (tech.testFramework) parts.push(`测试: ${tech.testFramework}`);
+      if (parts.length > 0) techStackInfo = `\n技术栈: ${parts.join(' | ')}`;
+    }
+
+    const originalPlan = this.config.blueprint as TaskPlan;
+    const taskList = originalPlan.tasks
+      .map((t, i) => `${i + 1}. [${t.id}] ${t.name}: ${t.description}${t.files?.length ? ` (文件: ${t.files.join(', ')})` : ''}`)
+      .join('\n');
+
+    return `你是 **LeadAgent（首席开发者）**，正在执行一组指定任务。
+
+## 环境信息
+- 平台: ${platformInfo}
+- 日期: ${today}
+- 项目路径: ${this.projectPath}${gitInfo}${techStackInfo}${shellHint}
+
+## 任务目标
+${originalPlan.goal}
+
+## 上下文
+${originalPlan.context}
+
+## 任务列表
+${taskList}
+
+${originalPlan.constraints?.length ? `## 约束\n${originalPlan.constraints.map(c => `- ${c}`).join('\n')}\n` : ''}
+${originalPlan.acceptanceCriteria?.length ? `## 验收标准\n${originalPlan.acceptanceCriteria.map(c => `- ${c}`).join('\n')}\n` : ''}
+## 工作流程
+
+### Phase 1: 探索代码库
+使用 Read、Glob、Grep 工具探索现有代码库，理解当前状态。
+
+### Phase 2: 注册任务
+用 UpdateTaskPlan(add_task) 注册上面列出的每个任务。
+
+### Phase 3: 执行任务
+对于每个任务：
+- **简单/自己做的任务**：UpdateTaskPlan(start_task) → 使用工具完成 → UpdateTaskPlan(complete_task)
+- **独立/可并行的任务**：DispatchWorker(brief) → 自动更新状态
+
+### Phase 4: 集成检查
+所有任务完成后检查代码一致性，运行构建和测试。
+
+## UpdateTaskPlan 工具用法
+\`\`\`
+开始任务:   { "action": "start_task",    "taskId": "xxx", "executionMode": "lead-agent" }
+完成任务:   { "action": "complete_task", "taskId": "xxx", "summary": "完成了..." }
+失败任务:   { "action": "fail_task",     "taskId": "xxx", "error": "原因..." }
+跳过任务:   { "action": "skip_task",     "taskId": "xxx", "reason": "此功能已存在" }
+新增任务:   { "action": "add_task",      "taskId": "task_new_xxx", "name": "...", "description": "..." }
+\`\`\`
+
+## DispatchWorker 工具用法
+\`\`\`json
+{ "taskId": "task_xxx", "brief": "详细的上下文简报...", "targetFiles": [...] }
+\`\`\`
+
+## 失败重试策略
+- 自己做的任务失败 → 分析原因、修复、重试（最多 ${this.swarmConfig.maxRetries || 3} 次）
+- Worker 任务失败 → 审查错误、自己修复或用更详细的 brief 重新派发
+- fail_task 是最后手段，不是默认选项
+
+## 重要原则
+1. **先探索再动手** - 不理解代码就不写代码
+2. **状态同步** - 自己做的任务必须用 UpdateTaskPlan 更新状态
+3. **Brief 是灵魂** - 派给 Worker 的 brief 越详细，Worker 效率越高
+4. **永不轻易放弃** - 任务失败时必须分析原因并尝试修复/重试
+
+## Git 提交规则
+完成代码后必须提交：
+\`\`\`bash
+git add -A && git commit -m "[LeadAgent] 任务描述"
+\`\`\``;
+  }
+
+  /**
    * 构建初始用户提示词
    */
   private buildInitialPrompt(): string {
+    if (this.sourceType === 'taskplan') {
+      const plan = this.config.blueprint as TaskPlan;
+      return `开始执行任务: ${plan.goal}
+
+请按步骤进行：
+1. 探索项目代码结构
+2. 用 UpdateTaskPlan add_task 注册任务列表中的每个任务
+3. 按顺序执行每个任务
+4. 完成后做集成检查
+
+开始吧！`;
+    }
+
     return `现在开始执行项目: ${this.blueprint.name}
 
 请按以下步骤进行：

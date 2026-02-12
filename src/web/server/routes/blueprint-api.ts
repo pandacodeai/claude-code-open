@@ -291,6 +291,29 @@ class BlueprintStore {
   }
 
   /**
+   * v12.0: 获取项目的活跃蓝图（executing/approved/confirmed 状态）
+   * 一个项目同一时间只允许一个活跃蓝图
+   */
+  getActiveBlueprint(projectPath: string): Blueprint | null {
+    const activeStatuses = ['executing', 'approved', 'confirmed'];
+
+    // 先从缓存查找（v12.1: 排除 tp- 临时蓝图）
+    for (const blueprint of this.blueprints.values()) {
+      if (blueprint.projectPath === projectPath
+        && activeStatuses.includes(blueprint.status)
+        && !blueprint.id.startsWith('tp-')) {
+        return blueprint;
+      }
+    }
+
+    // 缓存未命中，从项目目录加载
+    const allBlueprints = this.loadFromProject(projectPath);
+    return allBlueprints.find(bp =>
+      activeStatuses.includes(bp.status) && !bp.id.startsWith('tp-')
+    ) || null;
+  }
+
+  /**
    * 获取所有蓝图
    * 只加载当前工作目录（或指定路径）下的蓝图，不扫描所有历史项目
    */
@@ -298,12 +321,14 @@ class BlueprintStore {
     const targetPath = projectPath || this.cwd;
     const blueprints = this.loadFromProject(targetPath);
 
-    // 按更新时间倒序（处理日期可能是字符串的情况）
-    return blueprints.sort((a, b) => {
-      const timeA = new Date(a.updatedAt).getTime();
-      const timeB = new Date(b.updatedAt).getTime();
-      return timeB - timeA;
-    });
+    // v12.1: 过滤 tp- 临时蓝图（不应出现在前端列表中）
+    return blueprints
+      .filter(bp => !bp.id.startsWith('tp-'))
+      .sort((a, b) => {
+        const timeA = new Date(a.updatedAt).getTime();
+        const timeB = new Date(b.updatedAt).getTime();
+        return timeB - timeA;
+      });
   }
 
   /**
@@ -350,6 +375,17 @@ class BlueprintStore {
   save(blueprint: Blueprint): void {
     if (!blueprint.projectPath) {
       throw new Error('蓝图必须有 projectPath');
+    }
+
+    // v12.0: 状态转为 executing 时检查唯一活跃约束
+    if (blueprint.status === 'executing') {
+      const existing = this.getActiveBlueprint(blueprint.projectPath);
+      if (existing && existing.id !== blueprint.id) {
+        throw new Error(
+          `项目已有活跃蓝图: "${existing.name}" (ID: ${existing.id}, 状态: ${existing.status})。` +
+          `请先完成或取消该蓝图后再执行新蓝图。`
+        );
+      }
     }
 
     // 状态校验：confirmed 状态必须有实质内容
@@ -1162,12 +1198,15 @@ class ExecutionManager {
    */
   async startExecution(
     blueprint: Blueprint,
-    onEvent?: (event: SwarmEvent) => void
+    onEvent?: (event: SwarmEvent) => void,
+    options?: { taskPlan?: any }
   ): Promise<ExecutionSession> {
-    // 检查是否已有执行
-    const existingSession = this.getSessionByBlueprint(blueprint.id);
-    if (existingSession && !existingSession.completedAt) {
-      throw new Error('该蓝图已有正在执行的任务');
+    // 检查是否已有执行（tp- 临时蓝图跳过，它们不复用）
+    if (!blueprint.id.startsWith('tp-')) {
+      const existingSession = this.getSessionByBlueprint(blueprint.id);
+      if (existingSession && !existingSession.completedAt) {
+        throw new Error('该蓝图已有正在执行的任务');
+      }
     }
 
     // v9.0: 不再调用 SmartPlanner.createExecutionPlan()
@@ -1204,6 +1243,11 @@ class ExecutionManager {
 
     // v9.0 修复: 必须设置蓝图，否则 LeadAgent 启动时会抛错
     coordinator.setBlueprint(blueprint);
+
+    // v12.1: 如果有 TaskPlan，传递给 coordinator 以便 LeadAgent 完整接收任务信息
+    if (options?.taskPlan) {
+      coordinator.setTaskPlan(options.taskPlan);
+    }
 
     // 监听事件并转发到全局事件发射器
     if (onEvent) {
@@ -1539,7 +1583,10 @@ class ExecutionManager {
       isCancelled: false,
     };
 
-    blueprintStore.save(blueprint);
+    // v12.1: tp- 临时蓝图不持久化到 BlueprintStore
+    if (!blueprint.id.startsWith('tp-')) {
+      blueprintStore.save(blueprint);
+    }
 
     // 异步执行（存储 Promise 供 Planner Agent 阻塞等待）
     session.executionPromise = this.runExecution(session, blueprint, executor).catch(error => {
@@ -1548,7 +1595,10 @@ class ExecutionManager {
       if (!session.completedAt) {
         session.completedAt = new Date();
         blueprint.status = 'failed';
-        blueprintStore.save(blueprint);
+        // v12.1: tp- 临时蓝图不持久化
+        if (!blueprint.id.startsWith('tp-')) {
+          blueprintStore.save(blueprint);
+        }
       }
     });
 
@@ -1578,7 +1628,10 @@ class ExecutionManager {
       if (finalPlan) {
         blueprint.lastExecutionPlan = this.serializeExecutionPlan(finalPlan);
       }
-      blueprintStore.save(blueprint);
+      // v12.1: tp- 临时蓝图不持久化
+      if (!blueprint.id.startsWith('tp-')) {
+        blueprintStore.save(blueprint);
+      }
 
       // 执行成功后清理状态文件（保留历史记录选项可以后续添加）
       // 注意：如果需要保留历史，可以注释掉下面这行
@@ -1597,7 +1650,10 @@ class ExecutionManager {
       if (currentPlan) {
         blueprint.lastExecutionPlan = this.serializeExecutionPlan(currentPlan);
       }
-      blueprintStore.save(blueprint);
+      // v12.1: tp- 临时蓝图不持久化
+      if (!blueprint.id.startsWith('tp-')) {
+        blueprintStore.save(blueprint);
+      }
 
       // 失败时状态已保存到蓝图文件
       console.log(`[ExecutionManager] 执行失败，状态已保存到蓝图文件: ${blueprint.id}`);
@@ -1650,6 +1706,16 @@ class ExecutionManager {
       skippedCount: skippedTasks.length,
       issues: [],
     };
+  }
+
+  /**
+   * v12.0: 获取执行会话的当前任务计划
+   * 用于 StartLeadAgent 返回结构化结果
+   */
+  getSessionPlan(executionId: string): ExecutionPlan | null {
+    const session = this.sessions.get(executionId);
+    if (!session) return null;
+    return session.coordinator.getCurrentPlan();
   }
 
   /**
@@ -2718,6 +2784,16 @@ router.post('/blueprints/:id/execute', async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         error: '蓝图状态不允许执行，需要先确认蓝图',
+      });
+    }
+
+    // v12.0: 检查项目是否已有活跃蓝图（唯一性约束）
+    const activeBlueprint = blueprintStore.getActiveBlueprint(blueprint.projectPath);
+    if (activeBlueprint && activeBlueprint.id !== blueprint.id) {
+      return res.status(409).json({
+        success: false,
+        error: `项目已有活跃蓝图: "${activeBlueprint.name}" (状态: ${activeBlueprint.status})`,
+        activeBlueprintId: activeBlueprint.id,
       });
     }
 

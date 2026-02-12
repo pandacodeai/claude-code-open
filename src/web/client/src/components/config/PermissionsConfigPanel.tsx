@@ -167,7 +167,7 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
                 },
               })
             }
-            placeholder="Bash, Read, Write, Edit, Glob, Grep"
+            placeholder={t('placeholder.allowedTools')}
           />
           <div className="setting-hint">
             {t('permissions.tools.allow.example')}
@@ -191,7 +191,7 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
                 },
               })
             }
-            placeholder="WebFetch, WebSearch"
+            placeholder={t('placeholder.deniedTools')}
           />
           <div className="setting-hint">
             {t('permissions.tools.deny.description')}
@@ -222,7 +222,7 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
                 },
               })
             }
-            placeholder="/home/user/**&#10;/project/**/*.ts&#10;/data/**/*.json"
+            placeholder={t('placeholder.allowedPaths')}
             rows={4}
           />
           <div className="setting-hint">
@@ -246,7 +246,7 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
                 },
               })
             }
-            placeholder="/etc/**&#10;/root/**&#10;/sys/**"
+            placeholder={t('placeholder.deniedPaths')}
             rows={4}
           />
           <div className="setting-hint">
@@ -278,7 +278,7 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
                 },
               })
             }
-            placeholder="git *&#10;npm *&#10;ls *&#10;cat *"
+            placeholder={t('placeholder.allowedCommands')}
             rows={3}
           />
           <div className="setting-hint">
@@ -302,7 +302,7 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
                 },
               })
             }
-            placeholder="rm -rf *&#10;sudo *&#10;chmod 777 *"
+            placeholder={t('placeholder.deniedCommands')}
             rows={3}
           />
           <div className="setting-hint">
@@ -334,7 +334,7 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
                 },
               })
             }
-            placeholder="https://api.github.com/**&#10;https://*.anthropic.com/**&#10;https://npmjs.com/**"
+            placeholder={t('placeholder.allowedUrls')}
             rows={3}
           />
           <div className="setting-hint">
@@ -358,7 +358,7 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
                 },
               })
             }
-            placeholder="http://**&#10;https://malicious.com/**"
+            placeholder={t('placeholder.deniedUrls')}
             rows={3}
           />
           <div className="setting-hint">
@@ -405,7 +405,7 @@ export function PermissionsConfigPanel({ onSave, onClose, initialConfig }: Confi
                   audit: { ...config.audit, logFile: e.target.value },
                 })
               }
-              placeholder="~/.claude/audit.log"
+              placeholder={t('placeholder.auditLogFile')}
             />
             <div className="setting-hint">
               {t('permissions.audit.logFileHint')}

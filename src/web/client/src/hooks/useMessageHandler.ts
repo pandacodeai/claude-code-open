@@ -786,6 +786,25 @@ export function useMessageHandler({
           onNavigateToSwarm?.((payload as any).blueprintId);
           break;
 
+        case 'slash_command_result': {
+          const cmdResult = payload as { command: string; success: boolean; message?: string; data?: any; action?: string };
+          // 将命令结果作为助手消息展示
+          const resultMessage: ChatMessage = {
+            id: `cmd-${Date.now()}`,
+            role: 'assistant',
+            timestamp: Date.now(),
+            content: [{ type: 'text', text: cmdResult.message || (cmdResult.success ? '命令执行成功' : '命令执行失败') }],
+          };
+          setMessages(prev => [...prev, resultMessage]);
+          setStatus('idle');
+
+          // 如果命令要求清除历史（如 /clear）
+          if (cmdResult.action === 'clear') {
+            setMessages([]);
+          }
+          break;
+        }
+
         case 'blueprint_created':
           console.log('[App] Blueprint created:', (payload as any).name);
           break;

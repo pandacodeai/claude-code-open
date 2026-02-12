@@ -16,5 +16,18 @@
       "Write(*.ts)"
     ],
     "deny": []
+  },
+  "mcpServers": {
+    "claude-in-chrome": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "F:\\claude-code-open\\dist\\cli.js",
+        "--claude-in-chrome-mcp"
+      ],
+      "enabled": false,
+      "timeout": 30000,
+      "retries": 3
+    }
   }
 }

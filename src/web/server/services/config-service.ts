@@ -95,16 +95,6 @@ export interface ProxyConfig {
 }
 
 /**
- * 缓存配置
- */
-export interface CacheConfig {
-  enabled?: boolean;
-  location?: string;
-  maxSize?: number;
-  ttl?: number;
-}
-
-/**
  * 安全配置
  */
 export interface SecurityConfig {
@@ -305,18 +295,6 @@ export class WebConfigService {
     }
   }
 
-  /**
-   * 获取缓存配置
-   */
-  async getCacheConfig(): Promise<CacheConfig> {
-    try {
-      const config = this.configManager.getAll();
-      return config.cache || { enabled: true };
-    } catch (error) {
-      console.error('[WebConfigService] 获取缓存配置失败:', error);
-      throw new Error(`获取缓存配置失败: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
 
   /**
    * 获取安全配置
@@ -457,19 +435,6 @@ export class WebConfigService {
       return true;
     } catch (error) {
       console.error('[WebConfigService] 更新代理配置失败:', error);
-      return false;
-    }
-  }
-
-  /**
-   * 更新缓存配置
-   */
-  async updateCacheConfig(config: Partial<CacheConfig>): Promise<boolean> {
-    try {
-      this.configManager.save({ cache: config });
-      return true;
-    } catch (error) {
-      console.error('[WebConfigService] 更新缓存配置失败:', error);
       return false;
     }
   }

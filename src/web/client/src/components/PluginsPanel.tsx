@@ -166,7 +166,7 @@ function DiscoverTab({
         <div className="plugins-empty">
           <p>{t('plugins.discover.noMarketplaces')}</p>
           <p>{t('plugins.discover.addMarketplaceHint')}</p>
-          <code>/plugins marketplace add anthropics/claude-code</code>
+          <code>/plugins marketplace add anthropics/claude-plugins-official</code>
         </div>
       </div>
     );
@@ -542,6 +542,7 @@ function PluginDetails({
   const description = plugin.description;
   const author = 'author' in plugin ? plugin.author : undefined;
   const marketplaceName = 'marketplaceName' in plugin ? plugin.marketplaceName : undefined;
+  const pluginPath = 'path' in plugin ? (plugin as PluginInfo).path : undefined;
 
   return (
     <div className="plugins-details">
@@ -556,6 +557,7 @@ function PluginDetails({
           {version && <div className="plugins-details-version">Version: {version}</div>}
           {description && <div className="plugins-details-desc">{description}</div>}
           {author && <div className="plugins-details-author">By: {author}</div>}
+          {pluginPath && <div className="plugins-details-path">Path: <code>{pluginPath}</code></div>}
         </div>
 
         <div className="plugins-warning-box">

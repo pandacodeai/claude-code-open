@@ -82,7 +82,7 @@ function HookEditor({ hookConfig, onChange, t }: HookEditorProps) {
                 className="setting-input"
                 value={hookConfig.command || ''}
                 onChange={(e) => onChange({ ...hookConfig, command: e.target.value })}
-                placeholder="/path/to/script.sh 或 /usr/bin/python"
+                placeholder={t('placeholder.commandPath')}
               />
               <div className="setting-hint">
                 {t('hooks.editor.commandPathHint')}
@@ -103,7 +103,7 @@ function HookEditor({ hookConfig, onChange, t }: HookEditorProps) {
                     args: e.target.value.split(',').map((s) => s.trim()).filter(Boolean),
                   })
                 }
-                placeholder="arg1, arg2, arg3"
+                placeholder={t('placeholder.commandArgs')}
               />
               <div className="setting-hint">
                 {t('hooks.editor.argsHint')}
@@ -119,7 +119,7 @@ function HookEditor({ hookConfig, onChange, t }: HookEditorProps) {
                 className="setting-input"
                 value={hookConfig.url || ''}
                 onChange={(e) => onChange({ ...hookConfig, url: e.target.value })}
-                placeholder="https://example.com/webhook"
+                placeholder={t('placeholder.webhookUrl')}
               />
               <div className="setting-hint">
                 {t('hooks.editor.webhookUrlHint')}
@@ -182,7 +182,7 @@ function HookEditor({ hookConfig, onChange, t }: HookEditorProps) {
             className="setting-input"
             value={hookConfig.matcher || ''}
             onChange={(e) => onChange({ ...hookConfig, matcher: e.target.value })}
-            placeholder="^(Read|Write)$"
+            placeholder={t('placeholder.matcher')}
           />
           <div className="setting-hint">
             {t('hooks.editor.matcherHint')}

@@ -92,6 +92,46 @@ npm link
 npm run install:playwright
 ```
 
+### Windows 部署注意事项
+
+**Native addon 编译（通常不需要）：**
+
+项目依赖了 `better-sqlite3`、`node-pty`、`sharp` 等 native addon，但它们都自带 **Windows x64 预编译二进制**。正常情况下，`npm install` 会直接下载预编译文件，无需本地编译。
+
+如果预编译下载失败（如无法访问 GitHub releases、或使用了冷门 Node.js 版本），npm 会回退到从源码编译。**仅在此情况下**才需要：
+
+- **Python 3.6+** — node-gyp 依赖
+- **Visual Studio Build Tools 2022** — 提供 MSVC C++ 编译器，安装时选择"使用 C++ 的桌面开发"工作负载
+
+> 提示：如果在公司内网环境，配置 npm 代理（`npm config set proxy` / `https-proxy`）可确保预编译二进制正常下载。
+
+**环境变量冲突：**
+
+项目从以下环境变量读取 API 配置：
+
+| 变量 | 用途 |
+| --- | --- |
+| `ANTHROPIC_API_KEY` / `CLAUDE_API_KEY` | API 认证 |
+| `ANTHROPIC_BASE_URL` | 自定义 API 端点（默认：`https://api.anthropic.com`） |
+
+如果你的 **Windows 系统/用户环境变量**中已设置了这些变量（如用于官方 Claude Code 或其他项目），它们会覆盖 `settings.json` 中的配置。
+
+避免冲突的方式 — 在终端窗口中按会话设置，而非设为系统级变量：
+
+```powershell
+# PowerShell（仅当前会话生效）
+$env:ANTHROPIC_API_KEY="your-key-for-this-project"
+$env:ANTHROPIC_BASE_URL="https://your-api-endpoint"
+```
+
+```cmd
+# CMD（仅当前会话生效）
+set ANTHROPIC_API_KEY=your-key-for-this-project
+set ANTHROPIC_BASE_URL=https://your-api-endpoint
+```
+
+> 注意：项目根目录的 `.env` 文件**不会被自动加载** — 项目未使用 `dotenv`。环境变量需通过系统设置、`settings.json` 或 `--env` CLI 参数配置。
+
 ### 浏览器自动化支持
 
 如需使用浏览器自动化功能（Playwright CLI），需手动安装：

@@ -92,6 +92,46 @@ npm link
 npm run install:playwright
 ```
 
+### Windows Notes
+
+**Native addon compilation (usually NOT required):**
+
+The project depends on native addons (`better-sqlite3`, `node-pty`, `sharp`, etc.), but they all ship with **prebuilt binaries** for Windows x64. Under normal circumstances, `npm install` downloads the prebuilt binaries directly — no compilation needed.
+
+If prebuilt download fails (e.g., network issues accessing GitHub releases, or using an uncommon Node.js version), npm falls back to compiling from source. **Only in this case** do you need:
+
+- **Python 3.6+** — required by node-gyp
+- **Visual Studio Build Tools 2022** — provides the MSVC C++ compiler. Install the "Desktop development with C++" workload.
+
+> Tip: If you're behind a corporate proxy, configure npm proxy settings (`npm config set proxy` / `https-proxy`) so prebuilt binaries can be downloaded successfully.
+
+**Environment variable conflicts:**
+
+The project reads API configuration from these environment variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `ANTHROPIC_API_KEY` / `CLAUDE_API_KEY` | API authentication |
+| `ANTHROPIC_BASE_URL` | Custom API endpoint (default: `https://api.anthropic.com`) |
+
+If you already have these variables set in your **Windows system/user environment** (e.g., for the official Claude Code or another project), they will take precedence over `settings.json` configuration.
+
+To avoid conflicts, set them per terminal session instead of system-wide:
+
+```powershell
+# PowerShell (current session only)
+$env:ANTHROPIC_API_KEY="your-key-for-this-project"
+$env:ANTHROPIC_BASE_URL="https://your-api-endpoint"
+```
+
+```cmd
+# CMD (current session only)
+set ANTHROPIC_API_KEY=your-key-for-this-project
+set ANTHROPIC_BASE_URL=https://your-api-endpoint
+```
+
+> Note: The `.env` file in the project root is **NOT** loaded automatically — the project does not use `dotenv`. Environment variables must be set via system settings, `settings.json`, or the `--env` CLI flag.
+
 ### Browser Automation Support
 
 To use browser automation features (Playwright CLI), install manually:

@@ -1271,48 +1271,68 @@ Important:
       registerSkillHooks(skill.skillName, skill.hooks);
     }
 
-    // 构建 skill 内容消息（对齐官网格式）
-    // 官网实现：skill 内容通过 newMessages 传递，而不是 tool_result
-    let skillMessage = `<command-message>The "${skill.displayName}" skill is loading</command-message>\n\n`;
-    skillMessage += `<skill name="${skill.skillName}" location="${skill.source}"`;
+    // 对齐官网实现：skill 通过 newMessages 传递两条独立的 user 消息
+    //
+    // 官网 Ch4 函数返回结构：
+    //   消息1: metadata（<command-name> + <command-message> 标签），无 isMeta
+    //   消息2: skill 完整内容（<skill> 标签包裹），isMeta: true
+    //
+    // 官网 TGY/HTA/Lh4 函数构建 metadata：
+    //   HTA（skill-loaded skills）: <command-name>name</command-name>\n<command-message>name</command-message>\n<skill-format>true</skill-format>
+    //   Lh4（user-invocable）: <command-name>name</command-name>\n<command-message>/name</command-message>\n[<command-args>args</command-args>]
 
+    // 消息1: metadata 标签
+    let metadataText: string;
+    if (skill.userInvocable !== false && (skill.loadedFrom === 'skills' || skill.source === 'plugin')) {
+      // HTA 格式：skill-loaded 或 plugin 来源的 skill
+      metadataText = [
+        `<command-name>${skill.displayName}</command-name>`,
+        `<command-message>${skill.displayName}</command-message>`,
+        '<skill-format>true</skill-format>',
+      ].join('\n');
+    } else {
+      // Lh4 格式：user-invocable skill
+      const parts = [
+        `<command-name>${skill.displayName}</command-name>`,
+        `<command-message>/${skill.skillName}</command-message>`,
+      ];
+      if (args) {
+        parts.push(`<command-args>${args}</command-args>`);
+      }
+      metadataText = parts.join('\n');
+    }
+
+    // 消息2: skill 内容（isMeta: true）
+    let skillBody = `<skill name="${skill.skillName}" location="${skill.source}"`;
     if (skill.version) {
-      skillMessage += ` version="${skill.version}"`;
+      skillBody += ` version="${skill.version}"`;
     }
     if (skill.model) {
-      skillMessage += ` model="${skill.model}"`;
+      skillBody += ` model="${skill.model}"`;
     }
     if (skill.allowedTools && skill.allowedTools.length > 0) {
-      skillMessage += ` allowed-tools="${skill.allowedTools.join(',')}"`;
+      skillBody += ` allowed-tools="${skill.allowedTools.join(',')}"`;
     }
-
-    skillMessage += `>\n${skillContent}\n</skill>`;
-
-    // 对齐官网实现：
-    // - output（tool_result 内容）只是简短的 "Launching skill: xxx"
-    // - skill 的完整内容通过 newMessages 作为独立的 user 消息传递
-    // 官网 2.1.19: 没有额外权限的技能无需批准
-    const hasAdditionalPermissions = skill.allowedTools && skill.allowedTools.length > 0;
+    skillBody += `>\n${skillContent}\n</skill>`;
 
     return {
       success: true,
       output: `Launching skill: ${skill.displayName}`,
-      // 官网格式的额外字段
-      commandName: skill.displayName,
+      commandName: skill.skillName,
       allowedTools: skill.allowedTools,
       model: skill.model,
-      // 官网 2.1.19: 技能是否需要批准（只有声明了额外权限的技能才需要批准）
-      needsApproval: hasAdditionalPermissions,
-      // newMessages：skill 内容作为独立的 user 消息（对齐官网实现）
+      // newMessages：两条独立的 user 消息（对齐官网 Ch4 实现）
       newMessages: [
         {
+          // 消息1: metadata 标签（无 isMeta，对 UI 可见）
           role: 'user' as const,
-          content: [
-            {
-              type: 'text' as const,
-              text: skillMessage,
-            },
-          ],
+          content: [{ type: 'text' as const, text: metadataText }],
+        },
+        {
+          // 消息2: skill 完整内容（isMeta: true，对 UI 不可见）
+          role: 'user' as const,
+          content: [{ type: 'text' as const, text: skillBody }],
+          isMeta: true,
         },
       ],
     };

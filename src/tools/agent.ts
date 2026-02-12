@@ -32,11 +32,23 @@ export interface AgentTypeDefinition {
   tools?: string[];
   /** v2.1.33: 限制可以生成的子 agent 类型 (Task(agent_type) 语法) */
   allowedSubagentTypes?: string[];
+  /** 禁用的工具列表 */
+  disallowedTools?: string[];
+  /** 限制可用的 skills */
+  skills?: string[];
   forkContext?: boolean;  // 是否访问父对话上下文
   permissionMode?: 'default' | 'plan' | 'acceptEdits' | 'bypassPermissions';
   model?: string;         // 代理类型的默认模型
   color?: string;         // v2.1.33: agent color
   memory?: string;        // v2.1.33: agent memory scope
+  /** agent 来源：built-in, userSettings, projectSettings, plugin */
+  source?: 'built-in' | 'userSettings' | 'projectSettings' | 'plugin';
+  /** 插件名称（source 为 plugin 时有值） */
+  plugin?: string;
+  /** 原始文件名（不含 .md） */
+  filename?: string;
+  /** 最大轮次 */
+  maxTurns?: number;
   description?: string;
   getSystemPrompt?: () => string;  // 系统提示词生成函数
 }
@@ -168,6 +180,7 @@ export const BUILT_IN_AGENT_TYPES: AgentTypeDefinition[] = [
     whenToUse: 'General-purpose agent for researching complex questions, searching for code, and executing multi-step tasks. When you are searching for a keyword or file and are not confident that you will find the right match in the first few tries use this agent to perform the search for you.',
     tools: ['*'],  // 所有工具
     forkContext: false,
+    source: 'built-in',
     getSystemPrompt: () => GENERAL_PURPOSE_AGENT_PROMPT,
   },
   {
@@ -176,6 +189,7 @@ export const BUILT_IN_AGENT_TYPES: AgentTypeDefinition[] = [
     tools: ['Glob', 'Grep', 'Read'],
     forkContext: false,
     model: 'haiku',
+    source: 'built-in',
     getSystemPrompt: () => EXPLORE_AGENT_PROMPT,
   },
   {
@@ -184,20 +198,21 @@ export const BUILT_IN_AGENT_TYPES: AgentTypeDefinition[] = [
     tools: ['*'],
     forkContext: false,
     permissionMode: 'plan',
-    // Plan agent 的系统提示词待后续添加
+    source: 'built-in',
   },
   {
     agentType: 'claude-code-guide',
     whenToUse: 'Agent for Claude Code documentation and API questions',
     tools: ['Glob', 'Grep', 'Read', 'WebFetch', 'WebSearch'],
     forkContext: false,
-    // claude-code-guide agent 的系统提示词待后续添加
+    source: 'built-in',
   },
   {
     agentType: 'blueprint-worker',
     whenToUse: 'Worker agent for executing blueprint tasks with TDD methodology. This agent writes tests first, then implements code until tests pass. Only used by the blueprint system (Queen Agent).',
     tools: ['*'],
     forkContext: false,
+    source: 'built-in',
     getSystemPrompt: () => BLUEPRINT_WORKER_PROMPT,
   },
   {
@@ -205,7 +220,8 @@ export const BUILT_IN_AGENT_TYPES: AgentTypeDefinition[] = [
     whenToUse: 'Code analyzer agent for analyzing files and directories. Use this when you need to analyze code structure, dependencies, exports, and relationships. Returns structured JSON with semantic information.',
     tools: ['Read', 'Grep', 'Glob', 'Bash','LSP'],
     forkContext: false,
-    model: 'opus',  // 使用快速模型
+    model: 'opus',
+    source: 'built-in',
     getSystemPrompt: () => CODE_ANALYZER_PROMPT,
   },
 ];
@@ -219,6 +235,428 @@ export const AGENT_TYPES: Record<string, { description: string; tools: string[] 
     };
     return acc;
   }, {} as Record<string, { description: string; tools: string[] }>);
+
+// ========== 自定义 Agent 加载系统（对齐官方 oc7/Tv9/pF7） ==========
+
+/**
+ * 有效的 model 值（对齐官方 pO1 数组）
+ */
+const VALID_AGENT_MODELS = ['sonnet', 'opus', 'haiku', 'inherit'];
+
+/**
+ * 有效的 memory 值（对齐官方 UF7 数组）
+ */
+const VALID_MEMORY_VALUES = ['user', 'project', 'local'];
+
+/**
+ * 有效的 permissionMode 值
+ */
+const VALID_PERMISSION_MODES = ['default', 'plan', 'acceptEdits', 'bypassPermissions'];
+
+/**
+ * 有效的 color 值
+ */
+const VALID_COLORS = ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'gray'];
+
+/**
+ * 自定义 agent 存储（从文件系统加载）
+ */
+let customAgentTypes: AgentTypeDefinition[] = [];
+
+/**
+ * 是否已完成初始化加载
+ */
+let customAgentsInitialized = false;
+
+/**
+ * 解析 agent .md 文件的 frontmatter
+ * 与 skill.ts 的 parseFrontmatter 类似，但返回更通用的 Record 类型
+ */
+function parseAgentFrontmatter(content: string): { frontmatter: Record<string, string>; content: string } {
+  const regex = /^---\s*\n([\s\S]*?)---\s*\n?/;
+  const match = content.match(regex);
+
+  if (!match) {
+    return { frontmatter: {}, content };
+  }
+
+  const frontmatterText = match[1] || '';
+  const bodyContent = content.slice(match[0].length);
+  const frontmatter: Record<string, string> = {};
+
+  const lines = frontmatterText.split('\n');
+  for (const line of lines) {
+    const colonIndex = line.indexOf(':');
+    if (colonIndex > 0) {
+      const key = line.slice(0, colonIndex).trim();
+      const value = line.slice(colonIndex + 1).trim();
+      if (key) {
+        // 移除前后的引号
+        const cleanValue = value.replace(/^["']|["']$/g, '');
+        frontmatter[key] = cleanValue;
+      }
+    }
+  }
+
+  return { frontmatter, content: bodyContent };
+}
+
+/**
+ * 解析 tools 字段值（逗号分隔或 YAML 数组格式）
+ * 对齐官方 Zq1 函数
+ */
+function parseToolsList(value: string | undefined): string[] | undefined {
+  if (!value) return undefined;
+
+  // 逗号分隔
+  if (value.includes(',')) {
+    return value.split(',').map(t => t.trim()).filter(t => t.length > 0);
+  }
+
+  // 单个值
+  if (value.trim()) {
+    return [value.trim()];
+  }
+
+  return undefined;
+}
+
+/**
+ * 解析 maxTurns 字段
+ */
+function parseMaxTurns(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const n = parseInt(value, 10);
+  if (isNaN(n) || n <= 0) return undefined;
+  return n;
+}
+
+/**
+ * 从单个 .md 文件解析自定义 agent 定义
+ * 对齐官方 Tv9 函数（user/project agents）和 pF7 函数（plugin agents）
+ */
+function parseAgentFromFile(
+  filePath: string,
+  source: 'userSettings' | 'projectSettings' | 'plugin',
+  pluginName?: string,
+  namePrefixes: string[] = [],
+): AgentTypeDefinition | null {
+  try {
+    const content = fs.readFileSync(filePath, { encoding: 'utf-8' });
+    const { frontmatter, content: markdownContent } = parseAgentFrontmatter(content);
+
+    // name 和 description 是必填字段（对齐官方 Tv9 验证）
+    const name = frontmatter.name;
+    const description = frontmatter.description || frontmatter['when-to-use'];
+
+    if (!name || typeof name !== 'string') {
+      console.error(`Agent file ${filePath} is missing required 'name' in frontmatter`);
+      return null;
+    }
+
+    if (!description || typeof description !== 'string') {
+      console.error(`Agent file ${filePath} is missing required 'description' in frontmatter`);
+      return null;
+    }
+
+    // 构建 agentType 名称
+    // - user/project agents: 直接用 name
+    // - plugin agents: {pluginName}:{name}（对齐官方命名空间格式）
+    let agentType: string;
+    if (source === 'plugin' && pluginName) {
+      agentType = [pluginName, ...namePrefixes, name].join(':');
+    } else {
+      agentType = name;
+    }
+
+    // 解析可选字段
+    const model = frontmatter.model;
+    const color = frontmatter.color;
+    const memory = frontmatter.memory;
+    const forkContextStr = frontmatter.forkContext;
+    const permissionMode = frontmatter.permissionMode;
+    const maxTurns = parseMaxTurns(frontmatter.maxTurns);
+    const tools = parseToolsList(frontmatter.tools);
+    const disallowedTools = parseToolsList(frontmatter.disallowedTools);
+    const skills = parseToolsList(frontmatter.skills);
+
+    // 验证 model
+    const validModel = model && VALID_AGENT_MODELS.includes(model);
+    if (model && !validModel) {
+      console.error(`Agent file ${filePath} has invalid model '${model}'. Valid options: ${VALID_AGENT_MODELS.join(', ')}`);
+    }
+
+    // 验证 memory
+    let validMemory: string | undefined;
+    if (memory !== undefined) {
+      if (VALID_MEMORY_VALUES.includes(memory)) {
+        validMemory = memory;
+      } else {
+        console.error(`Agent file ${filePath} has invalid memory value '${memory}'. Valid options: ${VALID_MEMORY_VALUES.join(', ')}`);
+      }
+    }
+
+    // 验证 forkContext
+    let forkContext = false;
+    if (forkContextStr !== undefined) {
+      if (forkContextStr === 'true') {
+        forkContext = true;
+      } else if (forkContextStr !== 'false') {
+        console.error(`Agent file ${filePath} has invalid forkContext value '${forkContextStr}'. Must be 'true', 'false', or omitted.`);
+      }
+    }
+
+    // 官方约束：forkContext: true 的 agent 必须用 model: inherit
+    if (forkContext && model !== 'inherit') {
+      console.error(`Agent file ${filePath} has forkContext: true but model is not 'inherit'. Overriding to 'inherit'.`);
+    }
+
+    // 验证 permissionMode
+    const validPermMode = permissionMode && VALID_PERMISSION_MODES.includes(permissionMode);
+    if (permissionMode && !validPermMode) {
+      console.error(`Agent file ${filePath} has invalid permissionMode '${permissionMode}'. Valid options: ${VALID_PERMISSION_MODES.join(', ')}`);
+    }
+
+    // 验证 color
+    const validColor = color && VALID_COLORS.includes(color);
+
+    // 解析文件名（不含 .md 后缀）
+    const filename = path.basename(filePath, '.md');
+
+    // 系统提示词就是 frontmatter 下方的 markdown 内容
+    const systemPromptText = markdownContent.trim();
+
+    // 解析 tools 中的 Task(agent_type) 语法
+    let effectiveTools = tools;
+    let allowedSubagentTypes: string[] | undefined;
+    if (tools) {
+      const parsed = parseToolsWithAgentTypeRestriction(tools);
+      effectiveTools = parsed.tools;
+      allowedSubagentTypes = parsed.allowedSubagentTypes;
+    }
+
+    return {
+      agentType,
+      whenToUse: description.replace(/\\n/g, '\n'),
+      ...(effectiveTools !== undefined ? { tools: effectiveTools } : {}),
+      ...(allowedSubagentTypes !== undefined ? { allowedSubagentTypes } : {}),
+      ...(disallowedTools !== undefined ? { disallowedTools } : {}),
+      ...(skills !== undefined ? { skills } : {}),
+      getSystemPrompt: () => systemPromptText,
+      source,
+      filename,
+      ...(validColor ? { color } : {}),
+      ...(validModel ? { model } : {}),
+      ...(validPermMode ? { permissionMode: permissionMode as any } : {}),
+      ...(forkContext ? { forkContext } : {}),
+      ...(maxTurns !== undefined ? { maxTurns } : {}),
+      ...(validMemory ? { memory: validMemory } : {}),
+      ...(pluginName ? { plugin: pluginName } : {}),
+    };
+  } catch (error) {
+    console.error(`Failed to load agent from ${filePath}:`, error);
+    return null;
+  }
+}
+
+/**
+ * 从目录递归加载 agent 定义
+ * 对齐官方 gF7 函数
+ */
+function loadAgentsFromDirectory(
+  dirPath: string,
+  source: 'userSettings' | 'projectSettings' | 'plugin',
+  pluginName?: string,
+): AgentTypeDefinition[] {
+  const results: AgentTypeDefinition[] = [];
+
+  function scan(currentPath: string, prefixes: string[] = []) {
+    try {
+      const entries = fs.readdirSync(currentPath, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(currentPath, entry.name);
+        if (entry.isDirectory()) {
+          scan(fullPath, [...prefixes, entry.name]);
+        } else if (entry.isFile() && entry.name.endsWith('.md')) {
+          const agent = parseAgentFromFile(fullPath, source, pluginName, prefixes);
+          if (agent) {
+            results.push(agent);
+          }
+        }
+      }
+    } catch (error) {
+      // 目录不存在或无权限，静默忽略
+    }
+  }
+
+  scan(dirPath);
+  return results;
+}
+
+/**
+ * 从已启用的插件缓存中加载 agents
+ * 对齐官方 Pq1 函数
+ */
+function loadAgentsFromPluginCache(): AgentTypeDefinition[] {
+  const results: AgentTypeDefinition[] = [];
+  const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+  const pluginsCacheDir = path.join(homeDir, '.claude', 'plugins', 'cache');
+
+  // 获取已启用的插件列表
+  const enabledPlugins = getEnabledPluginsForAgents();
+
+  try {
+    if (!fs.existsSync(pluginsCacheDir)) {
+      return [];
+    }
+
+    const marketplaces = fs.readdirSync(pluginsCacheDir, { withFileTypes: true });
+    for (const marketplace of marketplaces) {
+      if (!marketplace.isDirectory()) continue;
+
+      const marketplacePath = path.join(pluginsCacheDir, marketplace.name);
+      const plugins = fs.readdirSync(marketplacePath, { withFileTypes: true });
+
+      for (const plugin of plugins) {
+        if (!plugin.isDirectory()) continue;
+
+        // 检查插件是否启用
+        const pluginId = `${plugin.name}@${marketplace.name}`;
+        if (!enabledPlugins.has(pluginId)) continue;
+
+        const pluginPath = path.join(marketplacePath, plugin.name);
+        const versions = fs.readdirSync(pluginPath, { withFileTypes: true });
+
+        for (const version of versions) {
+          if (!version.isDirectory()) continue;
+
+          // 检查 agents 目录
+          const agentsPath = path.join(pluginPath, version.name, 'agents');
+          if (!fs.existsSync(agentsPath)) continue;
+
+          const agents = loadAgentsFromDirectory(agentsPath, 'plugin', plugin.name);
+          results.push(...agents);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load agents from plugin cache:', error);
+  }
+
+  return results;
+}
+
+/**
+ * 获取已启用的插件列表（与 skill.ts 中的 getEnabledPlugins 相同逻辑）
+ */
+function getEnabledPluginsForAgents(): Set<string> {
+  const enabledPlugins = new Set<string>();
+  const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+  const settingsPath = path.join(homeDir, '.claude', 'settings.json');
+
+  try {
+    if (fs.existsSync(settingsPath)) {
+      const content = fs.readFileSync(settingsPath, { encoding: 'utf-8' });
+      const settings = JSON.parse(content);
+
+      if (settings.enabledPlugins && typeof settings.enabledPlugins === 'object') {
+        for (const [pluginId, enabled] of Object.entries(settings.enabledPlugins)) {
+          if (enabled === true) {
+            enabledPlugins.add(pluginId);
+          }
+        }
+      }
+    }
+  } catch {
+    // 静默忽略
+  }
+
+  return enabledPlugins;
+}
+
+/**
+ * Agent 去重合并（后来者优先覆盖同名）
+ * 对齐官方 zp 函数
+ */
+function deduplicateAgents(agents: AgentTypeDefinition[]): AgentTypeDefinition[] {
+  const seen = new Map<string, AgentTypeDefinition>();
+  // 按顺序遍历，后面的会覆盖前面的同名 agent
+  for (const agent of agents) {
+    seen.set(agent.agentType, agent);
+  }
+  return Array.from(seen.values());
+}
+
+/**
+ * 初始化加载所有自定义 agents
+ * 加载顺序（对齐官方 oc7）：
+ * 1. 插件 agents（最低优先级）
+ * 2. 用户级 agents（~/.claude/agents/）
+ * 3. 项目级 agents（.claude/agents/）（最高优先级）
+ */
+export function initializeCustomAgents(): void {
+  const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+  const allCustom: AgentTypeDefinition[] = [];
+
+  // 1. 插件 agents
+  try {
+    const pluginAgents = loadAgentsFromPluginCache();
+    allCustom.push(...pluginAgents);
+  } catch {
+    // 静默
+  }
+
+  // 2. 用户级 agents (~/.claude/agents/)
+  const userAgentsDir = path.join(homeDir, '.claude', 'agents');
+  if (fs.existsSync(userAgentsDir)) {
+    const userAgents = loadAgentsFromDirectory(userAgentsDir, 'userSettings');
+    allCustom.push(...userAgents);
+  }
+
+  // 3. 项目级 agents (.claude/agents/)
+  try {
+    const cwd = getCurrentCwd();
+    const projectAgentsDir = path.join(cwd, '.claude', 'agents');
+    if (fs.existsSync(projectAgentsDir)) {
+      const projectAgents = loadAgentsFromDirectory(projectAgentsDir, 'projectSettings');
+      allCustom.push(...projectAgents);
+    }
+  } catch {
+    // getCurrentCwd 可能在某些上下文中不可用
+  }
+
+  customAgentTypes = allCustom;
+  customAgentsInitialized = true;
+}
+
+/**
+ * 获取所有活跃的 agent 定义（内置 + 自定义，去重后）
+ * 对齐官方 agentDefinitions.activeAgents
+ */
+export function getAllActiveAgents(): AgentTypeDefinition[] {
+  if (!customAgentsInitialized) {
+    initializeCustomAgents();
+  }
+  return deduplicateAgents([...BUILT_IN_AGENT_TYPES, ...customAgentTypes]);
+}
+
+/**
+ * 获取所有自定义（非内置）的 agent 定义
+ */
+export function getCustomAgents(): AgentTypeDefinition[] {
+  if (!customAgentsInitialized) {
+    initializeCustomAgents();
+  }
+  return customAgentTypes;
+}
+
+/**
+ * 重置自定义 agents 缓存（用于测试或热重载）
+ */
+export function resetCustomAgents(): void {
+  customAgentTypes = [];
+  customAgentsInitialized = false;
+}
 
 // 代理执行历史条目
 export interface AgentHistoryEntry {
@@ -423,9 +861,11 @@ export function pauseBackgroundAgent(id: string): boolean {
   return false;
 }
 
-// 获取代理类型定义
+// 获取代理类型定义（搜索内置 + 自定义 agents）
 export function getAgentTypeDefinition(agentType: string): AgentTypeDefinition | null {
-  return BUILT_IN_AGENT_TYPES.find(def => def.agentType === agentType) || null;
+  // 先搜索所有活跃 agents（去重后，自定义优先覆盖同名内置）
+  const allActive = getAllActiveAgents();
+  return allActive.find(def => def.agentType === agentType) || null;
 }
 
 // 初始化时加载所有代理
@@ -445,12 +885,22 @@ function getAgentBackgroundTasksPrompt(): string {
 
 export class TaskTool extends BaseTool<AgentInput, ToolResult> {
   name = 'Task';
-  description = `Launch a new agent to handle complex, multi-step tasks autonomously.
+
+  /**
+   * 动态生成 description，包含所有活跃的 agents（内置 + 自定义）
+   */
+  get description(): string {
+    const allAgents = getAllActiveAgents();
+    const agentList = allAgents.map(def =>
+      `- ${def.agentType}: ${def.whenToUse}${def.forkContext ? ' (Properties: access to current context)' : ''} (Tools: ${def.tools?.join(', ') || '*'})${def.model ? ` (Model: ${formatAgentModel(def.model)})` : ''}`
+    ).join('\n');
+
+    return `Launch a new agent to handle complex, multi-step tasks autonomously.
 
 The Task tool launches specialized agents (subprocesses) that autonomously handle complex tasks. Each agent type has specific capabilities and tools available to it.
 
 Available agent types and the tools they have access to:
-${BUILT_IN_AGENT_TYPES.map(def => `- ${def.agentType}: ${def.whenToUse}${def.forkContext ? ' (Properties: access to current context)' : ''} (Tools: ${def.tools?.join(', ') || '*'})${def.model ? ` (Model: ${formatAgentModel(def.model)})` : ''}`).join('\n')}
+${agentList}
 
 When using the Task tool, you must specify a subagent_type parameter to select which agent type to use.
 
@@ -511,6 +961,7 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
 </example>
 
 ${!isAgentTeamsEnabled() ? `\nNote: The "Agent Teams" feature (TeammateTool, SendMessage, spawnTeam) is not available on this plan. Only mention this if the user explicitly asks for "agent teams" by name, or asks for agents to send messages to each other (peer-to-peer messaging). Do NOT mention this limitation when users ask for parallel subagents, coordinating agents, launching a "team" of agents, or having agents work together — those are all normal Task tool usage and you should proceed normally.` : ''}`;
+  }
 
   // 父对话上下文（用于 forkContext）
   private parentMessages: Message[] = [];
@@ -603,7 +1054,7 @@ ${!isAgentTeamsEnabled() ? `\nNote: The "Agent Teams" feature (TeammateTool, Sen
     if (!agentDef) {
       return {
         success: false,
-        error: t('agent.unknownType', { type: subagent_type, available: BUILT_IN_AGENT_TYPES.map(d => d.agentType).join(', ') }),
+        error: t('agent.unknownType', { type: subagent_type, available: getAllActiveAgents().map(d => d.agentType).join(', ') }),
       };
     }
 

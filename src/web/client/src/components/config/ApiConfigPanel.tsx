@@ -369,7 +369,7 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
               <input
                 type="text"
                 className="mcp-form-input"
-                placeholder="https://api.anthropic.com"
+                placeholder={t('placeholder.apiBaseUrl')}
                 value={config.apiBaseUrl ?? ''}
                 onChange={(e) => updateConfig('apiBaseUrl', e.target.value)}
               />
@@ -386,7 +386,7 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
               <input
                 type="password"
                 className="mcp-form-input"
-                placeholder="sk-ant-..."
+                placeholder={t('placeholder.apiKey')}
                 value={config.apiKey ?? ''}
                 onChange={(e) => updateConfig('apiKey', e.target.value)}
               />
@@ -403,7 +403,7 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
               <input
                 type="text"
                 className="mcp-form-input"
-                placeholder="claude-3-opus-20240229"
+                placeholder={t('placeholder.customModel')}
                 value={config.customModelName ?? ''}
                 onChange={(e) => updateConfig('customModelName', e.target.value)}
               />

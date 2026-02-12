@@ -1,109 +1,152 @@
-# 集成 Playwright CLI 浏览器能力到 Docker 部署
+# WebUI 斜杠命令系统对齐官方 CLI
 
 ## 目标
-让 Docker 容器中的 Claude Code 能通过 `playwright-cli` 操作 headless 浏览器，无需 MCP 协议，通过 Bash 工具直接调用 CLI 命令。
+将 WebUI + CLI 的斜杠命令系统与官方 `@anthropic-ai/claude-code` v2.1.4 完全对齐。
 
-## 实施内容
+## 官方命令完整列表（62 个用户可用命令）
 
-### 1. 修改 Dockerfile —— 安装 Playwright + playwright-cli
+| 命令 | 类型 | 描述 | 别名 |
+|------|------|------|------|
+| add-dir | local-jsx | Add a new working directory | |
+| agents | local-jsx | Manage agent configurations | plugins, marketplace |
+| btw | local-jsx | Ask a quick side question | |
+| chrome | local-jsx | Claude in Chrome (Beta) settings | |
+| clear | local | Clear conversation history and free up context | reset, new |
+| color | local | Set the prompt bar color for this session | |
+| compact | local | Clear conversation history but keep a summary | |
+| config | local-jsx | Open config panel | settings |
+| context | local-jsx / local | Show current context usage | |
+| copy | local | Copy Claude's last response | |
+| cost | local | Show total cost and duration of session | |
+| doctor | local-jsx | Diagnose installation and settings | |
+| exit | local-jsx | Exit the REPL | quit |
+| export | local-jsx | Export conversation to file or clipboard | |
+| extra-usage | local-jsx | Configure extra usage | |
+| feedback | local-jsx | Submit feedback about Claude Code | bug |
+| files | local | List all files currently in context | |
+| fork | local-jsx | Create a fork of the conversation | |
+| help | local-jsx | Show help and available commands | |
+| hooks | local-jsx | Manage hook configurations | |
+| ide | prompt | Manage IDE integrations and show status | |
+| init | local-jsx | Initialize a new CLAUDE.md file | |
+| install | local-jsx | Install Claude Code native build | |
+| install-github-app | local-jsx | Set up Claude GitHub Actions | |
+| install-slack-app | local | Install the Claude Slack app | |
+| keybindings | local | Open keybindings configuration file | |
+| login | local-jsx | Sign in with Anthropic account | |
+| logout | local-jsx | Sign out from Anthropic account | |
+| mcp | local-jsx | Manage MCP servers | |
+| memory | local-jsx | Edit Claude memory files | |
+| mobile | local-jsx | Show QR code for Claude mobile app | ios, android |
+| model | local-jsx | Set the AI model | |
+| output-style | local-jsx | Set the output style | |
+| passes | local-jsx | Manage passes | |
+| permissions | local-jsx | Manage tool permission rules | allowed-tools |
+| plan | local-jsx | Enable plan mode or view session plan | |
+| plugin | local-jsx | Manage Claude Code plugins | plugins, marketplace |
+| pr-comments | prompt | Get comments from a GitHub PR | |
+| privacy-settings | local-jsx | View and update privacy settings | |
+| rate-limit-options | local-jsx | Show options when rate limit reached | |
+| release-notes | local | View release notes | |
+| remote-env | local-jsx | Configure remote environment for teleport | |
+| rename | local | Rename the current conversation | |
+| resume | local-jsx | Resume a previous conversation | continue |
+| review | local-jsx | Review a pull request | |
+| rewind | local | Restore code/conversation to previous point | checkpoint |
+| session | local-jsx | Show remote session URL and QR code | remote |
+| skills | local-jsx | List available skills | |
+| stats | local-jsx | Show Claude Code usage statistics | |
+| status | local-jsx | Show status (version, model, API, etc.) | |
+| stickers | prompt | Order Claude Code stickers | |
+| tag | local-jsx | Toggle a searchable tag on session | |
+| tasks | local-jsx | List and manage background tasks | bashes |
+| terminal-setup | local-jsx | Terminal configuration | |
+| theme | local-jsx | Change the theme | |
+| think-back | local-jsx | Your 2025 Claude Code Year in Review | |
+| thinkback-play | local | Play the thinkback animation | |
+| todos | local-jsx | List current todo items | |
+| upgrade | local-jsx | Upgrade to Max for higher rate limits | |
+| usage | local-jsx | Show plan usage limits | |
+| vim | local | Toggle Vim editing mode | |
+| insights | prompt | Generate session analysis report | |
 
-当前 Dockerfile 基于 `node:18-slim`，需要：
-- 安装 Chromium 浏览器及其系统依赖（字体、音视频库等）
-- 全局安装 `@playwright/cli@latest`
-- 设置 headless 模式环境变量
+另外 4 个内部/特殊命令（用户不直接调用）: callback, function, mcp__, statusline
 
-**具体改动**：在 Stage 2（Production）中增加 Chromium 系统依赖和 playwright-cli：
+## 我们需要删除的命令（12个，官方没有）
 
-```dockerfile
-# 安装 Chromium 系统依赖 + playwright-cli
-RUN apt-get update && apt-get install -y --fix-missing \
-    git \
-    # Chromium 依赖
-    libnss3 libnspr4 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 \
-    libcups2 libdrm2 libxkbcommon0 libatspi2.0-0 libxcomposite1 \
-    libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 \
-    libcairo2 libasound2 libwayland-client0 \
-    # 字体
-    fonts-noto-cjk fonts-noto-color-emoji \
-    && rm -rf /var/lib/apt/lists/* \
-    && npm install -g @playwright/cli@latest \
-    && npx playwright install chromium --with-deps
-```
+- checkpoint, plugins(改为plugin), version, bug(改为feedback别名), discover, transcript, sandbox, api, pr, security-review, map, dev
 
-### 2. 安装 playwright-cli SKILL 到镜像
+## 我们需要新增的命令（21个）
 
-playwright-cli 通过 `playwright-cli install --skills` 安装 SKILL.md 文件到 `~/.claude/skills/` 目录。但 Docker 中 `~/.claude` 是 volume 挂载点，所以需要：
+- btw, color, copy, extra-usage, fork, install, install-github-app, install-slack-app, keybindings, output-style, plan, plugin, rate-limit-options, release-notes, remote-env, session, stickers, terminal-setup, think-back, thinkback-play, insights
 
-- 在构建时，把 SKILL.md 文件直接放到 `/app/skills/playwright-cli/SKILL.md`
-- 在容器启动时，如果 `~/.claude/skills/playwright-cli/SKILL.md` 不存在，自动复制过去
+## 关键设计决策
 
-**更好的方案**：直接把 SKILL.md 放到项目目录的 `.claude/skills/playwright-cli/` 下，因为 skill 加载器会扫描项目目录（`projectSkillsDir`）。容器的 WORKDIR 是 `/workspace`，所以可以在镜像中预置 `/workspace/.claude/skills/playwright-cli/SKILL.md`。
+### 1. 命令执行方式（核心问题）
 
-但 `/workspace` 是用户映射的目录，不应该污染。
+官方 CLI 命令分三种类型：
+- **local**: 纯本地函数调用，直接返回文本结果
+- **local-jsx**: 渲染 React(Ink) 组件到终端，有交互式 UI
+- **prompt**: 构造系统消息发送给 Claude API，由 AI 执行
 
-**最终方案**：在 Dockerfile 中构建完成后，把 SKILL.md 内容复制到 `/root/.claude/skills/playwright-cli/SKILL.md`（用户级别 skills 目录）。当用户挂载 `~/.claude` volume 时，如果他们没有这个文件，可以通过 entrypoint 脚本自动初始化。
+我们的 WebUI 后端不能渲染 Ink 组件，所以统一采用 **文本结果 + JSON 数据** 方式。
+- `local` / `local-jsx` → 后端直接执行，返回 `CommandResult { success, message, data, action }`
+- `prompt` → 返回结果告诉用户该命令会作为提示发给 Claude，或者后端将内容注入对话
 
-### 3. 创建 entrypoint 脚本
+### 2. 文件修改范围
 
-替换当前的直接 `ENTRYPOINT ["node", "/app/dist/cli.js"]`，创建一个 shell 脚本：
+三个文件需要同步修改：
 
-```bash
-#!/bin/bash
-# 确保 playwright-cli SKILL 存在
-mkdir -p /root/.claude/skills/playwright-cli
-if [ ! -f /root/.claude/skills/playwright-cli/SKILL.md ]; then
-  cp /app/skills/playwright-cli/SKILL.md /root/.claude/skills/playwright-cli/SKILL.md
-fi
+1. **`src/web/server/slash-commands.ts`** — 后端命令注册和执行（主要工作量）
+2. **`src/web/client/src/utils/constants.ts`** — 前端命令面板列表
+3. **`src/cli.ts`** — CLI 模式斜杠命令处理
 
-# 启动 Claude Code
-exec node /app/dist/cli.js "$@"
-```
+### 3. 分类调整
 
-### 4. 在项目中添加 SKILL.md 文件
+官方没有使用分类系统，但我们的 WebUI 前端需要分类来组织面板。保持现有分类但调整：
+- general: help, clear, exit, status, doctor, color, release-notes
+- session: compact, context, cost, resume, rename, export, tag, stats, files, fork, copy, session, rewind
+- config: model, config, permissions, hooks, privacy-settings, theme, vim, keybindings, output-style, plan, terminal-setup, remote-env
+- utility: tasks, todos, add-dir, skills, memory, usage, extra-usage, rate-limit-options, stickers
+- integration: mcp, agents, plugin, ide, chrome, mobile, install, install-github-app, install-slack-app
+- auth: login, logout, upgrade, passes
+- development: review, feedback, pr-comments, init, btw, insights, think-back, thinkback-play
 
-在项目根目录创建 `skills/playwright-cli/SKILL.md`，内容从微软官方 playwright-cli 仓库获取（已获取完整内容）。
+## 实施步骤
 
-### 5. 更新 docker-compose.yml
+### Step 1: 清理后端 slash-commands.ts
+- 删除 12 个非官方命令: checkpoint, plugins, version, bug, discover, transcript, sandbox, api, pr, security-review, map, dev
+- 注意 `plugins` 改为 `plugin`（别名 plugins, marketplace），`bug` 改为 `feedback` 的别名
 
-添加共享内存（Chromium 需要）：
+### Step 2: 新增 21 个命令到后端 slash-commands.ts
+每个命令用简洁实现：
+- btw: 提示用户直接在对话中问侧问题
+- color: 返回当前颜色设置说明
+- copy: 提示功能说明
+- extra-usage: 显示额外用量配置
+- fork: 提示会话 fork 功能
+- install: 显示安装信息
+- install-github-app: 显示 GitHub 设置指引
+- install-slack-app: 显示 Slack 设置指引
+- keybindings: 显示键绑定配置路径
+- output-style: 显示输出风格设置
+- plan: 显示/切换 plan 模式
+- plugin: 管理插件（替代旧 plugins 命令）
+- rate-limit-options: 显示限速时的选项
+- release-notes: 显示版本更新日志
+- remote-env: 显示远程环境配置
+- session: 显示会话信息
+- stickers: 彩蛋命令
+- terminal-setup: 终端配置
+- think-back: 年度回顾
+- thinkback-play: 播放回顾动画
+- insights: 提示为 prompt 类型命令
 
-```yaml
-services:
-  claude:
-    image: wbj66/claude-code-open:latest
-    stdin_open: true
-    tty: true
-    shm_size: '2gb'  # Chromium 需要
-    environment:
-      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-    volumes:
-      - ~/.claude:/root/.claude
-      - .:/workspace
-```
+### Step 3: 同步前端 constants.ts
+更新 SLASH_COMMANDS 数组与后端完全对齐
 
-### 6. 更新 .dockerignore
+### Step 4: 同步 CLI cli.ts
+更新 handleSlashCommand 中的 switch 分支与后端对齐
 
-确保 `skills/` 目录不被忽略。
-
-## 文件变更清单
-
-| 文件 | 操作 |
-|------|------|
-| `Dockerfile` | 修改：添加 Chromium 依赖、playwright-cli 安装、SKILL 预置、entrypoint |
-| `docker-compose.yml` | 修改：添加 shm_size、环境变量 |
-| `skills/playwright-cli/SKILL.md` | 新建：浏览器自动化 SKILL 定义 |
-| `docker-entrypoint.sh` | 新建：容器启动脚本 |
-| `.dockerignore` | 修改：确保 skills 不被忽略 |
-
-## 镜像大小预估
-
-- 当前镜像（node:18-slim + git）：约 250MB
-- 新增 Chromium + 依赖：约 +400MB
-- 总计：约 650MB（可接受，Playwright 官方镜像 1.2GB）
-
-## 不做的事
-
-- 不修改 Claude Code 源码 —— 浏览器能力完全通过 Bash 工具 + SKILL 暴露
-- 不加 MCP 服务器 —— CLI 方式更轻量、更省 token
-- 不加 VNC/noVNC —— headless 够用，AI 不需要看画面
-- 不改工具系统 —— SKILL 自动授权 `Bash(playwright-cli:*)` 模式的命令
+### Step 5: 构建验证
+运行 `npx tsc --noEmit` 确保类型检查通过

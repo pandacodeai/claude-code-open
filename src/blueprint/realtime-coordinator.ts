@@ -199,6 +199,9 @@ export class RealtimeCoordinator extends EventEmitter {
   // v4.0: 蓝图引用（用于集成验证时获取 API 契约）
   private currentBlueprint: Blueprint | null = null;
 
+  // v12.1: TaskPlan 引用（优先于 currentBlueprint 传递给 LeadAgent）
+  private currentTaskPlan: any | null = null;
+
   // v5.0: 蜂群共享记忆
   private swarmMemory: SwarmMemory | null = null;
 
@@ -230,6 +233,13 @@ export class RealtimeCoordinator extends EventEmitter {
     }
     // v5.0: 初始化或恢复共享记忆
     this.swarmMemory = blueprint.swarmMemory || this.initSwarmMemory();
+  }
+
+  /**
+   * v12.1: 设置 TaskPlan（优先于 Blueprint 传递给 LeadAgent）
+   */
+  setTaskPlan(taskPlan: any): void {
+    this.currentTaskPlan = taskPlan;
   }
 
   /**
@@ -387,7 +397,7 @@ export class RealtimeCoordinator extends EventEmitter {
 
     // v9.0: LeadAgent 持久大脑模式（唯一执行路径）
     if (!this.currentBlueprint) {
-      throw new Error('LeadAgent 模式需要蓝图，请先调用 setBlueprint()');
+      throw new Error('LeadAgent 模式需要蓝图或任务计划，请先调用 setBlueprint()');
     }
     return this.startWithLeadAgent(plan, options?.isResume);
   }
@@ -398,7 +408,7 @@ export class RealtimeCoordinator extends EventEmitter {
    */
   private async startWithLeadAgent(plan: ExecutionPlan, isResume?: boolean): Promise<ExecutionResult> {
     if (!this.currentBlueprint) {
-      throw new Error('LeadAgent 模式需要蓝图，请先调用 setBlueprint()');
+      throw new Error('LeadAgent 模式需要蓝图或任务计划，请先调用 setBlueprint()');
     }
 
     if (isResume) {
@@ -438,9 +448,9 @@ export class RealtimeCoordinator extends EventEmitter {
       });
     }
 
-    // 创建 LeadAgent
+    // 创建 LeadAgent（v12.1: TaskPlan 优先，确保 LeadAgent 收到完整任务列表）
     const leadAgentConfig: LeadAgentConfig = {
-      blueprint: this.currentBlueprint,
+      blueprint: this.currentTaskPlan || this.currentBlueprint,
       executionPlan: plan,
       projectPath: this.projectPath,
       model: this.config.leadAgentModel || 'sonnet',

@@ -40,6 +40,7 @@ interface McpServerEntry extends McpServerConfig {
 interface McpPanelProps {
   onClose?: () => void;
   onSendMessage?: (message: any) => void;
+  addMessageHandler?: (handler: (msg: any) => void) => () => void;
 }
 
 type ViewMode = 'list' | 'detail' | 'tools' | 'toolDetail' | 'add';
@@ -488,7 +489,7 @@ function McpServerDetail({
 /**
  * MCP 管理主面板
  */
-export function McpPanel({ onClose, onSendMessage }: McpPanelProps) {
+export function McpPanel({ onClose, onSendMessage, addMessageHandler }: McpPanelProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedServer, setSelectedServer] = useState<McpServerEntry | null>(null);
@@ -498,39 +499,39 @@ export function McpPanel({ onClose, onSendMessage }: McpPanelProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [reconnecting, setReconnecting] = useState(false);
 
-  // 模拟加载服务器数据
+  // 发送获取 MCP 列表请求
   useEffect(() => {
-    // 发送获取 MCP 列表请求
     if (onSendMessage) {
       onSendMessage({ type: 'mcp_list' });
     }
-
-    // 直接设置模拟数据（移除延迟）
-    const mockServers: McpServerEntry[] = [
-      {
-        name: 'claude-in-chrome',
-        type: 'stdio',
-        command: 'npx',
-        args: ['-y', '@anthropic-ai/claude-in-chrome-mcp'],
-        enabled: true,
-        status: 'connected',
-        scope: 'user',
-        toolsCount: 5,
-        resourcesCount: 0,
-        promptsCount: 0,
-        tools: [
-          { name: 'mcp__claude-in-chrome__javascript_tool', serverName: 'claude-in-chrome', description: 'Execute JavaScript in browser' },
-          { name: 'mcp__claude-in-chrome__read_page', serverName: 'claude-in-chrome', description: 'Read page accessibility tree', isReadOnly: true },
-          { name: 'mcp__claude-in-chrome__find', serverName: 'claude-in-chrome', description: 'Find elements on page', isReadOnly: true },
-          { name: 'mcp__claude-in-chrome__navigate', serverName: 'claude-in-chrome', description: 'Navigate to URL' },
-          { name: 'mcp__claude-in-chrome__computer', serverName: 'claude-in-chrome', description: 'Mouse and keyboard actions' },
-        ],
-      },
-    ];
-
-    setServers(mockServers);
-    setLoading(false);
   }, [onSendMessage]);
+
+  // 监听 WebSocket 消息：mcp_list_response
+  useEffect(() => {
+    if (!addMessageHandler) {
+      setLoading(false);
+      return;
+    }
+
+    const unsubscribe = addMessageHandler((msg: any) => {
+      if (msg.type === 'mcp_list_response') {
+        const { servers: serverList } = msg.payload;
+        const entries: McpServerEntry[] = (serverList || []).map((s: any) => ({
+          ...s,
+          status: s.enabled === false ? 'disabled' as const : 'connected' as const,
+          scope: s.scope || 'user',
+          toolsCount: s.toolsCount || 0,
+          resourcesCount: s.resourcesCount || 0,
+          promptsCount: s.promptsCount || 0,
+          tools: s.tools || [],
+        }));
+        setServers(entries);
+        setLoading(false);
+      }
+    });
+
+    return unsubscribe;
+  }, [addMessageHandler]);
 
   const handleSelect = (server: McpServerEntry) => {
     setSelectedServer(server);

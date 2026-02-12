@@ -161,6 +161,11 @@ export const blueprintApi = {
     const response = await fetch(`/api/blueprint/blueprints/${id}/execute`, {
       method: 'POST',
     });
+    // v12.1: 处理 409 冲突（项目已有活跃蓝图正在执行）
+    if (response.status === 409) {
+      const result = await response.json();
+      throw new Error(result.error || '项目已有活跃蓝图正在执行');
+    }
     return handleResponse(response);
   },
 };
@@ -678,35 +683,6 @@ export const codebaseApi = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path }),
-    });
-    return handleResponse(response);
-  },
-};
-
-/**
- * 缓存管理 API
- */
-export const cacheApi = {
-  /**
-   * 获取缓存统计
-   */
-  getStats: async (): Promise<{
-    total: number;
-    size: number;
-    hits: number;
-    misses: number;
-    hitRate: number;
-  }> => {
-    const response = await fetch('/api/blueprint/cache/stats');
-    return handleResponse(response);
-  },
-
-  /**
-   * 清除所有缓存
-   */
-  clearAll: async (): Promise<{ message: string }> => {
-    const response = await fetch('/api/blueprint/cache', {
-      method: 'DELETE',
     });
     return handleResponse(response);
   },

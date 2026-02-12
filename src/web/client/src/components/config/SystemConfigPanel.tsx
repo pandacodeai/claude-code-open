@@ -233,7 +233,7 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
               ...loggingConfig,
               logPath: e.target.value
             })}
-            placeholder="/path/to/logfile.log"
+            placeholder={t('placeholder.logFile')}
           />
           <span className="help-text">{t('system.logging.pathHint')}</span>
         </label>
@@ -284,7 +284,7 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
               ...proxyConfig,
               http: e.target.value
             })}
-            placeholder="http://proxy.example.com:8080"
+            placeholder={t('placeholder.httpProxy')}
           />
         </label>
 
@@ -298,7 +298,7 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
               ...proxyConfig,
               https: e.target.value
             })}
-            placeholder="https://proxy.example.com:8443"
+            placeholder={t('placeholder.httpsProxy')}
           />
         </label>
 
@@ -367,7 +367,7 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
                   ...cacheConfig,
                   location: e.target.value
                 })}
-                placeholder="/path/to/cache"
+                placeholder={t('placeholder.cacheLocation')}
               />
               <span className="help-text">{t('system.cache.locationHint')}</span>
             </label>
@@ -418,7 +418,7 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
               ...securityConfig,
               sensitiveFiles: e.target.value.split('\n').filter(Boolean)
             })}
-            placeholder="**/.env&#10;**/*.key&#10;**/credentials.json"
+            placeholder={t('placeholder.sensitiveFiles')}
             rows={4}
           />
           <span className="help-text">{t('system.security.sensitiveFilesHint')}</span>
@@ -433,7 +433,7 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
               ...securityConfig,
               dangerousCommands: e.target.value.split('\n').filter(Boolean)
             })}
-            placeholder="rm -rf *&#10;sudo *&#10;format *"
+            placeholder={t('placeholder.dangerousCommands')}
             rows={4}
           />
           <span className="help-text">{t('system.security.dangerousCommandsHint')}</span>

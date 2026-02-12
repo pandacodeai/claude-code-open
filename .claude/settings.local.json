@@ -139,5 +139,8 @@
       "Bash(git -C f:/claude-code-open rm:*)",
       "Bash(awk:*)"
     ]
-  }
+  },
+  "disabledMcpServers": [
+    "claude-in-chrome"
+  ]
 }

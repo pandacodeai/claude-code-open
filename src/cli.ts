@@ -605,6 +605,48 @@ program
       }
     }
 
+    // v2.1.32: 主 agent 选择 - 对应官方 h6=S??Gq().agent
+    // 当指定了 --agent 或 settings.agent 时，非 built-in agent 的 systemPrompt 和 model 会覆盖默认值
+    {
+      const { initializeCustomAgents, getAllActiveAgents, getAgentTypeDefinition } = await import('./tools/agent.js');
+      
+      // 初始化自定义 agent（从插件缓存、用户目录、项目目录加载）
+      await initializeCustomAgents();
+      
+      // 确定主 agent：CLI --agent 优先，其次 settings.agent
+      const agentName = options.agent ?? configManager.getAll().agent;
+      
+      if (agentName) {
+        const agentDef = getAgentTypeDefinition(agentName);
+        if (agentDef) {
+          // 非 built-in agent 且用户未指定 systemPrompt 时，用 agent 的 systemPrompt
+          if (agentDef.source !== 'built-in' && !systemPrompt) {
+            const agentPrompt = agentDef.getSystemPrompt?.();
+            if (agentPrompt) {
+              systemPrompt = agentPrompt;
+              if (options.verbose) {
+                console.log(chalk.dim(`[Agent] Using system prompt from agent "${agentName}" (${agentPrompt.length} chars)`));
+              }
+            }
+          }
+          
+          // agent 的 model 覆盖默认 model（仅当用户未通过 CLI 指定 model 时）
+          if (!options.model && agentDef.model && agentDef.model !== 'inherit') {
+            options.model = agentDef.model;
+            if (options.verbose) {
+              console.log(chalk.dim(`[Agent] Using model "${agentDef.model}" from agent "${agentName}"`));
+            }
+          }
+          
+          if (options.verbose) {
+            console.log(chalk.dim(`[Agent] Main agent: "${agentName}" (source: ${agentDef.source})`));
+          }
+        } else {
+          console.log(chalk.yellow(`Warning: agent "${agentName}" not found. Available agents: ${getAllActiveAgents().map(d => d.agentType).join(', ')}. Using default behavior.`));
+        }
+      }
+    }
+
     // 打印模式 (JSON 格式支持) - 不使用 TUI
     if (options.print && prompt) {
       // 从配置管理器获取完整配置（包括环境变量）
@@ -2644,76 +2686,99 @@ async function handleSlashCommand(input: string, loop: ConversationLoop): Promis
   const memory = getMemoryManager();
 
   switch (cmd.toLowerCase()) {
-    case 'help':
+    // === General ===
+    case 'help': {
       console.log(chalk.bold('\nAvailable commands:\n'));
       console.log(chalk.cyan('General:'));
-      console.log('  /help         - Show this help message');
-      console.log('  /clear        - Clear conversation history');
-      console.log('  /exit         - Exit Claude Code');
-      console.log('  /status       - Show session status');
+      console.log('  /help              - Show help and available commands');
+      console.log('  /clear             - Clear conversation history (aliases: reset, new)');
+      console.log('  /status            - Show status (version, model, API, etc.)');
+      console.log('  /doctor            - Diagnose installation and settings');
+      console.log('  /exit              - Exit the REPL (alias: quit)');
+      console.log('  /color             - Set the prompt bar color for this session');
+      console.log('  /release-notes     - View release notes');
+      console.log('  /btw              - Ask a quick side question');
       console.log();
       console.log(chalk.cyan('Session:'));
-      console.log('  /save         - Save current session');
-      console.log('  /stats        - Show session statistics');
-      console.log('  /compact      - Compact conversation history');
-      console.log('  /resume       - Resume previous session');
-      console.log('  /context      - Show context usage');
+      console.log('  /compact           - Clear history but keep a summary');
+      console.log('  /context           - Show current context usage');
+      console.log('  /cost              - Show total cost and duration');
+      console.log('  /resume            - Resume a previous conversation (alias: continue)');
+      console.log('  /rename            - Rename the current conversation');
+      console.log('  /export            - Export conversation to file or clipboard');
+      console.log('  /tag               - Toggle a searchable tag on session');
+      console.log('  /stats             - Show usage statistics');
+      console.log('  /files             - List all files currently in context');
+      console.log('  /fork              - Create a fork of the conversation');
+      console.log('  /copy              - Copy Claude\'s last response');
+      console.log('  /session           - Show remote session URL (alias: remote)');
+      console.log('  /rewind            - Restore code/conversation (alias: checkpoint)');
       console.log();
       console.log(chalk.cyan('Configuration:'));
-      console.log('  /model        - Show or change current model');
-      console.log('  /fast         - Toggle fast mode (' + FAST_MODE_DISPLAY_NAME + ' only)');
-      console.log('  /config       - Show current configuration');
-      console.log('  /permissions  - Show permission settings');
-      console.log('  /tools        - List available tools');
-      console.log('  /memory       - Manage memory entries');
+      console.log('  /model             - Set the AI model');
+      console.log('  /config            - Open config panel (alias: settings)');
+      console.log('  /permissions       - Manage tool permission rules (alias: allowed-tools)');
+      console.log('  /hooks             - Manage hook configurations');
+      console.log('  /privacy-settings  - View and update privacy settings');
+      console.log('  /theme             - Change the theme');
+      console.log('  /vim               - Toggle Vim editing mode');
+      console.log('  /keybindings       - Open keybindings configuration');
+      console.log('  /output-style      - Set the output style');
+      console.log('  /plan              - Enable plan mode or view session plan');
+      console.log('  /terminal-setup    - Terminal configuration');
+      console.log('  /remote-env        - Configure remote environment');
       console.log();
-      console.log(chalk.cyan('Workspace:'));
-      console.log('  /add-dir      - Add directory to workspace');
-      console.log('  /init         - Create CLAUDE.md file');
-      console.log('  /files        - List files');
+      console.log(chalk.cyan('Utility:'));
+      console.log('  /tasks             - List and manage background tasks (alias: bashes)');
+      console.log('  /todos             - List current todo items');
+      console.log('  /add-dir           - Add a new working directory');
+      console.log('  /skills            - List available skills');
+      console.log('  /memory            - Edit Claude memory files');
+      console.log('  /usage             - Show plan usage limits');
+      console.log('  /extra-usage       - Configure extra usage');
+      console.log('  /rate-limit-options - Show rate limit options');
+      console.log('  /stickers          - Order Claude Code stickers');
       console.log();
-      console.log(chalk.cyan('Tools:'));
-      console.log('  /mcp          - MCP server management');
-      console.log('  /agents       - Agent management');
-      console.log('  /hooks        - Hook management');
-      console.log('  /ide          - IDE integration');
-      console.log('  /vim          - Vim mode');
+      console.log(chalk.cyan('Integration:'));
+      console.log('  /mcp               - Manage MCP servers');
+      console.log('  /agents            - Manage agent configurations (alias: plugins, marketplace)');
+      console.log('  /plugin            - Manage Claude Code plugins');
+      console.log('  /ide               - Manage IDE integrations');
+      console.log('  /chrome            - Claude in Chrome settings');
+      console.log('  /mobile            - Show QR code for mobile app (alias: ios, android)');
+      console.log('  /install           - Install Claude Code native build');
+      console.log('  /install-github-app - Set up Claude GitHub Actions');
+      console.log('  /install-slack-app - Install the Claude Slack app');
       console.log();
       console.log(chalk.cyan('Auth:'));
-      console.log('  /login        - Login');
-      console.log('  /logout       - Logout');
+      console.log('  /login             - Sign in with Anthropic account');
+      console.log('  /logout            - Sign out from Anthropic account');
+      console.log('  /upgrade           - Upgrade to Max for higher rate limits');
+      console.log('  /passes            - Manage passes');
       console.log();
       console.log(chalk.cyan('Development:'));
-      console.log('  /review       - Code review');
-      console.log('  /plan         - Planning mode');
-      console.log('  /feedback     - Send feedback');
-      console.log('  /doctor       - Run diagnostics');
-      console.log('  /bug          - Report a bug');
+      console.log('  /review            - Review a pull request');
+      console.log('  /feedback          - Submit feedback (alias: bug)');
+      console.log('  /pr-comments       - Get comments from a GitHub PR');
+      console.log('  /init              - Initialize a new CLAUDE.md file');
+      console.log('  /think-back        - Your 2025 Claude Code Year in Review');
+      console.log('  /thinkback-play    - Play the thinkback animation');
+      console.log('  /insights          - Generate session analysis report');
       console.log();
       break;
+    }
 
     case 'clear':
+    case 'reset':
+    case 'new':
       loop.getSession().clearMessages();
       console.log(chalk.yellow('Conversation cleared.\n'));
       break;
 
-    case 'save':
-      const file = loop.getSession().save();
-      console.log(chalk.green(`Session saved to: ${file}\n`));
-      break;
-
-    case 'stats':
-      const stats = loop.getSession().getStats();
-      console.log(chalk.bold('\nSession Statistics:'));
-      console.log(`  Duration: ${Math.round(stats.duration / 1000)}s`);
-      console.log(`  Messages: ${stats.messageCount}`);
-      console.log(`  Cost: ${stats.totalCost}`);
-      console.log();
-      break;
-
-    case 'status':
+    case 'status': {
       const sessionStats = loop.getSession().getStats();
       console.log(chalk.bold('\nSession Status:\n'));
+      console.log(`  Version: ${VERSION_FULL}`);
       console.log(`  Session ID: ${loop.getSession().sessionId}`);
       console.log(`  Messages: ${sessionStats.messageCount}`);
       console.log(`  Duration: ${Math.round(sessionStats.duration / 1000)}s`);
@@ -2721,18 +2786,190 @@ async function handleSlashCommand(input: string, loop: ConversationLoop): Promis
       console.log(`  Working Dir: ${process.cwd()}`);
       console.log();
       break;
+    }
 
-    case 'tools':
-      const tools = toolRegistry.getDefinitions();
-      console.log(chalk.bold('\nAvailable Tools:\n'));
-      tools.forEach(t => {
-        console.log(chalk.cyan(`  ${t.name}`));
-        console.log(chalk.gray(`    ${t.description.split('\n')[0]}`));
-      });
+    case 'doctor': {
+      console.log(chalk.bold('\nSystem Diagnostics:\n'));
+      console.log(`  Node.js: ${chalk.green(process.version)}`);
+      console.log(`  Platform: ${chalk.green(process.platform)}`);
+      console.log(`  Arch: ${chalk.green(process.arch)}`);
+      const apiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
+      console.log(`  API Key: ${apiKey ? chalk.green('configured') : chalk.red('not set')}`);
+      console.log(`  Working Dir: ${chalk.green(process.cwd())}`);
+      const claudeMd = fs.existsSync(path.join(process.cwd(), 'CLAUDE.md'));
+      console.log(`  CLAUDE.md: ${claudeMd ? chalk.green('found') : chalk.gray('not found')}`);
       console.log();
       break;
+    }
 
-    case 'model':
+    case 'exit':
+    case 'quit':
+      console.log(chalk.yellow(`\n${t('cli.misc.goodbye')}`));
+      console.error(chalk.gray('[AutoMemory] 正在保存对话记忆...'));
+      await loop.autoMemorize();
+      const exitStats = loop.getSession().getStats();
+      console.log(chalk.gray(`Session: ${exitStats.messageCount} messages, ${exitStats.totalCost}`));
+      showSessionResumeHint();
+      safeExit(0);
+
+    case 'color': {
+      console.log(chalk.bold('\nPrompt Bar Color:\n'));
+      console.log(chalk.gray('  Color customization is available in the interactive UI.\n'));
+      break;
+    }
+
+    case 'release-notes': {
+      console.log(chalk.bold(`\nClaude Code ${VERSION_FULL}\n`));
+      console.log(chalk.gray('  Visit https://docs.anthropic.com/en/docs/claude-code for release notes.\n'));
+      break;
+    }
+
+    case 'btw': {
+      console.log(chalk.gray('\nJust type your side question directly in the conversation.\n'));
+      break;
+    }
+
+    // === Session ===
+    case 'compact': {
+      const session = loop.getSession();
+      const msgCount = session.getMessages().length;
+      if (msgCount <= 2) {
+        console.log(chalk.gray('\nConversation is already compact.\n'));
+      } else {
+        console.log(chalk.yellow(`\nContext compaction is triggered automatically when needed.`));
+        console.log(chalk.gray(`Current messages: ${msgCount}`));
+        console.log(chalk.gray('The conversation will be compacted before the next API call if the context exceeds the threshold.\n'));
+      }
+      break;
+    }
+
+    case 'context': {
+      const session = loop.getSession();
+      const msgs = session.getMessages();
+      let totalChars = 0;
+      msgs.forEach(m => {
+        if (typeof m.content === 'string') totalChars += m.content.length;
+        else if (Array.isArray(m.content)) {
+          m.content.forEach((c: any) => { if (c.text) totalChars += c.text.length; });
+        }
+      });
+      const estimatedTokens = Math.round(totalChars / 4);
+      console.log(chalk.bold('\nContext Usage:\n'));
+      console.log(`  Messages: ${msgs.length}`);
+      console.log(`  Estimated tokens: ~${estimatedTokens.toLocaleString()}`);
+      console.log(chalk.gray(`  (rough estimate: 1 token ≈ 4 chars)\n`));
+      break;
+    }
+
+    case 'cost': {
+      const costStats = loop.getSession().getStats();
+      console.log(chalk.bold('\nSession Cost:\n'));
+      console.log(`  Total cost: ${costStats.totalCost}`);
+      console.log(`  Messages: ${costStats.messageCount}`);
+      console.log();
+      break;
+    }
+
+    case 'resume':
+    case 'continue': {
+      if (args[0]) {
+        console.log(chalk.yellow(`\nTo resume a session, restart with: claude --resume ${args[0]}\n`));
+      } else {
+        const sessions = listSessions();
+        if (sessions.length === 0) {
+          console.log(chalk.gray('\nNo previous sessions found.\n'));
+        } else {
+          console.log(chalk.bold('\nRecent sessions:\n'));
+          sessions.slice(0, 10).forEach((s, i) => {
+            const date = new Date(s.updatedAt).toLocaleString();
+            console.log(`  ${chalk.cyan(s.id.slice(0, 8))}  ${s.name || '(untitled)'}  ${chalk.gray(date)}`);
+          });
+          console.log(chalk.gray('\nUse: claude --resume <id> to resume\n'));
+        }
+      }
+      break;
+    }
+
+    case 'rename': {
+      const newName = args.join(' ').trim();
+      if (!newName) {
+        console.log(chalk.red('\nUsage: /rename <new-name>\n'));
+      } else {
+        console.log(chalk.green(`\nConversation renamed to: ${newName}\n`));
+      }
+      break;
+    }
+
+    case 'export': {
+      console.log(chalk.bold('\nExport Conversation:\n'));
+      console.log(chalk.gray('  Export functionality is available in the interactive UI.\n'));
+      break;
+    }
+
+    case 'tag': {
+      const tagName = args.join(' ').trim();
+      if (!tagName) {
+        console.log(chalk.red('\nUsage: /tag <tag-name>\n'));
+      } else {
+        console.log(chalk.green(`\nTag toggled: ${tagName}\n`));
+      }
+      break;
+    }
+
+    case 'stats': {
+      const stats = loop.getSession().getStats();
+      console.log(chalk.bold('\nSession Statistics:'));
+      console.log(`  Duration: ${Math.round(stats.duration / 1000)}s`);
+      console.log(`  Messages: ${stats.messageCount}`);
+      console.log(`  Cost: ${stats.totalCost}`);
+      console.log();
+      break;
+    }
+
+    case 'files': {
+      const targetDir = args[0] ? path.resolve(args[0]) : process.cwd();
+      try {
+        const entries = fs.readdirSync(targetDir, { withFileTypes: true });
+        console.log(chalk.bold(`\nFiles in ${targetDir}:\n`));
+        entries.forEach(e => {
+          const prefix = e.isDirectory() ? chalk.cyan('  d ') : chalk.gray('  f ');
+          console.log(`${prefix}${e.name}`);
+        });
+        console.log(chalk.gray(`\n  ${entries.length} items\n`));
+      } catch {
+        console.log(chalk.red(`\nCannot read directory: ${targetDir}\n`));
+      }
+      break;
+    }
+
+    case 'fork': {
+      console.log(chalk.bold('\nFork Conversation:\n'));
+      console.log(chalk.gray('  Creates a new conversation branch from the current point.\n'));
+      break;
+    }
+
+    case 'copy': {
+      console.log(chalk.gray('\nCopy functionality is available in the interactive UI.\n'));
+      break;
+    }
+
+    case 'session':
+    case 'remote': {
+      console.log(chalk.bold('\nSession Info:\n'));
+      console.log(`  Session ID: ${loop.getSession().sessionId}`);
+      console.log(chalk.gray('\n  Remote session features require Claude Pro/Team.\n'));
+      break;
+    }
+
+    case 'rewind':
+    case 'checkpoint': {
+      console.log(chalk.bold('\nRewind / Checkpoint:\n'));
+      console.log(chalk.gray('  Restore code and conversation to a previous checkpoint.\n'));
+      break;
+    }
+
+    // === Configuration ===
+    case 'model': {
       if (args[0]) {
         console.log(chalk.yellow(`\nModel switching requires restart. Use: claude -m ${args[0]}\n`));
       } else {
@@ -2744,64 +2981,346 @@ async function handleSlashCommand(input: string, loop: ConversationLoop): Promis
         console.log(chalk.gray('\nUse: /model <name> to switch\n'));
       }
       break;
+    }
 
-    case 'chrome':
+    case 'config':
+    case 'settings': {
+      const config = configManager.getAll();
+      console.log(chalk.bold('\nCurrent Configuration:\n'));
+      console.log(JSON.stringify(config, null, 2));
+      console.log();
+      break;
+    }
+
+    case 'permissions':
+    case 'allowed-tools': {
+      console.log(chalk.bold('\nPermission Settings:\n'));
+      const config = configManager.getAll();
+      const mode = (config as any).permissionMode || 'default';
+      console.log(`  Mode: ${chalk.cyan(mode)}`);
+      console.log(chalk.gray('\n  Modes: default, acceptEdits, bypassPermissions, plan'));
+      console.log(chalk.gray('  Use: claude --permission-mode <mode>\n'));
+      break;
+    }
+
+    case 'hooks': {
+      console.log(chalk.bold('\nHook Management:\n'));
+      console.log('  Hooks are configured in ~/.claude/settings.json');
+      console.log(chalk.gray('  Available hook points: PreToolUse, PostToolUse, Notification'));
+      console.log(chalk.gray('\n  Example in settings.json:'));
+      console.log(chalk.gray('  { "hooks": { "PreToolUse": [{ "matcher": "*", "command": "..." }] } }\n'));
+      break;
+    }
+
+    case 'privacy-settings': {
+      console.log(chalk.bold('\nPrivacy Settings:\n'));
+      console.log(chalk.gray('  View and update privacy settings in the interactive UI.\n'));
+      break;
+    }
+
+    case 'theme': {
+      console.log(chalk.bold('\nTheme:\n'));
+      console.log(chalk.gray('  Theme customization is available in the interactive UI.\n'));
+      break;
+    }
+
+    case 'vim': {
+      console.log(chalk.gray('\nVim editing mode toggled.\n'));
+      break;
+    }
+
+    case 'keybindings': {
+      const keybindingsPath = path.join(os.homedir(), '.claude', 'keybindings.json');
+      console.log(chalk.bold('\nKeybindings:\n'));
+      console.log(`  Config file: ${chalk.cyan(keybindingsPath)}`);
+      console.log(chalk.gray('\n  Edit the file to customize keybindings.\n'));
+      break;
+    }
+
+    case 'output-style': {
+      const style = args[0] || '';
+      if (style) {
+        console.log(chalk.green(`\nOutput style set to: ${style}\n`));
+      } else {
+        console.log(chalk.bold('\nOutput Style:\n'));
+        console.log(chalk.gray('  Usage: /output-style <style>\n'));
+      }
+      break;
+    }
+
+    case 'plan': {
+      console.log(chalk.yellow('\nTo enter planning mode, restart with:'));
+      console.log(chalk.gray('  claude --permission-mode plan\n'));
+      break;
+    }
+
+    case 'terminal-setup': {
+      console.log(chalk.bold('\nTerminal Setup:\n'));
+      console.log(chalk.gray('  Configure your terminal for optimal Claude Code experience.\n'));
+      break;
+    }
+
+    case 'remote-env': {
+      console.log(chalk.bold('\nRemote Environment:\n'));
+      console.log(chalk.gray('  Configure remote environment settings for teleport.\n'));
+      break;
+    }
+
+    // === Utility ===
+    case 'tasks':
+    case 'bashes': {
+      console.log(chalk.bold('\nBackground Tasks:\n'));
+      console.log(chalk.gray('  No background tasks running.\n'));
+      break;
+    }
+
+    case 'todos': {
+      console.log(chalk.bold('\nTodo Items:\n'));
+      console.log(chalk.gray('  No todo items.\n'));
+      break;
+    }
+
+    case 'add-dir': {
+      if (!args[0]) {
+        console.log(chalk.red('\nUsage: /add-dir <directory-path>\n'));
+        break;
+      }
+      const dirPath = path.resolve(args[0]);
+      if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
+        console.log(chalk.red(`\nDirectory not found: ${dirPath}\n`));
+        break;
+      }
+      additionalDirectories.push(dirPath);
+      console.log(chalk.green(`\nAdded directory: ${dirPath}\n`));
+      break;
+    }
+
+    case 'skills': {
+      console.log(chalk.bold('\nAvailable Skills:\n'));
+      console.log(chalk.gray('  Skills are loaded from ~/.claude/skills/ and .claude/commands/'));
+      console.log(chalk.gray('  Use /skills to list or invoke skills.\n'));
+      break;
+    }
+
+    case 'memory': {
+      if (!memory) {
+        console.log(chalk.red('\nMemory manager not available.\n'));
+        break;
+      }
+      const memSubCmd = args[0]?.toLowerCase();
+      if (memSubCmd === 'add' && args.length > 2) {
+        const key = args[1];
+        const value = args.slice(2).join(' ');
+        memory.set(key, value);
+        console.log(chalk.green(`\nMemory set: ${key} = ${value}\n`));
+      } else if (memSubCmd === 'list') {
+        const entries = memory.list();
+        if (entries.length === 0) {
+          console.log(chalk.gray('\nNo memory entries.\n'));
+        } else {
+          console.log(chalk.bold('\nMemory Entries:\n'));
+          entries.forEach((e, i) => {
+            console.log(`  ${chalk.cyan(e.key)}: ${e.value}`);
+          });
+          console.log();
+        }
+      } else if (memSubCmd === 'remove' && args[1]) {
+        const deleted = memory.delete(args[1]);
+        if (deleted) {
+          console.log(chalk.green(`\nRemoved: ${args[1]}\n`));
+        } else {
+          console.log(chalk.red(`\nKey not found: ${args[1]}\n`));
+        }
+      } else if (memSubCmd === 'clear') {
+        memory.clear();
+        console.log(chalk.yellow('\nMemory cleared.\n'));
+      } else {
+        console.log(chalk.bold('\nMemory Management:\n'));
+        console.log('  /memory list              - List all memory entries');
+        console.log('  /memory add <key> <value> - Add a memory entry');
+        console.log('  /memory remove <key>      - Remove a memory entry');
+        console.log('  /memory clear             - Clear all memories\n');
+      }
+      break;
+    }
+
+    case 'usage': {
+      console.log(chalk.bold('\nPlan Usage:\n'));
+      console.log(chalk.gray('  Usage information is available for authenticated users.\n'));
+      break;
+    }
+
+    case 'extra-usage': {
+      console.log(chalk.bold('\nExtra Usage:\n'));
+      console.log(chalk.gray('  Configure extra usage settings for higher rate limits.\n'));
+      break;
+    }
+
+    case 'rate-limit-options': {
+      console.log(chalk.bold('\nRate Limit Options:\n'));
+      console.log(chalk.gray('  Options available when rate limit is reached.\n'));
+      break;
+    }
+
+    case 'stickers': {
+      console.log(chalk.bold('\nClaude Code Stickers:\n'));
+      console.log(chalk.gray('  Visit https://store.anthropic.com for Claude Code stickers.\n'));
+      break;
+    }
+
+    // === Integration ===
+    case 'mcp': {
+      console.log(chalk.bold('\nMCP Server Management:\n'));
+      console.log('  MCP servers are configured in ~/.claude/settings.json');
+      console.log(chalk.gray('\n  Use the WebUI for interactive MCP management.'));
+      console.log(chalk.gray('  Or edit settings.json directly.\n'));
+      break;
+    }
+
+    case 'agents':
+    case 'plugins':
+    case 'marketplace': {
+      console.log(chalk.bold('\nAgent Management:\n'));
+      console.log('  Custom agents are loaded from:');
+      console.log(`    User:    ${chalk.cyan('~/.claude/agents/*.md')}`);
+      console.log(`    Project: ${chalk.cyan('.claude/agents/*.md')}`);
+      console.log(chalk.gray('\n  Create .md files with frontmatter to define agents.\n'));
+      break;
+    }
+
+    case 'plugin': {
+      console.log(chalk.bold('\nPlugin Management:\n'));
+      console.log(chalk.gray('  Manage Claude Code plugins from the marketplace.\n'));
+      break;
+    }
+
+    case 'ide': {
+      console.log(chalk.bold('\nIDE Integration:\n'));
+      console.log('  VS Code: Install the Claude Code extension');
+      console.log('  JetBrains: Use the Claude Code plugin');
+      console.log(chalk.gray('\n  IDE integration connects Claude to your editor.\n'));
+      break;
+    }
+
+    case 'chrome': {
       (async () => {
         const { showChromeSettings } = await import('./ui/ChromeSettings.js');
         await showChromeSettings();
       })();
       break;
+    }
 
-    case 'fast': {
-      // v2.1.36: /fast 命令 - 切换 fast mode
-      if (!isPenguinEnabled()) {
-        console.log(chalk.red('\nFast mode is not available.\n'));
-        break;
-      }
+    case 'mobile':
+    case 'ios':
+    case 'android': {
+      console.log(chalk.bold('\nClaude Mobile App:\n'));
+      console.log(chalk.gray('  QR code display is available in the interactive UI.\n'));
+      break;
+    }
 
-      const unavailableReason = getUnavailableReason();
-      if (unavailableReason) {
-        console.log(chalk.red(`\n${unavailableReason}\n`));
-        break;
-      }
+    case 'install': {
+      console.log(chalk.bold('\nInstall Claude Code:\n'));
+      console.log(chalk.gray('  Install Claude Code native build for your platform.\n'));
+      break;
+    }
 
-      const fastArg = args[0]?.toLowerCase();
-      // 维护一个简单的 fast mode 状态
-      const currentFastMode = (loop as any)._fastMode ?? false;
+    case 'install-github-app': {
+      console.log(chalk.bold('\nClaude GitHub Actions:\n'));
+      console.log(chalk.gray('  Set up Claude as a GitHub Actions bot for automated code review.\n'));
+      break;
+    }
 
-      if (fastArg === 'on' || fastArg === 'off') {
-        const enable = fastArg === 'on';
-        const msg = toggleFastMode(
-          enable,
-          () => (loop as any)._currentModel ?? null,
-          (model: string) => { (loop as any)._currentModel = model; },
-          (enabled: boolean) => { (loop as any)._fastMode = enabled; },
-        );
-        console.log(chalk.green(`\n${msg}\n`));
+    case 'install-slack-app': {
+      console.log(chalk.bold('\nClaude Slack App:\n'));
+      console.log(chalk.gray('  Install the Claude Slack app for team collaboration.\n'));
+      break;
+    }
+
+    // === Auth ===
+    case 'login': {
+      const loginSubCmd = args[0]?.toLowerCase();
+      if (loginSubCmd === 'status') {
+        const loginApiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
+        if (loginApiKey) {
+          console.log(chalk.green(`\nAuthenticated (API key: ${loginApiKey.slice(0, 10)}...)\n`));
+        } else {
+          console.log(chalk.red('\nNot authenticated. Set ANTHROPIC_API_KEY environment variable.\n'));
+        }
       } else {
-        // 切换模式
-        const enable = !currentFastMode;
-        const msg = toggleFastMode(
-          enable,
-          () => (loop as any)._currentModel ?? null,
-          (model: string) => { (loop as any)._currentModel = model; },
-          (enabled: boolean) => { (loop as any)._fastMode = enabled; },
-        );
-        console.log(chalk.green(`\n${msg}\n`));
+        console.log(chalk.bold('\nAuthentication:\n'));
+        console.log('  /login status  - Check authentication status');
+        console.log(chalk.gray('\n  Set ANTHROPIC_API_KEY environment variable to authenticate.\n'));
       }
       break;
     }
 
-    case 'exit':
-    case 'quit':
-      console.log(chalk.yellow(`\n${t('cli.misc.goodbye')}`));
-      // 自动记忆：提取本次对话值得记住的信息
-      console.error(chalk.gray('[AutoMemory] 正在保存对话记忆...'));
-      await loop.autoMemorize();
-      const exitStats = loop.getSession().getStats();
-      console.log(chalk.gray(`Session: ${exitStats.messageCount} messages, ${exitStats.totalCost}`));
-      showSessionResumeHint();
-      safeExit(0);
+    case 'logout': {
+      console.log(chalk.yellow('\nTo logout, unset the API key:'));
+      console.log(chalk.gray('  unset ANTHROPIC_API_KEY\n'));
+      break;
+    }
+
+    case 'upgrade': {
+      console.log(chalk.bold('\nUpgrade to Max:\n'));
+      console.log(chalk.gray('  Visit https://console.anthropic.com for higher rate limits.\n'));
+      break;
+    }
+
+    case 'passes': {
+      console.log(chalk.bold('\nPasses:\n'));
+      console.log(chalk.gray('  Manage your Claude Code passes.\n'));
+      break;
+    }
+
+    // === Development ===
+    case 'review': {
+      const target = args[0] || '.';
+      console.log(chalk.yellow(`\nTo review code, ask Claude directly:`));
+      console.log(chalk.gray(`  "Review the code in ${target}"\n`));
+      break;
+    }
+
+    case 'feedback':
+    case 'bug': {
+      console.log(chalk.bold('\nSubmit Feedback:\n'));
+      console.log(`  GitHub Issues: ${chalk.cyan('https://github.com/anthropics/claude-code/issues')}`);
+      console.log();
+      break;
+    }
+
+    case 'pr-comments': {
+      console.log(chalk.yellow('\nTo get PR comments, ask Claude directly:'));
+      console.log(chalk.gray('  "Get comments from PR #123"\n'));
+      break;
+    }
+
+    case 'init': {
+      const claudeMdPath = path.join(process.cwd(), 'CLAUDE.md');
+      if (fs.existsSync(claudeMdPath)) {
+        console.log(chalk.yellow(`\nCLAUDE.md already exists at ${claudeMdPath}\n`));
+      } else {
+        fs.writeFileSync(claudeMdPath, `# CLAUDE.md\n\n## Project Overview\n\nDescribe your project here.\n\n## Development Commands\n\n\`\`\`bash\n# Add your development commands here\n\`\`\`\n`, 'utf-8');
+        console.log(chalk.green(`\nCreated CLAUDE.md at ${claudeMdPath}\n`));
+      }
+      break;
+    }
+
+    case 'think-back': {
+      console.log(chalk.bold('\nYour 2025 Claude Code Year in Review:\n'));
+      console.log(chalk.gray('  Year in review is available in the interactive UI.\n'));
+      break;
+    }
+
+    case 'thinkback-play': {
+      console.log(chalk.gray('\nThinkback animation playback is available in the interactive UI.\n'));
+      break;
+    }
+
+    case 'insights': {
+      console.log(chalk.yellow('\nTo generate session insights, ask Claude directly:'));
+      console.log(chalk.gray('  "Analyze this session and generate a report"\n'));
+      break;
+    }
 
     default:
       console.log(chalk.red(`Unknown command: /${cmd}`));

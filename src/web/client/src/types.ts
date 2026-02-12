@@ -257,6 +257,7 @@ export interface SlashCommand {
   description: string;
   aliases?: string[];
   usage?: string;
+  category?: 'general' | 'session' | 'config' | 'utility' | 'integration' | 'auth' | 'development';
 }
 
 // 权限请求

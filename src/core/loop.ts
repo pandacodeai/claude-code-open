@@ -2382,8 +2382,16 @@ export class ConversationLoop {
         });
 
         // 添加 newMessages（对齐官网实现：skill 内容作为独立的 user 消息）
+        // 官网 Ch4: metadata 消息无 isMeta，skill 内容消息 isMeta: true
         for (const newMsg of allNewMessages) {
-          this.session.addMessage(newMsg);
+          const msg: Message = {
+            role: newMsg.role,
+            content: newMsg.content,
+          };
+          if ('isMeta' in newMsg && newMsg.isMeta) {
+            msg.isMeta = true;
+          }
+          this.session.addMessage(msg);
         }
       }
 
@@ -2856,8 +2864,16 @@ Guidelines:
         });
 
         // 添加 newMessages（对齐官网实现：skill 内容作为独立的 user 消息）
+        // 官网 Ch4: metadata 消息无 isMeta，skill 内容消息 isMeta: true
         for (const newMsg of allNewMessages) {
-          this.session.addMessage(newMsg);
+          const msg: Message = {
+            role: newMsg.role,
+            content: newMsg.content,
+          };
+          if ('isMeta' in newMsg && newMsg.isMeta) {
+            msg.isMeta = true;
+          }
+          this.session.addMessage(msg);
         }
       } else if (streamStopReason === 'max_tokens') {
         // v4.3: 响应被截断（max_tokens），追加提醒让模型继续
