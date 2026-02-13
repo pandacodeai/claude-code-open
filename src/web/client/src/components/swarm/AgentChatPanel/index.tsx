@@ -98,6 +98,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   interjectStatus,
 }) => {
   const chatAreaRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef(true);
   const [showSystemPrompt, setShowSystemPrompt] = useState(false);
   const [interjectInput, setInterjectInput] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -119,9 +120,22 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
 
   const totalMessageCount = filteredBlocks.length;
 
-  // 自动滚动到底部
+  // 监听滚动位置，判断用户是否在底部附近
   useEffect(() => {
-    if (chatAreaRef.current) {
+    const container = chatAreaRef.current;
+    if (!container) return;
+    const THRESHOLD = 80;
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      isNearBottomRef.current = scrollHeight - scrollTop - clientHeight < THRESHOLD;
+    };
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // 仅在用户处于底部附近时自动滚动
+  useEffect(() => {
+    if (isNearBottomRef.current && chatAreaRef.current) {
       chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
     }
   }, [filteredBlocks.length, stream?.lastUpdated]);

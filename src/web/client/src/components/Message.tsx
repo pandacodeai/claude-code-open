@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { MarkdownContent } from './MarkdownContent';
 import { CliToolCall } from './CliToolCall';
 import { CliThinkingBlock } from './CliThinkingBlock';
@@ -13,6 +13,11 @@ import { SkillMessage, isSkillMessage } from './SkillMessage';
 import { useLanguage } from '../i18n';
 import { coordinatorApi } from '../api/blueprint';
 import type { ChatMessage, ChatContent, ToolUse, NotebookOutputData } from '../types';
+
+/** 用户消息折叠阈值：超过此行数自动折叠 */
+const USER_MESSAGE_COLLAPSE_LINES = 10;
+/** 折叠时显示的最大高度（px） */
+const USER_MESSAGE_COLLAPSE_HEIGHT = 200;
 
 interface MessageProps {
   message: ChatMessage;
@@ -51,14 +56,29 @@ export function Message({
 }: MessageProps) {
   const { role, content } = message;
   const messageRef = useRef<HTMLDivElement>(null);
+  const userContentRef = useRef<HTMLDivElement>(null);
   const [showRewindMenu, setShowRewindMenu] = useState(false);
   const [rewindMenuPosition, setRewindMenuPosition] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
   const [copyButtonText, setCopyButtonText] = useState('📋');
+  const [isUserMessageExpanded, setIsUserMessageExpanded] = useState(false);
   const { t } = useLanguage();
 
   // 获取内容数组
   const contentArray = Array.isArray(content) ? content : [];
+
+  // 判断用户消息是否需要折叠
+  const shouldCollapseUserMessage = useMemo(() => {
+    if (role !== 'user') return false;
+    const textContent = contentArray
+      .filter(c => c.type === 'text')
+      .map(c => c.text)
+      .join('\n');
+    const lineCount = textContent.split('\n').length;
+    return lineCount > USER_MESSAGE_COLLAPSE_LINES || textContent.length > 600;
+  }, [role, contentArray]);
+
+  const isUserMessageCollapsed = shouldCollapseUserMessage && !isUserMessageExpanded;
 
   // 处理回滚按钮点击
   const handleRewindClick = (e: React.MouseEvent) => {
@@ -134,7 +154,7 @@ export function Message({
       if (isSkillMessage(item.text)) {
         return <SkillMessage key={index} text={item.text} />;
       }
-      return <MarkdownContent key={index} content={item.text} />;
+      return <MarkdownContent key={index} content={item.text} isUserMessage={role === 'user'} />;
     }
     if (item.type === 'image') {
       const imgSrc = item.source?.type === 'base64'
@@ -371,10 +391,27 @@ export function Message({
               <span className="message-role">{role === 'user' ? t('message.role.user') : t('message.role.assistant')}</span>
               {message.model && <span>({message.model})</span>}
             </div>
-            {Array.isArray(content)
-              ? content.map(renderContent)
-              : <MarkdownContent content={content as unknown as string} />
-            }
+            {isUserMessageCollapsed ? (
+              <div className="user-message-collapsed" ref={userContentRef} style={{ maxHeight: USER_MESSAGE_COLLAPSE_HEIGHT }}>
+                {Array.isArray(content)
+                  ? content.map(renderContent)
+                  : <MarkdownContent content={content as unknown as string} isUserMessage={role === 'user'} />
+                }
+                <div className="user-message-fade" />
+              </div>
+            ) : (
+              Array.isArray(content)
+                ? content.map(renderContent)
+                : <MarkdownContent content={content as unknown as string} isUserMessage={role === 'user'} />
+            )}
+            {shouldCollapseUserMessage && (
+              <button
+                className="user-message-toggle"
+                onClick={() => setIsUserMessageExpanded(!isUserMessageExpanded)}
+              >
+                {isUserMessageExpanded ? t('message.showLess') : t('message.showMore')}
+              </button>
+            )}
           </div>
 
           {/* 右侧按钮区域 */}

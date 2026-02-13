@@ -1,10 +1,29 @@
 /**
  * ErrorBoundary 组件
  * 捕获 React 渲染错误，防止白屏
+ *
+ * 关键设计：fallback UI 零外部依赖（不引用 i18n、CSS 变量等），
+ * 确保即使其他模块被改坏，ErrorBoundary 自身也能正常渲染。
  */
 
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
-import { getTranslation } from '../i18n';
+
+// 安全获取翻译 — 如果 i18n 模块出错则降级为英文硬编码
+function safeTranslate(key: string): string {
+  const fallbacks: Record<string, string> = {
+    'error.title': 'Something went wrong',
+    'error.unknown': 'An unexpected error occurred',
+    'error.retry': 'Retry',
+    'error.reload': 'Reload Page',
+  };
+  try {
+    // 动态引入避免模块级依赖 — 如果 i18n 模块已加载则使用
+    const { getTranslation } = require('../i18n');
+    return getTranslation(key) || fallbacks[key] || key;
+  } catch {
+    return fallbacks[key] || key;
+  }
+}
 
 interface Props {
   children: ReactNode;
@@ -45,8 +64,7 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
-      const t = getTranslation;
-
+      // 所有样式内联、所有文本硬编码降级，确保此处渲染不会再次抛出
       return (
         <div style={{
           display: 'flex',
@@ -65,11 +83,25 @@ export class ErrorBoundary extends Component<Props, State> {
           </div>
           <h2 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: 600 }}>
             {this.props.name ? `${this.props.name} ` : ''}
-            {t('error.title')}
+            {safeTranslate('error.title')}
           </h2>
-          <p style={{ margin: '0 0 24px', color: '#888', fontSize: '14px', maxWidth: '500px', textAlign: 'center' }}>
-            {this.state.error?.message || t('error.unknown')}
+          <p style={{
+            margin: '0 0 16px', color: '#888', fontSize: '14px',
+            maxWidth: '500px', textAlign: 'center',
+          }}>
+            {this.state.error?.message || safeTranslate('error.unknown')}
           </p>
+          {this.state.error?.stack && (
+            <pre style={{
+              margin: '0 0 24px', padding: '12px 16px',
+              background: '#0f172a', borderRadius: '8px',
+              color: '#f87171', fontSize: '11px',
+              maxWidth: '600px', maxHeight: '150px',
+              overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+            }}>
+              {this.state.error.stack.slice(0, 500)}
+            </pre>
+          )}
           <div style={{ display: 'flex', gap: '12px' }}>
             <button
               onClick={this.handleReset}
@@ -83,7 +115,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 fontSize: '14px',
               }}
             >
-              {t('error.retry')}
+              {safeTranslate('error.retry')}
             </button>
             <button
               onClick={this.handleReload}
@@ -97,9 +129,12 @@ export class ErrorBoundary extends Component<Props, State> {
                 fontSize: '14px',
               }}
             >
-              {t('error.reload')}
+              {safeTranslate('error.reload')}
             </button>
           </div>
+          <p style={{ marginTop: '16px', color: '#64748b', fontSize: '12px' }}>
+            Your session data is preserved. Backend is still running.
+          </p>
         </div>
       );
     }

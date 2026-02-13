@@ -18,6 +18,27 @@ import { setupConfigApiRoutes } from './routes/config-api.js';
 import { initI18n } from '../../i18n/index.js';
 import { configManager } from '../../config/index.js';
 
+// ============================================================================
+// Self-Evolve: 进化重启支持
+// AI 修改自身源码后，通过退出码 42 触发 evolve.bat 自动重启
+// ============================================================================
+let evolveRestartRequested = false;
+
+/**
+ * 请求进化重启（由 SelfEvolveTool 调用）
+ * 设置标志后，gracefulShutdown 会使用退出码 42 而非 0
+ */
+export function requestEvolveRestart(): void {
+  evolveRestartRequested = true;
+}
+
+/**
+ * 检查进化模式是否启用（通过 evolve.bat 启动时设置 CLAUDE_EVOLVE_ENABLED=1）
+ */
+export function isEvolveEnabled(): boolean {
+  return process.env.CLAUDE_EVOLVE_ENABLED === '1';
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -152,13 +173,30 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<We
     // 开发模式：使用 Vite 中间件
     try {
       const { createServer: createViteServer } = await import('vite');
+
+      // Evolve 模式下禁用 Vite 文件监听
+      // 原因：模型修改多个前端文件时，改完第 1 个 Vite 就 HMR 推送半成品代码到浏览器 → 崩溃
+      // 禁用后文件随便改，等 SelfEvolve 重启后浏览器重连加载完整的新代码
+      const isEvolve = isEvolveEnabled();
+      const viteWatchConfig = isEvolve
+        ? { ignored: ['**/*'] } // 忽略所有文件变化
+        : undefined;
+
       const vite = await createViteServer({
         root: clientPath,
-        server: { middlewareMode: true, allowedHosts: true },
+        server: {
+          middlewareMode: true,
+          allowedHosts: true,
+          watch: viteWatchConfig,
+        },
         appType: 'spa',
       });
       app.use(vite.middlewares);
-      console.log('   模式: 开发 (Vite HMR)');
+      if (isEvolve) {
+        console.log('   模式: 开发 (Vite, HMR 已禁用 - Evolve 模式)');
+      } else {
+        console.log('   模式: 开发 (Vite HMR)');
+      }
     } catch (e) {
       console.warn('   警告: Vite 未安装，使用静态文件模式');
       setupStaticFiles(app, clientDistPath);
@@ -275,14 +313,20 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<We
       }
     }
 
+    // 进化重启使用退出码 42，正常退出使用 0
+    const exitCode = evolveRestartRequested ? 42 : 0;
+    if (evolveRestartRequested) {
+      console.log('   [Evolve] 进化重启: 退出码 42');
+    }
+
     wss.close();
     server.close(() => {
       console.log('服务器已关闭');
-      process.exit(0);
+      process.exit(exitCode);
     });
 
     // 兜底：如果 server.close 卡住，3秒后强制退出
-    setTimeout(() => process.exit(0), 3000);
+    setTimeout(() => process.exit(exitCode), 3000);
   };
 
   process.on('SIGINT', () => gracefulShutdown('SIGINT'));

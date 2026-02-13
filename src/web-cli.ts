@@ -2,6 +2,10 @@
 /**
  * WebUI CLI 入口
  * 启动 Web 服务器
+ *
+ * --evolve 模式：启用自我进化能力
+ * 当 AI 修改自身源码并调用 SelfEvolve 工具后，进程以退出码 42 退出，
+ * 本脚本检测到后自动重启子进程（tsx），新代码即刻生效。
  */
 
 import * as fs from 'fs';
@@ -47,7 +51,115 @@ program
   .option('-d, --dir <directory>', '工作目录', process.cwd())
   .option('--ngrok', '启用 ngrok 公网隧道 (需要 NGROK_AUTHTOKEN 环境变量)', false)
   .option('--no-open', '不自动打开浏览器')
+  .option('--evolve', '启用自我进化模式 (AI 可修改源码并自动重启生效)', false)
   .action(async (options) => {
+    if (options.evolve) {
+      await runEvolveMode(options);
+    } else {
+      await runNormalMode(options);
+    }
+  });
+
+program.parse();
+
+// ============================================================================
+// 普通模式：直接启动 WebUI 服务器
+// ============================================================================
+async function runNormalMode(options: any) {
+  printBanner(false);
+
+  try {
+    await startWebServer({
+      port: parseInt(options.port),
+      host: options.host,
+      model: options.model,
+      cwd: options.dir,
+      ngrok: options.ngrok,
+      open: options.open,
+    });
+  } catch (error) {
+    console.error('启动失败:', error);
+    process.exit(1);
+  }
+}
+
+// ============================================================================
+// 进化模式：以子进程方式启动，退出码 42 时自动重启
+// ============================================================================
+async function runEvolveMode(options: any) {
+  const { spawn } = await import('child_process');
+
+  const MAX_RESTARTS = 10;
+  let restartCount = 0;
+
+  function startChild(): void {
+    printBanner(true, restartCount);
+
+    // 构建子进程参数：去掉 --evolve，加上原始参数
+    const childArgs = ['src/web-cli.ts'];
+    if (options.port) childArgs.push('-p', options.port);
+    if (options.host) childArgs.push('-H', options.host);
+    if (options.model) childArgs.push('-m', options.model);
+    if (options.dir) childArgs.push('-d', options.dir);
+    if (options.ngrok) childArgs.push('--ngrok');
+    if (options.open === false) childArgs.push('--no-open');
+
+    const child = spawn('npx', ['tsx', ...childArgs], {
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        CLAUDE_EVOLVE_ENABLED: '1',
+      },
+      shell: true,
+    });
+
+    child.on('exit', (code) => {
+      if (code === 42) {
+        restartCount++;
+        if (restartCount >= MAX_RESTARTS) {
+          console.error(`\n[Evolve] ERROR: Max restarts reached (${MAX_RESTARTS}). Exiting.`);
+          console.error('[Evolve] This likely indicates a code issue causing restart loops.');
+          process.exit(1);
+        }
+        console.log(`\n[Evolve] ================================================`);
+        console.log(`[Evolve]   Self-evolve restart requested`);
+        console.log(`[Evolve]   Attempt ${restartCount}/${MAX_RESTARTS}`);
+        console.log(`[Evolve] ================================================`);
+        console.log(`[Evolve] Waiting 2 seconds for port release...\n`);
+        setTimeout(startChild, 2000);
+      } else {
+        process.exit(code ?? 0);
+      }
+    });
+
+    // 父进程收到信号时转发给子进程
+    const forwardSignal = (signal: NodeJS.Signals) => {
+      if (!child.killed) {
+        child.kill(signal);
+      }
+    };
+    process.on('SIGINT', () => forwardSignal('SIGINT'));
+    process.on('SIGTERM', () => forwardSignal('SIGTERM'));
+  }
+
+  startChild();
+}
+
+// ============================================================================
+// Banner
+// ============================================================================
+function printBanner(evolve: boolean, restartCount = 0) {
+  if (evolve) {
+    console.log(`
+╔═══════════════════════════════════════════════════════════╗
+║                                                           ║
+║   🧬 Claude Code WebUI  [EVOLVE MODE]                    ║
+║                                                           ║
+║   AI can modify its own source code and auto-restart      ║
+║   ${restartCount > 0 ? `Restart #${restartCount}                                         `.slice(0, 42) + '║' : '                                                         ║'}
+╚═══════════════════════════════════════════════════════════╝
+`);
+  } else {
     console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
@@ -57,20 +169,5 @@ program
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
 `);
-
-    try {
-      await startWebServer({
-        port: parseInt(options.port),
-        host: options.host,
-        model: options.model,
-        cwd: options.dir,
-        ngrok: options.ngrok,
-        open: options.open,
-      });
-    } catch (error) {
-      console.error('启动失败:', error);
-      process.exit(1);
-    }
-  });
-
-program.parse();
+  }
+}

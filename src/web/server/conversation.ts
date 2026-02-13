@@ -380,6 +380,7 @@ export class ConversationManager {
     try {
       const chromeConfig = await getChromeIntegrationConfig();
       if (chromeConfig) {
+        const disabledServers = this.getDisabledMcpServers();
         for (const [name, config] of Object.entries(chromeConfig.mcpConfig)) {
           try {
             configManager.addMcpServer(name, config as any);
@@ -388,6 +389,11 @@ export class ConversationManager {
           }
           // 注册到 MCP 服务器映射（预加载工具定义，使执行时可用）
           registerMcpServer(name, config as any, CHROME_MCP_TOOLS as any);
+          // 如果服务器已禁用，跳过工具注入
+          if (disabledServers.includes(name)) {
+            console.log(`[ConversationManager] Chrome MCP 服务器 ${name} 已禁用，跳过工具加载`);
+            continue;
+          }
           // 将工具定义加入 mcpTools（对应官方 mcp.tools state）
           for (const tool of (CHROME_MCP_TOOLS as any[])) {
             this.mcpTools.push({
@@ -2558,8 +2564,9 @@ export class ConversationManager {
       prompt = this.getDefaultSystemPrompt();
     }
 
-    // 【与 CLI cli.ts:397-398 一致】如果 Chrome 集成已启用，前置 Chrome 系统提示
-    if (this.chromeSystemPrompt) {
+    // 【与 CLI cli.ts:397-398 一致】如果 Chrome 集成已启用且未被禁用，前置 Chrome 系统提示
+    // 通过检查 mcpTools 中是否有 chrome MCP 工具来判断是否启用
+    if (this.chromeSystemPrompt && this.mcpTools.some(t => t.name.startsWith('mcp__claude-in-chrome__'))) {
       prompt = `${this.chromeSystemPrompt}\n\n${prompt}`;
     }
 
@@ -3268,20 +3275,35 @@ Guidelines:
         // 启用：重新连接并加载工具
         // 对应官方：qm(name, config) + handleConnectionResult
         try {
-          const mcpServerConfigs = configManager.getMcpServers();
-          const config = mcpServerConfigs[name];
-          if (config) {
-            registerMcpServer(name, config);
-            const connected = await connectMcpServer(name);
-            if (connected) {
-              const tools = await createMcpTools(name);
-              for (const tool of tools) {
-                this.mcpTools.push({
-                  name: tool.name,
-                  description: tool.description,
-                  inputSchema: tool.getInputSchema(),
-                  isMcp: true,
-                });
+          // 先检查是否已有预加载的工具（如 Chrome MCP）
+          const existingServer = getMcpServers().get(name);
+          if (existingServer && existingServer.tools && existingServer.tools.length > 0) {
+            // 预加载的 MCP 服务器（如 Chrome MCP）：直接从已注册的工具定义恢复
+            for (const tool of existingServer.tools) {
+              this.mcpTools.push({
+                name: `mcp__${name}__${tool.name}`,
+                description: tool.description || '',
+                inputSchema: tool.inputSchema || { type: 'object', properties: {} },
+                isMcp: true,
+              });
+            }
+          } else {
+            // 普通 MCP 服务器：需要连接并获取工具
+            const mcpServerConfigs = configManager.getMcpServers();
+            const config = mcpServerConfigs[name];
+            if (config) {
+              registerMcpServer(name, config);
+              const connected = await connectMcpServer(name);
+              if (connected) {
+                const tools = await createMcpTools(name);
+                for (const tool of tools) {
+                  this.mcpTools.push({
+                    name: tool.name,
+                    description: tool.description,
+                    inputSchema: tool.getInputSchema(),
+                    isMcp: true,
+                  });
+                }
               }
             }
           }
@@ -3300,12 +3322,42 @@ Guidelines:
 
   /**
    * 更新 disabledMcpServers 数组
-   * 对应官方 AG1(name, enabled) 函数：写入 local project settings
-   * 写入 .claude/settings.local.json（getDisabledMcpServers 优先读取的位置）
+   * 写入 getDisabledMcpServers 实际读取到的配置文件，确保读写一致
+   * 如果都没有，默认写入全局 settings.json
    */
   private updateDisabledMcpServers(name: string, enabled: boolean): void {
     try {
-      const settingsPath = path.join(this.cwd, '.claude', 'settings.local.json');
+      const homeDir = process.env.HOME || process.env.USERPROFILE || '~';
+      const globalDir = process.env.CLAUDE_CONFIG_DIR || path.join(homeDir, '.claude');
+
+      // 找到当前实际生效的配置文件（与 getDisabledMcpServers 一致的搜索顺序）
+      const candidates = [
+        path.join(this.cwd, '.claude', 'settings.local.json'),
+        path.join(this.cwd, '.claude', 'settings.json'),
+        path.join(globalDir, 'settings.json'),
+      ];
+
+      let settingsPath: string | null = null;
+      for (const p of candidates) {
+        try {
+          if (fs.existsSync(p)) {
+            const content = fs.readFileSync(p, 'utf-8');
+            const config = JSON.parse(content);
+            if (config.disabledMcpServers && Array.isArray(config.disabledMcpServers)) {
+              settingsPath = p;
+              break;
+            }
+          }
+        } catch {
+          // 忽略
+        }
+      }
+
+      // 如果没有任何配置文件包含 disabledMcpServers，默认写入全局 settings.json
+      if (!settingsPath) {
+        settingsPath = path.join(globalDir, 'settings.json');
+      }
+
       let settings: any = {};
       if (fs.existsSync(settingsPath)) {
         settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));

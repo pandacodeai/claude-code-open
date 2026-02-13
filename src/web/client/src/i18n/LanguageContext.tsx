@@ -20,7 +20,7 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 function getInitialLocale(): Locale {
   const stored = localStorage.getItem('claude-code-language');
   if (stored === 'zh' || stored === 'en') return stored;
-  return 'en';
+  return 'zh';
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {

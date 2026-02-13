@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import './DebugPanel.css';
+import { useLanguage } from '../i18n';
 
 interface DebugData {
   systemPrompt: string;
@@ -36,6 +37,7 @@ interface DebugPanelProps {
 type DebugTab = 'system_prompt' | 'messages' | 'tools';
 
 export function DebugPanel({ isOpen, onClose, send, addMessageHandler, blueprintId }: DebugPanelProps) {
+  const { t } = useLanguage();
   const [debugData, setDebugData] = useState<DebugData | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<DebugTab>('system_prompt');
@@ -237,7 +239,7 @@ export function DebugPanel({ isOpen, onClose, send, addMessageHandler, blueprint
         <div className="debug-panel-header">
           <div className="debug-panel-title">
             <span className="debug-icon">&#x1F50D;</span>
-            <h2>API 探针</h2>
+            <h2>{t('debug.title')}</h2>
             {debugData && (
               <span className="debug-model-badge">{debugData.model}</span>
             )}
@@ -246,7 +248,7 @@ export function DebugPanel({ isOpen, onClose, send, addMessageHandler, blueprint
             )}
           </div>
           <div className="debug-panel-actions">
-            <button className="debug-refresh-btn" onClick={handleRefresh} disabled={loading} title="刷新">
+            <button className="debug-refresh-btn" onClick={handleRefresh} disabled={loading} title={t('debug.refresh')}>
               {loading ? '...' : '\u21BB'}
             </button>
             <button className="debug-close-btn" onClick={onClose}>&times;</button>
@@ -262,7 +264,7 @@ export function DebugPanel({ isOpen, onClose, send, addMessageHandler, blueprint
               value={selectedAgent}
               onChange={(e) => setSelectedAgent(e.target.value)}
             >
-              <option value="session">会话 (默认)</option>
+              <option value="session">{t('debug.sessionDefault')}</option>
               {agentList.map((agent) => {
                 const value = agent.agentType === 'worker'
                   ? `worker:${agent.id}`

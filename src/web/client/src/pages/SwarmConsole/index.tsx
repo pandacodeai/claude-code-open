@@ -11,6 +11,7 @@ import { useSwarmState } from './hooks/useSwarmState';
 import { coordinatorApi } from '../../api/blueprint';
 import { useProject } from '../../contexts/ProjectContext';
 import { DebugPanel } from '../../components/DebugPanel';
+import { useLanguage } from '../../i18n';
 import type {
   WorkerAgent as APIWorkerAgent,
   ExecutionPlan,
@@ -59,6 +60,7 @@ interface SwarmConsoleProps {
 // 现在直接使用 WebSocket 推送的 state.stats 和 state.workers
 
 export default function SwarmConsole({ initialBlueprintId }: SwarmConsoleProps) {
+  const { t } = useLanguage();
   const [selectedTaskId, setSelectedTaskId] = useState<string | undefined>();
   const [selectedBlueprintId, setSelectedBlueprintId] = useState<string | null>(initialBlueprintId || null);
   const [blueprintName, setBlueprintName] = useState<string>('');
@@ -239,6 +241,20 @@ export default function SwarmConsole({ initialBlueprintId }: SwarmConsoleProps) 
     }
   }, [selectedTask?.id, interjectTask]);
 
+  // LeadAgent phase 标签 helper
+  const getPhaseLabel = useCallback((phase: string): string => {
+    const map: Record<string, string> = {
+      started: t('swarm.phase.started'),
+      exploring: t('swarm.phase.exploring'),
+      planning: t('swarm.phase.planning'),
+      executing: t('swarm.phase.executing'),
+      reviewing: t('swarm.phase.reviewing'),
+      completed: t('swarm.phase.completed'),
+      failed: t('swarm.phase.failed'),
+    };
+    return map[phase] || '';
+  }, [t]);
+
 
   // v3.5: 解决冲突
   const handleResolveConflict = useCallback(async (
@@ -284,21 +300,21 @@ export default function SwarmConsole({ initialBlueprintId }: SwarmConsoleProps) 
         {/* 左侧：执行计划 */}
         <Panel defaultSize="60" minSize="30" className={styles.centerPanel}>
           <div className={styles.panelHeader}>
-            <h2>📋 执行计划{blueprintName ? ` - ${blueprintName}` : ''}</h2>
+            <h2>📋 {t('swarm.executionPlan')}{blueprintName ? ` - ${blueprintName}` : ''}</h2>
             {/* V2.0: 显示执行计划统计 */}
             {executionPlan && (
               <div className={styles.taskStats}>
-                <span title="已完成/总任务数">
-                  {executionPlan.tasks.filter(t => t.status === 'completed').length}/{executionPlan.tasks.length} 完成
+                <span title={t('swarm.completedSlashTotal')}>
+                  {executionPlan.tasks.filter(t => t.status === 'completed').length}/{executionPlan.tasks.length} {t('swarm.completed')}
                 </span>
                 {executionPlan.tasks.filter(t => t.status === 'running').length > 0 && (
                   <span className={styles.runningBadge}>
-                    {executionPlan.tasks.filter(t => t.status === 'running').length} 执行中
+                    {executionPlan.tasks.filter(t => t.status === 'running').length} {t('swarm.running')}
                   </span>
                 )}
                 {executionPlan.tasks.filter(t => t.status === 'failed').length > 0 && (
                   <span className={styles.failedBadge}>
-                    {executionPlan.tasks.filter(t => t.status === 'failed').length} 失败
+                    {executionPlan.tasks.filter(t => t.status === 'failed').length} {t('swarm.failed')}
                   </span>
                 )}
               </div>
@@ -306,7 +322,7 @@ export default function SwarmConsole({ initialBlueprintId }: SwarmConsoleProps) 
             {/* Worker 状态统计 */}
             {workers.length > 0 && (
               <div className={styles.dashboardPreview}>
-                <span className={styles.dashboardItem} title="工作中/总Workers">
+                <span className={styles.dashboardItem} title={t('swarm.workersTitle')}>
                   👷 {workers.filter(w => w.status === 'working').length}/{workers.length}
                 </span>
               </div>
@@ -315,9 +331,9 @@ export default function SwarmConsole({ initialBlueprintId }: SwarmConsoleProps) 
             <button
               className={styles.probeButton}
               onClick={() => setShowDebugPanel(true)}
-              title="API 探针 - 查看 Agent 内部状态"
+              title={t('swarm.debugProbe')}
             >
-              🔍 探针
+              🔍 {t('swarm.probe')}
             </button>
           </div>
           <div className={styles.panelContent}>
@@ -330,13 +346,7 @@ export default function SwarmConsole({ initialBlueprintId }: SwarmConsoleProps) 
                 <span className={styles.leadAgentEntryIcon}>🧠</span>
                 <span className={styles.leadAgentEntryLabel}>LeadAgent</span>
                 <span className={`${styles.leadPhase} ${styles[`lead_${state.leadAgent.phase}`]}`}>
-                  {state.leadAgent.phase === 'started' ? '启动中' :
-                   state.leadAgent.phase === 'exploring' ? '探索代码' :
-                   state.leadAgent.phase === 'planning' ? '制定计划' :
-                   state.leadAgent.phase === 'executing' ? '执行中' :
-                   state.leadAgent.phase === 'reviewing' ? '审查中' :
-                   state.leadAgent.phase === 'completed' ? '已完成' :
-                   state.leadAgent.phase === 'failed' ? '失败' : ''}
+                  {getPhaseLabel(state.leadAgent.phase)}
                 </span>
                 {['started', 'exploring', 'planning', 'executing', 'reviewing'].includes(state.leadAgent.phase) && (
                   <span className={styles.liveIndicator}>●</span>
@@ -347,32 +357,32 @@ export default function SwarmConsole({ initialBlueprintId }: SwarmConsoleProps) 
             {isLoading ? (
               <div className={styles.loadingState}>
                 <div className={styles.spinner}>⏳</div>
-                <div>加载中...</div>
+                <div>{t('swarm.loading')}</div>
               </div>
             ) : error ? (
               <div className={styles.errorState}>
                 <div className={styles.errorIcon}>❌</div>
-                <div className={styles.errorText}>错误: {error}</div>
-                <button className={styles.retryButton} onClick={refresh}>重试</button>
+                <div className={styles.errorText}>{t('swarm.error')}: {error}</div>
+                <button className={styles.retryButton} onClick={refresh}>{t('swarm.retry')}</button>
               </div>
             ) : !selectedBlueprintId ? (
               <div className={styles.emptyState}>
                 <div className={styles.emptyStateIcon}>📋</div>
                 <div className={styles.emptyStateText}>
-                  当前工作目录暂无蓝图
+                  {t('swarm.noBlueprint')}
                 </div>
                 <div className={styles.emptyStateHint}>
-                  请先在蓝图页面创建蓝图
+                  {t('swarm.createBlueprint')}
                 </div>
               </div>
             ) : !executionPlan ? (
               <div className={styles.emptyState}>
                 <div className={styles.emptyStateIcon}>🚀</div>
                 <div className={styles.emptyStateText}>
-                  蓝图已就绪，等待执行
+                  {t('swarm.blueprintReady')}
                 </div>
                 <div className={styles.emptyStateHint}>
-                  请在对话界面通知 Planner Agent 启动执行
+                  {t('swarm.startExecution')}
                 </div>
               </div>
             ) : (
@@ -384,10 +394,10 @@ export default function SwarmConsole({ initialBlueprintId }: SwarmConsoleProps) 
                       <div className={styles.parallelGroupHeader}>
                         <span className={styles.parallelGroupIcon}>⚡</span>
                         <span className={styles.parallelGroupTitle}>
-                          并行组 {groupIndex + 1}
+                          {t('swarm.parallelGroup')} {groupIndex + 1}
                         </span>
                         <span className={styles.parallelGroupCount}>
-                          {group.length} 个任务
+                          {t('swarm.taskCount', { count: group.length })}
                         </span>
                       </div>
                       <div className={styles.taskList}>
@@ -424,8 +434,8 @@ export default function SwarmConsole({ initialBlueprintId }: SwarmConsoleProps) 
                                   <span className={`${styles.taskComplexity} ${styles[task.complexity]}`}>
                                     {task.complexity}
                                   </span>
-                                  {task.needsTest && <span className={styles.needsTest}>需要测试</span>}
-                                  <span className={styles.taskTime}>~{task.estimatedMinutes}分钟</span>
+                                  {task.needsTest && <span className={styles.needsTest}>{t('swarm.needsTest')}</span>}
+                                  <span className={styles.taskTime}>{t('swarm.estimatedMinutes', { minutes: task.estimatedMinutes })}</span>
                                 </div>
                               </div>
                               {task.workerId && (
@@ -450,12 +460,12 @@ export default function SwarmConsole({ initialBlueprintId }: SwarmConsoleProps) 
                         {state.verification.status === 'passed' ? '✅' :
                          state.verification.status === 'failed' ? '❌' : '🧪'}
                       </span>
-                      <span className={styles.leadAgentEntryLabel}>E2E 验收测试</span>
+                      <span className={styles.leadAgentEntryLabel}>{t('swarm.e2eTest')}</span>
                       <span className={styles.leadPhase}>
-                        {state.verification.status === 'checking_env' ? '检查环境' :
-                         state.verification.status === 'running_tests' ? '测试中' :
-                         state.verification.status === 'fixing' ? '修复中' :
-                         state.verification.status === 'passed' ? '通过' : '失败'}
+                        {state.verification.status === 'checking_env' ? t('swarm.verification.checkingEnv') :
+                         state.verification.status === 'running_tests' ? t('swarm.verification.running') :
+                         state.verification.status === 'fixing' ? t('swarm.verification.fixing') :
+                         state.verification.status === 'passed' ? t('swarm.verification.passed') : t('swarm.verification.failed')}
                       </span>
                       {['checking_env', 'running_tests', 'fixing'].includes(state.verification.status) && (
                         <span className={styles.liveIndicator}>●</span>
@@ -479,7 +489,7 @@ export default function SwarmConsole({ initialBlueprintId }: SwarmConsoleProps) 
               selectedTaskId === 'e2e-test' && state.verification.status !== 'idle' ? (
                 <AgentChatPanel
                   agentType="e2e"
-                  agentLabel="E2E 验收测试"
+                  agentLabel={t('swarm.e2eTest')}
                   status={
                     ['checking_env', 'running_tests', 'fixing'].includes(state.verification.status) ? 'running' :
                     state.verification.status === 'passed' ? 'completed' :
@@ -504,22 +514,14 @@ export default function SwarmConsole({ initialBlueprintId }: SwarmConsoleProps) 
               ) : (
                 <div className={styles.emptyState}>
                   <div className={styles.emptyStateIcon}>📋</div>
-                  <div className={styles.emptyStateText}>任务未找到</div>
+                  <div className={styles.emptyStateText}>{t('swarm.taskNotFound')}</div>
                 </div>
               )
             ) : state.leadAgent.phase !== 'idle' ? (
               /* 没有选中任务但 LeadAgent 活跃 → 显示 LeadAgent AgentChatPanel */
               <AgentChatPanel
                 agentType="lead"
-                agentLabel={
-                  state.leadAgent.phase === 'started' ? '启动中' :
-                  state.leadAgent.phase === 'exploring' ? '探索代码' :
-                  state.leadAgent.phase === 'planning' ? '制定计划' :
-                  state.leadAgent.phase === 'executing' ? '执行中' :
-                  state.leadAgent.phase === 'reviewing' ? '审查中' :
-                  state.leadAgent.phase === 'completed' ? '已完成' :
-                  state.leadAgent.phase === 'failed' ? '执行失败' : ''
-                }
+                agentLabel={getPhaseLabel(state.leadAgent.phase) || (state.leadAgent.phase === 'failed' ? t('swarm.phase.executionFailed') : '')}
                 status={leadAgentStatus}
                 stream={leadStream}
                 canInterject={canInterjectLead}
@@ -531,10 +533,10 @@ export default function SwarmConsole({ initialBlueprintId }: SwarmConsoleProps) 
               <div className={styles.emptyState}>
                 <div className={styles.emptyStateIcon}>🧠</div>
                 <div className={styles.emptyStateText}>
-                  {!selectedBlueprintId ? '当前工作目录暂无蓝图' : 'LeadAgent 待命中'}
+                  {!selectedBlueprintId ? t('swarm.noBlueprint') : t('swarm.leadAgentStandby')}
                   <br />
                   <span style={{ fontSize: '0.85em', opacity: 0.7 }}>
-                    {!selectedBlueprintId ? '请先在蓝图页面创建蓝图' : '点击左侧任务或启动执行查看 Agent 对话'}
+                    {!selectedBlueprintId ? t('swarm.createBlueprint') : t('swarm.clickToView')}
                   </span>
                 </div>
               </div>

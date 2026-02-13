@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { FileArtifact, ArtifactGroup } from '../../hooks/useArtifacts';
 import { computeSideBySideDiff } from '../../utils/diffUtils';
+import { useLanguage } from '../../i18n';
 import './ArtifactsPanel.css';
 
 interface ArtifactsPanelProps {
@@ -194,6 +195,7 @@ export function ArtifactsPanel({
   onSelectArtifact,
   onClose,
 }: ArtifactsPanelProps) {
+  const { t } = useLanguage();
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
 
   const toggleFileExpand = (filePath: string) => {
@@ -233,7 +235,7 @@ export function ArtifactsPanel({
       <div className="artifacts-panel-header">
         <div className="artifacts-panel-title">
           <span className="artifacts-panel-title-icon">&#9874;</span>
-          Artifacts
+          {t('artifacts.title')}
           {artifacts.length > 0 && (
             <span className="artifacts-panel-badge">{artifacts.length}</span>
           )}
@@ -246,7 +248,7 @@ export function ArtifactsPanel({
       {groups.length === 0 ? (
         <div className="artifacts-empty">
           <div className="artifacts-empty-icon">&#128196;</div>
-          <div className="artifacts-empty-text">No artifacts yet</div>
+          <div className="artifacts-empty-text">{t('artifacts.empty')}</div>
         </div>
       ) : (
         <div className="artifacts-file-list">

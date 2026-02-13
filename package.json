@@ -26,6 +26,7 @@
     "web:debug": "node --inspect --import tsx src/web-cli.ts",
     "web:start": "node dist/web-cli.js",
     "web:dev": "tsx watch src/web-cli.ts",
+    "web:evolve": "tsx src/web-cli.ts --evolve -H 0.0.0.0",
     "proxy": "tsx src/proxy-cli.ts",
     "proxy:start": "node dist/proxy-cli.js",
     "wechat": "tsx src/wechat-cli.ts",

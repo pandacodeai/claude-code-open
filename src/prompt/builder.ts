@@ -468,7 +468,15 @@ Your runtime source code is located at the following paths. You can Read these f
 - Agent configs: ${srcRoot}/agents/tools.ts (tool permissions for each agent type)
 - Config system: ${srcRoot}/config/ (settings management)
 - Entry point: ${codeProjectRoot}/package.json (project metadata and scripts)
-${memoryPaths}`);
+${memoryPaths}
+
+### Self-Evolve (自我进化)
+${process.env.CLAUDE_EVOLVE_ENABLED === '1' ? `- Status: ENABLED (running via evolve.bat)
+- You can modify your own source code and call the SelfEvolve tool to restart with the new code
+- Flow: Edit .ts files → SelfEvolve({ reason: "..." }) → tsc check → auto-restart → session restored
+- Evolve log: ${claudeConfigDir}/evolve-log.jsonl
+- IMPORTANT: Always use dryRun first to verify compilation before actual restart` : `- Status: DISABLED (not running via evolve.bat)
+- To enable: start the server with evolve.bat instead of npm run web`}`);
 
     // 13. 语言设置
     if (context.language) {

@@ -10,6 +10,7 @@ import { useProject, useProjectChangeListener, type Project, type BlueprintInfo 
 import { ContextMenu, MenuItem, getFileContextMenuItems, getFolderContextMenuItems, getEmptyContextMenuItems } from '../ContextMenu';
 import { FileDialog, DialogType } from '../FileDialog';
 import { ArchitectureFlowGraph, type ArchitectureGraphData, type ArchitectureGraphType, type NodePathMapping } from '../ArchitectureFlowGraph';
+import { useLanguage } from '../../../i18n/LanguageContext';
 
 // 悬浮框位置状态
 interface TooltipPosition {

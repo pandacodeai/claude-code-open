@@ -792,6 +792,41 @@ body {
   padding-left: 0;
 }
 
+/* 用户消息折叠 */
+.user-message-collapsed {
+  overflow: hidden;
+  position: relative;
+}
+
+.user-message-fade {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: linear-gradient(transparent, var(--bg-tertiary));
+  pointer-events: none;
+}
+
+.user-message-toggle {
+  display: block;
+  width: 100%;
+  padding: 6px 0;
+  margin-top: 4px;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border-color);
+  color: var(--accent-light, #818cf8);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.2s;
+}
+
+.user-message-toggle:hover {
+  color: var(--accent-primary, #6366f1);
+}
+
 .message-header {
   display: flex;
   align-items: center;
