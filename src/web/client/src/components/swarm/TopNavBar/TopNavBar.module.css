@@ -368,20 +368,122 @@
 }
 
 @media (max-width: 768px) {
+  .topNavBar {
+    padding: 0 8px;
+    gap: 4px;
+  }
+
   .navTab span:not(.icon) {
     display: none;
   }
 
   .navTab {
-    padding: 6px 10px;
+    padding: 6px 8px;
+    gap: 0;
+  }
+
+  .navTabs {
+    gap: 2px;
+  }
+
+  .centerControls {
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
   }
 
   .navProjectSelector {
-    min-width: 80px;
-    max-width: 120px;
+    min-width: 0;
+    max-width: 100px;
+  }
+
+  .sessionSelector {
+    min-width: 0;
+    max-width: 100px;
   }
 
   .sessionName {
-    max-width: 60px;
+    max-width: 50px;
+  }
+
+  .sessionTrigger {
+    padding: 4px 6px;
+    gap: 4px;
+  }
+
+  .newSessionButton {
+    padding: 4px 8px;
+    font-size: 16px;
+  }
+
+  .settingsButton {
+    padding: 4px 8px;
+    font-size: 14px;
+  }
+
+  .actions {
+    gap: 4px;
+  }
+}
+
+/* 手机竖屏（< 480px）：两行布局，第一行标签+操作，第二行项目+会话选择器 */
+@media (max-width: 480px) {
+  .topNavBar {
+    height: auto;
+    padding: 4px 6px;
+    gap: 0;
+    flex-wrap: wrap;
+  }
+
+  .navTabs {
+    gap: 1px;
+    order: 1;
+  }
+
+  .navTab {
+    padding: 6px 6px;
+  }
+
+  .actions {
+    order: 2;
+    margin-left: auto;
+    gap: 4px;
+  }
+
+  .centerControls {
+    order: 3;
+    width: 100%;
+    justify-content: stretch;
+    gap: 6px;
+    padding: 4px 0 2px;
+    border-top: 1px solid var(--border-color);
+    margin-top: 4px;
+  }
+
+  .navProjectSelector {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .sessionSelector {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .centerDivider {
+    display: block;
+    height: 16px;
+  }
+
+  .newSessionButton {
+    padding: 4px 8px;
+    font-size: 14px;
+  }
+
+  .settingsButton {
+    padding: 4px 6px;
+    font-size: 13px;
   }
 }

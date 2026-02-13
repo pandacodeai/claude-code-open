@@ -13,7 +13,8 @@
       "Write(*.bat)",
       "Edit(*.yml)",
       "Write(*.md)",
-      "Write(*.ts)"
+      "Write(*.ts)",
+      "Edit(*.css)"
     ],
     "deny": []
   },

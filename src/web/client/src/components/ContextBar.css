@@ -118,3 +118,20 @@
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* 手机屏幕：隐藏 token 详情，缩小进度条 */
+@media (max-width: 480px) {
+  .context-bar {
+    gap: 4px;
+    padding: 4px 6px;
+  }
+
+  .context-bar__details {
+    display: none;
+  }
+
+  .context-bar__progress {
+    min-width: 40px;
+    max-width: 60px;
+  }
+}

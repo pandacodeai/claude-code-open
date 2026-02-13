@@ -689,11 +689,12 @@ function calculateTotalTokens(messages: Message[]): number {
       } else if (typeof block === 'object' && 'type' in block) {
         if (block.type === 'text' && 'text' in block && typeof block.text === 'string') {
           totalTokens += estimateTokens(block.text);
+        } else if (block.type === 'image') {
+          // 图片用固定常量，不能 JSON.stringify base64 数据（对齐官方 Nr4=2000）
+          totalTokens += 2000;
         } else if (block.type === 'tool_result' && 'content' in block && typeof block.content === 'string') {
           totalTokens += estimateTokens(block.content);
-        }
-        // 其他类型的 block（如 tool_use）也计算，但更简化
-        else {
+        } else {
           totalTokens += estimateTokens(JSON.stringify(block));
         }
       }
