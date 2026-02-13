@@ -79,7 +79,7 @@ export function useChatInput({
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
-  const [isPinned, setIsPinned] = useState(false);
+  const [isPinned, setIsPinned] = useState(true);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -199,6 +199,25 @@ export function useChatInput({
         });
         currentMessageRef.current = null;
       }
+    }
+
+    // 检测斜杠命令：不显示用户消息气泡，直接发送给后端处理
+    const trimmedInput = input.trim();
+    if (trimmedInput.startsWith('/') && trimmedInput.length > 1 && !trimmedInput.startsWith('//')) {
+      send({
+        type: 'chat',
+        payload: {
+          content: trimmedInput,
+          projectPath: currentProjectPath,
+        },
+      });
+      setInput('');
+      setShowCommandPalette(false);
+      setStatus('thinking');
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto';
+      }
+      return;
     }
 
     const contentItems: ChatContent[] = [];

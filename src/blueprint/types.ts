@@ -1364,6 +1364,62 @@ export interface VerificationResult {
 }
 
 // ============================================================================
+// v12.0: 轻量级任务计划（Planner → LeadAgent 委派载体）
+// ============================================================================
+
+/**
+ * 轻量级任务计划
+ * 当 Planner 需要委派一组任务但不需要完整蓝图时使用
+ */
+export interface TaskPlan {
+  /** 唯一标识 */
+  id: string;
+  /** 总体目标 */
+  goal: string;
+  /** 上下文说明（代码库状况、前置条件等） */
+  context: string;
+  /** 任务列表 */
+  tasks: TaskPlanItem[];
+  /** 约束条件 */
+  constraints?: string[];
+  /** 验收标准 */
+  acceptanceCriteria?: string[];
+  /** 技术栈（可选，可从项目自动检测） */
+  techStack?: TechStack;
+  /** 项目路径 */
+  projectPath: string;
+  /** 创建时间 */
+  createdAt: Date | string;
+}
+
+/**
+ * TaskPlan 中的单个任务项
+ */
+export interface TaskPlanItem {
+  /** 任务标识 */
+  id: string;
+  /** 任务名称 */
+  name: string;
+  /** 任务描述（详细的 brief） */
+  description: string;
+  /** 预期修改的文件 */
+  files?: string[];
+  /** 依赖的其他任务 ID */
+  dependencies?: string[];
+  /** 复杂度估计 */
+  complexity?: TaskComplexity;
+  /** 任务类型 */
+  type?: TaskType;
+}
+
+/**
+ * 判断输入是 Blueprint 还是 TaskPlan
+ */
+export function isBlueprint(input: Blueprint | TaskPlan): input is Blueprint {
+  return 'status' in input && 'name' in input && !('goal' in input);
+}
+
+// ============================================================================
 // v9.0: LeadAgent 持久大脑类型
 // ============================================================================
 
@@ -1371,8 +1427,8 @@ export interface VerificationResult {
  * LeadAgent 配置
  */
 export interface LeadAgentConfig {
-  /** 蓝图 */
-  blueprint: Blueprint;
+  /** 蓝图或轻量级任务计划 */
+  blueprint: Blueprint | TaskPlan;
   /** 执行计划（SmartPlanner 生成的任务列表） */
   executionPlan?: ExecutionPlan;
   /** 项目路径 */

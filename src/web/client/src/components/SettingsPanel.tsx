@@ -12,7 +12,6 @@ import {
   HooksConfigPanel,
   SystemConfigPanel,
   ConfigImportExport,
-  CacheManagementPanel,
 } from './config';
 import { useLanguage } from '../i18n';
 import type { Locale } from '../i18n';
@@ -23,6 +22,7 @@ interface SettingsPanelProps {
   model: string;
   onModelChange: (model: string) => void;
   onSendMessage?: (message: any) => void;
+  addMessageHandler?: (handler: (msg: any) => void) => () => void;
 }
 
 type SettingsTab =
@@ -32,7 +32,6 @@ type SettingsTab =
   | 'permissions'
   | 'hooks'
   | 'system'
-  | 'cache'
   | 'import-export'
   | 'mcp'
   | 'plugins'
@@ -46,8 +45,7 @@ const TAB_KEYS: { id: SettingsTab; i18nKey: string; icon: string }[] = [
   { id: 'permissions', i18nKey: 'settings.tab.permissions', icon: '🔐' },
   { id: 'hooks', i18nKey: 'settings.tab.hooks', icon: '🪝' },
   { id: 'system', i18nKey: 'settings.tab.system', icon: '💾' },
-  { id: 'cache', i18nKey: 'settings.tab.cache', icon: '📊' },
-  { id: 'import-export', i18nKey: 'settings.tab.importExport', icon: '📦' },
+{ id: 'import-export', i18nKey: 'settings.tab.importExport', icon: '📦' },
   { id: 'mcp', i18nKey: 'settings.tab.mcp', icon: '🔌' },
   { id: 'plugins', i18nKey: 'settings.tab.plugins', icon: '🧩' },
   { id: 'about', i18nKey: 'settings.tab.about', icon: 'ℹ️' },
@@ -59,6 +57,7 @@ export function SettingsPanel({
   model,
   onModelChange,
   onSendMessage,
+  addMessageHandler,
 }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const { locale, setLocale, t } = useLanguage();
@@ -189,24 +188,14 @@ export function SettingsPanel({
           />
         );
 
-      case 'cache':
-        return (
-          <CacheManagementPanel
-            onSave={() => {
-              console.log('Cache management action completed');
-            }}
-            onClose={onClose}
-          />
-        );
-
       case 'import-export':
         return <ConfigImportExport onClose={onClose} />;
 
       case 'mcp':
-        return <McpPanel onClose={onClose} onSendMessage={onSendMessage} />;
+        return <McpPanel onClose={onClose} onSendMessage={onSendMessage} addMessageHandler={addMessageHandler} />;
 
       case 'plugins':
-        return <PluginsPanel onClose={onClose} onSendMessage={onSendMessage} />;
+        return <PluginsPanel onClose={onClose} onSendMessage={onSendMessage} addMessageHandler={addMessageHandler} />;
 
       case 'about':
         return (

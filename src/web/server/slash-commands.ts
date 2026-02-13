@@ -383,6 +383,7 @@ const compactCommand: SlashCommand = {
 // /config - 显示当前配置
 const configCommand: SlashCommand = {
   name: 'config',
+  aliases: ['settings'],
   description: '显示当前配置',
   category: 'config',
   execute: (ctx: ExtendedCommandContext): CommandResult => {
@@ -404,7 +405,7 @@ const configCommand: SlashCommand = {
 // /resume - 恢复指定会话
 const resumeCommand: SlashCommand = {
   name: 'resume',
-  aliases: ['r'],
+  aliases: ['continue'],
   description: '恢复指定会话',
   usage: '/resume <session-id>',
   category: 'session',
@@ -481,7 +482,7 @@ registry.register(statusCommand);
 // /tasks - 管理后台任务
 const tasksCommand: SlashCommand = {
   name: 'tasks',
-  aliases: ['task'],
+  aliases: ['bashes'],
   description: '列出和管理后台 Agent 任务',
   usage: '/tasks [list|cancel <id>|output <id>]',
   category: 'utility',
@@ -893,308 +894,12 @@ const mcpCommand: SlashCommand = {
   },
 };
 
-// /checkpoint - 管理文件检查点
-const checkpointCommand: SlashCommand = {
-  name: 'checkpoint',
-  aliases: ['cp'],
-  description: '管理文件检查点（保存和恢复文件状态）',
-  usage: '/checkpoint [list|create|restore|delete|diff|clear] [参数]',
-  category: 'utility',
-  execute: async (ctx: ExtendedCommandContext): Promise<CommandResult> => {
-    const { args } = ctx;
-
-    // 动态导入 CheckpointManager
-    const { CheckpointManager } = await import('./checkpoint-manager.js');
-    const checkpointManager = new CheckpointManager();
-
-    // 默认行为：列出所有检查点
-    if (!args || args.length === 0 || args[0] === 'list') {
-      try {
-        const checkpoints = checkpointManager.listCheckpoints({
-          limit: 20,
-          sortBy: 'timestamp',
-          sortOrder: 'desc',
-        });
-
-        if (checkpoints.length === 0) {
-          return {
-            success: true,
-            message: '没有检查点。\n\n使用 /checkpoint create <描述> <文件1> [文件2...] 创建检查点。',
-          };
-        }
-
-        const stats = checkpointManager.getStats();
-
-        let message = '检查点列表\n\n';
-
-        checkpoints.forEach((cp, idx) => {
-          const date = new Date(cp.timestamp).toLocaleString('zh-CN');
-          const fileCount = cp.files.length;
-          const totalSize = cp.files.reduce((sum, f) => sum + f.size, 0);
-          const sizeKB = (totalSize / 1024).toFixed(2);
-
-          message += `${idx + 1}. ${cp.description}\n`;
-          message += `   ID: ${cp.id.slice(0, 8)}\n`;
-          message += `   时间: ${date}\n`;
-          message += `   文件: ${fileCount} 个 (${sizeKB} KB)\n`;
-          if (cp.metadata?.tags && cp.metadata.tags.length > 0) {
-            message += `   标签: ${cp.metadata.tags.join(', ')}\n`;
-          }
-          message += '\n';
-        });
-
-        message += `总计: ${stats.total} 个检查点, ${stats.totalFiles} 个文件, ${(stats.totalSize / 1024 / 1024).toFixed(2)} MB\n\n`;
-        message += '使用命令:\n';
-        message += '  /checkpoint create <描述> <文件...>  - 创建检查点\n';
-        message += '  /checkpoint restore <id>             - 恢复检查点\n';
-        message += '  /checkpoint diff <id>                - 查看差异\n';
-        message += '  /checkpoint delete <id>              - 删除检查点\n';
-        message += '  /checkpoint clear                    - 清除所有检查点';
-
-        return { success: true, message };
-      } catch (error) {
-        return {
-          success: false,
-          message: `列出检查点失败: ${error instanceof Error ? error.message : String(error)}`,
-        };
-      }
-    }
-
-    const subcommand = args[0].toLowerCase();
-
-    // /checkpoint create <description> <file1> [file2...]
-    if (subcommand === 'create') {
-      if (args.length < 3) {
-        return {
-          success: false,
-          message: '用法: /checkpoint create <描述> <文件1> [文件2...]\n\n示例: /checkpoint create "功能完成前的状态" src/index.ts src/utils.ts',
-        };
-      }
-
-      const description = args[1];
-      const filePaths = args.slice(2);
-
-      try {
-        const checkpoint = await checkpointManager.createCheckpoint(
-          description,
-          filePaths,
-          ctx.cwd
-        );
-
-        const totalSize = checkpoint.files.reduce((sum, f) => sum + f.size, 0);
-        const sizeKB = (totalSize / 1024).toFixed(2);
-
-        return {
-          success: true,
-          message: `已创建检查点\n\n` +
-            `ID: ${checkpoint.id.slice(0, 8)}\n` +
-            `描述: ${checkpoint.description}\n` +
-            `文件: ${checkpoint.files.length} 个 (${sizeKB} KB)\n` +
-            `时间: ${checkpoint.timestamp.toLocaleString('zh-CN')}\n\n` +
-            `使用 /checkpoint restore ${checkpoint.id.slice(0, 8)} 恢复此检查点`,
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: `创建检查点失败: ${error instanceof Error ? error.message : String(error)}`,
-        };
-      }
-    }
-
-    // /checkpoint restore <id>
-    if (subcommand === 'restore') {
-      if (args.length < 2) {
-        return {
-          success: false,
-          message: '用法: /checkpoint restore <checkpoint-id>\n\n使用 /checkpoint list 查看所有检查点。',
-        };
-      }
-
-      // 支持短ID（前8位）
-      const inputId = args[1];
-      const checkpoints = checkpointManager.listCheckpoints({});
-      const checkpoint = checkpoints.find(cp => cp.id.startsWith(inputId) || cp.id === inputId);
-
-      if (!checkpoint) {
-        return {
-          success: false,
-          message: `检查点 ${inputId} 不存在。\n\n使用 /checkpoint list 查看所有检查点。`,
-        };
-      }
-
-      try {
-        const result = await checkpointManager.restoreCheckpoint(checkpoint.id, {
-          dryRun: false,
-          skipBackup: false,
-        });
-
-        if (result.success) {
-          return {
-            success: true,
-            message: `已恢复检查点: ${checkpoint.description}\n\n` +
-              `恢复的文件: ${result.restored.length} 个\n` +
-              `${result.restored.map(f => `  • ${f}`).join('\n')}\n\n` +
-              `备份文件已创建（.backup-* 后缀）`,
-          };
-        } else {
-          let message = `恢复检查点失败\n\n`;
-          message += `成功: ${result.restored.length} 个\n`;
-          if (result.restored.length > 0) {
-            message += result.restored.map(f => `  ✓ ${f}`).join('\n') + '\n\n';
-          }
-          message += `失败: ${result.failed.length} 个\n`;
-          if (result.errors.length > 0) {
-            message += result.errors.map(e => `  ✗ ${e.path}: ${e.error}`).join('\n');
-          }
-          return { success: false, message };
-        }
-      } catch (error) {
-        return {
-          success: false,
-          message: `恢复检查点失败: ${error instanceof Error ? error.message : String(error)}`,
-        };
-      }
-    }
-
-    // /checkpoint delete <id>
-    if (subcommand === 'delete' || subcommand === 'del' || subcommand === 'rm') {
-      if (args.length < 2) {
-        return {
-          success: false,
-          message: '用法: /checkpoint delete <checkpoint-id>\n\n使用 /checkpoint list 查看所有检查点。',
-        };
-      }
-
-      const inputId = args[1];
-      const checkpoints = checkpointManager.listCheckpoints({});
-      const checkpoint = checkpoints.find(cp => cp.id.startsWith(inputId) || cp.id === inputId);
-
-      if (!checkpoint) {
-        return {
-          success: false,
-          message: `检查点 ${inputId} 不存在。\n\n使用 /checkpoint list 查看所有检查点。`,
-        };
-      }
-
-      try {
-        const success = checkpointManager.deleteCheckpoint(checkpoint.id);
-
-        if (success) {
-          return {
-            success: true,
-            message: `已删除检查点: ${checkpoint.description}`,
-          };
-        } else {
-          return {
-            success: false,
-            message: `删除检查点失败。`,
-          };
-        }
-      } catch (error) {
-        return {
-          success: false,
-          message: `删除检查点失败: ${error instanceof Error ? error.message : String(error)}`,
-        };
-      }
-    }
-
-    // /checkpoint diff <id>
-    if (subcommand === 'diff') {
-      if (args.length < 2) {
-        return {
-          success: false,
-          message: '用法: /checkpoint diff <checkpoint-id>\n\n使用 /checkpoint list 查看所有检查点。',
-        };
-      }
-
-      const inputId = args[1];
-      const checkpoints = checkpointManager.listCheckpoints({});
-      const checkpoint = checkpoints.find(cp => cp.id.startsWith(inputId) || cp.id === inputId);
-
-      if (!checkpoint) {
-        return {
-          success: false,
-          message: `检查点 ${inputId} 不存在。\n\n使用 /checkpoint list 查看所有检查点。`,
-        };
-      }
-
-      try {
-        const diffs = await checkpointManager.diffCheckpoint(checkpoint.id);
-
-        const stats = {
-          added: diffs.filter(d => d.type === 'added').length,
-          removed: diffs.filter(d => d.type === 'removed').length,
-          modified: diffs.filter(d => d.type === 'modified').length,
-          unchanged: diffs.filter(d => d.type === 'unchanged').length,
-        };
-
-        let message = `检查点差异: ${checkpoint.description}\n\n`;
-        message += `统计:\n`;
-        message += `  添加: ${stats.added} 个文件\n`;
-        message += `  删除: ${stats.removed} 个文件\n`;
-        message += `  修改: ${stats.modified} 个文件\n`;
-        message += `  未变: ${stats.unchanged} 个文件\n\n`;
-
-        if (stats.modified > 0) {
-          message += `修改的文件:\n`;
-          diffs.filter(d => d.type === 'modified').forEach(d => {
-            message += `  • ${d.path}\n`;
-          });
-        }
-
-        if (stats.removed > 0) {
-          message += `\n删除的文件:\n`;
-          diffs.filter(d => d.type === 'removed').forEach(d => {
-            message += `  • ${d.path}\n`;
-          });
-        }
-
-        if (stats.added > 0) {
-          message += `\n新增的文件:\n`;
-          diffs.filter(d => d.type === 'added').forEach(d => {
-            message += `  • ${d.path}\n`;
-          });
-        }
-
-        return { success: true, message };
-      } catch (error) {
-        return {
-          success: false,
-          message: `比较检查点失败: ${error instanceof Error ? error.message : String(error)}`,
-        };
-      }
-    }
-
-    // /checkpoint clear
-    if (subcommand === 'clear') {
-      try {
-        const count = checkpointManager.clearCheckpoints();
-
-        return {
-          success: true,
-          message: `已清除 ${count} 个检查点。`,
-        };
-      } catch (error) {
-        return {
-          success: false,
-          message: `清除检查点失败: ${error instanceof Error ? error.message : String(error)}`,
-        };
-      }
-    }
-
-    return {
-      success: false,
-      message: `未知子命令: ${subcommand}\n\n可用命令:\n  list    - 列出所有检查点\n  create  - 创建检查点\n  restore - 恢复检查点\n  delete  - 删除检查点\n  diff    - 查看差异\n  clear   - 清除所有检查点`,
-    };
-  },
-};
-
-// /plugins - 管理插件
-const pluginsCommand: SlashCommand = {
-  name: 'plugins',
-  aliases: ['plugin'],
+// /plugin - 管理插件
+const pluginCommand: SlashCommand = {
+  name: 'plugin',
+  aliases: ['plugins', 'marketplace'],
   description: '管理 Claude Code 插件',
-  usage: '/plugins [list|info|enable|disable|uninstall] [参数]',
+  usage: '/plugin [list|info|enable|disable|uninstall] [参数]',
   category: 'config',
   execute: async (ctx: ExtendedCommandContext): Promise<CommandResult> => {
     const { args, conversationManager } = ctx;
@@ -1634,51 +1339,6 @@ const exitCommand: SlashCommand = {
   },
 };
 
-// /version - 显示版本信息
-const versionCommand: SlashCommand = {
-  name: 'version',
-  aliases: ['ver', 'v'],
-  description: '显示版本信息',
-  category: 'general',
-  execute: (ctx: ExtendedCommandContext): CommandResult => {
-    const packageJson = require('../../../package.json');
-
-    let message = 'Claude Code 版本信息\n\n';
-    message += `版本: ${packageJson.version || 'Unknown'}\n`;
-    message += `Node.js: ${process.version}\n`;
-    message += `平台: ${process.platform} ${process.arch}\n`;
-    message += `运行模式: WebUI\n\n`;
-    message += '项目地址: https://github.com/kill136/claude-code-open\n';
-    message += '官方文档: https://docs.anthropic.com/claude-code';
-
-    return { success: true, message };
-  },
-};
-
-// /bug - 报告问题
-const bugCommand: SlashCommand = {
-  name: 'bug',
-  aliases: ['report', 'issue'],
-  description: '报告问题或提交反馈',
-  category: 'general',
-  execute: (ctx: ExtendedCommandContext): CommandResult => {
-    let message = '报告问题\n\n';
-    message += '感谢您帮助改进 Claude Code！\n\n';
-    message += '报告问题:\n';
-    message += '  • GitHub Issues: https://github.com/kill136/claude-code-open/issues\n';
-    message += '  • 邮箱: support@example.com\n\n';
-    message += '提交反馈时请包含:\n';
-    message += '  1. 问题描述\n';
-    message += '  2. 复现步骤\n';
-    message += '  3. 预期行为\n';
-    message += '  4. 实际行为\n';
-    message += '  5. 系统信息 (使用 /doctor 获取)\n\n';
-    message += '使用 /doctor 运行系统诊断并附上结果。';
-
-    return { success: true, message };
-  },
-};
-
 // ============ 会话命令 ============
 
 // /context - 显示上下文使用情况
@@ -1730,7 +1390,7 @@ const contextCommand: SlashCommand = {
 // /rewind - 回退会话
 const rewindCommand: SlashCommand = {
   name: 'rewind',
-  aliases: ['undo'],
+  aliases: ['checkpoint'],
   description: '回退会话到之前的状态',
   usage: '/rewind [步数]',
   category: 'session',
@@ -1791,37 +1451,6 @@ const exportCommand: SlashCommand = {
         '  • 使用 /transcript 导出对话记录\n' +
         '  • 在 CLI 模式中使用 /export 命令',
     };
-  },
-};
-
-// /transcript - 导出对话记录
-const transcriptCommand: SlashCommand = {
-  name: 'transcript',
-  description: '导出对话记录',
-  usage: '/transcript [markdown|json|text]',
-  category: 'session',
-  execute: (ctx: ExtendedCommandContext): CommandResult => {
-    const { args } = ctx;
-    const format = args && args.length > 0 ? args[0].toLowerCase() : 'markdown';
-
-    const history = ctx.conversationManager.getHistory(ctx.sessionId);
-
-    if (history.length === 0) {
-      return {
-        success: false,
-        message: '没有对话记录可导出。',
-      };
-    }
-
-    let message = '对话记录导出\n\n';
-    message += `格式: ${format}\n`;
-    message += `消息数: ${history.length}\n\n`;
-    message += 'WebUI 模式暂不支持直接导出到文件。\n\n';
-    message += '对话记录保存在: ~/.claude/sessions/\n';
-    message += `会话 ID: ${ctx.sessionId}\n\n`;
-    message += '提示: 在 CLI 模式中使用 /transcript 导出到文件。';
-
-    return { success: true, message };
   },
 };
 
@@ -1897,6 +1526,7 @@ const statsCommand: SlashCommand = {
 // /permissions - 管理工具权限
 const permissionsCommand: SlashCommand = {
   name: 'permissions',
+  aliases: ['allowed-tools'],
   description: '管理工具权限设置',
   usage: '/permissions [list|grant|revoke] [工具名]',
   category: 'config',
@@ -2040,65 +1670,12 @@ const themeCommand: SlashCommand = {
   },
 };
 
-// /discover - 发现功能
-const discoverCommand: SlashCommand = {
-  name: 'discover',
-  description: '发现 Claude Code 的功能和技巧',
-  category: 'general',
-  execute: (ctx: ExtendedCommandContext): CommandResult => {
-    let message = '发现功能\n\n';
-    message += '核心功能:\n';
-    message += '  • 文件操作: Read, Write, Edit, MultiEdit\n';
-    message += '  • 代码搜索: Grep, Glob\n';
-    message += '  • 命令执行: Bash, Tmux\n';
-    message += '  • Web 访问: WebFetch, WebSearch\n';
-    message += '  • 任务管理: Task, TodoWrite\n';
-    message += '  • MCP 服务器: 扩展 Claude 能力\n\n';
-    message += '高级功能:\n';
-    message += '  • 检查点: 保存和恢复文件状态\n';
-    message += '  • 插件系统: 自定义扩展\n';
-    message += '  • 钩子脚本: 自动化工作流\n';
-    message += '  • 技能系统: 复用常见任务\n\n';
-    message += '使用技巧:\n';
-    message += '  1. 使用 /help 查看所有命令\n';
-    message += '  2. 使用 CLAUDE.md 提供项目上下文\n';
-    message += '  3. 使用 /checkpoint 保护重要文件\n';
-    message += '  4. 使用 /context 监控 token 使用\n\n';
-    message += '文档: https://docs.anthropic.com/claude-code';
-
-    return { success: true, message };
-  },
-};
-
-// /sandbox - 沙箱设置
-const sandboxCommand: SlashCommand = {
-  name: 'sandbox',
-  description: '配置沙箱安全设置',
-  usage: '/sandbox [status|enable|disable]',
-  category: 'config',
-  execute: (ctx: ExtendedCommandContext): CommandResult => {
-    return {
-      success: true,
-      message: '沙箱设置\n\n' +
-        '注意: 沙箱功能仅在 CLI 模式的 Linux 系统上可用。\n\n' +
-        '沙箱功能:\n' +
-        '  • 使用 Bubblewrap 隔离命令执行\n' +
-        '  • 限制文件系统访问\n' +
-        '  • 限制网络访问\n' +
-        '  • 防止意外的系统更改\n\n' +
-        '当前环境:\n' +
-        `  • 平台: ${process.platform}\n` +
-        '  • 沙箱: 不可用 (WebUI 模式)\n\n' +
-        '在 CLI 模式中使用 /sandbox 管理沙箱设置。',
-    };
-  },
-};
-
 // ============ 工具集成命令 ============
 
 // /agents - 管理代理
 const agentsCommand: SlashCommand = {
   name: 'agents',
+  aliases: ['plugins', 'marketplace'],
   description: '管理和查看后台代理',
   usage: '/agents [list|create|stop] [参数]',
   category: 'integration',
@@ -2451,6 +2028,7 @@ const skillsCommand: SlashCommand = {
 // /mobile - 移动端配置
 const mobileCommand: SlashCommand = {
   name: 'mobile',
+  aliases: ['ios', 'android'],
   description: '移动端访问配置',
   category: 'config',
   execute: (ctx: ExtendedCommandContext): CommandResult => {
@@ -2469,78 +2047,6 @@ const mobileCommand: SlashCommand = {
         '提示:\n' +
         '  • 使用横屏模式获得更好体验\n' +
         '  • 将网页添加到主屏幕快速访问',
-    };
-  },
-};
-
-// /api - API 查询
-const apiCommand: SlashCommand = {
-  name: 'api',
-  aliases: ['api-query'],
-  description: 'Anthropic API 查询和测试',
-  usage: '/api [status|models|limits]',
-  category: 'utility',
-  execute: async (ctx: ExtendedCommandContext): Promise<CommandResult> => {
-    const { args } = ctx;
-    const subcommand = args && args.length > 0 ? args[0].toLowerCase() : 'status';
-
-    const apiKeySet = !!(process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY);
-
-    if (subcommand === 'status') {
-      let message = 'API 状态\n\n';
-      message += `连接状态: ${apiKeySet ? '✓ 已连接' : '✗ 未连接'}\n`;
-      message += `API Key: ${apiKeySet ? '✓ 已配置' : '✗ 未配置'}\n`;
-      message += `端点: api.anthropic.com\n\n`;
-
-      if (!apiKeySet) {
-        message += '设置 API Key:\n';
-        message += '  • 使用 /login set <key> 命令\n';
-        message += '  • 或设置环境变量 ANTHROPIC_API_KEY\n';
-        message += '  • 或在 ~/.claude/settings.json 中配置';
-      } else {
-        message += '可用子命令:\n';
-        message += '  /api status - API 状态\n';
-        message += '  /api models - 可用模型\n';
-        message += '  /api limits - 使用限制';
-      }
-
-      return { success: true, message };
-    }
-
-    if (subcommand === 'models') {
-      let message = 'API 模型列表\n\n';
-      message += 'Claude 4.5 系列:\n';
-      message += '  • claude-opus-4-5 - 最强大的模型\n';
-      message += '  • claude-sonnet-4-5 - 平衡性能和速度\n';
-      message += '  • claude-haiku-3-5 - 快速响应\n\n';
-      message += '上下文窗口:\n';
-      message += '  • 所有模型: 200k tokens\n\n';
-      message += '输出限制:\n';
-      message += '  • 最大输出: 32k tokens\n\n';
-      message += '使用 /model <名称> 切换模型。';
-
-      return { success: true, message };
-    }
-
-    if (subcommand === 'limits') {
-      let message = 'API 使用限制\n\n';
-      message += '速率限制:\n';
-      message += '  • 免费层: 50 请求/分钟\n';
-      message += '  • Pro: 1000 请求/分钟\n';
-      message += '  • 企业: 自定义\n\n';
-      message += 'Token 限制:\n';
-      message += '  • 上下文: 200k tokens\n';
-      message += '  • 输出: 32k tokens\n\n';
-      message += '当前会话:\n';
-      message += '  使用 /context 查看 token 使用情况\n';
-      message += '  使用 /cost 查看费用统计';
-
-      return { success: true, message };
-    }
-
-    return {
-      success: false,
-      message: `未知子命令: ${subcommand}\n\n可用命令:\n  status - API 状态\n  models - 可用模型\n  limits - 使用限制`,
     };
   },
 };
@@ -2656,6 +2162,7 @@ const reviewCommand: SlashCommand = {
 // /feedback - 提交反馈
 const feedbackCommand: SlashCommand = {
   name: 'feedback',
+  aliases: ['bug'],
   description: '提交功能反馈和建议',
   category: 'development',
   execute: (ctx: ExtendedCommandContext): CommandResult => {
@@ -2673,32 +2180,6 @@ const feedbackCommand: SlashCommand = {
         '  • 性能问题\n' +
         '  • 文档改进\n\n' +
         '也可使用 /bug 报告具体问题。',
-    };
-  },
-};
-
-// /pr - 管理 Pull Request
-const prCommand: SlashCommand = {
-  name: 'pr',
-  description: '管理 GitHub Pull Request',
-  usage: '/pr [create|list|view|merge] [参数]',
-  category: 'development',
-  execute: (ctx: ExtendedCommandContext): CommandResult => {
-    return {
-      success: true,
-      message: 'Pull Request 管理\n\n' +
-        'Claude Code 可以帮助管理 PR。\n\n' +
-        '可用操作:\n' +
-        '  • 创建 PR: "创建一个 PR，标题是..."\n' +
-        '  • 审查 PR: "审查 PR #123"\n' +
-        '  • 查看评论: 使用 /pr-comments 命令\n' +
-        '  • 合并 PR: "合并 PR #123"\n\n' +
-        '前置要求:\n' +
-        '  • 项目是 Git 仓库\n' +
-        '  • 配置 GitHub 凭证\n' +
-        '  • 安装 gh CLI 工具\n\n' +
-        '示例:\n' +
-        '  "基于当前分支创建一个 PR 到 main"',
     };
   },
 };
@@ -2733,57 +2214,368 @@ const prCommentsCommand: SlashCommand = {
   },
 };
 
-// /security-review - 安全审查
-const securityReviewCommand: SlashCommand = {
-  name: 'security-review',
-  description: '执行安全审查和漏洞扫描',
-  usage: '/security-review [文件路径]',
-  category: 'development',
+// ============ 新增官方对齐命令 ============
+
+// /btw - 快速侧问题
+const btwCommand: SlashCommand = {
+  name: 'btw',
+  description: '快速提一个侧问题',
+  category: 'general',
   execute: (ctx: ExtendedCommandContext): CommandResult => {
     return {
       success: true,
-      message: '安全审查\n\n' +
-        'Claude 可以帮助识别常见的安全问题。\n\n' +
-        '检查项目:\n' +
-        '  • SQL 注入风险\n' +
-        '  • XSS 跨站脚本\n' +
-        '  • CSRF 攻击\n' +
-        '  • 敏感信息泄露\n' +
-        '  • 不安全的依赖\n' +
-        '  • 权限和认证问题\n\n' +
-        '使用方法:\n' +
-        '  直接告诉 Claude "进行安全审查" 并指定文件或目录。\n\n' +
-        '示例:\n' +
-        '  "审查 src/ 目录的安全性"\n' +
-        '  "检查这段代码是否有安全漏洞"\n\n' +
-        '注意: 这是基础检查，严肃项目建议使用专业安全工具。',
+      message: '快速侧问题\n\n' +
+        '使用 /btw 可以在当前对话中快速问一个不相关的问题。\n\n' +
+        '用法: /btw <你的问题>\n\n' +
+        '提示: 直接在对话中输入问题即可，无需使用命令。',
     };
   },
 };
 
-// /map - 代码地图
-const mapCommand: SlashCommand = {
-  name: 'map',
-  description: '生成代码库结构地图',
-  usage: '/map [目录]',
+// /color - 设置提示栏颜色
+const colorCommand: SlashCommand = {
+  name: 'color',
+  description: '设置提示栏颜色',
+  usage: '/color [颜色值]',
+  category: 'general',
+  execute: (ctx: ExtendedCommandContext): CommandResult => {
+    return {
+      success: true,
+      message: '提示栏颜色设置\n\n' +
+        'WebUI 模式暂不支持终端提示栏颜色设置。\n\n' +
+        '替代方案:\n' +
+        '  • 使用 /theme 切换整体主题\n' +
+        '  • 在 CLI 模式中使用 /color 命令',
+    };
+  },
+};
+
+// /copy - 复制上一条回复
+const copyCommand: SlashCommand = {
+  name: 'copy',
+  description: '复制 Claude 的上一条回复',
+  category: 'session',
+  execute: (ctx: ExtendedCommandContext): CommandResult => {
+    return {
+      success: true,
+      message: '复制回复\n\n' +
+        'WebUI 模式下可直接在浏览器中选择文本复制。\n\n' +
+        '提示: 鼠标选中文本后使用 Ctrl+C 复制。',
+    };
+  },
+};
+
+// /extra-usage - 额外用量配置
+const extraUsageCommand: SlashCommand = {
+  name: 'extra-usage',
+  description: '配置额外 API 用量',
+  category: 'utility',
+  execute: (ctx: ExtendedCommandContext): CommandResult => {
+    return {
+      success: true,
+      message: '额外用量配置\n\n' +
+        '管理 Claude Code 的额外 API 使用额度。\n\n' +
+        '查看和管理:\n' +
+        '  • 访问: https://platform.claude.com\n' +
+        '  • 进入 Usage 页面查看详情\n\n' +
+        '使用 /usage 查看当前使用统计。',
+    };
+  },
+};
+
+// /fork - 分叉对话
+const forkCommand: SlashCommand = {
+  name: 'fork',
+  description: '创建对话的分叉副本',
+  category: 'session',
+  execute: (ctx: ExtendedCommandContext): CommandResult => {
+    return {
+      success: false,
+      message: '对话分叉\n\n' +
+        'WebUI 模式暂不支持对话分叉功能。\n\n' +
+        '替代方案:\n' +
+        '  • 在新标签页中开始新对话\n' +
+        '  • 在 CLI 模式中使用 /fork 命令',
+    };
+  },
+};
+
+// /install - 安装原生构建
+const installCommand: SlashCommand = {
+  name: 'install',
+  description: '安装 Claude Code 原生构建',
+  category: 'integration',
+  execute: (ctx: ExtendedCommandContext): CommandResult => {
+    return {
+      success: true,
+      message: '安装原生构建\n\n' +
+        'Claude Code 可以安装为原生应用以获得更好的性能。\n\n' +
+        '安装方法:\n' +
+        '  npm install -g @anthropic-ai/claude-code\n\n' +
+        '升级方法:\n' +
+        '  npm update -g @anthropic-ai/claude-code\n\n' +
+        '当前版本可通过 /status 查看。',
+    };
+  },
+};
+
+// /install-github-app - 安装 GitHub App
+const installGithubAppCommand: SlashCommand = {
+  name: 'install-github-app',
+  description: '设置 Claude GitHub Actions',
+  category: 'integration',
+  execute: (ctx: ExtendedCommandContext): CommandResult => {
+    return {
+      success: true,
+      message: 'Claude GitHub App\n\n' +
+        '将 Claude 集成到 GitHub 工作流中。\n\n' +
+        '功能:\n' +
+        '  • 自动代码审查\n' +
+        '  • PR 生成和管理\n' +
+        '  • Issue 自动处理\n\n' +
+        '设置步骤:\n' +
+        '  1. 访问 GitHub Marketplace\n' +
+        '  2. 搜索 "Claude Code"\n' +
+        '  3. 安装到目标仓库\n' +
+        '  4. 配置权限和触发条件',
+    };
+  },
+};
+
+// /install-slack-app - 安装 Slack App
+const installSlackAppCommand: SlashCommand = {
+  name: 'install-slack-app',
+  description: '安装 Claude Slack 应用',
+  category: 'integration',
+  execute: (ctx: ExtendedCommandContext): CommandResult => {
+    return {
+      success: true,
+      message: 'Claude Slack App\n\n' +
+        '将 Claude 集成到 Slack 工作空间。\n\n' +
+        '功能:\n' +
+        '  • 在 Slack 中直接与 Claude 对话\n' +
+        '  • 频道内代码协作\n' +
+        '  • 自动通知和报告\n\n' +
+        '设置:\n' +
+        '  请在 CLI 模式中使用 /install-slack-app 命令完成安装。',
+    };
+  },
+};
+
+// /keybindings - 键绑定配置
+const keybindingsCommand: SlashCommand = {
+  name: 'keybindings',
+  description: '打开键绑定配置文件',
+  category: 'config',
+  execute: (ctx: ExtendedCommandContext): CommandResult => {
+    return {
+      success: true,
+      message: '键绑定配置\n\n' +
+        'WebUI 模式下键绑定由浏览器控制。\n\n' +
+        'CLI 模式键绑定:\n' +
+        '  • Ctrl+C - 取消当前操作\n' +
+        '  • Ctrl+D - 退出\n' +
+        '  • Ctrl+L - 清屏\n' +
+        '  • Esc - 取消/返回\n\n' +
+        '在 CLI 模式中使用 /keybindings 打开配置文件。',
+    };
+  },
+};
+
+// /output-style - 设置输出风格
+const outputStyleCommand: SlashCommand = {
+  name: 'output-style',
+  description: '设置输出风格',
+  category: 'config',
+  execute: (ctx: ExtendedCommandContext): CommandResult => {
+    return {
+      success: true,
+      message: '输出风格设置\n\n' +
+        '控制 Claude 的回复风格。\n\n' +
+        '可用风格:\n' +
+        '  • concise - 简洁模式\n' +
+        '  • normal - 标准模式\n' +
+        '  • verbose - 详细模式\n\n' +
+        '在 CLI 模式中使用 /output-style 切换。',
+    };
+  },
+};
+
+// /plan - 启用 plan 模式
+const planCommand: SlashCommand = {
+  name: 'plan',
+  description: '启用 plan 模式或查看会话计划',
+  category: 'config',
+  execute: (ctx: ExtendedCommandContext): CommandResult => {
+    return {
+      success: true,
+      message: 'Plan 模式\n\n' +
+        'Plan 模式让 Claude 在执行前先制定详细计划。\n\n' +
+        '功能:\n' +
+        '  • 在实现前先探索代码库\n' +
+        '  • 设计实现方案\n' +
+        '  • 用户审批后再执行\n\n' +
+        '使用方法:\n' +
+        '  在对话中告诉 Claude "先制定计划再实现"。',
+    };
+  },
+};
+
+// /rate-limit-options - 限速选项
+const rateLimitOptionsCommand: SlashCommand = {
+  name: 'rate-limit-options',
+  description: '显示达到速率限制时的选项',
+  category: 'utility',
+  execute: (ctx: ExtendedCommandContext): CommandResult => {
+    return {
+      success: true,
+      message: '速率限制选项\n\n' +
+        '当达到 API 速率限制时:\n\n' +
+        '选项:\n' +
+        '  • 等待限制重置（通常 1 分钟）\n' +
+        '  • 切换到更低级别模型（/model haiku）\n' +
+        '  • 升级 API 计划获取更高限制\n\n' +
+        '使用 /usage 查看当前使用情况。',
+    };
+  },
+};
+
+// /release-notes - 查看版本更新
+const releaseNotesCommand: SlashCommand = {
+  name: 'release-notes',
+  description: '查看版本更新日志',
+  category: 'general',
+  execute: (ctx: ExtendedCommandContext): CommandResult => {
+    const packageJson = require('../../../package.json');
+    return {
+      success: true,
+      message: `版本更新日志\n\n` +
+        `当前版本: ${packageJson.version || 'Unknown'}\n\n` +
+        '查看完整更新日志:\n' +
+        '  https://github.com/kill136/claude-code-open/releases\n\n' +
+        '在 CLI 模式中使用 /release-notes 查看详细信息。',
+    };
+  },
+};
+
+// /remote-env - 远程环境配置
+const remoteEnvCommand: SlashCommand = {
+  name: 'remote-env',
+  description: '配置远程开发环境',
+  category: 'config',
+  execute: (ctx: ExtendedCommandContext): CommandResult => {
+    return {
+      success: true,
+      message: '远程环境配置\n\n' +
+        '配置远程开发环境（Teleport）。\n\n' +
+        '功能:\n' +
+        '  • 连接远程服务器\n' +
+        '  • 远程文件操作\n' +
+        '  • 远程终端会话\n\n' +
+        '在 CLI 模式中使用 /remote-env 配置。',
+    };
+  },
+};
+
+// /session - 显示会话信息
+const sessionCommand: SlashCommand = {
+  name: 'session',
+  aliases: ['remote'],
+  description: '显示远程会话 URL 和二维码',
+  category: 'session',
+  execute: (ctx: ExtendedCommandContext): CommandResult => {
+    return {
+      success: true,
+      message: `会话信息\n\n` +
+        `会话 ID: ${ctx.sessionId}\n` +
+        `模型: ${ctx.model}\n` +
+        `工作目录: ${ctx.cwd}\n\n` +
+        '在 CLI 模式中使用 /session 查看远程会话 URL 和二维码。',
+    };
+  },
+};
+
+// /stickers - 订购贴纸（彩蛋）
+const stickersCommand: SlashCommand = {
+  name: 'stickers',
+  description: '订购 Claude Code 贴纸',
+  category: 'utility',
+  execute: (ctx: ExtendedCommandContext): CommandResult => {
+    return {
+      success: true,
+      message: 'Claude Code 贴纸\n\n' +
+        '这是一个 prompt 类型命令，会让 Claude 帮你订购贴纸。\n\n' +
+        '在 CLI 模式中使用 /stickers 启动。',
+    };
+  },
+};
+
+// /terminal-setup - 终端配置
+const terminalSetupCommand: SlashCommand = {
+  name: 'terminal-setup',
+  description: '终端配置向导',
+  category: 'config',
+  execute: (ctx: ExtendedCommandContext): CommandResult => {
+    return {
+      success: true,
+      message: '终端配置\n\n' +
+        '优化终端以获得最佳 Claude Code 体验。\n\n' +
+        '推荐设置:\n' +
+        '  • 使用支持 Unicode 的终端\n' +
+        '  • 启用 256 色支持\n' +
+        '  • 安装 Nerd Fonts 字体\n' +
+        '  • 终端宽度 >= 120 列\n\n' +
+        '在 CLI 模式中使用 /terminal-setup 运行配置向导。',
+    };
+  },
+};
+
+// /think-back - 年度回顾
+const thinkBackCommand: SlashCommand = {
+  name: 'think-back',
+  description: '2025 年度 Claude Code 回顾',
   category: 'development',
   execute: (ctx: ExtendedCommandContext): CommandResult => {
     return {
       success: true,
-      message: '代码地图\n\n' +
-        'Claude 可以分析和可视化代码结构。\n\n' +
-        '生成内容:\n' +
-        '  • 目录结构树\n' +
-        '  • 模块依赖关系\n' +
-        '  • 主要组件和功能\n' +
-        '  • 架构概览\n\n' +
-        '使用方法:\n' +
-        '  直接告诉 Claude "生成代码地图" 或 "分析项目结构"。\n\n' +
-        '示例:\n' +
-        '  "分析 src/ 目录的结构并生成概览"\n' +
-        '  "绘制这个项目的架构图"\n' +
-        '  "列出主要模块及其职责"\n\n' +
-        '提示: Claude 会自动使用 Glob 和 Read 工具分析代码。',
+      message: 'Claude Code 年度回顾\n\n' +
+        '查看你的 2025 年 Claude Code 使用统计和亮点。\n\n' +
+        '在 CLI 模式中使用 /think-back 查看互动式回顾。',
+    };
+  },
+};
+
+// /thinkback-play - 播放回顾动画
+const thinkbackPlayCommand: SlashCommand = {
+  name: 'thinkback-play',
+  description: '播放年度回顾动画',
+  category: 'development',
+  execute: (ctx: ExtendedCommandContext): CommandResult => {
+    return {
+      success: true,
+      message: '年度回顾动画\n\n' +
+        'WebUI 模式暂不支持终端动画播放。\n\n' +
+        '在 CLI 模式中使用 /thinkback-play 观看动画。',
+    };
+  },
+};
+
+// /insights - 生成会话分析报告（prompt 类型）
+const insightsCommand: SlashCommand = {
+  name: 'insights',
+  description: '生成会话分析报告',
+  category: 'development',
+  execute: (ctx: ExtendedCommandContext): CommandResult => {
+    return {
+      success: true,
+      message: '会话分析\n\n' +
+        '这是一个 prompt 类型命令，会让 Claude 分析当前会话并生成报告。\n\n' +
+        '分析内容:\n' +
+        '  • 对话主题和趋势\n' +
+        '  • 工具使用统计\n' +
+        '  • 代码修改概览\n' +
+        '  • 建议和改进方向\n\n' +
+        '直接在对话中要求 Claude "分析这个会话" 即可。',
     };
   },
 };
@@ -2792,25 +2584,26 @@ const mapCommand: SlashCommand = {
 registry.register(tasksCommand);
 registry.register(doctorCommand);
 registry.register(mcpCommand);
-registry.register(checkpointCommand);
-registry.register(pluginsCommand);
+registry.register(pluginCommand);
 registry.register(loginCommand);
 registry.register(logoutCommand);
 
 // 注册新增的通用命令
 registry.register(exitCommand);
-registry.register(versionCommand);
-registry.register(bugCommand);
-registry.register(discoverCommand);
+registry.register(btwCommand);
+registry.register(colorCommand);
+registry.register(releaseNotesCommand);
 
 // 注册新增的会话命令
 registry.register(contextCommand);
 registry.register(rewindCommand);
 registry.register(renameCommand);
 registry.register(exportCommand);
-registry.register(transcriptCommand);
 registry.register(tagCommand);
 registry.register(statsCommand);
+registry.register(copyCommand);
+registry.register(forkCommand);
+registry.register(sessionCommand);
 
 // 注册新增的配置命令
 registry.register(permissionsCommand);
@@ -2819,12 +2612,19 @@ registry.register(initCommand);
 registry.register(privacySettingsCommand);
 registry.register(vimCommand);
 registry.register(themeCommand);
-registry.register(sandboxCommand);
+registry.register(keybindingsCommand);
+registry.register(outputStyleCommand);
+registry.register(planCommand);
+registry.register(terminalSetupCommand);
+registry.register(remoteEnvCommand);
 
 // 注册工具集成命令
 registry.register(agentsCommand);
 registry.register(ideCommand);
 registry.register(chromeCommand);
+registry.register(installCommand);
+registry.register(installGithubAppCommand);
+registry.register(installSlackAppCommand);
 
 // 注册实用工具命令
 registry.register(usageCommand);
@@ -2833,8 +2633,10 @@ registry.register(todosCommand);
 registry.register(addDirCommand);
 registry.register(skillsCommand);
 registry.register(mobileCommand);
-registry.register(apiCommand);
 registry.register(memoryCommand);
+registry.register(extraUsageCommand);
+registry.register(rateLimitOptionsCommand);
+registry.register(stickersCommand);
 
 // 注册认证命令
 registry.register(upgradeCommand);
@@ -2843,206 +2645,10 @@ registry.register(passesCommand);
 // 注册开发命令
 registry.register(reviewCommand);
 registry.register(feedbackCommand);
-registry.register(prCommand);
 registry.register(prCommentsCommand);
-registry.register(securityReviewCommand);
-registry.register(mapCommand);
-
-// ============================================================================
-// /dev - 持续开发命令
-// ============================================================================
-
-/**
- * /dev 命令 - 启动持续开发流程
- * 
- * 使用示例：
- *   /dev 增加用户邀请功能，支持邮件和链接邀请
- *   /dev status    查看当前开发状态
- *   /dev pause     暂停执行
- *   /dev resume    恢复执行
- *   /dev rollback  回滚到上一个检查点
- */
-const devCommand: SlashCommand = {
-  name: 'dev',
-  aliases: ['continuous', 'cdev'],
-  description: '启动持续开发流程（影响分析 → 蓝图生成 → 安全执行）',
-  usage: '/dev <需求描述> 或 /dev [status|pause|resume|rollback]',
-  category: 'development',
-  execute: async (ctx: ExtendedCommandContext): Promise<CommandResult> => {
-    const { args, ws, sessionId } = ctx;
-
-    // 没有参数时显示帮助
-    if (!args || args.length === 0) {
-      return {
-        success: true,
-        message: `持续开发命令 (/dev)
-
-启动一个安全的持续开发流程，在现有代码库上添加新功能，同时确保不破坏现有功能。
-
-用法:
-  /dev <需求描述>     启动新的开发流程
-  /dev status         查看当前开发状态
-  /dev pause          暂停执行
-  /dev resume         恢复执行
-  /dev rollback       回滚到上一个检查点
-
-示例:
-  /dev 增加用户邀请功能，支持邮件和链接邀请
-  /dev 优化登录页面性能，减少首屏加载时间
-  /dev 添加数据导出功能，支持 CSV 和 Excel 格式
-
-开发流程:
-  ┌─────────────────────────────────────────────────┐
-  │ 1. 代码库分析   → 理解现有结构                   │
-  │ 2. 影响分析     → 评估风险，设置安全边界          │
-  │ 3. 蓝图生成     → 创建增量开发计划               │
-  │ 4. 人工审批     → 确认后开始执行                 │
-  │ 5. TDD 执行     → 测试先行，安全开发             │
-  │ 6. 回归测试     → 确保不破坏现有功能             │
-  └─────────────────────────────────────────────────┘
-
-安全保障:
-  • 现有测试必须全部通过（回归测试门禁）
-  • Worker 只能在授权范围内操作（边界检查）
-  • 关键节点自动创建检查点（可回滚）
-  • 高风险操作需要人工确认
-
-提示: 首次使用会先分析代码库，可能需要几分钟。`,
-      };
-    }
-
-    const subcommand = args[0].toLowerCase();
-
-    // /dev status - 查看状态
-    if (subcommand === 'status') {
-      // 发送 WebSocket 消息请求状态
-      const message = {
-        type: 'continuous_dev:status',
-        sessionId,
-      };
-      
-      // 通过 WebSocket 发送
-      if (ws.readyState === 1) { // WebSocket.OPEN
-        ws.send(JSON.stringify(message));
-      }
-
-      return {
-        success: true,
-        message: `正在获取开发状态...
-
-如果没有活跃的开发流程，请使用 /dev <需求描述> 启动新流程。`,
-      };
-    }
-
-    // /dev pause - 暂停执行
-    if (subcommand === 'pause') {
-      const message = {
-        type: 'continuous_dev:pause',
-        sessionId,
-      };
-      
-      if (ws.readyState === 1) {
-        ws.send(JSON.stringify(message));
-      }
-
-      return {
-        success: true,
-        message: `⏸️ 正在暂停开发流程...
-
-已暂停的任务可以使用 /dev resume 恢复。`,
-      };
-    }
-
-    // /dev resume - 恢复执行
-    if (subcommand === 'resume') {
-      const message = {
-        type: 'continuous_dev:resume',
-        sessionId,
-      };
-      
-      if (ws.readyState === 1) {
-        ws.send(JSON.stringify(message));
-      }
-
-      return {
-        success: true,
-        message: `▶️ 正在恢复开发流程...`,
-      };
-    }
-
-    // /dev rollback - 回滚
-    if (subcommand === 'rollback') {
-      const checkpointId = args[1]; // 可选的检查点 ID
-
-      const message = {
-        type: 'continuous_dev:rollback',
-        sessionId,
-        checkpointId,
-      };
-      
-      if (ws.readyState === 1) {
-        ws.send(JSON.stringify(message));
-      }
-
-      return {
-        success: true,
-        message: checkpointId
-          ? `⏪ 正在回滚到检查点 ${checkpointId}...`
-          : `⏪ 正在回滚到上一个检查点...`,
-      };
-    }
-
-    // /dev <需求> - 启动新的开发流程
-    const requirement = args.join(' ');
-    
-    // 输入验证
-    if (requirement.length < 5) {
-      return {
-        success: false,
-        message: `需求描述太短了，请提供更详细的说明。
-
-示例:
-  /dev 增加用户邀请功能，支持邮件和链接邀请
-  /dev 优化数据库查询性能，添加索引和缓存`,
-      };
-    }
-
-    // 发送启动消息
-    const message = {
-      type: 'continuous_dev:start',
-      sessionId,
-      requirement,
-    };
-    
-    if (ws.readyState === 1) {
-      ws.send(JSON.stringify(message));
-    }
-
-    return {
-      success: true,
-      message: `🚀 启动持续开发流程
-
-需求: ${requirement}
-
-正在执行:
-  ⏳ 第一步: 分析代码库...
-
-后续步骤:
-  ○ 第二步: 影响分析
-  ○ 第三步: 生成增量蓝图
-  ○ 第四步: 等待审批
-  ○ 第五步: 执行开发
-
-提示:
-  • 使用 /dev status 查看进度
-  • 使用 /dev pause 暂停执行
-  • 高风险操作会请求您的确认`,
-    };
-  },
-};
-
-// 注册持续开发命令
-registry.register(devCommand);
+registry.register(thinkBackCommand);
+registry.register(thinkbackPlayCommand);
+registry.register(insightsCommand);
 
 /**
  * 检查输入是否为斜杠命令

@@ -9,6 +9,7 @@ import type { Message } from '../../types/index.js';
 import type { WebSocket } from 'ws';
 import {
   getAgentTypeDefinition,
+  getAllActiveAgents,
   type AgentTypeDefinition,
   BUILT_IN_AGENT_TYPES,
 } from '../../tools/agent.js';
@@ -58,6 +59,15 @@ export interface TaskInfo {
   toolUseCount?: number;
   /** 最后执行的工具信息 */
   lastToolInfo?: string;
+  /** v12.0: 结构化错误信息（失败时） */
+  structuredError?: {
+    /** 已完成的步骤 */
+    completedSteps: string[];
+    /** 失败的具体步骤 */
+    failedStep?: { name: string; reason: string };
+    /** 建议的恢复策略 */
+    suggestion: 'retry' | 'escalate' | 'manual';
+  };
 }
 
 /**
@@ -78,6 +88,68 @@ export class TaskManager {
   private tasks = new Map<string, TaskExecutionContext>();
   private outputBuffers = new Map<string, string>();
   private ws?: WebSocket;
+
+  // v12.0: 自动清理配置
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
+  private readonly TASK_RETENTION_MS = 30 * 60 * 1000;  // 30分钟后清理已完成的任务
+  private readonly MAX_COMPLETED_TASKS = 50;
+
+  constructor() {
+    // v12.0: 启动定期清理（每5分钟检查一次）
+    this.cleanupTimer = setInterval(() => this.autoCleanup(), 5 * 60 * 1000);
+  }
+
+  /**
+   * v12.0: 销毁时清理定时器
+   */
+  destroy(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
+  }
+
+  /**
+   * v12.0: 自动清理过期的已完成/失败任务
+   */
+  private autoCleanup(): void {
+    const now = Date.now();
+    let cleaned = 0;
+
+    for (const [taskId, context] of this.tasks.entries()) {
+      const task = context.task;
+      if (task.status === 'running') continue;
+
+      const endTime = task.endTime?.getTime() || task.startTime.getTime();
+      if (now - endTime > this.TASK_RETENTION_MS) {
+        this.tasks.delete(taskId);
+        this.outputBuffers.delete(taskId);
+        cleaned++;
+      }
+    }
+
+    // 如果已完成任务超过上限，按时间排序清理最老的
+    const completedTasks: Array<{ id: string; endTime: number }> = [];
+    for (const [taskId, context] of this.tasks.entries()) {
+      const task = context.task;
+      if (task.status !== 'running') {
+        completedTasks.push({ id: taskId, endTime: task.endTime?.getTime() || task.startTime.getTime() });
+      }
+    }
+    if (completedTasks.length > this.MAX_COMPLETED_TASKS) {
+      completedTasks.sort((a, b) => a.endTime - b.endTime);
+      const excess = completedTasks.length - this.MAX_COMPLETED_TASKS;
+      for (let i = 0; i < excess; i++) {
+        this.tasks.delete(completedTasks[i].id);
+        this.outputBuffers.delete(completedTasks[i].id);
+        cleaned++;
+      }
+    }
+
+    if (cleaned > 0) {
+      console.log(`[TaskManager] 自动清理 ${cleaned} 个过期任务`);
+    }
+  }
 
   /**
    * 设置 WebSocket 连接以发送状态更新
@@ -179,7 +251,7 @@ export class TaskManager {
     const agentDef = getAgentTypeDefinition(agentType);
     if (!agentDef) {
       throw new Error(
-        `Unknown agent type: ${agentType}. Available: ${BUILT_IN_AGENT_TYPES.map(d => d.agentType).join(', ')}`
+        `Unknown agent type: ${agentType}. Available: ${getAllActiveAgents().map(d => d.agentType).join(', ')}`
       );
     }
 
@@ -474,6 +546,22 @@ export class TaskManager {
       task.error = error instanceof Error ? error.message : String(error);
       const totalDuration = task.endTime.getTime() - task.startTime.getTime();
 
+      // v12.0: 构建结构化错误
+      const completedTools = (task.toolCalls || [])
+        .filter(tc => tc.status === 'completed').map(tc => tc.name);
+      const failedTool = (task.toolCalls || []).find(tc => tc.status === 'error');
+      task.structuredError = {
+        completedSteps: completedTools,
+        failedStep: failedTool
+          ? { name: failedTool.name, reason: failedTool.error || task.error }
+          : undefined,
+        suggestion: task.error.includes('timeout') || task.error.includes('rate_limit')
+          ? 'retry'
+          : task.error.includes('permission') || task.error.includes('forbidden')
+            ? 'manual'
+            : 'escalate',
+      };
+
       // 日志：子 agent 失败
       console.log(`[SubAgent:${task.agentType}] ❌ 任务失败 (耗时: ${totalDuration}ms): ${task.error}`);
 
@@ -497,7 +585,7 @@ export class TaskManager {
       parentMessages?: Message[];
       workingDirectory?: string;
     }
-  ): Promise<{ success: boolean; output?: string; error?: string; taskId: string }> {
+  ): Promise<{ success: boolean; output?: string; error?: string; taskId: string; structuredError?: TaskInfo['structuredError'] }> {
     const taskId = await this.createTask(description, prompt, agentType, {
       ...options,
       runInBackground: false,
@@ -528,6 +616,7 @@ export class TaskManager {
         success: false,
         error: task.error || 'Task failed',
         taskId,
+        structuredError: task.structuredError,
       };
     }
   }

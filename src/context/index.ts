@@ -132,8 +132,8 @@ export function estimateMessageTokens(message: Message): number {
         : JSON.stringify(block.content);
       total += estimateTokens(content);
     } else if (block.type === 'image') {
-      // 图片按固定大小估算
-      total += 1000;
+      // 图片按固定大小估算（对齐官方 Nr4=2000）
+      total += 2000;
     }
   }
 

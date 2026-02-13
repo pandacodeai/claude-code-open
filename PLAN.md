@@ -1,109 +1,87 @@
-# 集成 Playwright CLI 浏览器能力到 Docker 部署
+# LandingPage 实现计划
 
 ## 目标
-让 Docker 容器中的 Claude Code 能通过 `playwright-cli` 操作 headless 浏览器，无需 MCP 协议，通过 Bash 工具直接调用 CLI 命令。
+创建一个面向开发者的产品 Landing Page，介绍 Claude Code WebUI 移动端的工作原理和优势。作为 WebUI 的一个新页面模块集成到现有路由系统中。
 
-## 实施内容
+## 核心内容（基于代码分析）
 
-### 1. 修改 Dockerfile —— 安装 Playwright + playwright-cli
+### 要展示的技术亮点
+1. **Tailscale 多端协同** — 服务器自动检测 100.x CGNAT 地址，零配置远程访问（`src/web/server/index.ts:190-205`）
+2. **PWA 原生体验** — manifest.webmanifest + Service Worker + iOS standalone 模式
+3. **三级响应式适配** — 768px（平板）→ 480px（手机）→ 触摸设备（`index.css:2099-2357`）
+4. **WebSocket 实时通信** — 手机上也能实时对话、权限审批、工具调用
+5. **Safe Area + 横屏** — iOS 刘海屏、底部安全区、横屏模式全适配
 
-当前 Dockerfile 基于 `node:18-slim`，需要：
-- 安装 Chromium 浏览器及其系统依赖（字体、音视频库等）
-- 全局安装 `@playwright/cli@latest`
-- 设置 headless 模式环境变量
+## 架构设计
 
-**具体改动**：在 Stage 2（Production）中增加 Chromium 系统依赖和 playwright-cli：
-
-```dockerfile
-# 安装 Chromium 系统依赖 + playwright-cli
-RUN apt-get update && apt-get install -y --fix-missing \
-    git \
-    # Chromium 依赖
-    libnss3 libnspr4 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 \
-    libcups2 libdrm2 libxkbcommon0 libatspi2.0-0 libxcomposite1 \
-    libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 \
-    libcairo2 libasound2 libwayland-client0 \
-    # 字体
-    fonts-noto-cjk fonts-noto-color-emoji \
-    && rm -rf /var/lib/apt/lists/* \
-    && npm install -g @playwright/cli@latest \
-    && npx playwright install chromium --with-deps
+### 新增文件
+```
+src/web/client/src/pages/LandingPage/
+  index.tsx              # 页面主组件
+  LandingPage.module.css # 样式（CSS Modules，跟 BlueprintPage 同模式）
+  sections/
+    HeroSection.tsx      # 顶部大图+标语
+    ArchitectureSection.tsx  # 工作原理（架构图）
+    FeaturesSection.tsx  # 六大优势卡片
+    DemoSection.tsx      # 手机端演示效果（模拟手机框+截图）
+    GetStartedSection.tsx    # 快速开始步骤
+    FooterSection.tsx    # 底部
 ```
 
-### 2. 安装 playwright-cli SKILL 到镜像
+### 路由集成
+修改 `Root.tsx`：
+- `Page` 类型增加 `'landing'`
+- TopNavBar 增加 Landing 入口
+- 页面容器挂载 LandingPage
 
-playwright-cli 通过 `playwright-cli install --skills` 安装 SKILL.md 文件到 `~/.claude/skills/` 目录。但 Docker 中 `~/.claude` 是 volume 挂载点，所以需要：
+### 设计风格
+- 复用现有 CSS 变量（Deep Universe 暗色主题）
+- 使用 Glass Effect（`--glass-panel`）
+- Indigo 主色调（`--accent-primary: #6366f1`）
+- 全页面滚动，各 section 全宽
+- 移动端自身也要做响应式适配（dogfooding）
 
-- 在构建时，把 SKILL.md 文件直接放到 `/app/skills/playwright-cli/SKILL.md`
-- 在容器启动时，如果 `~/.claude/skills/playwright-cli/SKILL.md` 不存在，自动复制过去
+## 页面内容草稿
 
-**更好的方案**：直接把 SKILL.md 放到项目目录的 `.claude/skills/playwright-cli/` 下，因为 skill 加载器会扫描项目目录（`projectSkillsDir`）。容器的 WORKDIR 是 `/workspace`，所以可以在镜像中预置 `/workspace/.claude/skills/playwright-cli/SKILL.md`。
+### Hero Section
+- 大标题：「Claude Code, 随身携带」
+- 副标题：「通过 Tailscale 组网，在手机上远程操控你的开发环境。PWA 原生体验，无需安装任何 App。」
+- CTA 按钮：「开始使用」→ 跳转到 chat 页面
 
-但 `/workspace` 是用户映射的目录，不应该污染。
+### Architecture Section（工作原理）
+- 可视化架构图：`PC (Claude Code Server)` ←WebSocket→ `Tailscale Network` ←HTTPS→ `Phone (PWA)`
+- 三步流程：
+  1. PC 启动 `claude-code --web --host 0.0.0.0`
+  2. Tailscale 自动分配内网地址（100.x.x.x）
+  3. 手机浏览器访问，添加到主屏幕即为原生 App
 
-**最终方案**：在 Dockerfile 中构建完成后，把 SKILL.md 内容复制到 `/root/.claude/skills/playwright-cli/SKILL.md`（用户级别 skills 目录）。当用户挂载 `~/.claude` volume 时，如果他们没有这个文件，可以通过 entrypoint 脚本自动初始化。
-
-### 3. 创建 entrypoint 脚本
-
-替换当前的直接 `ENTRYPOINT ["node", "/app/dist/cli.js"]`，创建一个 shell 脚本：
-
-```bash
-#!/bin/bash
-# 确保 playwright-cli SKILL 存在
-mkdir -p /root/.claude/skills/playwright-cli
-if [ ! -f /root/.claude/skills/playwright-cli/SKILL.md ]; then
-  cp /app/skills/playwright-cli/SKILL.md /root/.claude/skills/playwright-cli/SKILL.md
-fi
-
-# 启动 Claude Code
-exec node /app/dist/cli.js "$@"
-```
-
-### 4. 在项目中添加 SKILL.md 文件
-
-在项目根目录创建 `skills/playwright-cli/SKILL.md`，内容从微软官方 playwright-cli 仓库获取（已获取完整内容）。
-
-### 5. 更新 docker-compose.yml
-
-添加共享内存（Chromium 需要）：
-
-```yaml
-services:
-  claude:
-    image: wbj66/claude-code-open:latest
-    stdin_open: true
-    tty: true
-    shm_size: '2gb'  # Chromium 需要
-    environment:
-      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-    volumes:
-      - ~/.claude:/root/.claude
-      - .:/workspace
-```
-
-### 6. 更新 .dockerignore
-
-确保 `skills/` 目录不被忽略。
-
-## 文件变更清单
-
-| 文件 | 操作 |
+### Features Section（六大优势）
+| 特性 | 描述 |
 |------|------|
-| `Dockerfile` | 修改：添加 Chromium 依赖、playwright-cli 安装、SKILL 预置、entrypoint |
-| `docker-compose.yml` | 修改：添加 shm_size、环境变量 |
-| `skills/playwright-cli/SKILL.md` | 新建：浏览器自动化 SKILL 定义 |
-| `docker-entrypoint.sh` | 新建：容器启动脚本 |
-| `.dockerignore` | 修改：确保 skills 不被忽略 |
+| 零配置组网 | Tailscale 自动检测，启动即显示手机访问地址 |
+| PWA 原生体验 | 添加到主屏幕，全屏运行，无浏览器地址栏 |
+| 实时双向通信 | WebSocket 长连接，对话/权限/工具调用毫秒级响应 |
+| 深度触控优化 | 44px 最小点击区域，安全区适配，手势友好 |
+| 三级响应式 | 平板/手机/横屏三套布局，智能隐藏次要功能 |
+| 端到端加密 | Tailscale WireGuard 隧道，流量不经公网 |
 
-## 镜像大小预估
+### Demo Section
+- CSS 模拟 iPhone 手机框
+- 内嵌实际 WebUI 截图或 iframe 预览
 
-- 当前镜像（node:18-slim + git）：约 250MB
-- 新增 Chromium + 依赖：约 +400MB
-- 总计：约 650MB（可接受，Playwright 官方镜像 1.2GB）
+### Get Started Section
+- 三步快速开始的代码块
+- 环境要求说明
 
-## 不做的事
+## 实现顺序
+1. 创建 LandingPage 目录结构和主组件
+2. 实现各 Section 组件
+3. 编写 CSS Module 样式
+4. 集成到 Root.tsx 路由
+5. TopNavBar 增加入口
 
-- 不修改 Claude Code 源码 —— 浏览器能力完全通过 Bash 工具 + SKILL 暴露
-- 不加 MCP 服务器 —— CLI 方式更轻量、更省 token
-- 不加 VNC/noVNC —— headless 够用，AI 不需要看画面
-- 不改工具系统 —— SKILL 自动授权 `Bash(playwright-cli:*)` 模式的命令
+## 约束
+- 不引入额外依赖，纯 React + CSS
+- 复用项目现有设计系统变量
+- 所有文案中文
+- 页面本身也要移动端适配

@@ -1165,6 +1165,8 @@ export const App: React.FC<AppProps> = ({
             role={msg.role}
             content={msg.content}
             timestamp={msg.timestamp}
+            onCopy={undefined}
+            onRewind={undefined}
           />
         )}
       </Static>
@@ -1200,6 +1202,8 @@ export const App: React.FC<AppProps> = ({
                   content={block.text || ''}
                   timestamp={block.timestamp}
                   streaming={block.isStreaming}
+                  onCopy={undefined}
+                  onRewind={undefined}
                 />
               );
             } else if (block.type === 'tool' && block.tool) {

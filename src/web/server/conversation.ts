@@ -37,12 +37,14 @@ import {
   isSessionMemoryEnabled,
 } from '../../context/session-memory.js';
 import { initNotebookManager, getNotebookManager } from '../../memory/notebook.js';
-import { registerMcpServer, connectMcpServer, createMcpTools, getMcpServers, callMcpTool, type McpToolDefinition } from '../../tools/mcp.js';
+import { registerMcpServer, connectMcpServer, createMcpTools, getMcpServers, callMcpTool, disconnectMcpServer, type McpToolDefinition } from '../../tools/mcp.js';
 import { getChromeIntegrationConfig } from '../../chrome-mcp/index.js';
 import { CHROME_MCP_TOOLS } from '../../chrome-mcp/tools.js';
 import { RewindManager, type RewindOption } from '../../rewind/index.js';
+import { MarketplaceManager } from '../../plugins/marketplace.js';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
 // ============================================================================
 // 网络错误重试相关常量
@@ -304,6 +306,8 @@ export class ConversationManager {
    * 对应官方 LM6() / DV6() 合并逻辑
    */
   private mcpTools: Array<{ name: string; description: string; inputSchema: any; isMcp?: boolean }> = [];
+  /** 插件市场管理器 */
+  private marketplaceManager?: MarketplaceManager;
 
   constructor(cwd: string, defaultModel: string = 'opus', options?: { verbose?: boolean }) {
     this.cwd = cwd;
@@ -320,18 +324,42 @@ export class ConversationManager {
    * 初始化
    */
   async initialize(): Promise<void> {
+    // 初始化插件市场管理器
+    const { pluginManager } = await import('../../plugins/index.js');
+    this.marketplaceManager = new MarketplaceManager(pluginManager);
+    console.log('[ConversationManager] 插件市场管理器已初始化');
+
+    // 注册默认 marketplace（等待完成，确保 Discover 面板可用）
+    await this.marketplaceManager.ensureDefaultMarketplace();
+
     // 注册蓝图工具（仅 Web 模式需要，CLI 模式不加载）
     registerBlueprintTools();
 
-    // v11.0: 注入 StartLeadAgent 自包含执行上下文（替代 executeTool 拦截模式）
+    // v12.0: 注入 StartLeadAgent 自包含执行上下文（支持 TaskPlan + 结构化错误）
     StartLeadAgentTool.setContext({
       getBlueprint: (id: string) => blueprintStore.get(id),
       saveBlueprint: (blueprint: Blueprint) => blueprintStore.save(blueprint),
-      startExecution: (blueprint: Blueprint) => executionManager.startExecution(blueprint),
+      startExecution: (blueprint: Blueprint, taskPlan?: any) =>
+        executionManager.startExecution(blueprint, undefined, { taskPlan }),
       waitForCompletion: async (sessionId: string) => {
         const result = await executionManager.waitForCompletion(sessionId);
-        return { success: result.success, rawResponse: result.rawResponse };
+
+        // v12.0: 提取任务级别的详细信息供 Planner 决策
+        const plan = executionManager.getSessionPlan(sessionId);
+        const completedTasks = plan?.tasks?.filter((t: any) => t.status === 'completed').map((t: any) => t.name) || [];
+        const failedTasks = plan?.tasks?.filter((t: any) => t.status === 'failed').map((t: any) => t.name) || [];
+
+        return {
+          success: result.success,
+          rawResponse: result.rawResponse,
+          completedCount: result.completedCount,
+          failedCount: result.failedCount,
+          skippedCount: result.skippedCount,
+          completedTasks,
+          failedTasks,
+        };
       },
+      getWorkingDirectory: () => this.cwd,
       // navigateToSwarm 在 createSession 中按会话设置（需要 ws 引用）
     });
 
@@ -468,39 +496,87 @@ export class ConversationManager {
   }
 
   /**
-   * 根据认证信息构建 ClaudeClient 配置
-   * 与核心 loop.ts 逻辑保持一致
+   * 读取 WebUI 保存在 settings.json 中的原始自定义 API 配置
+   * 直接读文件而非 configManager.getAll()，避免被环境变量覆盖
    */
-  private buildClientConfig(model: string): { model: string; apiKey?: string; authToken?: string; timeout?: number } {
-    const auth = getAuth();
-    const config: { model: string; apiKey?: string; authToken?: string; timeout?: number } = {
-      model: this.getModelId(model),
+  private getWebUiApiConfig(): { apiBaseUrl?: string; customModelName?: string; authPriority?: string; apiKey?: string } {
+    try {
+      const settingsPath = configManager.getConfigPaths().userSettings;
+      if (fs.existsSync(settingsPath)) {
+        const raw = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+        return {
+          apiBaseUrl: raw.apiBaseUrl,
+          customModelName: raw.customModelName,
+          authPriority: raw.authPriority,
+          apiKey: raw.apiKey,
+        };
+      }
+    } catch {
+      // 读取失败不影响正常流程
+    }
+    return {};
+  }
+
+  /**
+   * 根据认证信息构建 ClaudeClient 配置
+   * 与核心 loop.ts 逻辑保持一致，同时支持 WebUI 自定义 API 配置
+   *
+   * 优先级：WebUI 页面配置 > 环境变量 > OAuth
+   */
+  private buildClientConfig(model: string): { model: string; apiKey?: string; authToken?: string; baseUrl?: string; timeout?: number } {
+    // 读取 WebUI 保存的原始自定义配置（不经过 configManager 合并，避免被环境变量覆盖）
+    const webUiConfig = this.getWebUiApiConfig();
+    const authPriority = webUiConfig.authPriority || 'auto';
+
+    const config: { model: string; apiKey?: string; authToken?: string; baseUrl?: string; timeout?: number } = {
+      model: webUiConfig.customModelName || this.getModelId(model),
       timeout: 300000,  // 5分钟 API 请求超时（对齐核心 loop.ts）
     };
 
-    if (auth) {
-      if (auth.type === 'api_key' && auth.apiKey) {
-        config.apiKey = auth.apiKey;
-      } else if (auth.type === 'oauth') {
-        // 检查是否有 user:inference scope (Claude.ai 订阅用户)
-        // 注意：auth.scopes 是数组形式，auth.scope 是旧格式
-        const scopes = auth.scopes || auth.scope || [];
-        const hasInferenceScope = scopes.includes('user:inference');
+    // 设置自定义 API 地址
+    if (webUiConfig.apiBaseUrl) {
+      config.baseUrl = webUiConfig.apiBaseUrl;
+    }
 
-        // 获取 OAuth token（可能是 authToken 或 accessToken）
-        const oauthToken = auth.authToken || auth.accessToken;
-
-        if (hasInferenceScope && oauthToken) {
-          // Claude.ai 订阅用户可以直接使用 OAuth token
-          config.authToken = oauthToken;
-        } else if (auth.oauthApiKey) {
-          // Console 用户使用创建的 API Key
-          config.apiKey = auth.oauthApiKey;
-        }
+    // 根据 authPriority 决定认证方式
+    if (authPriority === 'apiKey' && webUiConfig.apiKey) {
+      // 强制使用 WebUI 配置的 API Key
+      config.apiKey = webUiConfig.apiKey;
+    } else if (authPriority === 'oauth') {
+      // 强制使用 OAuth，走现有逻辑
+      this.applyOAuthConfig(config);
+    } else {
+      // auto 模式：WebUI 配置了 apiKey 就优先用，否则走现有 getAuth() 逻辑
+      if (webUiConfig.apiKey) {
+        config.apiKey = webUiConfig.apiKey;
+      } else {
+        this.applyOAuthConfig(config);
       }
     }
 
     return config;
+  }
+
+  /**
+   * 应用 OAuth/getAuth() 认证配置（从原 buildClientConfig 逻辑提取）
+   */
+  private applyOAuthConfig(config: { apiKey?: string; authToken?: string }): void {
+    const auth = getAuth();
+    if (!auth) return;
+
+    if (auth.type === 'api_key' && auth.apiKey) {
+      config.apiKey = auth.apiKey;
+    } else if (auth.type === 'oauth') {
+      const scopes = auth.scopes || auth.scope || [];
+      const hasInferenceScope = scopes.includes('user:inference');
+      const oauthToken = auth.authToken || auth.accessToken;
+
+      if (hasInferenceScope && oauthToken) {
+        config.authToken = oauthToken;
+      } else if (auth.oauthApiKey) {
+        config.apiKey = auth.oauthApiKey;
+      }
+    }
   }
 
   /**
@@ -543,14 +619,13 @@ export class ConversationManager {
       if (newConfig.authToken) {
         // 创建新的客户端实例
         state.client = new ClaudeClient({
-          apiKey: newConfig.apiKey,
-          authToken: newConfig.authToken,
+          ...newConfig,
         });
         console.log('[ConversationManager] 客户端已更新为新的 OAuth token');
       } else if (newConfig.apiKey) {
         // OAuth 用户可能使用 API Key
         state.client = new ClaudeClient({
-          apiKey: newConfig.apiKey,
+          ...newConfig,
           authToken: undefined,
         });
         console.log('[ConversationManager] 客户端已更新为 OAuth API Key');
@@ -591,7 +666,10 @@ export class ConversationManager {
 
     // 使用与核心 loop.ts 一致的认证逻辑
     const clientConfig = this.buildClientConfig(model || this.defaultModel);
-    const client = new ClaudeClient(clientConfig);
+    const client = new ClaudeClient({
+      ...clientConfig,
+      timeout: clientConfig.timeout,
+    });
 
     // 创建用户交互处理器
     const userInteractionHandler = new UserInteractionHandler();
@@ -667,7 +745,10 @@ export class ConversationManager {
       state.model = model;
       // 使用与核心 loop.ts 一致的认证逻辑
       const clientConfig = this.buildClientConfig(model);
-      state.client = new ClaudeClient(clientConfig);
+      state.client = new ClaudeClient({
+        ...clientConfig,
+        timeout: clientConfig.timeout,
+      });
     }
   }
 
@@ -1334,10 +1415,18 @@ export class ConversationManager {
             if (sessionId) walAppend(sessionId, 'msg', toolResultMsg);
 
             // 添加 newMessages（对齐官网实现：skill 内容作为独立的 user 消息）
+            // 官网 Ch4: metadata 消息无 isMeta，skill 内容消息 isMeta: true
             for (const newMsg of allNewMessages) {
-              state.messages.push(newMsg);
+              const msg: Message = {
+                role: newMsg.role,
+                content: newMsg.content,
+              };
+              if ('isMeta' in newMsg && newMsg.isMeta) {
+                msg.isMeta = true;
+              }
+              state.messages.push(msg);
               // WAL：追加 newMessages
-              if (sessionId) walAppend(sessionId, 'msg', newMsg);
+              if (sessionId) walAppend(sessionId, 'msg', msg);
             }
           }
 
@@ -1722,9 +1811,24 @@ export class ConversationManager {
             }
           );
 
-          const output = result.success
-            ? (result.output || 'Task completed successfully')
-            : `Task failed: ${result.error || 'Unknown error'}`;
+          let output: string;
+          if (result.success) {
+            output = result.output || 'Task completed successfully';
+          } else {
+            // v12.0: 使用结构化错误信息
+            const parts = [`Task failed: ${result.error || 'Unknown error'}`];
+            if (result.structuredError) {
+              const se = result.structuredError;
+              if (se.completedSteps.length > 0) {
+                parts.push(`\nCompleted steps: ${se.completedSteps.join(', ')}`);
+              }
+              if (se.failedStep) {
+                parts.push(`\nFailed at: ${se.failedStep.name} - ${se.failedStep.reason}`);
+              }
+              parts.push(`\nSuggestion: ${se.suggestion}`);
+            }
+            output = parts.join('');
+          }
 
           callbacks.onToolResult?.(toolUse.id, result.success, output, result.success ? undefined : result.error, {
             tool: 'Task',
@@ -2401,8 +2505,11 @@ export class ConversationManager {
       }
 
       // 构建 MCP 服务器信息（用于 getMcpInstructions）
+      // 官方行为：只包含未禁用的服务器（与 mcp.tools state 一致）
+      const disabledServers = this.getDisabledMcpServers();
       const mcpServerInfos: Array<{ name: string; type: string; instructions?: string }> = [];
       for (const [name, server] of getMcpServers()) {
+        if (disabledServers.includes(name)) continue;
         mcpServerInfos.push({
           name,
           type: server.connected ? 'connected' : 'disconnected',
@@ -2468,6 +2575,23 @@ export class ConversationManager {
    */
   private buildWebuiToolGuidance(): string | null {
     const sections: string[] = [];
+
+    // v12.1: Planner Agent 角色约束（防止 LeadAgent 失败后 Planner 自己接管写代码）
+    sections.push(`# Planner Agent 角色约束
+
+你是 Planner Agent（规划者），负责理解需求、生成蓝图/任务计划、委派给 LeadAgent 执行。
+
+## 核心行为规则
+1. **不直接写代码** — 所有代码实现工作必须通过 StartLeadAgent 工具委派给 LeadAgent
+2. **失败后重新委派，不要自己修复** — 当 StartLeadAgent 返回失败结果时：
+   - 分析失败任务的原因（查看返回的失败任务列表和 LeadAgent 输出）
+   - 调整任务描述、添加约束条件、拆分粒度
+   - 用更详细的 TaskPlan 重新调用 StartLeadAgent
+   - 绝不要自己直接用 Write/Edit/Bash 等工具去修复 LeadAgent 未完成的工作
+3. **两种委派模式**：
+   - 蓝图模式：先用 GenerateBlueprint 生成蓝图，再用 StartLeadAgent(blueprintId) 执行
+   - TaskPlan 模式：直接用 StartLeadAgent(taskPlan) 传入任务列表（适合中等复杂度任务）
+4. **向用户汇报** — 执行完成后向用户报告成功/失败情况和关键结果`);
 
     // GenerateDesign 工具引导（需要 GEMINI_API_KEY）
     const hasGeminiKey = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
@@ -2692,6 +2816,11 @@ Guidelines:
       }
     }
 
+    const mcpNames = merged.filter(t => t.name.startsWith('mcp__')).map(t => t.name);
+    if (mcpNames.length > 0) {
+      console.log(`[getFilteredTools] 发送给模型的 MCP 工具 (${mcpNames.length}): [${mcpNames.join(', ')}]`);
+    }
+
     return merged;
   }
 
@@ -2811,7 +2940,10 @@ Guidelines:
       await session.initializeGitInfo();
 
       const clientConfig = this.buildClientConfig(sessionData.currentModel || this.defaultModel);
-      const client = new ClaudeClient(clientConfig);
+      const client = new ClaudeClient({
+        ...clientConfig,
+        timeout: clientConfig.timeout,
+      });
 
       // 如果 chatHistory 为空但 messages 不为空，从 messages 构建 chatHistory
       let chatHistory = sessionData.chatHistory || [];
@@ -3021,22 +3153,36 @@ Guidelines:
 
   /**
    * 列出所有 MCP 服务器
+   * 返回真实的 enabled 状态（基于 disabledMcpServers 数组）和工具数量
    */
-  listMcpServers(): import('../shared/types.js').McpServerConfig[] {
+  listMcpServers(): any[] {
     const servers = this.mcpConfigManager.getServers();
+    const disabledServers = this.getDisabledMcpServers();
 
-    return Object.entries(servers).map(([name, config]) => ({
-      name,
-      type: config.type,
-      command: config.command,
-      args: config.args,
-      env: config.env,
-      url: config.url,
-      headers: config.headers,
-      enabled: config.enabled !== false,
-      timeout: config.timeout,
-      retries: config.retries,
-    }));
+    return Object.entries(servers).map(([name, config]) => {
+      const isDisabled = disabledServers.includes(name);
+      const prefix = `mcp__${name}__`;
+      const serverTools = this.mcpTools.filter(t => t.name.startsWith(prefix));
+
+      return {
+        name,
+        type: config.type,
+        command: config.command,
+        args: config.args,
+        env: config.env,
+        url: config.url,
+        headers: config.headers,
+        enabled: !isDisabled,
+        timeout: config.timeout,
+        retries: config.retries,
+        toolsCount: serverTools.length,
+        tools: serverTools.map(t => ({
+          name: t.name,
+          serverName: name,
+          description: t.description,
+        })),
+      };
+    });
   }
 
   /**
@@ -3083,30 +3229,90 @@ Guidelines:
 
   /**
    * 切换 MCP 服务器启用状态
+   *
+   * 官方实现（useManageMcpConnections hook）：
+   * 1. 只通过 disabledMcpServers 数组管理禁用状态（无 MCPServerConfig.enabled 字段）
+   * 2. 禁用时：写入 disabledMcpServers → 断开连接 → 更新 state
+   * 3. 启用时：从 disabledMcpServers 移除 → 重新连接 → 获取工具 → 更新 state
    */
   async toggleMcpServer(name: string, enabled?: boolean): Promise<{ success: boolean; enabled: boolean }> {
     try {
-      const server = this.mcpConfigManager.getServer(name);
+      // 判断当前是否已禁用
+      const disabledServers = this.getDisabledMcpServers();
+      const isCurrentlyDisabled = disabledServers.includes(name);
+      const newEnabled = enabled !== undefined ? enabled : isCurrentlyDisabled;
 
-      if (!server) {
-        console.warn(`[ConversationManager] MCP 服务器不存在: ${name}`);
-        return { success: false, enabled: false };
-      }
+      // 1. 写入 disabledMcpServers 数组到 local settings（与官方 AG1 函数一致）
+      this.updateDisabledMcpServers(name, newEnabled);
 
-      // 如果未指定 enabled，则切换当前状态
-      const newEnabled = enabled !== undefined ? enabled : !(server.enabled !== false);
-
-      if (newEnabled) {
-        await this.mcpConfigManager.enableServer(name);
+      // 2. 当前会话实时生效
+      if (!newEnabled) {
+        // 禁用：从 mcpTools 移除该服务器的工具，断开连接
+        // 对应官方：Am(name, config) + state update
+        const prefix = `mcp__${name}__`;
+        this.mcpTools = this.mcpTools.filter(tool => !tool.name.startsWith(prefix));
+        try {
+          await disconnectMcpServer(name);
+        } catch {
+          // 断开失败不影响禁用操作
+        }
       } else {
-        await this.mcpConfigManager.disableServer(name);
+        // 启用：重新连接并加载工具
+        // 对应官方：qm(name, config) + handleConnectionResult
+        try {
+          const mcpServerConfigs = configManager.getMcpServers();
+          const config = mcpServerConfigs[name];
+          if (config) {
+            registerMcpServer(name, config);
+            const connected = await connectMcpServer(name);
+            if (connected) {
+              const tools = await createMcpTools(name);
+              for (const tool of tools) {
+                this.mcpTools.push({
+                  name: tool.name,
+                  description: tool.description,
+                  inputSchema: tool.getInputSchema(),
+                  isMcp: true,
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.warn(`[ConversationManager] 重新连接 MCP 服务器 ${name} 失败:`, err);
+        }
       }
 
-      console.log(`[ConversationManager] MCP 服务器 ${name} ${newEnabled ? '已启用' : '已禁用'}`);
+      console.log(`[ConversationManager] MCP 服务器 ${name} ${newEnabled ? '已启用' : '已禁用'}, mcpTools 剩余: ${this.mcpTools.length}, 工具名: [${this.mcpTools.map(t => t.name).join(', ')}]`);
       return { success: true, enabled: newEnabled };
     } catch (error) {
       console.error(`[ConversationManager] 切换 MCP 服务器失败:`, error);
       return { success: false, enabled: false };
+    }
+  }
+
+  /**
+   * 更新 disabledMcpServers 数组
+   * 对应官方 AG1(name, enabled) 函数：写入 local project settings
+   * 写入 .claude/settings.local.json（getDisabledMcpServers 优先读取的位置）
+   */
+  private updateDisabledMcpServers(name: string, enabled: boolean): void {
+    try {
+      const settingsPath = path.join(this.cwd, '.claude', 'settings.local.json');
+      let settings: any = {};
+      if (fs.existsSync(settingsPath)) {
+        settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+      }
+      let arr: string[] = settings.disabledMcpServers || [];
+      if (enabled) {
+        arr = arr.filter((n: string) => n !== name);
+      } else if (!arr.includes(name)) {
+        arr = [...arr, name];
+      }
+      settings.disabledMcpServers = arr;
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+    } catch (err) {
+      console.warn(`[ConversationManager] 更新 disabledMcpServers 失败:`, err);
     }
   }
 
@@ -3123,20 +3329,26 @@ Guidelines:
    * 列出所有插件
    */
   async listPlugins(): Promise<import('../shared/types.js').PluginInfo[]> {
+    console.log('[ConversationManager] listPlugins called (v2 with installed_plugins.json)');
     const { pluginManager } = await import('../../plugins/index.js');
 
-    // 发现所有插件
+    // 发现插件目录中的插件
     await pluginManager.discover();
 
     const pluginStates = pluginManager.getPluginStates();
+    console.log(`[ConversationManager] discover() found ${pluginStates.length} plugins`);
+    const results: import('../shared/types.js').PluginInfo[] = [];
+    const seenNames = new Set<string>();
 
-    return pluginStates.map(state => {
+    // 1. 从 PluginManager discover 得到的插件
+    for (const state of pluginStates) {
       const tools = pluginManager.getPluginTools(state.metadata.name);
       const commands = pluginManager.getPluginCommands(state.metadata.name);
       const skills = pluginManager.getPluginSkills(state.metadata.name);
       const hooks = pluginManager.getPluginHooks(state.metadata.name);
 
-      return {
+      seenNames.add(state.metadata.name);
+      results.push({
         name: state.metadata.name,
         version: state.metadata.version,
         description: state.metadata.description,
@@ -3149,8 +3361,148 @@ Guidelines:
         hooks: hooks.map(h => h.type),
         tools: tools.map(t => t.name),
         error: state.error,
-      };
-    });
+      });
+    }
+
+    // 2. 从 installed_plugins.json 读取通过 marketplace 安装的插件
+    //    (对应官方 Xj 函数，读取 ~/.claude/plugins/installed_plugins.json)
+    try {
+      const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+      const installedPath = path.join(configDir, 'plugins', 'installed_plugins.json');
+
+      console.log(`[ConversationManager] Checking installed_plugins.json at: ${installedPath}`);
+      if (fs.existsSync(installedPath)) {
+        const data = JSON.parse(fs.readFileSync(installedPath, 'utf-8'));
+        const plugins = data.plugins || {};
+        console.log(`[ConversationManager] Found ${Object.keys(plugins).length} entries in installed_plugins.json`);
+
+        for (const [pluginId, installations] of Object.entries(plugins)) {
+          // 取 pluginId 中的 name 部分 (如 "frontend-design@claude-plugins-official" → "frontend-design")
+          const name = pluginId.includes('@') ? pluginId.split('@')[0] : pluginId;
+
+          if (seenNames.has(name)) continue;
+
+          // 取最新的安装记录
+          const installs = installations as any[];
+          if (!installs || installs.length === 0) continue;
+          const latest = installs[installs.length - 1];
+          let installPath: string = latest.installPath;
+
+          // 如果记录的 installPath 不存在，尝试扫描缓存目录找到实际版本
+          // (官方 CLI 更新插件后可能不会更新 installed_plugins.json 中的路径)
+          if (!installPath || !fs.existsSync(installPath)) {
+            const marketplace = pluginId.includes('@') ? pluginId.split('@')[1] : '';
+            const cacheDir = path.join(
+              process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'),
+              'plugins', 'cache', marketplace, name
+            );
+            if (fs.existsSync(cacheDir)) {
+              // 找到最新的版本目录
+              const versions = fs.readdirSync(cacheDir).filter(
+                v => fs.statSync(path.join(cacheDir, v)).isDirectory()
+              );
+              if (versions.length > 0) {
+                // 取最后一个（按字母排序，通常最新的版本或 commit hash 在最后）
+                // 更准确地按 mtime 排序
+                versions.sort((a, b) => {
+                  const aStat = fs.statSync(path.join(cacheDir, a));
+                  const bStat = fs.statSync(path.join(cacheDir, b));
+                  return bStat.mtimeMs - aStat.mtimeMs; // 最新的排前面
+                });
+                installPath = path.join(cacheDir, versions[0]);
+                console.log(`[ConversationManager] Resolved installPath for ${pluginId}: ${installPath}`);
+              } else {
+                continue;
+              }
+            } else {
+              continue;
+            }
+          }
+
+          // 读取 package.json 或 plugin.json
+          let pluginName = name;
+          let version = latest.version || 'unknown';
+          let description: string | undefined;
+          let author: string | undefined;
+
+          const pkgPath = path.join(installPath, 'package.json');
+          const pluginJsonPath = path.join(installPath, '.claude-plugin', 'plugin.json');
+
+          if (fs.existsSync(pkgPath)) {
+            try {
+              const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+              pluginName = pkg.name || name;
+              version = pkg.version || version;
+              description = pkg.description;
+              author = typeof pkg.author === 'object' ? pkg.author?.name : pkg.author;
+            } catch {}
+          } else if (fs.existsSync(pluginJsonPath)) {
+            try {
+              const pj = JSON.parse(fs.readFileSync(pluginJsonPath, 'utf-8'));
+              pluginName = pj.name || name;
+              version = pj.version || version;
+              description = pj.description;
+              author = typeof pj.author === 'object' ? pj.author?.name : pj.author;
+            } catch {}
+          } else {
+            // fallback: 读取 .claude-plugin/marketplace.json (如 document-skills)
+            const mktJsonPath = path.join(installPath, '.claude-plugin', 'marketplace.json');
+            if (fs.existsSync(mktJsonPath)) {
+              try {
+                const mkt = JSON.parse(fs.readFileSync(mktJsonPath, 'utf-8'));
+                // marketplace.json 可能包含多个 plugins，找到匹配 name 的
+                const entry = mkt.plugins?.find((p: any) => p.name === name);
+                if (entry) {
+                  pluginName = entry.name;
+                  description = entry.description;
+                } else {
+                  // 没有匹配的，使用 marketplace 级别的信息
+                  description = mkt.metadata?.description;
+                }
+                const owner = mkt.owner;
+                if (owner) {
+                  author = typeof owner === 'object' ? owner.name : owner;
+                }
+                version = mkt.metadata?.version || version;
+              } catch {}
+            }
+          }
+
+          // 扫描 skills 目录
+          const skillNames: string[] = [];
+          const skillsDir = path.join(installPath, 'skills');
+          if (fs.existsSync(skillsDir)) {
+            try {
+              for (const entry of fs.readdirSync(skillsDir)) {
+                const skillPath = path.join(skillsDir, entry);
+                if (fs.statSync(skillPath).isDirectory()) {
+                  skillNames.push(entry);
+                }
+              }
+            } catch {}
+          }
+
+          seenNames.add(pluginName);
+          results.push({
+            name: pluginName,
+            version,
+            description,
+            author,
+            enabled: true,
+            loaded: false,
+            path: installPath,
+            commands: [],
+            skills: skillNames,
+            hooks: [],
+            tools: [],
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('[ConversationManager] 读取 installed_plugins.json 失败:', err);
+    }
+
+    return results;
   }
 
   /**
@@ -3236,6 +3588,112 @@ Guidelines:
     } catch (error) {
       console.error(`[ConversationManager] 卸载插件失败:`, error);
       return false;
+    }
+  }
+
+  /**
+   * 获取 marketplace 和可发现的插件列表
+   * 对应官方 CLI 的 loadData 逻辑
+   */
+  async discoverMarketplacePlugins(): Promise<import('../shared/types.js').PluginDiscoverPayload> {
+    try {
+      if (!this.marketplaceManager) {
+        return { marketplaces: [], availablePlugins: [] };
+      }
+
+      // 1. 获取所有 marketplace
+      const knownMarketplaces = await this.marketplaceManager.getMarketplaces();
+      const marketplaces: import('../shared/types.js').MarketplaceItem[] = [];
+
+      for (const [name, entry] of Object.entries(knownMarketplaces)) {
+        // 获取该 marketplace 的插件数量
+        const plugins = await this.marketplaceManager.listAvailablePlugins(name);
+        const sourceStr = entry.source.source === 'github'
+          ? `github.com/${entry.source.repo}`
+          : entry.source.source === 'git'
+            ? entry.source.url
+            : entry.source.source === 'directory'
+              ? entry.source.path
+              : entry.source.source === 'url'
+                ? entry.source.url
+                : String(entry.source.source);
+
+        marketplaces.push({
+          name,
+          source: sourceStr,
+          pluginCount: plugins.length,
+          autoUpdate: entry.autoUpdate,
+          lastUpdated: entry.lastUpdated,
+        });
+      }
+
+      // 2. 获取所有可发现的插件
+      const availablePlugins = await this.marketplaceManager.listAvailablePlugins();
+
+      return {
+        marketplaces,
+        availablePlugins: availablePlugins.map(p => ({
+          pluginId: p.pluginId,
+          name: p.name,
+          version: p.version,
+          description: p.description,
+          author: p.author,
+          marketplaceName: p.marketplaceName || '',
+          installCount: p.installCount,
+          tags: p.tags,
+        })),
+      };
+    } catch (error) {
+      console.error('[ConversationManager] 获取插件市场数据失败:', error);
+      return { marketplaces: [], availablePlugins: [] };
+    }
+  }
+
+  /**
+   * 安装插件
+   * @param pluginId 插件标识符，支持：
+   *   - npm包名: "plugin-name" 或 "@scope/plugin-name"
+   *   - git仓库: "https://github.com/user/repo.git"
+   *   - http地址: "https://example.com/plugin.tar.gz"
+   *   - 本地路径: "/path/to/plugin"
+   */
+  async installPlugin(pluginId: string): Promise<{ success: boolean; plugin?: any; error?: string }> {
+    try {
+      if (!this.marketplaceManager) {
+        return { success: false, error: '插件市场管理器未初始化' };
+      }
+
+      console.log(`[ConversationManager] 开始安装插件: ${pluginId}`);
+
+      // 使用 MarketplaceManager 安装插件
+      const result = await this.marketplaceManager.installPlugin(pluginId);
+
+      if (!result.success || !result.plugin) {
+        return {
+          success: false,
+          error: result.error || '插件安装失败',
+        };
+      }
+
+      const state = result.plugin;
+      console.log(`[ConversationManager] 插件已安装: ${state.metadata.name}@${state.metadata.version}`);
+
+      return {
+        success: true,
+        plugin: {
+          name: state.metadata.name,
+          version: state.metadata.version,
+          description: state.metadata.description,
+          author: state.metadata.author,
+          enabled: state.enabled,
+          loaded: state.loaded,
+          path: state.path,
+        },
+      };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[ConversationManager] 安装插件失败:`, errorMsg);
+      return { success: false, error: errorMsg };
     }
   }
 

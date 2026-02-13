@@ -41,7 +41,15 @@ export interface ToolResult {
         data: string;
       };
     }>;
+    /** 标记此消息为元消息，不算作用户实际输入（对齐官方 isMeta） */
+    isMeta?: boolean;
   }>;
+  /** Skill 命令名称（由 Skill 工具设置） */
+  commandName?: string;
+  /** Skill 声明的允许工具列表 */
+  allowedTools?: string[];
+  /** Skill 声明的模型覆盖 */
+  model?: string;
 }
 
 /**

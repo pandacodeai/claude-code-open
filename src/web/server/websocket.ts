@@ -1972,6 +1972,10 @@ async function handleClientMessage(
       await handlePluginList(client, conversationManager);
       break;
 
+    case 'plugin_discover':
+      await handlePluginDiscover(client, conversationManager);
+      break;
+
     case 'plugin_info':
       await handlePluginInfo(client, message.payload.name, conversationManager);
       break;
@@ -1982,6 +1986,10 @@ async function handleClientMessage(
 
     case 'plugin_disable':
       await handlePluginDisable(client, message.payload.name, conversationManager);
+      break;
+
+    case 'plugin_install':
+      await handlePluginInstall(client, message.payload, conversationManager);
       break;
 
     case 'plugin_uninstall':
@@ -4099,6 +4107,34 @@ async function handlePluginList(
 }
 
 /**
+ * 处理插件发现请求（获取 marketplace + 可用插件列表）
+ */
+async function handlePluginDiscover(
+  client: ClientConnection,
+  conversationManager: ConversationManager
+): Promise<void> {
+  const { ws } = client;
+
+  try {
+    const data = await conversationManager.discoverMarketplacePlugins();
+
+    sendMessage(ws, {
+      type: 'plugin_discover_response',
+      payload: data,
+    });
+  } catch (error) {
+    console.error('[WebSocket] 获取插件市场数据失败:', error);
+    sendMessage(ws, {
+      type: 'plugin_discover_response',
+      payload: {
+        marketplaces: [],
+        availablePlugins: [],
+      },
+    });
+  }
+}
+
+/**
  * 处理插件详情请求
  */
 async function handlePluginInfo(
@@ -4247,6 +4283,94 @@ async function handlePluginDisable(
 /**
  * 处理卸载插件请求
  */
+/**
+ * 处理插件安装
+ */
+async function handlePluginInstall(
+  client: ClientConnection,
+  payload: { pluginId?: string; pluginPath?: string },
+  conversationManager: ConversationManager
+): Promise<void> {
+  const { ws } = client;
+
+  try {
+    const pluginPath = payload.pluginPath || payload.pluginId;
+
+    if (!pluginPath) {
+      sendMessage(ws, {
+        type: 'error',
+        payload: {
+          message: '缺少插件路径或ID',
+        },
+      });
+      return;
+    }
+
+    const totalSteps = 4;
+
+    // Step 1: 验证插件
+    sendMessage(ws, {
+      type: 'plugin_progress',
+      payload: { pluginId: pluginPath, step: 1, totalSteps, message: 'Resolving plugin...' },
+    });
+
+    // Step 2: 下载/获取插件
+    sendMessage(ws, {
+      type: 'plugin_progress',
+      payload: { pluginId: pluginPath, step: 2, totalSteps, message: 'Downloading plugin...' },
+    });
+
+    const result = await conversationManager.installPlugin(pluginPath);
+
+    if (result.success) {
+      // Step 3: 安装完成
+      sendMessage(ws, {
+        type: 'plugin_progress',
+        payload: { pluginId: pluginPath, step: 3, totalSteps, message: 'Loading plugin...' },
+      });
+
+      // Step 4: 完成
+      sendMessage(ws, {
+        type: 'plugin_progress',
+        payload: { pluginId: pluginPath, step: 4, totalSteps, message: 'Done' },
+      });
+
+      sendMessage(ws, {
+        type: 'plugin_installed',
+        payload: {
+          success: true,
+          plugin: result.plugin,
+        },
+      });
+
+      // 发送更新后的插件列表
+      const plugins = await conversationManager.listPlugins();
+      sendMessage(ws, {
+        type: 'plugin_list',
+        payload: { plugins },
+      });
+    } else {
+      sendMessage(ws, {
+        type: 'plugin_installed',
+        payload: {
+          success: false,
+          error: result.error || '插件安装失败',
+        },
+      });
+    }
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('[WebSocket] 安装插件失败:', errorMsg);
+
+    sendMessage(ws, {
+      type: 'error',
+      payload: {
+        message: `安装插件失败: ${errorMsg}`,
+      },
+    });
+  }
+}
+
 async function handlePluginUninstall(
   client: ClientConnection,
   name: string,

@@ -7,9 +7,11 @@
   padding: 20px;
   max-width: 900px;
   margin: 0 auto;
-  height: 100%;
+  min-height: 600px;
+  max-height: calc(100vh - 100px);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 /* MCP 面板头部 */
@@ -58,9 +60,13 @@
    ============================================ */
 
 .mcp-server-list {
-  flex: 1;
+  flex: 1 1 auto;
   overflow-y: auto;
   margin-bottom: 16px;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .mcp-list {

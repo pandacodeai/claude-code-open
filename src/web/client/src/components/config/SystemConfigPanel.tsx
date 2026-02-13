@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useLanguage } from '../../i18n';
 import '../../styles/config-panels.css';
 
 // ============ 类型定义 ============
@@ -45,6 +46,7 @@ interface ConfigPanelProps {
 // ============ 主组件 ============
 
 export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
+  const { t } = useLanguage();
   const [loggingConfig, setLoggingConfig] = useState<LoggingConfig>({
     level: 'info',
     logPath: '',
@@ -98,7 +100,7 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
       }
     } catch (error) {
       console.error('Failed to load configs:', error);
-      setMessage({ type: 'error', text: '加载配置失败' });
+      setMessage({ type: 'error', text: t('system.loadFailed') });
     } finally {
       setLoading(false);
     }
@@ -164,13 +166,13 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
         saveSecurity(securityConfig),
       ]);
 
-      setMessage({ type: 'success', text: '系统配置保存成功' });
+      setMessage({ type: 'success', text: t('system.saveSuccess') });
       onSave?.();
     } catch (error) {
       console.error('Failed to save configs:', error);
       setMessage({
         type: 'error',
-        text: error instanceof Error ? error.message : '保存配置失败'
+        text: error instanceof Error ? error.message : t('system.saveFailed')
       });
     } finally {
       setLoading(false);
@@ -180,7 +182,7 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
   if (loading && !loggingConfig.level) {
     return (
       <div className="system-config-panel">
-        <div className="config-loading">加载配置中...</div>
+        <div className="config-loading">{t('system.loading')}</div>
       </div>
     );
   }
@@ -188,9 +190,9 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
   return (
     <div className="system-config-panel">
       <div className="config-panel-header">
-        <h3>系统配置 (System Configuration)</h3>
+        <h3>{t('system.title')}</h3>
         <p className="config-description">
-          配置日志、代理、缓存和安全相关设置
+          {t('system.description')}
         </p>
       </div>
 
@@ -202,10 +204,10 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
 
       {/* 日志配置 */}
       <section className="config-section">
-        <h4>日志配置 (Logging Configuration)</h4>
+        <h4>{t('system.logging.title')}</h4>
 
         <label className="config-label">
-          <span className="label-text">日志级别 (Log Level)</span>
+          <span className="label-text">{t('system.logging.level')}</span>
           <select
             className="config-input config-select"
             value={loggingConfig.level}
@@ -214,15 +216,15 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
               level: e.target.value as LoggingConfig['level']
             })}
           >
-            <option value="debug">Debug (最详细)</option>
-            <option value="info">Info (默认)</option>
-            <option value="warn">Warning (警告)</option>
-            <option value="error">Error (仅错误)</option>
+            <option value="debug">{t('system.logging.level.debug')}</option>
+            <option value="info">{t('system.logging.level.info')}</option>
+            <option value="warn">{t('system.logging.level.warn')}</option>
+            <option value="error">{t('system.logging.level.error')}</option>
           </select>
         </label>
 
         <label className="config-label">
-          <span className="label-text">日志文件路径 (Log File Path)</span>
+          <span className="label-text">{t('system.logging.path')}</span>
           <input
             type="text"
             className="config-input"
@@ -231,13 +233,13 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
               ...loggingConfig,
               logPath: e.target.value
             })}
-            placeholder="/path/to/logfile.log"
+            placeholder={t('placeholder.logFile')}
           />
-          <span className="help-text">留空则仅输出到控制台</span>
+          <span className="help-text">{t('system.logging.pathHint')}</span>
         </label>
 
         <label className="config-label">
-          <span className="label-text">最大日志文件大小 (Max Log File Size, bytes)</span>
+          <span className="label-text">{t('system.logging.maxSize')}</span>
           <input
             type="number"
             className="config-input"
@@ -248,11 +250,11 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
             })}
             min="1048576"
           />
-          <span className="help-text">默认: 10 MB (10485760 字节)</span>
+          <span className="help-text">{t('system.logging.maxSizeHint')}</span>
         </label>
 
         <label className="config-label">
-          <span className="label-text">保留日志文件数 (Max Log Files to Keep)</span>
+          <span className="label-text">{t('system.logging.maxFiles')}</span>
           <input
             type="number"
             className="config-input"
@@ -264,16 +266,16 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
             min="1"
             max="100"
           />
-          <span className="help-text">默认: 5</span>
+          <span className="help-text">{t('system.logging.maxFilesHint')}</span>
         </label>
       </section>
 
       {/* 代理配置 */}
       <section className="config-section">
-        <h4>代理配置 (Proxy Configuration)</h4>
+        <h4>{t('system.proxy.title')}</h4>
 
         <label className="config-label">
-          <span className="label-text">HTTP 代理</span>
+          <span className="label-text">{t('system.proxy.http')}</span>
           <input
             type="text"
             className="config-input"
@@ -282,12 +284,12 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
               ...proxyConfig,
               http: e.target.value
             })}
-            placeholder="http://proxy.example.com:8080"
+            placeholder={t('placeholder.httpProxy')}
           />
         </label>
 
         <label className="config-label">
-          <span className="label-text">HTTPS 代理</span>
+          <span className="label-text">{t('system.proxy.https')}</span>
           <input
             type="text"
             className="config-input"
@@ -296,15 +298,15 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
               ...proxyConfig,
               https: e.target.value
             })}
-            placeholder="https://proxy.example.com:8443"
+            placeholder={t('placeholder.httpsProxy')}
           />
         </label>
 
         <details className="config-details">
-          <summary className="config-summary">代理认证 (Proxy Authentication, 可选)</summary>
+          <summary className="config-summary">{t('system.proxy.auth')}</summary>
           <div className="config-details-content">
             <label className="config-label">
-              <span className="label-text">用户名 (Username)</span>
+              <span className="label-text">{t('system.proxy.username')}</span>
               <input
                 type="text"
                 className="config-input"
@@ -319,7 +321,7 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
               />
             </label>
             <label className="config-label">
-              <span className="label-text">密码 (Password)</span>
+              <span className="label-text">{t('system.proxy.password')}</span>
               <input
                 type="password"
                 className="config-input"
@@ -339,7 +341,7 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
 
       {/* 缓存配置 */}
       <section className="config-section">
-        <h4>缓存配置 (Cache Configuration)</h4>
+        <h4>{t('system.cache.title')}</h4>
 
         <label className="config-label config-checkbox">
           <input
@@ -350,13 +352,13 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
               enabled: e.target.checked
             })}
           />
-          <span className="label-text">启用缓存 (Enable Caching)</span>
+          <span className="label-text">{t('system.cache.enable')}</span>
         </label>
 
         {cacheConfig.enabled && (
           <>
             <label className="config-label">
-              <span className="label-text">缓存位置 (Cache Location)</span>
+              <span className="label-text">{t('system.cache.location')}</span>
               <input
                 type="text"
                 className="config-input"
@@ -365,13 +367,13 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
                   ...cacheConfig,
                   location: e.target.value
                 })}
-                placeholder="/path/to/cache"
+                placeholder={t('placeholder.cacheLocation')}
               />
-              <span className="help-text">留空使用默认位置</span>
+              <span className="help-text">{t('system.cache.locationHint')}</span>
             </label>
 
             <label className="config-label">
-              <span className="label-text">最大缓存大小 (Max Cache Size, bytes)</span>
+              <span className="label-text">{t('system.cache.maxSize')}</span>
               <input
                 type="number"
                 className="config-input"
@@ -382,11 +384,11 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
                 })}
                 min="1048576"
               />
-              <span className="help-text">默认: 100 MB (104857600 字节)</span>
+              <span className="help-text">{t('system.cache.maxSizeHint')}</span>
             </label>
 
             <label className="config-label">
-              <span className="label-text">缓存过期时间 (Time to Live, seconds)</span>
+              <span className="label-text">{t('system.cache.ttl')}</span>
               <input
                 type="number"
                 className="config-input"
@@ -397,7 +399,7 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
                 })}
                 min="60"
               />
-              <span className="help-text">默认: 24 小时 (86400 秒)</span>
+              <span className="help-text">{t('system.cache.ttlHint')}</span>
             </label>
           </>
         )}
@@ -405,10 +407,10 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
 
       {/* 安全配置 */}
       <section className="config-section">
-        <h4>安全配置 (Security Configuration)</h4>
+        <h4>{t('system.security.title')}</h4>
 
         <label className="config-label">
-          <span className="label-text">敏感文件匹配模式 (Sensitive Files, glob patterns)</span>
+          <span className="label-text">{t('system.security.sensitiveFiles')}</span>
           <textarea
             className="config-textarea"
             value={securityConfig.sensitiveFiles?.join('\n') || ''}
@@ -416,14 +418,14 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
               ...securityConfig,
               sensitiveFiles: e.target.value.split('\n').filter(Boolean)
             })}
-            placeholder="**/.env&#10;**/*.key&#10;**/credentials.json"
+            placeholder={t('placeholder.sensitiveFiles')}
             rows={4}
           />
-          <span className="help-text">每行一个模式,匹配的文件将受到保护</span>
+          <span className="help-text">{t('system.security.sensitiveFilesHint')}</span>
         </label>
 
         <label className="config-label">
-          <span className="label-text">危险命令匹配模式 (Dangerous Commands, glob patterns)</span>
+          <span className="label-text">{t('system.security.dangerousCommands')}</span>
           <textarea
             className="config-textarea"
             value={securityConfig.dangerousCommands?.join('\n') || ''}
@@ -431,10 +433,10 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
               ...securityConfig,
               dangerousCommands: e.target.value.split('\n').filter(Boolean)
             })}
-            placeholder="rm -rf *&#10;sudo *&#10;format *"
+            placeholder={t('placeholder.dangerousCommands')}
             rows={4}
           />
-          <span className="help-text">每行一个模式,匹配的命令将需要额外确认</span>
+          <span className="help-text">{t('system.security.dangerousCommandsHint')}</span>
         </label>
 
         <label className="config-label config-checkbox">
@@ -446,8 +448,8 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
               allowSandboxEscape: e.target.checked
             })}
           />
-          <span className="label-text">允许沙箱逃逸 (Allow Sandbox Escape)</span>
-          <span className="help-text danger">高级选项,请谨慎使用</span>
+          <span className="label-text">{t('system.security.allowSandboxEscape')}</span>
+          <span className="help-text danger">{t('system.security.allowSandboxEscapeHint')}</span>
         </label>
       </section>
 
@@ -457,7 +459,7 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
           onClick={handleSaveAll}
           disabled={loading}
         >
-          {loading ? '保存中...' : '保存系统配置'}
+          {loading ? t('system.saving') : t('system.save')}
         </button>
         {onClose && (
           <button
@@ -465,7 +467,7 @@ export function SystemConfigPanel({ onSave, onClose }: ConfigPanelProps) {
             onClick={onClose}
             disabled={loading}
           >
-            取消
+            {t('system.cancel')}
           </button>
         )}
       </div>

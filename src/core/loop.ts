@@ -689,11 +689,12 @@ function calculateTotalTokens(messages: Message[]): number {
       } else if (typeof block === 'object' && 'type' in block) {
         if (block.type === 'text' && 'text' in block && typeof block.text === 'string') {
           totalTokens += estimateTokens(block.text);
+        } else if (block.type === 'image') {
+          // 图片用固定常量，不能 JSON.stringify base64 数据（对齐官方 Nr4=2000）
+          totalTokens += 2000;
         } else if (block.type === 'tool_result' && 'content' in block && typeof block.content === 'string') {
           totalTokens += estimateTokens(block.content);
-        }
-        // 其他类型的 block（如 tool_use）也计算，但更简化
-        else {
+        } else {
           totalTokens += estimateTokens(JSON.stringify(block));
         }
       }
@@ -2382,8 +2383,16 @@ export class ConversationLoop {
         });
 
         // 添加 newMessages（对齐官网实现：skill 内容作为独立的 user 消息）
+        // 官网 Ch4: metadata 消息无 isMeta，skill 内容消息 isMeta: true
         for (const newMsg of allNewMessages) {
-          this.session.addMessage(newMsg);
+          const msg: Message = {
+            role: newMsg.role,
+            content: newMsg.content,
+          };
+          if ('isMeta' in newMsg && newMsg.isMeta) {
+            msg.isMeta = true;
+          }
+          this.session.addMessage(msg);
         }
       }
 
@@ -2856,8 +2865,16 @@ Guidelines:
         });
 
         // 添加 newMessages（对齐官网实现：skill 内容作为独立的 user 消息）
+        // 官网 Ch4: metadata 消息无 isMeta，skill 内容消息 isMeta: true
         for (const newMsg of allNewMessages) {
-          this.session.addMessage(newMsg);
+          const msg: Message = {
+            role: newMsg.role,
+            content: newMsg.content,
+          };
+          if ('isMeta' in newMsg && newMsg.isMeta) {
+            msg.isMeta = true;
+          }
+          this.session.addMessage(msg);
         }
       } else if (streamStopReason === 'max_tokens') {
         // v4.3: 响应被截断（max_tokens），追加提醒让模型继续

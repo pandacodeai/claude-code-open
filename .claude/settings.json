@@ -13,8 +13,22 @@
       "Write(*.bat)",
       "Edit(*.yml)",
       "Write(*.md)",
-      "Write(*.ts)"
+      "Write(*.ts)",
+      "Edit(*.css)"
     ],
     "deny": []
+  },
+  "mcpServers": {
+    "claude-in-chrome": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "F:\\claude-code-open\\dist\\cli.js",
+        "--claude-in-chrome-mcp"
+      ],
+      "enabled": false,
+      "timeout": 30000,
+      "retries": 3
+    }
   }
 }

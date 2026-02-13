@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLanguage } from '../i18n';
 import type { UserQuestion } from '../types';
 
 interface UserQuestionDialogProps {
@@ -9,6 +10,7 @@ interface UserQuestionDialogProps {
 export function UserQuestionDialog({ question, onAnswer }: UserQuestionDialogProps) {
   const [answer, setAnswer] = useState('');
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const { t } = useLanguage();
 
   const handleOptionChange = (optionLabel: string, isMultiSelect?: boolean) => {
     if (isMultiSelect) {
@@ -46,7 +48,7 @@ export function UserQuestionDialog({ question, onAnswer }: UserQuestionDialogPro
     <div className="question-dialog-overlay">
       <div className="question-dialog">
         <div className="question-header">
-          <h3>❓ {question.header || '请回答问题'}</h3>
+          <h3>❓ {question.header || t('question.defaultHeader')}</h3>
         </div>
         <div className="question-content">
           <p className="question-text">{question.question}</p>
@@ -80,18 +82,18 @@ export function UserQuestionDialog({ question, onAnswer }: UserQuestionDialogPro
             <textarea
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
-              placeholder="请输入您的回答..."
+              placeholder={t('question.placeholder')}
               autoFocus
             />
           )}
         </div>
         <div className="question-actions">
-          <button onClick={handleSkip}>跳过</button>
-          <button onClick={handleSubmit} disabled={!isValid}>提交</button>
+          <button onClick={handleSkip}>{t('question.skip')}</button>
+          <button onClick={handleSubmit} disabled={!isValid}>{t('question.submit')}</button>
         </div>
         {question.timeout && (
           <div className="question-timeout-hint">
-            超时时间: {Math.round(question.timeout / 1000)}秒
+            {t('question.timeout', { seconds: Math.round(question.timeout / 1000) })}
           </div>
         )}
       </div>

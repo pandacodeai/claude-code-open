@@ -720,8 +720,6 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ onDone }) => {
       setDateRange(cycleNextDateRange);
     }
 
-    // Ctrl+S 复制统计 (TODO: 实现剪贴板功能)
-    // if (key.ctrl && normalizedInput === 's') { ... }
   });
 
   const allTimeStats = statsCache.all;

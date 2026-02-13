@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatDate } from '../utils/constants';
+import { useLanguage } from '../i18n';
 import type { Session } from '../types';
 
 interface SessionListProps {
@@ -19,10 +20,11 @@ export function SessionList({
 }: SessionListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState('');
+  const { t } = useLanguage();
 
   const handleRenameStart = (session: Session) => {
     setEditingId(session.id);
-    setNewTitle(session.name || '未命名会话');
+    setNewTitle(session.name || t('session.unnamed'));
   };
 
   const handleRenameSubmit = (sessionId: string) => {
@@ -38,7 +40,7 @@ export function SessionList({
   };
 
   if (sessions.length === 0) {
-    return <div className="session-list-empty">暂无会话历史</div>;
+    return <div className="session-list-empty">{t('session.empty')}</div>;
   }
 
   return (
@@ -67,10 +69,10 @@ export function SessionList({
             />
           ) : (
             <>
-              <div className="session-title">{session.name || '未命名会话'}</div>
+              <div className="session-title">{session.name || t('session.unnamed')}</div>
               <div className="session-meta">
                 <span className="session-date">{formatDate(session.updatedAt)}</span>
-                <span className="session-count">{session.messageCount} 消息</span>
+                <span className="session-count">{t('session.messages', { count: session.messageCount })}</span>
               </div>
               <div className="session-actions">
                 <button
@@ -79,7 +81,7 @@ export function SessionList({
                     e.stopPropagation();
                     handleRenameStart(session);
                   }}
-                  title="重命名"
+                  title={t('session.rename')}
                 >
                   ✏️
                 </button>
@@ -87,11 +89,11 @@ export function SessionList({
                   className="session-action-btn"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (confirm(`确定要删除会话 "${session.name || '未命名会话'}" 吗？`)) {
+                    if (confirm(t('session.deleteConfirm', { name: session.name || t('session.unnamed') }))) {
                       onSessionDelete(session.id);
                     }
                   }}
-                  title="删除"
+                  title={t('session.delete')}
                 >
                   🗑️
                 </button>

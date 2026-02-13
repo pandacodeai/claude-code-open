@@ -9,6 +9,7 @@ import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { ConversationManager } from './conversation.js';
 import { setupWebSocket } from './websocket.js';
@@ -185,6 +186,24 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<We
       console.log(`   工作目录: ${cwd}`);
       console.log(`   模型: ${model}`);
 
+      // 显示网络访问地址（局域网、Tailscale）
+      if (host === '0.0.0.0') {
+        const addrs = getNetworkAddresses();
+        if (addrs.tailscale.length > 0) {
+          for (const ip of addrs.tailscale) {
+            console.log(`   📱 Tailscale: http://${ip}:${port}`);
+          }
+        }
+        if (addrs.lan.length > 0) {
+          for (const ip of addrs.lan) {
+            console.log(`   📱 局域网:   http://${ip}:${port}`);
+          }
+        }
+        if (addrs.tailscale.length === 0 && addrs.lan.length === 0) {
+          console.log(`   💡 提示: 安装 Tailscale 可从手机远程访问`);
+        }
+      }
+
       // 自动打开浏览器
       if (autoOpen) {
         try {
@@ -270,6 +289,34 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<We
   process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
   return { conversationManager };
+}
+
+/**
+ * 获取本机网络地址（Tailscale、局域网）
+ */
+function getNetworkAddresses(): { tailscale: string[]; lan: string[] } {
+  const result = { tailscale: [] as string[], lan: [] as string[] };
+  const interfaces = os.networkInterfaces();
+
+  for (const [name, addrs] of Object.entries(interfaces)) {
+    if (!addrs) continue;
+    for (const addr of addrs) {
+      if (addr.family !== 'IPv4' || addr.internal) continue;
+
+      // Tailscale 使用 100.x.x.x (CGNAT 范围)
+      if (addr.address.startsWith('100.')) {
+        result.tailscale.push(addr.address);
+      }
+      // 常见局域网段
+      else if (addr.address.startsWith('192.168.') ||
+               addr.address.startsWith('10.') ||
+               addr.address.match(/^172\.(1[6-9]|2\d|3[01])\./)) {
+        result.lan.push(addr.address);
+      }
+    }
+  }
+
+  return result;
 }
 
 function setupStaticFiles(app: express.Application, clientDistPath: string) {

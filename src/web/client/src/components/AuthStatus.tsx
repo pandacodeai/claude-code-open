@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useLanguage } from '../i18n';
 import './AuthStatus.css';
 
 interface AuthInfo {
@@ -19,6 +20,7 @@ interface AuthStatusProps {
 }
 
 export function AuthStatus({ onLoginClick }: AuthStatusProps) {
+  const { t } = useLanguage();
   const [authInfo, setAuthInfo] = useState<AuthInfo>({ authenticated: false });
   const [loading, setLoading] = useState(true);
 
@@ -81,7 +83,7 @@ export function AuthStatus({ onLoginClick }: AuthStatusProps) {
             </div>
           </div>
         </div>
-        <button className="btn-logout-small" onClick={handleLogout} title="登出">
+        <button className="btn-logout-small" onClick={handleLogout} title={t('auth.logout')}>
           🚪
         </button>
       </div>
@@ -92,10 +94,10 @@ export function AuthStatus({ onLoginClick }: AuthStatusProps) {
     <div className="auth-status not-authenticated">
       <div className="auth-warning">
         <span className="warning-icon">⚠️</span>
-        <span>未登录</span>
+        <span>{t('auth.notAuthenticated')}</span>
       </div>
       <button className="btn-login-small" onClick={onLoginClick}>
-        登录
+        {t('auth.login')}
       </button>
     </div>
   );

@@ -109,9 +109,11 @@ export type ClientMessage =
   | { type: 'checkpoint_clear' }
   | { type: 'doctor_run'; payload?: DoctorRunPayload }
   | { type: 'plugin_list' }
+  | { type: 'plugin_discover' }
   | { type: 'plugin_info'; payload: { name: string } }
   | { type: 'plugin_enable'; payload: { name: string } }
   | { type: 'plugin_disable'; payload: { name: string } }
+  | { type: 'plugin_install'; payload: { pluginId?: string; pluginPath?: string } }
   | { type: 'plugin_uninstall'; payload: { name: string } }
   | { type: 'auth_status' }
   | { type: 'auth_set_key'; payload: AuthSetKeyPayload }
@@ -219,9 +221,13 @@ export type ServerMessage =
   | { type: 'checkpoint_cleared'; payload: { count: number } }
   | { type: 'doctor_result'; payload: DoctorResultPayload }
   | { type: 'plugin_list_response'; payload: PluginListPayload }
+  | { type: 'plugin_discover_response'; payload: PluginDiscoverPayload }
+  | { type: 'plugin_list'; payload: { plugins: any[] } }
   | { type: 'plugin_info_response'; payload: { plugin: PluginInfo | null } }
   | { type: 'plugin_enabled'; payload: { name: string; success: boolean } }
   | { type: 'plugin_disabled'; payload: { name: string; success: boolean } }
+  | { type: 'plugin_installed'; payload: { success: boolean; plugin?: any; error?: string } }
+  | { type: 'plugin_progress'; payload: { pluginId: string; step: number; totalSteps: number; message: string } }
   | { type: 'plugin_uninstalled'; payload: { name: string; success: boolean } }
   | { type: 'auth_status_response'; payload: AuthStatusPayload }
   | { type: 'auth_key_set'; payload: { success: boolean; message?: string } }
@@ -1437,6 +1443,39 @@ export interface PluginListPayload {
   plugins: PluginInfo[];
   /** 总数 */
   total: number;
+}
+
+/**
+ * Marketplace 插件信息（可发现的插件）
+ */
+export interface MarketplacePluginItem {
+  pluginId: string;
+  name: string;
+  version: string;
+  description?: string;
+  author?: string;
+  marketplaceName: string;
+  installCount?: number;
+  tags?: string[];
+}
+
+/**
+ * Marketplace 信息
+ */
+export interface MarketplaceItem {
+  name: string;
+  source: string;
+  pluginCount: number;
+  autoUpdate?: boolean;
+  lastUpdated?: string;
+}
+
+/**
+ * 插件发现响应负载
+ */
+export interface PluginDiscoverPayload {
+  marketplaces: MarketplaceItem[];
+  availablePlugins: MarketplacePluginItem[];
 }
 
 // ============ OAuth 相关类型 ============

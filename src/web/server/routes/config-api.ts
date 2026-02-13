@@ -134,20 +134,6 @@ export function setupConfigApiRoutes(app: Express): void {
   });
 
   /**
-   * GET /api/config/cache
-   * 获取缓存配置
-   */
-  app.get('/api/config/cache', async (req: Request, res: Response) => {
-    try {
-      const cacheConfig = await webConfigService.getCacheConfig();
-      sendSuccess(res, cacheConfig, '成功获取缓存配置');
-    } catch (error) {
-      console.error('[Config API] 获取缓存配置失败:', error);
-      sendError(res, error);
-    }
-  });
-
-  /**
    * GET /api/config/security
    * 获取安全配置
    */
@@ -212,7 +198,7 @@ export function setupConfigApiRoutes(app: Express): void {
       });
 
       // 发送一个简单的测试请求
-      const testModel = customModelName || 'claude-3-5-haiku-20241022';
+      const testModel = customModelName || 'claude-haiku-4-5-20251001';
       
       try {
         const response = await client.messages.create({
@@ -350,31 +336,6 @@ export function setupConfigApiRoutes(app: Express): void {
       }
     } catch (error) {
       console.error('[Config API] 更新代理配置失败:', error);
-      sendError(res, error);
-    }
-  });
-
-  /**
-   * PUT /api/config/cache
-   * 更新缓存配置
-   */
-  app.put('/api/config/cache', async (req: Request, res: Response) => {
-    try {
-      const updates = req.body;
-
-      if (!updates || typeof updates !== 'object') {
-        return sendError(res, new Error('无效的请求体'), 400);
-      }
-
-      const success = await webConfigService.updateCacheConfig(updates);
-
-      if (success) {
-        sendSuccess(res, { updated: true }, '缓存配置已成功更新');
-      } else {
-        sendError(res, new Error('更新缓存配置失败'), 500);
-      }
-    } catch (error) {
-      console.error('[Config API] 更新缓存配置失败:', error);
       sendError(res, error);
     }
   });

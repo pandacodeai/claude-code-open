@@ -59,3 +59,17 @@ export function useLanguage(): LanguageContextValue {
   }
   return context;
 }
+
+/**
+ * 独立翻译函数（不依赖 React Context）
+ * 用于 Class 组件或 Context 外部场景
+ */
+export function getTranslation(key: string, params?: Record<string, string | number>): string {
+  const locale = getInitialLocale();
+  const translations: Translations = locales[locale] || locales.en;
+  let template = translations[key] ?? locales.en[key] ?? key;
+  if (params) {
+    template = template.replace(/\{\{(\w+)\}\}/g, (_, name) => String(params[name] ?? `{{${name}}}`));
+  }
+  return template;
+}

@@ -12,6 +12,7 @@
  */
 
 import { useState } from 'react';
+import { useLanguage } from '../../i18n';
 import './OAuthLogin.css';
 
 export type AccountType = 'claude.ai' | 'console';
@@ -24,8 +25,10 @@ export interface OAuthLoginProps {
 type LoginPhase = 'select' | 'authorize' | 'input-code';
 
 export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string>('');
+  const [statusIsError, setStatusIsError] = useState(false);
   const [phase, setPhase] = useState<LoginPhase>('select');
   const [authId, setAuthId] = useState<string>('');
   const [authCode, setAuthCode] = useState<string>('');
@@ -37,7 +40,8 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
   const handleOAuthLogin = async (accountType: AccountType) => {
     setLoading(true);
     setSelectedAccountType(accountType);
-    setStatus(`Starting OAuth login with ${accountType}...`);
+    setStatusIsError(false);
+    setStatus(t('auth.oauth.starting', { accountType }));
 
     try {
       // 1. 请求后端生成授权 URL
@@ -50,7 +54,7 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to start OAuth: ${response.statusText}`);
+        throw new Error(t('auth.oauth.startFailed', { error: response.statusText }));
       }
 
       const data = await response.json();
@@ -59,7 +63,7 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
       setAuthId(newAuthId);
 
       // 2. 打开授权页面（新窗口）
-      setStatus('Opening authorization page...');
+      setStatus(t('auth.oauth.openingAuth'));
       const authWindow = window.open(
         authUrl,
         'Claude OAuth',
@@ -68,7 +72,7 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
 
       if (!authWindow) {
         // 如果弹窗被阻止，提供手动打开链接的方式
-        setStatus('Please click the link below to authorize:');
+        setStatus(t('auth.oauth.clickToAuth'));
         setPhase('authorize');
         // 存储 authUrl 供用户手动点击
         (window as any).__authUrl = authUrl;
@@ -78,12 +82,13 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
 
       // 3. 切换到输入授权码阶段
       setPhase('input-code');
-      setStatus('After authorizing, copy the code and paste it below.');
+      setStatus(t('auth.oauth.copyCodeHint'));
       setLoading(false);
     } catch (error) {
       setLoading(false);
+      setStatusIsError(true);
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      setStatus(`Error: ${errorMsg}`);
+      setStatus(t('auth.oauth.error', { error: errorMsg }));
       onError?.(errorMsg);
     }
   };
@@ -93,12 +98,14 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
    */
   const handleSubmitCode = async () => {
     if (!authCode.trim()) {
-      setStatus('Please enter the authorization code');
+      setStatusIsError(true);
+      setStatus(t('auth.oauth.pleaseEnterCode'));
       return;
     }
 
     setLoading(true);
-    setStatus('Exchanging code for access token...');
+    setStatusIsError(false);
+    setStatus(t('auth.oauth.exchanging'));
 
     try {
       const response = await fetch('/api/auth/oauth/submit-code', {
@@ -115,16 +122,17 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to exchange code');
+        throw new Error(data.error || t('auth.oauth.exchangeFailed'));
       }
 
-      setStatus('Login successful!');
+      setStatus(t('auth.oauth.success'));
       setLoading(false);
       onSuccess?.();
     } catch (error) {
       setLoading(false);
+      setStatusIsError(true);
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      setStatus(`Error: ${errorMsg}`);
+      setStatus(t('auth.oauth.error', { error: errorMsg }));
       onError?.(errorMsg);
     }
   };
@@ -137,6 +145,7 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
     setAuthId('');
     setAuthCode('');
     setStatus('');
+    setStatusIsError(false);
     setSelectedAccountType(null);
   };
 
@@ -148,7 +157,7 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
     if (authUrl) {
       window.open(authUrl, '_blank');
       setPhase('input-code');
-      setStatus('After authorizing, copy the code and paste it below.');
+      setStatus(t('auth.oauth.copyCodeHint'));
     }
   };
 
@@ -157,8 +166,8 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
     return (
       <div className="oauth-login">
         <div className="oauth-header">
-          <h2>Login to Claude Code</h2>
-          <p>Choose your authentication method</p>
+          <h2>{t('auth.oauth.title')}</h2>
+          <p>{t('auth.oauth.selectMethod')}</p>
         </div>
 
         <div className="oauth-buttons">
@@ -170,8 +179,8 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
             <div className="button-content">
               <div className="icon">🔐</div>
               <div className="text">
-                <div className="title">Claude.ai Account</div>
-                <div className="subtitle">For Claude Pro/Max/Team subscribers</div>
+                <div className="title">{t('auth.oauth.claudeAi')}</div>
+                <div className="subtitle">{t('auth.oauth.claudeAiDesc')}</div>
               </div>
             </div>
           </button>
@@ -184,8 +193,8 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
             <div className="button-content">
               <div className="icon">🔑</div>
               <div className="text">
-                <div className="title">Console Account</div>
-                <div className="subtitle">For Anthropic Console users (API billing)</div>
+                <div className="title">{t('auth.oauth.console')}</div>
+                <div className="subtitle">{t('auth.oauth.consoleDesc')}</div>
               </div>
             </div>
           </button>
@@ -200,15 +209,15 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
 
         <div className="oauth-footer">
           <p>
-            Don't have an account?{' '}
+            {t('auth.oauth.noAccount')}{' '}
             <a href="https://claude.ai" target="_blank" rel="noopener noreferrer">
-              Sign up for Claude.ai
+              {t('auth.oauth.signUpClaudeAi')}
             </a>
           </p>
           <p>
-            Need an API key?{' '}
+            {t('auth.oauth.needApiKey')}{' '}
             <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer">
-              Get one from Console
+              {t('auth.oauth.getFromConsole')}
             </a>
           </p>
         </div>
@@ -221,8 +230,8 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
     return (
       <div className="oauth-login">
         <div className="oauth-header">
-          <h2>Authorization Required</h2>
-          <p>Pop-up was blocked. Click the button below to open the authorization page.</p>
+          <h2>{t('auth.oauth.authRequired')}</h2>
+          <p>{t('auth.oauth.popupBlocked')}</p>
         </div>
 
         <div className="oauth-code-section">
@@ -233,7 +242,7 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
             <div className="button-content">
               <div className="icon">🔗</div>
               <div className="text">
-                <div className="title">Open Authorization Page</div>
+                <div className="title">{t('auth.oauth.openAuthPage')}</div>
               </div>
             </div>
           </button>
@@ -241,7 +250,7 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
 
         <div className="oauth-back">
           <button className="back-button" onClick={handleBack}>
-            ← Back to login options
+            {t('auth.oauth.backToLogin')}
           </button>
         </div>
       </div>
@@ -252,26 +261,23 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
   return (
     <div className="oauth-login">
       <div className="oauth-header">
-        <h2>Enter Authorization Code</h2>
-        <p>
-          Complete the authorization in the browser window, then copy the code shown
-          and paste it below.
-        </p>
+        <h2>{t('auth.oauth.enterCode')}</h2>
+        <p>{t('auth.oauth.enterCodeDesc')}</p>
       </div>
 
       <div className="oauth-code-section">
         <div className="oauth-instructions">
           <div className="instruction-step">
             <span className="step-number">1</span>
-            <span>Complete authorization in the opened window</span>
+            <span>{t('auth.oauth.step1')}</span>
           </div>
           <div className="instruction-step">
             <span className="step-number">2</span>
-            <span>Copy the authorization code shown on the success page</span>
+            <span>{t('auth.oauth.step2')}</span>
           </div>
           <div className="instruction-step">
             <span className="step-number">3</span>
-            <span>Paste the code below and click Submit</span>
+            <span>{t('auth.oauth.step3')}</span>
           </div>
         </div>
 
@@ -279,7 +285,7 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
           <input
             type="text"
             className="code-input"
-            placeholder="Paste authorization code here..."
+            placeholder={t('auth.oauth.codePlaceholder')}
             value={authCode}
             onChange={(e) => setAuthCode(e.target.value)}
             disabled={loading}
@@ -294,12 +300,12 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
             onClick={handleSubmitCode}
             disabled={loading || !authCode.trim()}
           >
-            {loading ? 'Submitting...' : 'Submit'}
+            {loading ? t('auth.oauth.submitting') : t('auth.oauth.submit')}
           </button>
         </div>
 
         {status && (
-          <div className={`oauth-status ${loading ? 'loading' : status.includes('Error') ? 'error' : ''}`}>
+          <div className={`oauth-status ${loading ? 'loading' : statusIsError ? 'error' : ''}`}>
             {loading && <div className="spinner"></div>}
             <span>{status}</span>
           </div>
@@ -308,7 +314,7 @@ export function OAuthLogin({ onSuccess, onError }: OAuthLoginProps) {
 
       <div className="oauth-back">
         <button className="back-button" onClick={handleBack} disabled={loading}>
-          ← Back to login options
+          {t('auth.oauth.backToLogin')}
         </button>
       </div>
     </div>

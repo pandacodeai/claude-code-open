@@ -1206,6 +1206,14 @@ export interface ClaudeConfig {
   includeCoAuthoredBy?: boolean;
 
   /**
+   * Main agent selection
+   * Can be set via --agent CLI flag or in settings.json
+   * When a non-built-in agent is selected, its system prompt and model override defaults
+   * @since 2.1.32
+   */
+  agent?: string;
+
+  /**
    * Plan mode settings
    * @since 2.1.9
    */

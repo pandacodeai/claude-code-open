@@ -1,0 +1,353 @@
+/* Skill 消息样式 */
+
+.skill-message {
+  margin: 16px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 命令消息头部 */
+.skill-message-header {
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(99, 102, 241, 0.05));
+  border-bottom: 1px solid var(--border-color);
+}
+
+.skill-loading-indicator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Spinner 动画 */
+.skill-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(99, 102, 241, 0.2);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: skill-spin 0.8s linear infinite;
+}
+
+@keyframes skill-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.skill-loading-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-light);
+}
+
+/* Skill 内容包装器 */
+.skill-content-wrapper {
+  background: var(--bg-primary);
+}
+
+/* Skill 元信息 */
+.skill-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.skill-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.skill-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.skill-toggle-icon {
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.skill-name {
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  color: var(--accent-light);
+}
+
+/* Skill 徽章 */
+.skill-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.skill-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.skill-badge-location {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-light);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.skill-badge-version {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.skill-badge-model {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* Skill 内容区域 */
+.skill-content {
+  padding: 20px;
+  max-height: 600px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+/* Markdown 渲染内容样式 */
+.skill-markdown-content {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.skill-content h1,
+.skill-content h2,
+.skill-content h3,
+.skill-content h4,
+.skill-markdown-content h1,
+.skill-markdown-content h2,
+.skill-markdown-content h3,
+.skill-markdown-content h4 {
+  color: var(--text-primary);
+  margin-top: 24px;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.skill-content h1,
+.skill-markdown-content h1 {
+  font-size: 20px;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
+.skill-content h2,
+.skill-markdown-content h2 {
+  font-size: 18px;
+}
+
+.skill-content h3,
+.skill-markdown-content h3 {
+  font-size: 16px;
+}
+
+.skill-content p,
+.skill-markdown-content p {
+  margin-bottom: 12px;
+}
+
+.skill-content ul,
+.skill-content ol,
+.skill-markdown-content ul,
+.skill-markdown-content ol {
+  margin-left: 20px;
+  margin-bottom: 12px;
+}
+
+.skill-content li,
+.skill-markdown-content li {
+  margin-bottom: 6px;
+}
+
+.skill-content code,
+.skill-markdown-content code {
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 13px;
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.skill-content pre,
+.skill-markdown-content pre {
+  margin: 16px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.skill-content pre code,
+.skill-markdown-content pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.skill-content blockquote,
+.skill-markdown-content blockquote {
+  border-left: 3px solid var(--accent-primary);
+  padding-left: 16px;
+  margin: 16px 0;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.skill-content strong,
+.skill-markdown-content strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.skill-content a,
+.skill-markdown-content a {
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+
+.skill-content a:hover,
+.skill-markdown-content a:hover {
+  text-decoration: underline;
+}
+
+/* 附件消息样式 */
+.attachment-message {
+  background: rgba(99, 102, 241, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.attachment-header {
+  padding: 8px 12px;
+  background: rgba(99, 102, 241, 0.08);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.attachment-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.attachment-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.attachment-toggle-icon {
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.attachment-label {
+  color: var(--accent-light);
+}
+
+.attachment-content {
+  padding: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.attachment-content h1,
+.attachment-content h2,
+.attachment-content h3,
+.attachment-content h4 {
+  color: var(--text-primary);
+  margin-top: 16px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.attachment-content p {
+  margin-bottom: 8px;
+}
+
+.attachment-content ul,
+.attachment-content ol {
+  margin-left: 16px;
+  margin-bottom: 8px;
+}
+
+.attachment-content li {
+  margin-bottom: 4px;
+}
+
+.attachment-content code {
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 12px;
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* 降级显示 */
+.skill-message-fallback {
+  padding: 12px 16px;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* 自定义滚动条 */
+.skill-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.skill-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.skill-content::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+.skill-content::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}

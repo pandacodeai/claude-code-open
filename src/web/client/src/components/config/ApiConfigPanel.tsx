@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useLanguage } from '../../i18n';
 import '../../styles/config-panels.css';
 
 /**
@@ -43,32 +44,32 @@ interface ApiConfigPanelProps {
 /**
  * 验证配置的有效性
  */
-function validateConfig(config: ApiConfig): string | null {
+function validateConfig(config: ApiConfig, t: (key: string, params?: Record<string, string | number>) => string): string | null {
   // 验证 temperature
   if (config.temperature !== undefined) {
     if (config.temperature < 0 || config.temperature > 1) {
-      return 'Temperature 必须在 0 到 1 之间';
+      return t('apiConfig.temperature.error');
     }
   }
 
   // 验证 maxTokens
   if (config.maxTokens !== undefined) {
     if (config.maxTokens < 1 || config.maxTokens > 200000) {
-      return 'Max Output Tokens 必须在 1 到 200000 之间';
+      return t('apiConfig.maxTokens.error');
     }
   }
 
   // 验证 maxRetries
   if (config.maxRetries !== undefined) {
     if (config.maxRetries < 0 || config.maxRetries > 10) {
-      return 'Max Retries 必须在 0 到 10 之间';
+      return t('apiConfig.maxRetries.error');
     }
   }
 
   // 验证 requestTimeout
   if (config.requestTimeout !== undefined) {
     if (config.requestTimeout < 1000 || config.requestTimeout > 600000) {
-      return 'Request Timeout 必须在 1000 到 600000 毫秒之间';
+      return t('apiConfig.requestTimeout.error');
     }
   }
 
@@ -77,7 +78,7 @@ function validateConfig(config: ApiConfig): string | null {
     try {
       new URL(config.apiBaseUrl);
     } catch {
-      return 'API Base URL 格式无效，必须是有效的 URL（如 https://api.example.com）';
+      return t('apiConfig.baseUrl.error');
     }
   }
 
@@ -88,6 +89,7 @@ function validateConfig(config: ApiConfig): string | null {
  * API 配置面板组件
  */
 export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
+  const { t } = useLanguage();
   // 配置状态
   const [config, setConfig] = useState<ApiConfig>({
     temperature: 1.0,
@@ -111,6 +113,8 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
   const [testing, setTesting] = useState(false);
   // 测试成功消息
   const [testSuccess, setTestSuccess] = useState<string | null>(null);
+  // 保存成功消息
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
 
   /**
    * 加载当前配置
@@ -126,11 +130,11 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
     try {
       const response = await fetch('/api/config/api');
       const data = await response.json();
-      if (data.success && data.config) {
-        setConfig(data.config);
+      if (data.success && data.data) {
+        setConfig(data.data);
       }
     } catch (err) {
-      setError('加载配置失败: ' + (err instanceof Error ? err.message : String(err)));
+      setError(t('apiConfig.loadFailed', { error: err instanceof Error ? err.message : String(err) }));
     }
   };
 
@@ -139,7 +143,7 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
    */
   const handleSave = async () => {
     // 验证配置
-    const validationErr = validateConfig(config);
+    const validationErr = validateConfig(config, t);
     if (validationErr) {
       setValidationError(validationErr);
       return;
@@ -160,11 +164,13 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
       if (data.success) {
         onSave?.(config);
         setError(null);
+        setSaveSuccess(t('apiConfig.saved'));
+        setTimeout(() => setSaveSuccess(null), 3000);
       } else {
-        setError(data.error || '保存失败');
+        setError(data.error || t('apiConfig.saveFailed', { error: '' }));
       }
     } catch (err) {
-      setError('保存配置失败: ' + (err instanceof Error ? err.message : String(err)));
+      setError(t('apiConfig.saveFailed', { error: err instanceof Error ? err.message : String(err) }));
     } finally {
       setLoading(false);
     }
@@ -175,8 +181,9 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
    */
   const updateConfig = (field: keyof ApiConfig, value: any) => {
     setConfig({ ...config, [field]: value });
-    setValidationError(null); // 清除验证错误
-    setTestSuccess(null); // 清除测试成功消息
+    setValidationError(null);
+    setTestSuccess(null);
+    setSaveSuccess(null);
   };
 
   /**
@@ -185,7 +192,7 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
   const handleTest = async () => {
     // 验证必填项
     if (!config.apiKey || config.apiKey.trim() === '') {
-      setValidationError('请先输入 API Key');
+      setValidationError(t('apiConfig.apiKey.required'));
       return;
     }
 
@@ -208,14 +215,14 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
       const data = await response.json();
 
       if (data.success) {
-        setTestSuccess(`连接成功！模型: ${data.data.model}，端点: ${data.data.baseUrl}`);
+        setTestSuccess(t('apiConfig.testSuccess', { model: data.data.model, baseUrl: data.data.baseUrl }));
         setError(null);
       } else {
-        setError(data.error || '连接测试失败');
+        setError(data.error || t('apiConfig.testFailed', { error: '' }));
         setTestSuccess(null);
       }
     } catch (err) {
-      setError('测试连接失败: ' + (err instanceof Error ? err.message : String(err)));
+      setError(t('apiConfig.testFailed', { error: err instanceof Error ? err.message : String(err) }));
       setTestSuccess(null);
     } finally {
       setTesting(false);
@@ -225,9 +232,9 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
   return (
     <div className="api-config-panel">
       <div className="settings-section">
-        <h3>API Configuration</h3>
+        <h3>{t('apiConfig.title')}</h3>
         <p className="settings-description">
-          配置 Claude API 的高级参数，这些设置会影响 AI 的行为和性能。
+          {t('apiConfig.description')}
         </p>
 
         {/* 错误消息 */}
@@ -238,16 +245,16 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
         )}
 
         {/* 成功消息 */}
-        {testSuccess && (
-          <div className="mcp-form-success" style={{ 
-            padding: '12px', 
-            marginBottom: '16px', 
-            backgroundColor: 'rgba(34, 197, 94, 0.1)', 
-            border: '1px solid rgba(34, 197, 94, 0.3)', 
+        {(testSuccess || saveSuccess) && (
+          <div className="mcp-form-success" style={{
+            padding: '12px',
+            marginBottom: '16px',
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            border: '1px solid rgba(34, 197, 94, 0.3)',
             borderRadius: '4px',
             color: '#22c55e'
           }}>
-            ✓ {testSuccess}
+            ✓ {testSuccess || saveSuccess}
           </div>
         )}
 
@@ -256,7 +263,7 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
           {/* Temperature */}
           <div className="mcp-form-group">
             <label>
-              Temperature (0-1)
+              {t('apiConfig.temperature.label')}
               <input
                 type="number"
                 min="0"
@@ -268,14 +275,14 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
               />
             </label>
             <span className="help-text">
-              控制输出的随机性。较低的值 (0.0-0.3) 使输出更聚焦和确定，较高的值 (0.7-1.0) 使输出更有创造性和多样性。默认: 1.0
+              {t('apiConfig.temperature.help')}
             </span>
           </div>
 
           {/* Max Output Tokens */}
           <div className="mcp-form-group">
             <label>
-              Max Output Tokens (1-200000)
+              {t('apiConfig.maxTokens.label')}
               <input
                 type="number"
                 min="1"
@@ -287,14 +294,14 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
               />
             </label>
             <span className="help-text">
-              限制 AI 响应的最大长度（以 tokens 为单位）。较大的值允许更长的响应，但会消耗更多资源。默认: 32000
+              {t('apiConfig.maxTokens.help')}
             </span>
           </div>
 
           {/* Max Retries */}
           <div className="mcp-form-group">
             <label>
-              Max Retries (0-10)
+              {t('apiConfig.maxRetries.label')}
               <input
                 type="number"
                 min="0"
@@ -306,14 +313,14 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
               />
             </label>
             <span className="help-text">
-              API 请求失败时的最大重试次数。设置为 0 则不重试。默认: 3
+              {t('apiConfig.maxRetries.help')}
             </span>
           </div>
 
           {/* Request Timeout */}
           <div className="mcp-form-group">
             <label>
-              Request Timeout (ms)
+              {t('apiConfig.requestTimeout.label')}
               <input
                 type="number"
                 min="1000"
@@ -325,103 +332,103 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
               />
             </label>
             <span className="help-text">
-              API 请求的超时时间（毫秒）。超过此时间未响应将取消请求。默认: 300000 (5分钟)
+              {t('apiConfig.requestTimeout.help')}
             </span>
           </div>
 
           {/* API Provider */}
           <div className="mcp-form-group">
             <label>
-              API Provider
+              {t('apiConfig.provider.label')}
               <select
                 className="mcp-form-input"
                 value={config.apiProvider ?? 'anthropic'}
                 onChange={(e) => updateConfig('apiProvider', e.target.value as ApiConfig['apiProvider'])}
               >
-                <option value="anthropic">Anthropic (Default)</option>
-                <option value="bedrock">AWS Bedrock</option>
-                <option value="vertex">Google Vertex AI</option>
+                <option value="anthropic">{t('apiConfig.provider.anthropic')}</option>
+                <option value="bedrock">{t('apiConfig.provider.bedrock')}</option>
+                <option value="vertex">{t('apiConfig.provider.vertex')}</option>
               </select>
             </label>
             <span className="help-text">
-              选择 Claude API 的提供商。不同的提供商可能有不同的功能和定价。
+              {t('apiConfig.provider.help')}
             </span>
           </div>
 
           {/* 分隔线 */}
           <div style={{ margin: '24px 0', borderTop: '1px solid var(--border-color)' }} />
-          <h4 style={{ marginBottom: '16px', color: 'var(--text-primary)' }}>自定义 API 配置</h4>
+          <h4 style={{ marginBottom: '16px', color: 'var(--text-primary)' }}>{t('apiConfig.custom.title')}</h4>
           <p className="help-text" style={{ marginBottom: '16px' }}>
-            以下配置用于对接第三方兼容 Claude API 的服务。设置自定义 API Key 后，将优先使用该 Key 而不是 OAuth 认证。
+            {t('apiConfig.custom.description')}
           </p>
 
           {/* API Base URL */}
           <div className="mcp-form-group">
             <label>
-              API Base URL
+              {t('apiConfig.baseUrl.label')}
               <input
                 type="text"
                 className="mcp-form-input"
-                placeholder="https://api.anthropic.com"
+                placeholder={t('placeholder.apiBaseUrl')}
                 value={config.apiBaseUrl ?? ''}
                 onChange={(e) => updateConfig('apiBaseUrl', e.target.value)}
               />
             </label>
             <span className="help-text">
-              自定义 API 端点地址。留空则使用默认端点。用于对接第三方兼容的 Claude API 服务。
+              {t('apiConfig.baseUrl.help')}
             </span>
           </div>
 
           {/* API Key */}
           <div className="mcp-form-group">
             <label>
-              API Key
+              {t('apiConfig.apiKey.label')}
               <input
                 type="password"
                 className="mcp-form-input"
-                placeholder="sk-ant-..."
+                placeholder={t('placeholder.apiKey')}
                 value={config.apiKey ?? ''}
                 onChange={(e) => updateConfig('apiKey', e.target.value)}
               />
             </label>
             <span className="help-text">
-              自定义 API 密钥。设置后将优先使用此密钥而不是 OAuth 认证。密钥将被加密存储。留空则使用 OAuth 认证。
+              {t('apiConfig.apiKey.help')}
             </span>
           </div>
 
           {/* Custom Model Name */}
           <div className="mcp-form-group">
             <label>
-              自定义模型名称
+              {t('apiConfig.customModel.label')}
               <input
                 type="text"
                 className="mcp-form-input"
-                placeholder="claude-3-opus-20240229"
+                placeholder={t('placeholder.customModel')}
                 value={config.customModelName ?? ''}
                 onChange={(e) => updateConfig('customModelName', e.target.value)}
               />
             </label>
             <span className="help-text">
-              自定义模型名称，用于第三方 API。设置后将覆盖内置模型选择。留空则使用界面上选择的模型。
+              {t('apiConfig.customModel.help')}
             </span>
           </div>
 
           {/* Auth Priority */}
           <div className="mcp-form-group">
             <label>
-              认证优先级
+              {t('apiConfig.authPriority.label')}
               <select
                 className="mcp-form-input"
                 value={config.authPriority ?? 'auto'}
                 onChange={(e) => updateConfig('authPriority', e.target.value as ApiConfig['authPriority'])}
               >
-                <option value="auto">自动（有 API Key 则优先使用）</option>
-                <option value="apiKey">API Key 优先</option>
-                <option value="oauth">OAuth 优先</option>
+                <option value="auto">{t('apiConfig.authPriority.auto')}</option>
+                <option value="apiKey">{t('apiConfig.authPriority.apiKey')}</option>
+                <option value="oauth">{t('apiConfig.authPriority.oauth')}</option>
               </select>
             </label>
             <span className="help-text">
-              选择认证方式的优先级。"自动"模式下，如果设置了 API Key 则使用 Key，否则使用 OAuth。
+              {t('apiConfig.authPriority.help')}
             </span>
           </div>
         </div>
@@ -434,7 +441,7 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
               onClick={onClose}
               disabled={loading || testing}
             >
-              取消
+              {t('apiConfig.cancel')}
             </button>
           )}
           <button
@@ -443,14 +450,14 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
             disabled={loading || testing}
             style={{ marginLeft: 'auto' }}
           >
-            {testing ? '测试中...' : '测试连接'}
+            {testing ? t('apiConfig.testing') : t('apiConfig.testConnection')}
           </button>
           <button
             className="mcp-btn-primary mcp-btn"
             onClick={handleSave}
             disabled={loading || testing}
           >
-            {loading ? '保存中...' : '保存配置'}
+            {loading ? t('apiConfig.saving') : t('apiConfig.save')}
           </button>
         </div>
       </div>

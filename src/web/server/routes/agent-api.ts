@@ -4,7 +4,7 @@
  */
 
 import express from 'express';
-import { BUILT_IN_AGENT_TYPES } from '../../../tools/agent.js';
+import { BUILT_IN_AGENT_TYPES, getAllActiveAgents } from '../../../tools/agent.js';
 import path from 'path';
 import fs from 'fs';
 
@@ -31,7 +31,7 @@ interface AgentMetadata {
  * 从 BUILT_IN_AGENT_TYPES 提取完整元数据
  */
 function getAgentMetadata(): AgentMetadata[] {
-  return BUILT_IN_AGENT_TYPES.map(agent => {
+  return getAllActiveAgents().map(agent => {
     // 基本元数据
     const metadata: AgentMetadata = {
       agentType: agent.agentType,

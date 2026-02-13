@@ -4,6 +4,7 @@
  */
 
 import { useState } from 'react';
+import { useLanguage } from '../../i18n';
 import '../../styles/config-panels.css';
 
 interface ValidationResult {
@@ -17,6 +18,7 @@ interface ConfigImportExportProps {
 }
 
 export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
+  const { t } = useLanguage();
   const [exportedConfig, setExportedConfig] = useState<string>('');
   const [importConfig, setImportConfig] = useState<string>('');
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
@@ -38,15 +40,15 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
       if (data.success && data.config) {
         const configStr = JSON.stringify(data.config, null, 2);
         setExportedConfig(configStr);
-        setMessage({ type: 'success', text: '配置导出成功' });
+        setMessage({ type: 'success', text: t('importExport.export.success') });
       } else {
-        throw new Error(data.error || '导出失败');
+        throw new Error(data.error || t('importExport.export.failed'));
       }
     } catch (error) {
       console.error('Export failed:', error);
       setMessage({
         type: 'error',
-        text: error instanceof Error ? error.message : '导出配置失败'
+        text: error instanceof Error ? error.message : t('importExport.export.failed')
       });
     } finally {
       setLoading(false);
@@ -56,7 +58,7 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
   // 验证配置
   const handleValidate = async () => {
     if (!importConfig.trim()) {
-      setMessage({ type: 'error', text: '请先粘贴配置 JSON' });
+      setMessage({ type: 'error', text: t('importExport.import.noConfig') });
       return;
     }
 
@@ -72,7 +74,7 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
       } catch (error) {
         setValidationResult({
           valid: false,
-          errors: ['无效的 JSON 格式: ' + (error instanceof Error ? error.message : '解析失败')]
+          errors: [t('importExport.import.invalidJson', { error: error instanceof Error ? error.message : '' })]
         });
         setLoading(false);
         return;
@@ -89,17 +91,17 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
       setValidationResult(data);
 
       if (data.valid) {
-        setMessage({ type: 'success', text: '配置验证通过' });
+        setMessage({ type: 'success', text: t('importExport.validation.success') });
       } else {
-        setMessage({ type: 'error', text: '配置验证失败,请查看错误详情' });
+        setMessage({ type: 'error', text: t('importExport.validation.failed') });
       }
     } catch (error) {
       console.error('Validation failed:', error);
       setValidationResult({
         valid: false,
-        errors: ['验证失败: ' + (error instanceof Error ? error.message : '未知错误')]
+        errors: [error instanceof Error ? error.message : t('importExport.validation.requestFailed')]
       });
-      setMessage({ type: 'error', text: '验证请求失败' });
+      setMessage({ type: 'error', text: t('importExport.validation.requestFailed') });
     } finally {
       setLoading(false);
     }
@@ -108,13 +110,11 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
   // 导入配置
   const handleImport = async () => {
     if (!validationResult?.valid) {
-      setMessage({ type: 'error', text: '请先验证配置' });
+      setMessage({ type: 'error', text: t('importExport.import.notValidated') });
       return;
     }
 
-    const confirmed = window.confirm(
-      '确定要导入此配置吗?\n\n这将覆盖当前配置,且无法撤销。\n\n建议先导出当前配置作为备份。'
-    );
+    const confirmed = window.confirm(t('importExport.import.confirm'));
     if (!confirmed) {
       return;
     }
@@ -132,18 +132,18 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
       const data = await response.json();
 
       if (data.success) {
-        setMessage({ type: 'success', text: '配置导入成功!页面将在 3 秒后刷新...' });
+        setMessage({ type: 'success', text: t('importExport.import.success') });
         setTimeout(() => {
           window.location.reload();
         }, 3000);
       } else {
-        throw new Error(data.error || '导入失败');
+        throw new Error(data.error || t('importExport.import.failed'));
       }
     } catch (error) {
       console.error('Import failed:', error);
       setMessage({
         type: 'error',
-        text: error instanceof Error ? error.message : '导入配置失败'
+        text: error instanceof Error ? error.message : t('importExport.import.failed')
       });
       setLoading(false);
     }
@@ -152,7 +152,7 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
   // 下载配置文件
   const handleDownload = () => {
     if (!exportedConfig) {
-      setMessage({ type: 'error', text: '请先导出配置' });
+      setMessage({ type: 'error', text: t('importExport.export.failed') });
       return;
     }
 
@@ -166,25 +166,21 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      setMessage({ type: 'success', text: '配置文件下载成功' });
+      setMessage({ type: 'success', text: t('importExport.export.downloadSuccess') });
     } catch (error) {
       console.error('Download failed:', error);
-      setMessage({ type: 'error', text: '下载失败' });
+      setMessage({ type: 'error', text: t('importExport.export.downloadFailed') });
     }
   };
 
   // 重置配置
   const handleReset = async () => {
-    const confirmed1 = window.confirm(
-      '确定要重置所有配置为默认值吗?\n\n此操作无法撤销!'
-    );
+    const confirmed1 = window.confirm(t('importExport.reset.confirm1'));
     if (!confirmed1) {
       return;
     }
 
-    const confirmed2 = window.confirm(
-      '最后确认:\n\n这将删除您的所有自定义配置,包括:\n- API 密钥\n- MCP 服务器\n- 插件配置\n- 系统设置\n\n确定继续吗?'
-    );
+    const confirmed2 = window.confirm(t('importExport.reset.confirm2'));
     if (!confirmed2) {
       return;
     }
@@ -200,18 +196,18 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
       const data = await response.json();
 
       if (data.success) {
-        setMessage({ type: 'success', text: '配置已重置!页面将在 3 秒后刷新...' });
+        setMessage({ type: 'success', text: t('importExport.reset.success') });
         setTimeout(() => {
           window.location.reload();
         }, 3000);
       } else {
-        throw new Error(data.error || '重置失败');
+        throw new Error(data.error || t('importExport.reset.failed'));
       }
     } catch (error) {
       console.error('Reset failed:', error);
       setMessage({
         type: 'error',
-        text: error instanceof Error ? error.message : '重置配置失败'
+        text: error instanceof Error ? error.message : t('importExport.reset.failed')
       });
       setLoading(false);
     }
@@ -223,7 +219,7 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
     if (!file) return;
 
     if (!file.name.endsWith('.json')) {
-      setMessage({ type: 'error', text: '请选择 JSON 文件' });
+      setMessage({ type: 'error', text: t('importExport.import.fileTypeError') });
       return;
     }
 
@@ -232,23 +228,23 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
       const content = e.target?.result as string;
       setImportConfig(content);
       setValidationResult(null);
-      setMessage({ type: 'info', text: '文件已加载,请点击验证按钮检查配置' });
+      setMessage({ type: 'info', text: t('importExport.import.fileLoaded') });
     };
     reader.onerror = () => {
-      setMessage({ type: 'error', text: '读取文件失败' });
+      setMessage({ type: 'error', text: t('importExport.import.fileFailed') });
     };
     reader.readAsText(file);
 
-    // 重置 input,允许选择同一个文件
+    // 重置 input，允许选择同一个文件
     event.target.value = '';
   };
 
   return (
     <div className="config-import-export">
       <div className="config-panel-header">
-        <h3>配置导入导出 (Configuration Import/Export)</h3>
+        <h3>{t('importExport.title')}</h3>
         <p className="config-description">
-          导出、导入或重置您的配置
+          {t('importExport.description')}
         </p>
       </div>
 
@@ -260,9 +256,9 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
 
       {/* 导出配置 */}
       <section className="config-section">
-        <h4>导出配置 (Export Configuration)</h4>
+        <h4>{t('importExport.export.title')}</h4>
         <p className="config-section-desc">
-          导出当前配置为 JSON 格式。您可以保存此文件作为备份,或转移到其他安装。
+          {t('importExport.export.description')}
         </p>
 
         <button
@@ -270,7 +266,7 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
           onClick={handleExport}
           disabled={loading}
         >
-          {loading ? '导出中...' : '导出当前配置'}
+          {loading ? t('importExport.export.exporting') : t('importExport.export.btn')}
         </button>
 
         {exportedConfig && (
@@ -285,7 +281,7 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
               className="config-btn config-btn-secondary"
               onClick={handleDownload}
             >
-              下载为文件
+              {t('importExport.export.download')}
             </button>
           </div>
         )}
@@ -293,9 +289,9 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
 
       {/* 导入配置 */}
       <section className="config-section">
-        <h4>导入配置 (Import Configuration)</h4>
+        <h4>{t('importExport.import.title')}</h4>
         <p className="config-section-desc">
-          粘贴或上传配置 JSON。先点击"验证配置"检查错误,然后点击"导入配置"应用。
+          {t('importExport.import.description')}
         </p>
 
         <div className="config-import-file">
@@ -307,10 +303,10 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
               className="config-file-input"
             />
             <span className="config-btn config-btn-secondary">
-              从文件加载
+              {t('importExport.import.fromFile')}
             </span>
           </label>
-          <span className="help-text">或直接粘贴 JSON 到下方文本框</span>
+          <span className="help-text">{t('importExport.import.fileHint')}</span>
         </div>
 
         <textarea
@@ -320,7 +316,7 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
             setImportConfig(e.target.value);
             setValidationResult(null);
           }}
-          placeholder='粘贴配置 JSON 到此处...'
+          placeholder={t('importExport.import.placeholder')}
           rows={15}
         />
 
@@ -330,14 +326,14 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
             onClick={handleValidate}
             disabled={loading || !importConfig.trim()}
           >
-            {loading ? '验证中...' : '验证配置'}
+            {loading ? t('importExport.import.validating') : t('importExport.import.validate')}
           </button>
           <button
             className="config-btn config-btn-primary"
             onClick={handleImport}
             disabled={loading || !validationResult?.valid}
           >
-            导入配置
+            {t('importExport.import.import')}
           </button>
         </div>
 
@@ -346,13 +342,13 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
             {validationResult.valid ? (
               <div className="validation-success">
                 <div className="validation-icon">✓</div>
-                <div className="validation-text">配置有效</div>
+                <div className="validation-text">{t('importExport.validation.valid')}</div>
               </div>
             ) : (
               <div className="validation-error">
                 <div className="validation-icon">✗</div>
                 <div className="validation-text">
-                  <div className="validation-title">配置验证失败:</div>
+                  <div className="validation-title">{t('importExport.validation.invalid')}</div>
                   {validationResult.errors && validationResult.errors.length > 0 && (
                     <ul className="validation-list">
                       {validationResult.errors.map((error, i) => (
@@ -365,7 +361,7 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
             )}
             {validationResult.warnings && validationResult.warnings.length > 0 && (
               <div className="validation-warnings">
-                <div className="validation-warning-title">警告:</div>
+                <div className="validation-warning-title">{t('importExport.validation.warnings')}</div>
                 <ul className="validation-list">
                   {validationResult.warnings.map((warning, i) => (
                     <li key={i}>{warning}</li>
@@ -379,9 +375,9 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
 
       {/* 配置重置 */}
       <section className="config-section config-section-danger">
-        <h4>重置配置 (Reset Configuration)</h4>
+        <h4>{t('importExport.reset.title')}</h4>
         <p className="config-section-desc danger">
-          重置所有配置为默认值。此操作无法撤销,请谨慎使用!
+          {t('importExport.reset.description')}
         </p>
 
         <button
@@ -389,7 +385,7 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
           onClick={handleReset}
           disabled={loading}
         >
-          重置为默认配置
+          {t('importExport.reset.btn')}
         </button>
       </section>
 
@@ -400,7 +396,7 @@ export function ConfigImportExport({ onClose }: ConfigImportExportProps) {
             onClick={onClose}
             disabled={loading}
           >
-            关闭
+            {t('importExport.close')}
           </button>
         </div>
       )}
