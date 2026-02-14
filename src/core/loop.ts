@@ -72,6 +72,7 @@ import { setParentModelContext } from '../tools/agent.js';
 import { configManager } from '../config/index.js';
 import { accountUsageManager } from '../ratelimit/index.js';
 import { initNotebookManager, getNotebookManager } from '../memory/notebook.js';
+import { initMemorySearchManager, getMemorySearchManager } from '../memory/memory-search.js';
 import {
   isSessionMemoryEnabled as checkSessionMemoryEnabled,
   SESSION_MEMORY_TEMPLATE,
@@ -1899,6 +1900,10 @@ export class ConversationLoop {
     const notebookMgr = initNotebookManager(effectiveWorkingDir);
     const notebookSummary = notebookMgr.getNotebookSummaryForPrompt();
 
+    // 初始化长期记忆搜索系统
+    const projectHash = require('crypto').createHash('md5').update(effectiveWorkingDir).digest('hex').slice(0, 12);
+    initMemorySearchManager(effectiveWorkingDir, projectHash);
+
     this.promptContext = {
       workingDir: effectiveWorkingDir,
       model: resolvedModel,
@@ -3103,6 +3108,12 @@ NO_UPDATE
         if (result.success) {
           console.error(chalk.gray('[AutoMemory] project 笔记本已更新'));
         }
+      }
+
+      // 标记长期记忆需要重新同步
+      const memSearchMgr = getMemorySearchManager();
+      if (memSearchMgr) {
+        memSearchMgr.markDirty();
       }
     } catch {
       // 静默失败，不影响退出流程

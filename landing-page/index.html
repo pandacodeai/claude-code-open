@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -350,487 +350,71 @@
                 <p class="section-subtitle">Deep dive into Claude Code Open's core features and advantages</p>
             </div>
             <div class="blog-posts">
-                <!-- Blog 1: Advantages (featured) -->
+            <div class="blog-posts">
+                <!-- Blog 1: Why Claude Code Open (featured) -->
                 <article class="blog-post featured">
                     <div class="blog-post-header">
-                        <span class="blog-tag">Major Feature</span>
+                        <span class="blog-tag">CORE</span>
                         <span class="blog-date">February 2026</span>
                     </div>
-                    <h3>Web UI: From Terminal to Browser — Building a Full-Stack AI IDE</h3>
+                    <h3>Why Claude Code Open — 10 Core Advantages Over the Official CLI</h3>
                     <div class="blog-content">
-                        <h4>Why Web UI?</h4>
-                        <p>CLI is a developer's power tool, but it has inherent limitations: no rich text, no multi-panel layouts, no visual debugging. Our goal: <strong>deliver the full AI coding experience in a browser while retaining every CLI capability</strong>.</p>
-
-                        <h4>Technical Architecture</h4>
-                        <p>The Web UI follows a classic three-layer architecture, each layer carefully chosen:</p>
+                        <p>Claude Code Open is not just an open-source clone — it's a full AI coding platform that goes far beyond the official CLI. From Web UI IDE and multi-agent collaboration to scheduled task automation and mobile programming, discover the 10 core advantages that make it the best choice for developers who want full control over their AI coding environment.</p>
                         <ul>
-                            <li><strong>Client</strong> — React 18 + Vite + TypeScript. Multi-page routing: AuthPage (OAuth login), BlueprintPage (workflow editor), CodeBrowserPage (code exploration), SwarmConsole (multi-agent dashboard)</li>
-                            <li><strong>Communication</strong> — WebSocket real-time bidirectional messaging + tRPC type-safe API. Message streams, tool call status, and agent progress all pushed in real-time</li>
-                            <li><strong>Server</strong> — Express.js + Better-SQLite3. SessionManager for persistence, PermissionHandler for access control, TaskManager for background coordination, TerminalManager for xterm.js integration</li>
+                            <li><strong>Open Source &amp; Transparent</strong> — Full source code, MIT license, community-driven</li>
+                            <li><strong>Web UI Full-Stack IDE</strong> — Complete browser-based coding experience with real-time WebSocket communication</li>
+                            <li><strong>Multi-Agent Collaboration (Blueprint)</strong> — Smart Planner + Lead Agent + Autonomous Workers for complex tasks</li>
+                            <li><strong>Scheduled Task Daemon</strong> — 7x24 AI automation with natural language scheduling</li>
+                            <li><strong>Mobile Programming</strong> — PWA + Tailscale for coding on your phone</li>
                         </ul>
-
-                        <h4>Core Components at a Glance</h4>
-                        <p>The Web UI includes 30+ carefully designed React components:</p>
-                        <ul>
-                            <li><strong>Messaging System</strong> — MarkdownContent renderer, ToolCall visualization, PermissionDialog, UserQuestionDialog</li>
-                            <li><strong>Code Browser</strong> — Virtualized TreeView file explorer, syntax highlighting, call graph visualization</li>
-                            <li><strong>Configuration Panels</strong> — Hooks config, permissions management, API settings, cache control, MCP server management, plugin management</li>
-                            <li><strong>Terminal Integration</strong> — Full terminal emulation via xterm.js, execute commands directly in the browser</li>
-                        </ul>
-
-                        <h4>OAuth Authentication Flow</h4>
-                        <p>We implemented a complete OAuth authentication system: users log in via AuthPage, OAuthManager handles token lifecycle with auto-refresh and multi-device sync. This means you can securely use the Claude coding assistant on any device with a browser.</p>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1)); border-radius: 8px;">
-                            <strong>Key Numbers:</strong> 30+ React components · WebSocket real-time · 4 independent pages · xterm.js terminal · SQLite persistence · Full OAuth flow
-                        </p>
                     </div>
                     <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/web" target="_blank" class="btn btn-outline btn-small">
-                            View Web UI Source →
-                        </a>
+                        <a href="advantages-blog.html" class="btn btn-primary btn-small">Read Full Article →</a>
                     </div>
                 </article>
 
-                <!-- Blog 2: Agent Teams -->
-                <article class="blog-post featured">
-                    <div class="blog-post-header">
-                        <span class="blog-tag">Multi-Agent</span>
-                        <span class="blog-date">January 2026</span>
-                    </div>
-                    <h3>Agent Teams: When One AI Isn't Enough, Make Them Collaborate</h3>
-                    <div class="blog-content">
-                        <h4>The Single-Agent Bottleneck</h4>
-                        <p>A single Claude instance faces context window limits, attention fragmentation, and inability to parallelize. Our answer: <strong>multiple agents forming teams, each focused on their role, collaborating through a messaging system to tackle large tasks</strong>.</p>
-
-                        <h4>Architecture Design</h4>
-                        <p>The Agent Teams system consists of four core tools:</p>
-                        <div class="code-block" style="margin: 1rem 0;">
-                            <code>TeamCreate      — Create teams, define goals and member roles<br>
-TeamSendMessage — Send messages between members, share findings<br>
-Teammate        — v2.1.32+ individual teammate context management<br>
-TeamDelete      — Clean up team resources after task completion</code>
-                        </div>
-
-                        <h4>Messaging Mechanism</h4>
-                        <p>Each agent has an independent context window and tool permissions, communicating through structured messages. TeamSendMessage supports directed messages (to specific members) and broadcasts (shared with the whole team).</p>
-
-                        <h4>Shared Context Memory</h4>
-                        <p>Team members share key discoveries through the Memory system. When one agent uncovers critical architecture insights, it persists them to shared memory — other members access these insights without redundant work.</p>
-
-                        <h4>Typical Use Cases</h4>
-                        <ul>
-                            <li><strong>Large Refactoring</strong> — 3 agents handling frontend, backend, and testing in parallel</li>
-                            <li><strong>Code Review</strong> — Security reviewer + performance reviewer + architecture reviewer, each with their specialty</li>
-                            <li><strong>Documentation</strong> — One agent analyzes code, one writes docs, one generates examples</li>
-                        </ul>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(34, 211, 238, 0.1), rgba(99, 102, 241, 0.1)); border-radius: 8px;">
-                            <strong>Core Capabilities:</strong> Team create/delete · Role definition · Directed/broadcast messaging · Shared memory · Parallel execution · Progress monitoring
-                        </p>
-                    </div>
-                    <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/teams" target="_blank" class="btn btn-outline btn-small">
-                            View Teams Source →
-                        </a>
-                    </div>
-                </article>
-
-                <!-- Blog 3: Blueprint -->
-                <article class="blog-post featured">
-                    <div class="blog-post-header">
-                        <span class="blog-tag">Workflow Engine</span>
-                        <span class="blog-date">January 2026</span>
-                    </div>
-                    <h3>Blueprint: Orchestrating Multi-Agent Tasks with Visual Workflows</h3>
-                    <div class="blog-content">
-                        <h4>From Manual Dispatch to Automated Orchestration</h4>
-                        <p>Agent Teams enable multi-agent collaboration, but manual team management is still tedious. Blueprint takes it further: <strong>you describe the goal, the system auto-generates execution plans, assigns tasks, dispatches workers, and validates results</strong>.</p>
-
-                        <h4>Seven Core Tools</h4>
-                        <ul>
-                            <li><strong>Blueprint</strong> — Define project blueprints with goals and constraints</li>
-                            <li><strong>GenerateBlueprint</strong> — AI analyzes blueprints, generates executable task breakdowns</li>
-                            <li><strong>GenerateDesign</strong> — Generate detailed technical design documents from blueprints</li>
-                            <li><strong>StartLeadAgent</strong> — Launch the lead agent for global scheduling and decisions</li>
-                            <li><strong>UpdateTaskPlan</strong> — Dynamically update task plans in response to execution changes</li>
-                            <li><strong>DispatchWorker</strong> — Dispatch worker agents for specific subtasks</li>
-                            <li><strong>TriggerE2ETest</strong> — Trigger end-to-end tests to validate overall delivery quality</li>
-                        </ul>
-
-                        <h4>Workflow Execution Flow</h4>
-                        <div class="code-block" style="margin: 1rem 0;">
-                            <code>User describes goal → GenerateBlueprint creates plan<br>
-  → StartLeadAgent launches coordinator<br>
-    → DispatchWorker assigns tasks to workers<br>
-      → Workers execute in parallel, report progress<br>
-        → Lead Agent dynamically adjusts (UpdateTaskPlan)<br>
-          → TriggerE2ETest validates final results</code>
-                        </div>
-
-                        <h4>Blueprint Editor in Web UI</h4>
-                        <p>In the BlueprintPage, you can visually monitor the entire workflow: which workers are running, task progress, and where bottlenecks occur. The Swarm Console provides Agent Explorer, task tree, worker panels, and rich monitoring tools.</p>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(236, 72, 153, 0.1)); border-radius: 8px;">
-                            <strong>Automation Pipeline:</strong> Goal description → Blueprint generation → Design docs → Lead Agent → Worker dispatch → E2E validation — fully automated
-                        </p>
-                    </div>
-                    <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/web/client/src/components/swarm" target="_blank" class="btn btn-outline btn-small">
-                            View Blueprint UI Source →
-                        </a>
-                    </div>
-                </article>
-
-                <!-- Blog 4: Plugin & Hooks -->
+                <!-- Blog 2: Scheduled Task Daemon -->
                 <article class="blog-post">
                     <div class="blog-post-header">
-                        <span class="blog-tag">Architecture</span>
-                        <span class="blog-date">January 2026</span>
+                        <span class="blog-tag">AUTOMATION</span>
+                        <span class="blog-date">February 2026</span>
                     </div>
-                    <h3>Plugin & Hooks: Building an Infinitely Extensible Tool System with 3 Design Patterns</h3>
+                    <h3>Scheduled Task Daemon: 7×24 AI Automation at Your Fingertips</h3>
                     <div class="blog-content">
-                        <h4>Why Extensibility Matters</h4>
-                        <p>An AI coding tool's longevity lies in its ecosystem. A closed system will eventually be outgrown, while an open platform harnesses community power to continuously evolve. We made extensibility a core design goal from day one.</p>
-
-                        <h4>Three Design Patterns</h4>
-                        <p><strong>1. Registry Pattern — ToolRegistry</strong></p>
-                        <p>All tools register dynamically through ToolRegistry. Each extends BaseTool, defines Zod schema input validation and an execute() method. Supports runtime add/remove and allow/disallow lists for visibility control.</p>
-
-                        <p><strong>2. Plugin Pattern — PluginManager</strong></p>
-                        <p>The plugin system provides full lifecycle management: load → init → activate → deactivate → unload. Plugins can register new tools, modify existing behavior, and add UI components. Plugin directories support global (<code>~/.claude/plugins/</code>) and project-level (<code>.claude/plugins/</code>).</p>
-
-                        <p><strong>3. Observer Pattern — Hooks System</strong></p>
-                        <p>The Hooks system lets you inject custom logic before and after any tool execution. Pre-hooks can intercept, modify, or cancel tool calls. Post-hooks can process results and log audits. This is the foundation for security auditing and custom approval workflows.</p>
-
-                        <h4>Skill System — Custom Commands</h4>
-                        <p>The Skill system allows creating reusable command templates stored in <code>~/.claude/skills/</code> or <code>.claude/commands/</code>. Behind a simple <code>/commit</code> slash command lies a complete commit workflow template.</p>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 211, 238, 0.1)); border-radius: 8px;">
-                            <strong>Extension Points:</strong> ToolRegistry dynamic registration · PluginManager lifecycle · Hooks pre/post · Skill custom commands · MCP external protocol
-                        </p>
+                        <p>Imagine AI automatically reviewing your code commits every morning, generating test cases when files change, or sending weekly progress reports via Feishu. The Scheduled Task Daemon makes it real with three task types: time-based scheduling with natural language, file watching triggers, and interval jobs — all backed by SQLite persistence and multi-channel notifications.</p>
                     </div>
                     <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/plugins" target="_blank" class="btn btn-outline btn-small">
-                            View Plugin System Source →
-                        </a>
+                        <a href="daemon-blog.html" class="btn btn-outline btn-small">Read Full Article →</a>
                     </div>
                 </article>
 
-                <!-- Blog 5: i18n -->
+                <!-- Blog 3: Mobile Programming -->
                 <article class="blog-post">
                     <div class="blog-post-header">
-                        <span class="blog-tag">Internationalization</span>
+                        <span class="blog-tag">MOBILE</span>
                         <span class="blog-date">February 2026</span>
                     </div>
-                    <h3>i18n: Why We Built Our Own Instead of Using an Existing Framework</h3>
+                    <h3>Mobile Programming: Claude Code in Your Pocket</h3>
                     <div class="blog-content">
-                        <h4>Problems with Existing Solutions</h4>
-                        <p>i18next, react-intl, and other mature frameworks are powerful but too heavy for our use case. We needed: shared translations between CLI and Web UI, zero runtime dependencies, dynamic loading support, and tree-shaking friendliness.</p>
-
-                        <h4>Core Design of Our Custom Solution</h4>
-                        <ul>
-                            <li><strong>Unified Translation Files</strong> — Translations stored as JSON in <code>src/i18n/</code>, shared between CLI and Web UI</li>
-                            <li><strong>Type Safety</strong> — TypeScript inference ensures every translation key has a corresponding value, catching missing translations at compile time</li>
-                            <li><strong>On-demand Loading</strong> — Language packs support dynamic import, loading only the current language to reduce bundle size</li>
-                            <li><strong>Bilingual Landing Page</strong> — Two independent HTML files + language switch links, zero JS overhead for multi-language landing pages</li>
-                        </ul>
-
-                        <h4>Coverage</h4>
-                        <p>Internationalization goes beyond UI text. We cover: CLI prompts, error messages, tool descriptions, Web UI interface, landing pages, and configuration docs — ensuring Chinese users get a completely native experience.</p>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(234, 179, 8, 0.1), rgba(249, 115, 22, 0.1)); border-radius: 8px;">
-                            <strong>Design Principles:</strong> Zero dependencies · Type-safe · CLI/Web shared · On-demand loading · Compile-time validation
-                        </p>
+                        <p>Start Claude Code WebUI on your computer, access it from your phone via Tailscale's zero-config mesh network, and add it to your home screen as a full-featured PWA app. No public IP needed, end-to-end encrypted, with deep touch optimization and responsive layouts — turn your commute into productive coding time.</p>
                     </div>
                     <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/i18n" target="_blank" class="btn btn-outline btn-small">
-                            View i18n Source →
-                        </a>
+                        <a href="mobile-blog.html" class="btn btn-outline btn-small">Read Full Article →</a>
                     </div>
                 </article>
 
-                <!-- Blog 6: WeChat Bot -->
-                <article class="blog-post featured">
-                    <div class="blog-post-header">
-                        <span class="blog-tag">Cross-Platform</span>
-                        <span class="blog-date">January 2026</span>
-                    </div>
-                    <h3>WeChat Bot: Bringing AI Coding to 1.2 Billion Users Through Chat</h3>
-                    <div class="blog-content">
-                        <h4>Why WeChat?</h4>
-                        <p>Web UI targets developers, CLI targets power users, but we wanted AI coding to reach everyone. WeChat is China's largest messaging platform — putting Claude inside WeChat means: <strong>anyone on any device can get AI coding help by sending a single message</strong>.</p>
-
-                        <h4>Complete Wechaty Implementation</h4>
-                        <p>We chose Wechaty as the underlying framework and built a complete bot system:</p>
-                        <ul>
-                            <li><strong>QR Code Login</strong> — Display QR code directly in terminal, scan to login, zero config</li>
-                            <li><strong>Message Routing</strong> — Support for private and group chats, auto-detect @bot mentions</li>
-                            <li><strong>Session Management</strong> — Independent sessions per user/group, zero interference</li>
-                            <li><strong>Budget Control</strong> — Configurable daily USD spending limit to prevent runaway API costs</li>
-                            <li><strong>Rate Limiting</strong> — Per-minute request limits to protect API quotas</li>
-                            <li><strong>Tool Whitelist</strong> — Fine-grained control over which tools WeChat users can invoke</li>
-                        </ul>
-
-                        <h4>Built-in Command System</h4>
-                        <div class="code-block" style="margin: 1rem 0;">
-                            <code>/help  — View help<br>
-/reset — Reset current session<br>
-/mode  — Switch mode (code/chat)<br>
-/cost  — View today's spending stats</code>
-                        </div>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(99, 102, 241, 0.1)); border-radius: 8px;">
-                            <strong>Core Capabilities:</strong> QR code login · Private/group chat · Budget control · Rate limiting · Tool whitelist · Multi-language support
-                        </p>
-                    </div>
-                    <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/wechat" target="_blank" class="btn btn-outline btn-small">
-                            View WeChat Bot Source →
-                        </a>
-                    </div>
-                </article>
-
-                <!-- Blog 7: Checkpoint + Teleport -->
+                <!-- Blog 4: One-Click Deploy -->
                 <article class="blog-post">
                     <div class="blog-post-header">
-                        <span class="blog-tag">Version Control</span>
-                        <span class="blog-date">January 2026</span>
-                    </div>
-                    <h3>File Checkpoints + Remote Teleport: Time Travel and Teleportation for AI Editing</h3>
-                    <div class="blog-content">
-                        <h4>Checkpoint System: Finer-Grained Than Git</h4>
-                        <p>Git records commit-level changes, but during AI editing you need finer control. Our Checkpoint system <strong>automatically creates snapshots on every file edit</strong>, supporting:</p>
-                        <ul>
-                            <li><strong>Incremental Diff Storage</strong> — Only records changes, not full files, saving space</li>
-                            <li><strong>Gzip Compression</strong> — Auto-compresses content over 1KB</li>
-                            <li><strong>Time-Range Search</strong> — Find snapshots by time, tags, git commits, or name patterns</li>
-                            <li><strong>Multi-File Restore</strong> — Roll back to any historical state in one operation</li>
-                            <li><strong>Session Import/Export</strong> — Migrate editing history across machines</li>
-                            <li><strong>500MB Storage Limit</strong> — Auto-cleanup of expired checkpoints, 30-day retention</li>
-                        </ul>
-
-                        <h4>Remote Session Teleport</h4>
-                        <p>Want to continue your Claude Code session on another machine? The Teleport system enables real-time session sync via WebSocket:</p>
-                        <ul>
-                            <li><strong>Repository Validation</strong> — Auto-checks target machine's git branch and workspace state</li>
-                            <li><strong>Auto-Reconnection</strong> — Automatically re-establishes connection after network interruption</li>
-                            <li><strong>Auth Management</strong> — Secure token transport, protecting session data</li>
-                        </ul>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(34, 211, 238, 0.1)); border-radius: 8px;">
-                            <strong>Time Travel + Teleportation:</strong> Incremental snapshots · Gzip compression · Multi-file rollback · WebSocket remote sync · Auto-reconnect · Repo validation
-                        </p>
-                    </div>
-                    <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/checkpoint" target="_blank" class="btn btn-outline btn-small">
-                            View Checkpoint Source →
-                        </a>
-                    </div>
-                </article>
-
-                <!-- Blog 8: Multi-Cloud -->
-                <article class="blog-post">
-                    <div class="blog-post-header">
-                        <span class="blog-tag">Enterprise</span>
-                        <span class="blog-date">January 2026</span>
-                    </div>
-                    <h3>Multi-Cloud Providers: One Codebase Across Anthropic / AWS Bedrock / GCP Vertex / Foundry</h3>
-                    <div class="blog-content">
-                        <h4>Why Multi-Cloud?</h4>
-                        <p>Enterprise users have different infrastructure: some use AWS Bedrock for unified billing, some use GCP Vertex to integrate existing ML pipelines, others deploy Anthropic Foundry private instances. Our goal: <strong>switch cloud providers by changing one environment variable, zero code changes</strong>.</p>
-
-                        <h4>Provider Abstraction Layer</h4>
-                        <ul>
-                            <li><strong>Anthropic API</strong> — Default provider, direct connection to Anthropic's official API</li>
-                            <li><strong>AWS Bedrock</strong> — Model ARN parsing, cross-region inference, Profile auth, IAM role support</li>
-                            <li><strong>GCP Vertex AI</strong> — OAuth integration, region-based endpoint routing, Service Account auth</li>
-                            <li><strong>Anthropic Foundry</strong> — Custom model deployment, private endpoint support</li>
-                        </ul>
-
-                        <h4>Auto-Detection & Switching</h4>
-                        <p>The <code>/doctor</code> diagnostic command auto-detects the configured provider, validates credentials, and reports connection status. Switching requires only one environment variable change.</p>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(249, 115, 22, 0.1), rgba(234, 179, 8, 0.1)); border-radius: 8px;">
-                            <strong>One Codebase, Four Clouds:</strong> Anthropic API · AWS Bedrock · GCP Vertex AI · Foundry — env var switch, zero code changes
-                        </p>
-                    </div>
-                    <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/providers" target="_blank" class="btn btn-outline btn-small">
-                            View Providers Source →
-                        </a>
-                    </div>
-                </article>
-
-                <!-- Blog 9: Sandboxing & Security -->
-                <article class="blog-post featured">
-                    <div class="blog-post-header">
-                        <span class="blog-tag">Security</span>
+                        <span class="blog-tag">GETTING STARTED</span>
                         <span class="blog-date">February 2026</span>
                     </div>
-                    <h3>4-Layer Security Sandbox: Sleep Well While AI Executes Code</h3>
+                    <h3>One-Click Deploy: Your Personal AI Assistant in 30 Seconds</h3>
                     <div class="blog-content">
-                        <h4>The Risk of AI Code Execution</h4>
-                        <p>The biggest risk of AI coding assistants is: <strong>they execute code</strong>. One <code>rm -rf /</code> or a malicious dependency can be catastrophic. We built four security layers to ensure AI operations run in controlled environments.</p>
-
-                        <h4>Four-Layer Sandbox Architecture</h4>
-                        <p><strong>Layer 1: Filesystem Sandbox</strong></p>
-                        <p>Path whitelist/blacklist mechanism — AI can only access specified directories. Try accessing <code>/etc/passwd</code>? Denied.</p>
-
-                        <p><strong>Layer 2: Process Sandbox (Linux: Bubblewrap / macOS: Seatbelt)</strong></p>
-                        <p>Linux uses Bubblewrap for complete process isolation with restricted capabilities and syscalls. macOS uses Seatbelt sandbox profiles for equivalent protection.</p>
-
-                        <p><strong>Layer 3: Network Sandbox</strong></p>
-                        <p>HTTP/HTTPS requests filtered by domain. AI can only access whitelisted domains, preventing data exfiltration and malicious downloads.</p>
-
-                        <p><strong>Layer 4: Docker Sandbox</strong></p>
-                        <p>Ultimate isolation: run all AI operations inside Docker containers. Host machine completely unaffected.</p>
-
-                        <h4>Supplementary Security Infrastructure</h4>
-                        <ul>
-                            <li><strong>Command Injection Detection</strong> — Analyzes shell commands, intercepts dangerous patterns</li>
-                            <li><strong>Sensitive Data Masking</strong> — Auto-detects and masks API keys, passwords, PII</li>
-                            <li><strong>Ed25519 Code Signing</strong> — Verifies code integrity, prevents tampering</li>
-                            <li><strong>Permission Audit Logging</strong> — Every permission decision is recorded and traceable</li>
-                        </ul>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(168, 85, 247, 0.1)); border-radius: 8px;">
-                            <strong>Four Defense Layers:</strong> Filesystem whitelist → Process isolation (Bubblewrap/Seatbelt) → Network domain filter → Docker container + Command injection detection + Code signing
-                        </p>
+                        <p>No complex configuration needed. One command installs everything: clone repo, build frontend and backend, create desktop shortcut, preset API config. Double-click to launch, browser auto-opens — start chatting with Claude immediately. Supports Windows PowerShell and macOS/Linux bash.</p>
                     </div>
                     <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/sandbox" target="_blank" class="btn btn-outline btn-small">
-                            View Sandbox System Source →
-                        </a>
-                    </div>
-                </article>
-
-                <!-- Blog 10: Original OAuth Blog (kept) -->
-                <article class="blog-post featured">
-                    <div class="blog-post-header">
-                        <span class="blog-tag">Deep Dive</span>
-                        <span class="blog-date">February 2026</span>
-                    </div>
-                    <h3>Cracking the Claude Code OAuth Proxy Mystery: How We Fixed the "Credential Only Authorized for Claude Code" Error</h3>
-                    <div class="blog-content">
-                        <h4>The Problem</h4>
-                        <p>When building a transparent proxy to share Claude subscriptions across devices, we encountered a frustrating 400 error:</p>
-                        <div class="code-block" style="margin: 1rem 0;">
-                            <code>"This credential is only authorized for use with Claude Code and cannot be used for other API requests."</code>
-                        </div>
-                        <p>The proxy worked perfectly for simple requests via Postman, but failed when forwarding actual Claude Code CLI requests. What was different?</p>
-
-                        <h4>The Investigation</h4>
-                        <p>After hours of packet analysis and code diving into the minified <code>cli.js</code>, we discovered the root cause: <strong>the proxy was corrupting the system prompt block structure</strong>.</p>
-
-                        <p>Official Claude Code sends system prompts as an array of text blocks with a specific structure:</p>
-                        <div class="code-block" style="margin: 1rem 0;">
-                            <code>Block 0: "x-anthropic-billing-header: cc_version=2.1.31.593; cc_entrypoint=cli;"<br>
-Block 1: "You are Claude Code, Anthropic's official CLI for Claude..."<br>
-Block 2: "...rest of system prompt..."</code>
-                        </div>
-
-                        <p>The <code>x-anthropic-billing-header</code> is a special marker block that Anthropic uses to validate Claude Code client identity. Our proxy's identity injection logic found the first text block (the billing header) and prepended the Claude Code identity to it:</p>
-                        <div class="code-block" style="margin: 1rem 0; background: #2d1b1b;">
-                            <code style="color: #ff6b6b;">// BUG: This corrupted the billing header block!<br>
-block.text = CLAUDE_CODE_IDENTITY + '\n\n' + block.text;</code>
-                        </div>
-                        <p>Result: The billing header was no longer at the start of any block, so the API couldn't find it and rejected the request.</p>
-
-                        <h4>The Fix</h4>
-                        <p>We updated the identity injection logic to:</p>
-                        <ol>
-                            <li><strong>Skip billing header blocks</strong> - Never modify blocks starting with <code>x-anthropic-billing-header</code></li>
-                            <li><strong>Insert identity as a separate block</strong> - If no identity exists, insert it AFTER the billing header, maintaining the official structure</li>
-                            <li><strong>Remove prompt-caching-scope beta</strong> - The v4 forward path was missing this critical beta header filtering</li>
-                        </ol>
-
-                        <div class="code-block" style="margin: 1rem 0; background: #1b2d1b;">
-                            <code style="color: #6bff6b;">// FIX: Skip billing blocks, insert identity after them<br>
-const isBillingBlock = (b) => b.text?.startsWith('x-anthropic-billing-header');<br>
-const insertIdx = system.findIndex(isBillingBlock) + 1;<br>
-system.splice(insertIdx, 0, { type: 'text', text: IDENTITY });</code>
-                        </div>
-
-                        <h4>Key Takeaways</h4>
-                        <ul>
-                            <li><strong>Block structure matters</strong> - Claude Code's system prompt isn't just text; it's a structured array where each block has semantic meaning</li>
-                            <li><strong>Billing headers are sacred</strong> - The <code>x-anthropic-billing-header</code> block is used for client validation and must remain untouched</li>
-                            <li><strong>Beta headers need careful handling</strong> - <code>prompt-caching-scope</code> changes caching behavior and must be removed when proxying OAuth requests</li>
-                        </ul>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1)); border-radius: 8px;">
-                            <strong>Result:</strong> The proxy now correctly forwards OAuth subscription requests, allowing you to share your Claude subscription across multiple devices seamlessly.
-                        </p>
-                    </div>
-                    <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/blob/main/src/proxy/server.ts#L598-L632" target="_blank" class="btn btn-outline btn-small">
-                            View Source Code Changes →
-                        </a>
-                    </div>
-                </article>
-
-                <!-- Blog 11: Scheduled Task Daemon -->
-                <article class="blog-post featured">
-                    <div class="blog-post-header">
-                        <span class="blog-tag">Automation</span>
-                        <span class="blog-date">February 2026</span>
-                    </div>
-                    <h3>Scheduled Task Daemon: Your 7×24 AI Automation Assistant</h3>
-                    <div class="blog-content">
-                        <h4>The Challenge: AI That Never Sleeps</h4>
-                        <p>AI coding assistants are great for interactive tasks, but what about <strong>scheduled automation</strong>? Daily code reviews, file watching for auto-testing, periodic API health checks — these require an AI that runs in the background, triggered by time or events. Enter the <strong>Scheduled Task Daemon</strong>.</p>
-
-                        <h4>Three Task Types</h4>
-                        <ul>
-                            <li><strong>Time-based Tasks</strong> — Natural language scheduling: "every day at 9am", "tomorrow 3pm", "2 hours later". Supports one-time and recurring cron-style jobs</li>
-                            <li><strong>File Watching</strong> — Monitor files/directories for changes. When <code>server.log</code> contains "ERROR", Claude analyzes it and sends you a desktop notification</li>
-                            <li><strong>Interval Tasks</strong> — Execute at fixed intervals: "every 5 minutes check API response time"</li>
-                        </ul>
-
-                        <h4>Architecture Highlights</h4>
-                        <p>Built with industrial-grade reliability in mind:</p>
-                        <div class="code-block" style="margin: 1rem 0;">
-                            <code>DaemonManager       — Orchestrator, process lifecycle, auto-restart<br>
-TaskStore (SQLite) — Persistent storage, tasks survive restarts<br>
-Scheduler          — Cron-style time matching, priority queue<br>
-FileWatcher        — chokidar integration, debouncing, batch processing<br>
-Notifier           — Desktop (node-notifier) + Feishu webhooks</code>
-                        </div>
-
-                        <h4>Natural Language Time Parsing</h4>
-                        <p>No need to learn cron syntax. Our time parser understands Chinese/English natural language:</p>
-                        <ul>
-                            <li>"明天下午3点" → <code>Date: 2026-02-14 15:00</code></li>
-                            <li>"每天早上9点" → <code>Cron: 0 9 * * *</code></li>
-                            <li>"2小时后" → <code>Date: now + 2 hours</code></li>
-                        </ul>
-
-                        <h4>Multi-Channel Notifications</h4>
-                        <p>Task results are delivered via:</p>
-                        <ul>
-                            <li><strong>Desktop</strong> — Native toast notifications (Windows/macOS/Linux)</li>
-                            <li><strong>Feishu Bot</strong> — Rich interactive cards with markdown formatting</li>
-                        </ul>
-
-                        <h4>Usage Example</h4>
-                        <div class="code-block" style="margin: 1rem 0;">
-                            <code># Start daemon<br>
-claude daemon start<br>
-<br>
-# Create task via conversation<br>
-User: "每天早上9点，分析昨天的git提交，检查代码质量，并通过飞书通知我"<br>
-Claude: ✓ 任务已创建 (ID: task_abc123)</code>
-                        </div>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(34, 211, 238, 0.1), rgba(99, 102, 241, 0.1)); border-radius: 8px;">
-                            <strong>Core Features:</strong> Natural language scheduling · File watching · SQLite persistence · Multi-channel notifications · Model selection · Auto-restart · 中英文支持
-                        </p>
-                    </div>
-                    <div class="blog-footer">
-                        <a href="/blogs/scheduled-task-daemon.md" target="_blank" class="btn btn-outline btn-small">
-                            Read Full Article →
-                        </a>
+                        <a href="blog.html" class="btn btn-outline btn-small">Read Full Article →</a>
                     </div>
                 </article>
             </div>

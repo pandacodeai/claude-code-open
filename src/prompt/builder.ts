@@ -386,6 +386,18 @@ Similarly, when you discover important project-specific knowledge (gotchas, hidd
 Failing to write important information to notebooks is a critical error — it means the information will be lost when the conversation ends.`);
     }
 
+    // 10.6 MemorySearch 长期记忆搜索提示
+    if (toolNames.has('MemorySearch')) {
+      staticParts.push(`# Long-term Memory Search
+
+You have access to a MemorySearch tool that searches past session history and memory files beyond the current notebook. Use it when:
+- The current notebook (experience.md + project.md) doesn't have the information you need
+- You want to recall past decisions, patterns, or lessons from previous sessions
+- Looking for historical context about a file, function, or topic
+
+The tool returns results with source attribution (file path, line numbers, timestamps, age) to help you judge relevance and freshness. This is a supplementary search layer — your primary knowledge source is still the fully-loaded notebook.`);
+    }
+
     // 11. 代码引用格式 (uqz)
     staticParts.push(`# Code References
 
