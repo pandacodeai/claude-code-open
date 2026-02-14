@@ -28,6 +28,8 @@ export * from './agent-teams.js';
 export * from './notebook-write.js';
 export * from './team.js';
 export * from './schedule.js';
+export * from './self-evolve.js';
+export * from './browser.js';
 
 // 蓝图工具不通过此处 re-export
 // 蓝图模块直接 import 各自需要的工具文件 (如 ../tools/dispatch-worker.js)
@@ -54,6 +56,8 @@ import { TeammateTool } from './agent-teams.js';
 import { isAgentTeamsEnabled } from '../agents/teammate-context.js';
 import { TeamCreateTool, TeamDeleteTool, TeamSendMessageTool } from './team.js';
 import { ScheduleTaskTool } from './schedule.js';
+import { SelfEvolveTool } from './self-evolve.js';
+import { BrowserTool } from './browser.js';
 
 // ============ 蓝图工具 imports (lazy) ============
 import { BlueprintTool } from './blueprint.js';
@@ -159,6 +163,12 @@ export function registerCoreTools(): void {
 
   // 13. Daemon 定时任务工具
   toolRegistry.register(new ScheduleTaskTool());
+
+  // 14. Self-Evolve 自我进化工具（需要 CLAUDE_EVOLVE_ENABLED=1）
+  toolRegistry.register(new SelfEvolveTool());
+
+  // 15. Browser 浏览器控制工具
+  toolRegistry.register(new BrowserTool());
 }
 
 /**

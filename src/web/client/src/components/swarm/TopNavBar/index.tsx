@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import styles from './TopNavBar.module.css';
 import ProjectSelector from '../ProjectSelector/ProjectSelector';
+import { useLanguage } from '../../../i18n';
 
 interface SessionItem {
   id: string;
@@ -53,6 +54,7 @@ export default function TopNavBar({
   sessions = [], currentSessionId, onSessionSelect, onNewSession,
   onSessionDelete, onSessionRename,
 }: TopNavBarProps) {
+  const { t } = useLanguage();
   const [sessionDropdownOpen, setSessionDropdownOpen] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -113,28 +115,28 @@ export default function TopNavBar({
           onClick={() => onPageChange('chat')}
         >
           <span className={styles.icon}>💬</span>
-          <span>聊天</span>
+          <span>{t('nav.chat')}</span>
         </button>
         <button
           className={`${styles.navTab} ${currentPage === 'blueprint' ? styles.active : ''}`}
           onClick={() => onPageChange('blueprint')}
         >
           <span className={styles.icon}>📋</span>
-          <span>蓝图</span>
+          <span>{t('nav.blueprint')}</span>
         </button>
         <button
           className={`${styles.navTab} ${currentPage === 'swarm' ? styles.active : ''}`}
           onClick={() => onPageChange('swarm')}
         >
           <span className={styles.icon}>🐝</span>
-          <span>蜂群</span>
+          <span>{t('nav.swarm')}</span>
         </button>
         <button
           className={`${styles.navTab} ${codePanelActive ? styles.active : ''}`}
           onClick={() => onToggleCode?.()}
         >
           <span className={styles.icon}>📁</span>
-          <span>代码</span>
+          <span>{t('nav.code')}</span>
         </button>
       </div>
 
@@ -158,17 +160,17 @@ export default function TopNavBar({
           >
             <span className={styles.sessionIcon}>💬</span>
             <span className={styles.sessionName}>
-              {currentSession?.name || '新对话'}
+              {currentSession?.name || t('nav.newSession')}
             </span>
             <span className={`${styles.sessionArrow} ${sessionDropdownOpen ? styles.open : ''}`}>▼</span>
           </button>
 
           {sessionDropdownOpen && (
             <div className={styles.sessionDropdown}>
-              <div className={styles.sessionDropdownHeader}>最近会话</div>
+              <div className={styles.sessionDropdownHeader}>{t('nav.recentSessions')}</div>
               <div className={styles.sessionList}>
                 {sessions.length === 0 ? (
-                  <div className={styles.sessionEmpty}>暂无会话记录</div>
+                  <div className={styles.sessionEmpty}>{t('nav.noSessions')}</div>
                 ) : (
                   sessions.map(session => (
                     <div
@@ -198,10 +200,10 @@ export default function TopNavBar({
                         ) : (
                           <>
                             <span className={styles.sessionItemName}>
-                              {session.name || '未命名会话'}
+                              {session.name || t('nav.unnamedSession')}
                             </span>
                             <span className={styles.sessionItemMeta}>
-                              {session.messageCount} 条 · {formatTime(session.updatedAt)}
+                              {t('nav.messageCount', { count: session.messageCount })} · {formatTime(session.updatedAt)}
                             </span>
                           </>
                         )}
@@ -210,7 +212,7 @@ export default function TopNavBar({
                         <button
                           className={styles.sessionRenameBtn}
                           onClick={(e) => handleStartRename(e, session)}
-                          title="重命名"
+                          title={t('nav.rename')}
                         >
                           ✏️
                         </button>
@@ -220,7 +222,7 @@ export default function TopNavBar({
                             e.stopPropagation();
                             onSessionDelete?.(session.id);
                           }}
-                          title="删除会话"
+                          title={t('nav.deleteSession')}
                         >
                           ✕
                         </button>
@@ -237,12 +239,12 @@ export default function TopNavBar({
       {/* 右侧：连接状态 + 新对话 + 设置 */}
       <div className={styles.actions}>
         {connected !== undefined && (
-          <span className={`${styles.connectionDot} ${connected ? styles.connected : ''}`} title={connected ? '已连接' : '未连接'} />
+          <span className={`${styles.connectionDot} ${connected ? styles.connected : ''}`} title={connected ? t('nav.connected') : t('nav.disconnected')} />
         )}
-        <button className={styles.newSessionButton} onClick={onNewSession} title="新对话">
+        <button className={styles.newSessionButton} onClick={onNewSession} title={t('nav.newSession')}>
           +
         </button>
-        <button className={styles.settingsButton} onClick={onSettingsClick} title="设置">
+        <button className={styles.settingsButton} onClick={onSettingsClick} title={t('nav.settings')}>
           ⚙️
         </button>
       </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useMessageHandler } from './hooks/useMessageHandler';
 import { useSessionManager } from './hooks/useSessionManager';
@@ -54,7 +54,8 @@ function AppContent({
   const [showTerminal, setShowTerminal] = useState(false);
   const [terminalHeight, setTerminalHeight] = useState(280);
   const [isInputVisible, setIsInputVisible] = useState(true);
-  const chatContainerRef = React.useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef(true);
 
   const { connected, sessionId, model, setModel, send, addMessageHandler } = useWebSocket(getWebSocketUrl());
 
@@ -119,9 +120,22 @@ function AppContent({
   // 产物面板
   const artifactsState = useArtifacts(messages);
 
-  // 自动滚动到底部
+  // 监听滚动位置，判断用户是否在底部附近
   useEffect(() => {
-    if (chatContainerRef.current) {
+    const container = chatContainerRef.current;
+    if (!container) return;
+    const THRESHOLD = 80; // 距底部 80px 以内视为"在底部"
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      isNearBottomRef.current = scrollHeight - scrollTop - clientHeight < THRESHOLD;
+    };
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // 仅在用户处于底部附近时自动滚动
+  useEffect(() => {
+    if (isNearBottomRef.current && chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages]);

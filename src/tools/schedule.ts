@@ -4,9 +4,12 @@
  * 任务由 daemon 进程执行，结果通过桌面通知或飞书推送
  */
 
+import * as path from 'path';
+import { spawn } from 'child_process';
 import { BaseTool } from './base.js';
 import type { ToolDefinition, ToolResult } from '../types/index.js';
 import { TaskStore, type ScheduledTask } from '../daemon/store.js';
+import { isDaemonRunning } from '../daemon/index.js';
 import { parseTimeExpression } from '../daemon/time-parser.js';
 
 interface ScheduleTaskInput {
@@ -114,7 +117,7 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
     }
   }
 
-  private handleCreate(store: TaskStore, input: ScheduleTaskInput): ToolResult {
+  private async handleCreate(store: TaskStore, input: ScheduleTaskInput): Promise<ToolResult> {
     // 校验必填参数
     if (!input.name) {
       return { success: false, output: 'Error: "name" is required for create action.' };
@@ -170,6 +173,24 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
     // 通知 daemon 热加载
     store.signalReload();
 
+    // 如果 daemon 未运行，自动拉起
+    let daemonAutoStarted = false;
+    if (!isDaemonRunning()) {
+      try {
+        // import.meta.dirname 在编译后已经在 dist/tools/ 下，所以向上一层就是 dist/
+        const cliPath = path.join(import.meta.dirname, '..', 'cli.js');
+        const daemonProcess = spawn(process.execPath, [cliPath, 'daemon', 'start'], {
+          detached: true,
+          stdio: 'ignore',
+          cwd: process.cwd(),
+        });
+        daemonProcess.unref();
+        daemonAutoStarted = true;
+      } catch {
+        // 自动启动失败，不影响任务创建
+      }
+    }
+
     let details = `Task created: "${task.name}" (ID: ${task.id})\n`;
     details += `Type: ${task.type}\n`;
     if (task.type === 'once' && task.triggerAt) {
@@ -181,8 +202,10 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
     if (task.type === 'watch' && task.watchPaths) {
       details += `Watch: ${task.watchPaths.join(', ')}\n`;
     }
-    details += `Notify: ${task.notify.join(', ')}\n`;
-    details += `\nNote: The daemon must be running ("claude daemon start") for this task to execute.`;
+    details += `Notify: ${task.notify.join(', ')}`;
+    if (daemonAutoStarted) {
+      details += `\n\nDaemon was not running — auto-started successfully.`;
+    }
 
     return { success: true, output: details };
   }

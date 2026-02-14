@@ -2462,6 +2462,10 @@ Guidelines:
 
   // 自动保存会话
   private autoSave(): void {
+    // 子 agent 不持久化 session，避免会话文件污染主会话列表
+    if (this.options.isSubAgent) {
+      return;
+    }
     try {
       this.session.save();
     } catch (err) {

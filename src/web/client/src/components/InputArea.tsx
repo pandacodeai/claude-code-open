@@ -8,6 +8,7 @@ import { SlashCommandPalette } from './SlashCommandPalette';
 import { ContextBar, type ContextUsage, type CompactState } from './ContextBar';
 import type { Attachment, SlashCommand } from '../types';
 import type { Status, PermissionMode } from '../hooks/useMessageHandler';
+import { useLanguage } from '../i18n';
 
 interface InputAreaProps {
   // 输入状态
@@ -95,6 +96,7 @@ export function InputArea({
   onTogglePin,
   onVisibilityChange,
 }: InputAreaProps) {
+  const { t } = useLanguage();
   const [isAutoHidden, setIsAutoHidden] = useState(false);
   const inputAreaRef = useRef<HTMLDivElement>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -239,7 +241,7 @@ export function InputArea({
             onChange={onInputChange}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
-            placeholder="输入消息... (/ 显示命令)"
+            placeholder={t('input.placeholder')}
             disabled={!connected}
           />
         </div>
@@ -250,7 +252,7 @@ export function InputArea({
               value={model}
               onChange={(e) => onModelChange(e.target.value)}
               disabled={status !== 'idle'}
-              title="切换模型"
+              title={t('input.switchModel')}
             >
               <option value="opus">Opus</option>
               <option value="sonnet">Sonnet</option>
@@ -260,12 +262,12 @@ export function InputArea({
               className={`permission-mode-selector mode-${permissionMode}`}
               value={permissionMode}
               onChange={(e) => onPermissionModeChange(e.target.value as PermissionMode)}
-              title="权限模式"
+              title={t('input.permissionMode')}
             >
-              <option value="default">{'🔒 询问'}</option>
-              <option value="acceptEdits">{'📝 自动编辑'}</option>
+              <option value="default">{`🔒 ${t('input.permAsk')}`}</option>
+              <option value="acceptEdits">{`📝 ${t('input.permAutoEdit')}`}</option>
               <option value="bypassPermissions">{'⚡ YOLO'}</option>
-              <option value="plan">{'📋 计划'}</option>
+              <option value="plan">{`📋 ${t('input.permPlan')}`}</option>
             </select>
             <ContextBar usage={contextUsage} compactState={compactState} />
             <button className="attach-btn" onClick={() => fileInputRef.current?.click()}>
@@ -274,22 +276,22 @@ export function InputArea({
             <button
               className={`pin-toggle-btn ${isPinned ? 'pinned' : ''}`}
               onClick={onTogglePin}
-              title={isPinned ? '取消锁定 - 允许自动隐藏输入框' : '锁定输入框 - 防止自动隐藏'}
+              title={isPinned ? t('input.pinUnlock') : t('input.pinLock')}
             >
               {isPinned ? '📌' : '📍'}
             </button>
             <button
               className="debug-trigger-btn"
               onClick={onOpenDebugPanel}
-              title="API 探针 - 查看系统提示词和消息体"
+              title={t('input.debugProbe')}
             >
-              {'🔍'} <span className="debug-trigger-label">{'探针'}</span>
+              {'🔍'} <span className="debug-trigger-label">{t('input.probe')}</span>
             </button>
             {hasCompactBoundary && (
               <button
                 className={`transcript-toggle-btn ${isTranscriptMode ? 'active' : ''}`}
                 onClick={onToggleTranscriptMode}
-                title={isTranscriptMode ? '切换到精简视图' : '查看完整历史 (Ctrl+O)'}
+                title={isTranscriptMode ? t('input.transcriptMinimal') : t('input.transcriptFull')}
               >
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
                   <path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H4z"/>
@@ -310,7 +312,7 @@ export function InputArea({
           <div className="input-toolbar-right">
             {status !== 'idle' && (
               <button className="stop-btn" onClick={onCancel}>
-                {'■ 停止'}
+                {`■ ${t('input.stop')}`}
               </button>
             )}
             <button
@@ -318,7 +320,7 @@ export function InputArea({
               onClick={onSend}
               disabled={!connected || (!input.trim() && attachments.length === 0)}
             >
-              {'发送'}
+              {t('input.send')}
             </button>
           </div>
         </div>
