@@ -67,6 +67,8 @@ const RETRYABLE_NETWORK_PATTERNS = [
   'socket hang up',
   'overloaded_error',
   'rate_limit_error',
+  'Request timed out',
+  'timed out',
 ];
 
 /** conversation loop 层面的最大网络重试次数 */

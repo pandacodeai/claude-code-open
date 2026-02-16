@@ -109,6 +109,8 @@ const RETRYABLE_ERRORS = [
   'connection error',
   'network error',
   'fetch failed',
+  'Request timed out',
+  'timed out',
 ];
 
 // 官方 Claude Code 的 beta 头 (v2.1.29 对齐)

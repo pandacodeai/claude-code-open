@@ -180,6 +180,10 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<We
   const aiHoverRouter = await import('./routes/ai-hover.js');
   app.use('/api/ai-hover', aiHoverRouter.default);
 
+  // AI Editor API 路由（代码导游、热力图、重构建议、AI气泡）
+  const aiEditorRouter = await import('./routes/ai-editor.js');
+  app.use('/api/ai-editor', aiEditorRouter.default);
+
   // 前端静态文件路径
   // 在生产环境下，代码在 dist/web/server，需要找到 src/web/client/dist
   // 在开发环境下，代码在 src/web/server，需要找到 src/web/client

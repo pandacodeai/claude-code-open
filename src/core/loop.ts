@@ -2809,6 +2809,7 @@ Guidelines:
           'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'ECONNREFUSED',
           'network error', 'fetch failed', 'Connection error', 'connection error',
           'overloaded_error', 'rate_limit_error', 'api_error', 'timeout',
+          'Request timed out', 'timed out',
         ].some(e => errMsg.includes(e) || errCode.includes(e))
           || [429, 500, 502, 503, 504, 529].includes(streamError.status || streamError.statusCode || 0);
 
