@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../i18n';
+import { LogView } from './LogView';
 import './GitPanel.css';
 
 // Git 数据类型定义（与后端 GitManager 对应）
@@ -327,12 +328,11 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
 
             {activeTab === 'log' && (
               <div className="git-tab-content">
-                {/* LogView 组件将在这里渲染 */}
-                <div className="git-placeholder">
-                  LogView coming soon...
-                  <br />
-                  Commits: {commits.length}
-                </div>
+                <LogView
+                  commits={commits}
+                  send={send}
+                  projectPath={projectPath}
+                />
               </div>
             )}
 
