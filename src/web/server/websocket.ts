@@ -2872,6 +2872,26 @@ async function handleSessionSwitch(
           type: 'status',
           payload: { status: 'streaming', message: '对话处理中...', sessionId },
         });
+
+        // 重发待处理的权限请求和用户问题
+        // 会话正在处理中且被阻塞在等待用户响应时，切换回来后需要重新弹出对话框
+        const pendingPermissions = conversationManager.getPendingPermissionRequests(sessionId);
+        for (const req of pendingPermissions) {
+          sendMessage(ws, {
+            type: 'permission_request',
+            payload: { ...req, sessionId },
+          });
+          console.log(`[WebSocket] 重发待处理权限请求: ${req.tool} (${req.requestId})`);
+        }
+
+        const pendingQuestions = conversationManager.getPendingUserQuestions(sessionId);
+        for (const q of pendingQuestions) {
+          sendMessage(ws, {
+            type: 'user_question',
+            payload: { ...q, sessionId },
+          } as any);
+          console.log(`[WebSocket] 重发待处理用户问题: ${q.header} (${q.requestId})`);
+        }
       }
     } else {
       sendMessage(ws, {

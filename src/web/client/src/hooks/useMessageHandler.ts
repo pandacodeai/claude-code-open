@@ -4,7 +4,7 @@
  * 处理所有 ServerMessage -> 前端状态的映射
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type {
   ChatMessage,
   ChatContent,
@@ -16,6 +16,17 @@ import type { ContextUsage, CompactState } from '../components/ContextBar';
 
 export type Status = 'idle' | 'thinking' | 'streaming' | 'tool_executing';
 export type PermissionMode = 'default' | 'bypassPermissions' | 'acceptEdits' | 'plan';
+
+/**
+ * 跨会话通知：当其他会话有弹窗等待时，通知当前用户
+ */
+export interface CrossSessionNotification {
+  sessionId: string;
+  type: 'permission_request' | 'user_question';
+  toolName?: string;     // permission_request 时的工具名
+  questionHeader?: string; // user_question 时的标题
+  timestamp: number;
+}
 
 interface UseMessageHandlerParams {
   addMessageHandler: (handler: (msg: WSMessage) => void) => () => void;
@@ -44,6 +55,8 @@ interface UseMessageHandlerReturn {
   interruptPendingRef: React.MutableRefObject<boolean>;
   isTranscriptMode: boolean;
   setIsTranscriptMode: React.Dispatch<React.SetStateAction<boolean>>;
+  crossSessionNotification: CrossSessionNotification | null;
+  dismissCrossSessionNotification: () => void;
 }
 
 export function useMessageHandler({
@@ -62,6 +75,11 @@ export function useMessageHandler({
   const [userQuestion, setUserQuestion] = useState<UserQuestion | null>(null);
   const [permissionMode, setPermissionMode] = useState<PermissionMode>('default');
   const [isTranscriptMode, setIsTranscriptMode] = useState(false);
+  const [crossSessionNotification, setCrossSessionNotification] = useState<CrossSessionNotification | null>(null);
+
+  const dismissCrossSessionNotification = useCallback(() => {
+    setCrossSessionNotification(null);
+  }, []);
 
   const currentMessageRef = useRef<ChatMessage | null>(null);
   const sessionIdRef = useRef<string | null>(sessionId);
@@ -101,10 +119,26 @@ export function useMessageHandler({
       const isStreamingMessage = [
         'message_start', 'text_delta', 'thinking_start', 'thinking_delta',
         'thinking_complete', 'tool_use_start', 'tool_use_delta', 'tool_result',
-        'message_complete', 'permission_request', 'context_update', 'context_compact',
+        'message_complete', 'permission_request', 'user_question', 'context_update', 'context_compact',
       ].includes(msg.type);
 
       if (isStreamingMessage && msgSessionId && currentSessionId && msgSessionId !== currentSessionId) {
+        // 跨会话的弹框消息：不直接显示，但弹出通知提醒用户切回去
+        if (msg.type === 'permission_request') {
+          setCrossSessionNotification({
+            sessionId: msgSessionId,
+            type: 'permission_request',
+            toolName: (payload as any).tool,
+            timestamp: Date.now(),
+          });
+        } else if (msg.type === 'user_question') {
+          setCrossSessionNotification({
+            sessionId: msgSessionId,
+            type: 'user_question',
+            questionHeader: (payload as any).header,
+            timestamp: Date.now(),
+          });
+        }
         return;
       }
 
@@ -384,10 +418,12 @@ export function useMessageHandler({
           }
           // 清除正在流式传输的消息引用，防止旧会话的 streaming 数据混入新会话
           currentMessageRef.current = null;
-          // 重置所有状态
+          // 重置所有状态（包括对话框状态，防止旧会话的弹窗残留到新会话）
           interruptPendingRef.current = false;
           setStatus('idle');
           setMessages([]);
+          setPermissionRequest(null);
+          setUserQuestion(null);
           refreshSessionsRef.current();
           break;
 
@@ -429,10 +465,12 @@ export function useMessageHandler({
           if (payload.sessionId) {
             sessionIdRef.current = payload.sessionId as string;
           }
-          // 清除旧会话的流式消息引用
+          // 清除旧会话的流式消息引用和对话框状态
           currentMessageRef.current = null;
           interruptPendingRef.current = false;
           setStatus('idle');
+          setPermissionRequest(null);
+          setUserQuestion(null);
           break;
 
         case 'task_status': {
@@ -443,7 +481,7 @@ export function useMessageHandler({
 
           if (targetMsg) {
             taskTool = targetMsg.content.find(
-              c => c.type === 'tool_use' && c.name === 'Task'
+              c => c.type === 'tool_use' && (c.name === 'Task' || c.name === 'ScheduleTask')
             );
           }
 
@@ -453,7 +491,7 @@ export function useMessageHandler({
                 const msg = prev[i];
                 if (msg.role !== 'assistant') continue;
                 const found = msg.content.find(
-                  c => c.type === 'tool_use' && c.name === 'Task'
+                  c => c.type === 'tool_use' && (c.name === 'Task' || c.name === 'ScheduleTask')
                 );
                 if (found && found.type === 'tool_use') {
                   found.toolUseCount = payload.toolUseCount as number | undefined;
@@ -503,7 +541,7 @@ export function useMessageHandler({
 
           if (targetMsg) {
             taskTool = targetMsg.content.find(
-              c => c.type === 'tool_use' && c.name === 'Task'
+              c => c.type === 'tool_use' && (c.name === 'Task' || c.name === 'ScheduleTask')
             );
           }
 
@@ -513,7 +551,7 @@ export function useMessageHandler({
                 const msg = prev[i];
                 if (msg.role !== 'assistant') continue;
                 const found = msg.content.find(
-                  c => c.type === 'tool_use' && c.name === 'Task'
+                  c => c.type === 'tool_use' && (c.name === 'Task' || c.name === 'ScheduleTask')
                 );
                 if (found && found.type === 'tool_use') {
                   if (!found.subagentToolCalls) {
@@ -563,7 +601,7 @@ export function useMessageHandler({
 
           if (targetMsg) {
             taskTool = targetMsg.content.find(
-              c => c.type === 'tool_use' && c.name === 'Task'
+              c => c.type === 'tool_use' && (c.name === 'Task' || c.name === 'ScheduleTask')
             );
           }
 
@@ -573,7 +611,7 @@ export function useMessageHandler({
                 const msg = prev[i];
                 if (msg.role !== 'assistant') continue;
                 const found = msg.content.find(
-                  c => c.type === 'tool_use' && c.name === 'Task' && c.subagentToolCalls?.length
+                  c => c.type === 'tool_use' && (c.name === 'Task' || c.name === 'ScheduleTask') && c.subagentToolCalls?.length
                 );
                 if (found && found.type === 'tool_use' && found.subagentToolCalls) {
                   const existingCall = found.subagentToolCalls.find(call => call.id === tc.id);
@@ -602,6 +640,53 @@ export function useMessageHandler({
             setMessages(prev => {
               const filtered = prev.filter(m => m.id !== targetMsg!.id);
               return [...filtered, { ...targetMsg! }];
+            });
+          }
+          break;
+        }
+
+        // ScheduleTask 倒计时消息
+        case 'schedule_countdown': {
+          if (!payload.taskId) break;
+
+          const phase = payload.phase as 'countdown' | 'executing' | 'done';
+          const remainingMs = payload.remainingMs as number || 0;
+          const scheduleTaskName = payload.taskName as string || '';
+          const scheduleTriggerAt = payload.triggerAt as number || 0;
+
+          // 查找对应的 ScheduleTask tool_use
+          const findAndUpdateScheduleTool = (msg: ChatMessage) => {
+            const tool = msg.content.find(
+              c => c.type === 'tool_use' && c.name === 'ScheduleTask'
+            );
+            if (tool && tool.type === 'tool_use') {
+              tool.scheduleCountdown = {
+                triggerAt: scheduleTriggerAt,
+                remainingMs,
+                phase,
+                taskName: scheduleTaskName,
+              };
+              return true;
+            }
+            return false;
+          };
+
+          let targetMsg = currentMessageRef.current;
+          if (targetMsg && findAndUpdateScheduleTool(targetMsg)) {
+            setMessages(prev => {
+              const filtered = prev.filter(m => m.id !== targetMsg!.id);
+              return [...filtered, { ...targetMsg! }];
+            });
+          } else {
+            setMessages(prev => {
+              for (let i = prev.length - 1; i >= 0; i--) {
+                const msg = prev[i];
+                if (msg.role !== 'assistant') continue;
+                if (findAndUpdateScheduleTool(msg)) {
+                  return [...prev.slice(0, i), { ...msg }, ...prev.slice(i + 1)];
+                }
+              }
+              return prev;
             });
           }
           break;
@@ -847,5 +932,7 @@ export function useMessageHandler({
     interruptPendingRef,
     isTranscriptMode,
     setIsTranscriptMode,
+    crossSessionNotification,
+    dismissCrossSessionNotification,
   };
 }

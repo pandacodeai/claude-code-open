@@ -7,6 +7,8 @@
 
 import AjvModule from 'ajv';
 import type { ValidateFunction } from 'ajv';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // ESM 兼容：处理 default 导出
 const Ajv = (AjvModule as any).default || AjvModule;
@@ -148,8 +150,6 @@ export function parseJsonSchema(schemaStr: string): JSONSchema | null {
   } catch {
     // 如果解析失败，可能是文件路径
     try {
-      const fs = require('fs');
-      const path = require('path');
       const resolvedPath = path.resolve(schemaStr);
 
       if (fs.existsSync(resolvedPath)) {

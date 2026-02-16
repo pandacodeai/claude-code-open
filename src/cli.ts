@@ -962,15 +962,22 @@ async function runTextInterface(
           || daemonFs.existsSync(daemonPath.join((await import('os')).homedir(), '.claude', 'daemon.yml'));
 
         if (hasTasks || hasConfig) {
-          // 后台启动 daemon（fork 子进程）
+          // 后台启动 daemon（fork 子进程），stdout/stderr 重定向到日志文件
           const { spawn } = await import('child_process');
-          // import.meta.dirname 在编译后已经在 dist/ 下，所以向上一层就是项目根，再进 dist/
+          const daemonOs = await import('os');
+          const claudeDir = daemonPath.join(daemonOs.homedir(), '.claude');
+          if (!daemonFs.existsSync(claudeDir)) {
+            daemonFs.mkdirSync(claudeDir, { recursive: true });
+          }
+          const logPath = daemonPath.join(claudeDir, 'daemon.log');
+          const logFd = daemonFs.openSync(logPath, 'a');
           const daemonProcess = spawn(process.execPath, [daemonPath.join(import.meta.dirname, 'cli.js'), 'daemon', 'start'], {
             detached: true,
-            stdio: 'ignore',
+            stdio: ['ignore', logFd, logFd],
             cwd: process.cwd(),
           });
           daemonProcess.unref();
+          daemonFs.closeSync(logFd);
           console.log(chalk.gray(`[Daemon auto-started, PID: ${daemonProcess.pid}]`));
         }
       }
@@ -1031,6 +1038,19 @@ async function runTextInterface(
     }, 5000); // 5秒后强制停止捕捉
   }
 
+  // 注册活跃会话标记（闹钟系统需要知道是否有前台会话）
+  const { writeActiveSession, clearActiveSession } = await import('./daemon/alarm.js');
+  writeActiveSession({
+    pid: process.pid,
+    sessionId: loop.getSession().sessionId,
+    startedAt: Date.now(),
+  });
+  // 退出时清除标记
+  const cleanupActiveSession = () => { try { clearActiveSession(); } catch {} };
+  process.on('exit', cleanupActiveSession);
+  process.on('SIGINT', () => { cleanupActiveSession(); process.exit(0); });
+  process.on('SIGTERM', () => { cleanupActiveSession(); process.exit(0); });
+
   // 交互式循环
   const rl = readline.createInterface({
     input: process.stdin,
@@ -1061,8 +1081,44 @@ async function runTextInterface(
     }
   }
 
+  // 闹钟轮询：等待用户输入期间每 3 秒检查一次
+  let alarmPollTimer: NodeJS.Timeout | null = null;
+  let isProcessing = false;  // 模型正在处理时不检查闹钟
+
+  const startAlarmPolling = () => {
+    if (alarmPollTimer) return;
+    alarmPollTimer = setInterval(async () => {
+      if (isProcessing) return;
+      try {
+        const { readAlarms } = await import('./daemon/alarm.js');
+        const alarms = readAlarms();
+        if (alarms.length > 0) {
+          // 有闹钟！暂停轮询，处理闹钟
+          stopAlarmPolling();
+          isProcessing = true;
+          await loop.checkAndInjectAlarms();
+          isProcessing = false;
+          // 处理完后继续等待用户输入
+          startAlarmPolling();
+          process.stdout.write(chalk.white('> '));
+        }
+      } catch {
+        // 静默失败
+      }
+    }, 3000);
+  };
+
+  const stopAlarmPolling = () => {
+    if (alarmPollTimer) {
+      clearInterval(alarmPollTimer);
+      alarmPollTimer = null;
+    }
+  };
+
   const askQuestion = (): void => {
+    startAlarmPolling();
     rl.question(chalk.white('> '), async (input) => {
+      stopAlarmPolling();
       input = input.trim();
 
       if (!input) {
@@ -1092,6 +1148,7 @@ async function runTextInterface(
 
       // 处理消息
       console.log();
+      isProcessing = true;
 
       try {
         for await (const event of loop.processMessageStream(input)) {
@@ -1109,6 +1166,7 @@ async function runTextInterface(
         console.error(chalk.red(`\nError: ${err}`));
       }
 
+      isProcessing = false;
       askQuestion();
     });
   };

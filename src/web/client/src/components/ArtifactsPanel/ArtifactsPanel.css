@@ -541,3 +541,184 @@
   font-size: 13px;
   color: var(--text-muted);
 }
+
+/* =========================================
+   Section Headers
+   ========================================= */
+
+.artifacts-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.artifacts-section-header {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 10px 16px 4px;
+}
+
+/* =========================================
+   Schedule Artifact Items
+   ========================================= */
+
+.schedule-artifact-item {
+  margin: 4px 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: all 0.15s var(--ease-smooth);
+}
+
+.schedule-artifact-item:hover {
+  background: var(--bg-secondary);
+  border-color: var(--accent-primary);
+}
+
+.schedule-artifact-item--selected {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: var(--accent-primary);
+}
+
+.schedule-artifact-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.schedule-artifact-name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.schedule-artifact-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.schedule-artifact-status--countdown {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-light);
+}
+
+.schedule-artifact-status--running {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-warning);
+}
+
+.schedule-artifact-status--completed {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-success);
+}
+
+.schedule-artifact-status--error {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-error);
+}
+
+.schedule-artifact-status--pending {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-muted);
+}
+
+.schedule-artifact-bar {
+  margin-top: 8px;
+}
+
+.schedule-artifact-time {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* =========================================
+   Schedule Detail Overlay
+   ========================================= */
+
+.artifacts-detail-tool-badge--schedule {
+  color: var(--accent-light);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.schedule-detail {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.schedule-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.schedule-detail-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.schedule-detail-value {
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.schedule-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.schedule-detail-prompt {
+  margin: 0;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-y: auto;
+  max-height: 300px;
+}
+
+.schedule-detail-result {
+  margin: 0;
+  padding: 12px 16px;
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: var(--radius-sm);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+.schedule-detail-result--error {
+  background: rgba(239, 68, 68, 0.05);
+  border-color: rgba(239, 68, 68, 0.2);
+}

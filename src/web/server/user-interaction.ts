@@ -15,6 +15,7 @@ interface PendingQuestion {
   resolve: (answer: string) => void;
   reject: (error: Error) => void;
   timeoutId?: NodeJS.Timeout;
+  payload: UserQuestionPayload; // 保存原始 payload，用于会话切换时重发
 }
 
 /**
@@ -53,10 +54,21 @@ export class UserInteractionHandler {
     const requestId = randomUUID();
 
     return new Promise<string>((resolve, reject) => {
+      // 构造 payload
+      const payload: UserQuestionPayload = {
+        requestId,
+        question: config.question,
+        header: config.header,
+        options: config.options,
+        multiSelect: config.multiSelect,
+        timeout: config.timeout,
+      };
+
       const pending: PendingQuestion = {
         requestId,
         resolve,
         reject,
+        payload,
       };
 
       // 设置超时
@@ -67,16 +79,6 @@ export class UserInteractionHandler {
       }
 
       this.pendingQuestions.set(requestId, pending);
-
-      // 发送问题到前端
-      const payload: UserQuestionPayload = {
-        requestId,
-        question: config.question,
-        header: config.header,
-        options: config.options,
-        multiSelect: config.multiSelect,
-        timeout: config.timeout,
-      };
 
       try {
         this.ws!.send(JSON.stringify({
@@ -161,5 +163,12 @@ export class UserInteractionHandler {
    */
   getPendingCount(): number {
     return this.pendingQuestions.size;
+  }
+
+  /**
+   * 获取所有待处理问题的 payload（用于会话切换时重发到前端）
+   */
+  getPendingPayloads(): UserQuestionPayload[] {
+    return Array.from(this.pendingQuestions.values()).map(p => p.payload);
   }
 }

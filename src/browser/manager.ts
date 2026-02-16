@@ -17,7 +17,7 @@
  * - Clean process lifecycle (we own the Chrome process we launch)
  */
 
-import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
+import { type ChildProcessWithoutNullStreams, spawn, execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as net from 'node:net';
 import * as os from 'node:os';
@@ -247,7 +247,6 @@ function killProc(proc: ChildProcessWithoutNullStreams): void {
     // Windows: use taskkill for reliable termination
     try {
       if (proc.pid) {
-        const { execSync } = require('node:child_process');
         execSync(`taskkill /pid ${proc.pid} /T /F`, { stdio: 'ignore' });
       }
     } catch {

@@ -215,12 +215,19 @@ export interface ToolUse {
   input: unknown;
   status: ToolStatus;
   result?: ToolResult;
-  /** 子 agent 工具调用（仅 Task 工具使用） */
+  /** 子 agent 工具调用（Task / ScheduleTask 使用） */
   subagentToolCalls?: SubagentToolCall[];
-  /** 工具调用计数（仅 Task 工具使用） */
+  /** 工具调用计数（Task / ScheduleTask 使用） */
   toolUseCount?: number;
-  /** 最后执行的工具信息（仅 Task 工具使用） */
+  /** 最后执行的工具信息（Task / ScheduleTask 使用） */
   lastToolInfo?: string;
+  /** 定时任务倒计时信息（仅 ScheduleTask 使用） */
+  scheduleCountdown?: {
+    triggerAt: number;
+    remainingMs: number;
+    phase: 'countdown' | 'executing' | 'done';
+    taskName: string;
+  };
 }
 
 // 子 agent 工具调用
@@ -327,6 +334,8 @@ export type WSMessageType =
   | 'task_status'
   | 'subagent_tool_start'
   | 'subagent_tool_end'
+  // 定时任务倒计时
+  | 'schedule_countdown'
   // 持续开发相关消息类型
   | 'continuous_dev:ack'
   | 'continuous_dev:status_update'

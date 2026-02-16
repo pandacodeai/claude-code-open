@@ -6,6 +6,7 @@
 
 import type { ConfigManager, UserConfig, ConfigSource } from './index.js';
 import { ClaudeMdParser } from './claude-md-parser.js';
+import * as fs from 'fs';
 
 export interface ConfigDisplayOptions {
   showSecrets?: boolean;
@@ -121,7 +122,6 @@ export class ConfigCommand {
       return source === 'envSettings' ? 'Active' : 'N/A';
     }
 
-    const fs = require('fs');
     return fs.existsSync(filePath) ? 'Active' : 'Not Found';
   }
 

@@ -53,8 +53,43 @@ export interface ScheduledTask {
   /** 模型 */
   model?: string;
 
+  /** 任务执行超时时间（毫秒），默认 300000ms (5分钟) */
+  timeoutMs?: number;
+
   /** 是否启用 */
   enabled: boolean;
+
+  // === 执行状态追踪 ===
+
+  /** 调度器计算的下次执行时间（Unix ms） */
+  nextRunAtMs?: number;
+
+  /** 正在执行的标记时间（Unix ms），非空表示正在执行 */
+  runningAtMs?: number;
+
+  /** 最后一次执行时间 */
+  lastRunAt?: number;
+
+  /** 最后一次执行状态 */
+  lastRunStatus?: 'success' | 'failed' | 'timeout';
+
+  /** 最后一次执行错误信息 */
+  lastRunError?: string;
+
+  /** 最后一次执行耗时（ms） */
+  lastDurationMs?: number;
+
+  /** 累计执行次数 */
+  runCount?: number;
+
+  /** 连续错误计数（成功后重置为 0） */
+  consecutiveErrors?: number;
+
+  /** 创建任务时的对话上下文快照（最近几轮对话的摘要） */
+  context?: string;
+
+  /** 历史执行摘要链，每次执行后追加本次结果摘要，最多保留最近 10 条 */
+  executionMemory?: string[];
 }
 
 // ============================================================================
@@ -96,9 +131,16 @@ export class TaskStore {
   }
 
   private saveToDisk(): void {
+    const data = JSON.stringify(this.tasks, null, 2);
     const tmpFile = TASKS_FILE + '.tmp';
-    fs.writeFileSync(tmpFile, JSON.stringify(this.tasks, null, 2), 'utf-8');
-    fs.renameSync(tmpFile, TASKS_FILE);
+    fs.writeFileSync(tmpFile, data, 'utf-8');
+    try {
+      fs.renameSync(tmpFile, TASKS_FILE);
+    } catch {
+      // Windows 上目标文件被其他进程锁定时 rename 会 EPERM，直接写目标文件
+      fs.writeFileSync(TASKS_FILE, data, 'utf-8');
+      try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+    }
   }
 
   /** 重新从磁盘加载（daemon 热加载用） */

@@ -5,6 +5,9 @@
 import type { SlashCommand, CommandContext, CommandResult } from './types.js';
 import { commandRegistry } from './registry.js';
 import { execSync } from 'child_process';
+import * as os from 'os';
+import * as path from 'path';
+import * as fs from 'fs';
 
 // ============ npm 版本获取 ============
 
@@ -80,9 +83,7 @@ function getAutoUpdatesDisabledReason(): string | null {
 
   // 检查配置文件
   try {
-    const os = require('os');
-    const path = require('path');
-    const fs = require('fs');
+    // os, path, fs 已在文件顶部 ESM 导入
 
     const configPath = path.join(os.homedir(), '.claude', 'settings.json');
     if (fs.existsSync(configPath)) {
@@ -106,9 +107,7 @@ function getAutoUpdatesDisabledReason(): string | null {
  */
 function getAutoUpdateChannel(): string {
   try {
-    const os = require('os');
-    const path = require('path');
-    const fs = require('fs');
+    // os, path, fs 已在文件顶部 ESM 导入
 
     const configPath = path.join(os.homedir(), '.claude', 'settings.json');
     if (fs.existsSync(configPath)) {

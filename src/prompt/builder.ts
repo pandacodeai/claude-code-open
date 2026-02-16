@@ -24,6 +24,7 @@ import {
 } from './templates.js';
 import { AttachmentManager, attachmentManager as defaultAttachmentManager } from './attachments.js';
 import { PromptCache, promptCache, generateCacheKey } from './cache.js';
+import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -188,10 +189,10 @@ function collectHostInfo(): Record<string, string | number | undefined> {
     const psScript = `Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 10 -Property Name,@{N='MB';E={[math]::Round($_.WorkingSet64/1MB)}} | ForEach-Object { "$($_.Name)($($_.MB)MB)" }`;
     const tmpFile = path.join(os.tmpdir(), '_claude_ps_top.ps1');
     try {
-      require('fs').writeFileSync(tmpFile, psScript, 'utf-8');
+      fs.writeFileSync(tmpFile, psScript, 'utf-8');
       const psOut = safeExec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${tmpFile}"`);
       if (psOut) info.activeProcesses = psOut.split(/\r?\n/).filter(Boolean).join(', ');
-      require('fs').unlinkSync(tmpFile);
+      fs.unlinkSync(tmpFile);
     } catch { /* ignore */ }
   } else {
     const psOut = safeExec('ps aux --sort=-%mem 2>/dev/null | head -11 | tail -10 | awk \'{printf "%s(%dMB) ",$11,$6/1024}\'');

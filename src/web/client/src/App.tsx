@@ -4,6 +4,7 @@ import { useMessageHandler } from './hooks/useMessageHandler';
 import { useSessionManager } from './hooks/useSessionManager';
 import { useChatInput } from './hooks/useChatInput';
 import { useArtifacts } from './hooks/useArtifacts';
+import { useScheduleArtifacts } from './hooks/useScheduleArtifacts';
 import {
   Message,
   WelcomeScreen,
@@ -12,6 +13,7 @@ import {
   SettingsPanel,
   DebugPanel,
 } from './components';
+import { CrossSessionToast } from './components/CrossSessionToast';
 import { RewindOption } from './components/RewindMenu';
 import { InputArea } from './components/InputArea';
 import { ArtifactsPanel } from './components/ArtifactsPanel/ArtifactsPanel';
@@ -77,6 +79,8 @@ function AppContent({
     interruptPendingRef,
     isTranscriptMode,
     setIsTranscriptMode,
+    crossSessionNotification,
+    dismissCrossSessionNotification,
   } = useMessageHandler({
     addMessageHandler,
     model,
@@ -119,6 +123,15 @@ function AppContent({
 
   // 产物面板
   const artifactsState = useArtifacts(messages);
+  const scheduleState = useScheduleArtifacts(messages);
+
+  // 定时任务产物出现时自动打开面板
+  useEffect(() => {
+    if (scheduleState.hasNewScheduleArtifact) {
+      artifactsState.setIsPanelOpen(true);
+      scheduleState.clearHasNew();
+    }
+  }, [scheduleState.hasNewScheduleArtifact]);
 
   // 监听滚动位置，判断用户是否在底部附近
   useEffect(() => {
@@ -399,6 +412,10 @@ function AppContent({
             selectedArtifact={artifactsState.selectedArtifact}
             onSelectArtifact={artifactsState.setSelectedId}
             onClose={() => artifactsState.setIsPanelOpen(false)}
+            scheduleArtifacts={scheduleState.scheduleArtifacts}
+            selectedScheduleId={scheduleState.selectedScheduleId}
+            selectedScheduleArtifact={scheduleState.selectedScheduleArtifact}
+            onSelectScheduleArtifact={scheduleState.setSelectedScheduleId}
           />
         )}
       </div>
@@ -429,6 +446,14 @@ function AppContent({
         send={send}
         addMessageHandler={addMessageHandler}
       />
+      {crossSessionNotification && (
+        <CrossSessionToast
+          notification={crossSessionNotification}
+          sessionName={sessionManager.sessions.find(s => s.id === crossSessionNotification.sessionId)?.name}
+          onSwitch={sessionManager.handleSessionSelect}
+          onDismiss={dismissCrossSessionNotification}
+        />
+      )}
     </div>
   );
 }

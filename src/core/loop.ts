@@ -67,6 +67,7 @@ import { runPermissionRequestHooks } from '../hooks/index.js';
 import * as readline from 'readline';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import * as os from 'os';
 import { setParentModelContext } from '../tools/agent.js';
 import { configManager } from '../config/index.js';
@@ -1901,7 +1902,7 @@ export class ConversationLoop {
     const notebookSummary = notebookMgr.getNotebookSummaryForPrompt();
 
     // 初始化长期记忆搜索系统
-    const projectHash = require('crypto').createHash('md5').update(effectiveWorkingDir).digest('hex').slice(0, 12);
+    const projectHash = crypto.createHash('md5').update(effectiveWorkingDir).digest('hex').slice(0, 12);
     initMemorySearchManager(effectiveWorkingDir, projectHash);
 
     this.promptContext = {
@@ -2147,8 +2148,7 @@ export class ConversationLoop {
    */
   private checkIsGitRepo(dir: string): boolean {
     try {
-      const fs = require('fs');
-      const path = require('path');
+      // fs 和 path 已在文件顶部 ESM 导入
       let currentDir = dir;
       while (currentDir !== path.dirname(currentDir)) {
         if (fs.existsSync(path.join(currentDir, '.git'))) {
@@ -2167,6 +2167,121 @@ export class ConversationLoop {
    */
   updateContext(updates: Partial<PromptContext>): void {
     this.promptContext = { ...this.promptContext, ...updates };
+  }
+
+  // =========================================================================
+  // 闹钟注入机制
+  // =========================================================================
+
+  /**
+   * 检测并处理闹钟信号
+   *
+   * 在用户等待输入的空闲期调用。如果有待处理的闹钟信号，
+   * 构造一条特殊的提醒消息注入对话流，让模型在完整上下文中
+   * 自主决策如何执行任务。
+   *
+   * @returns 处理的闹钟数量
+   */
+  async checkAndInjectAlarms(): Promise<number> {
+    const { readAlarms, clearAlarm } = await import('../daemon/alarm.js');
+    const { TaskStore } = await import('../daemon/store.js');
+
+    const alarms = readAlarms();
+    if (alarms.length === 0) return 0;
+
+    const store = new TaskStore();
+
+    for (const alarm of alarms) {
+      // 构造提醒消息
+      let reminderParts: string[] = [];
+      reminderParts.push(`[⏰ 定时提醒] 你之前设了定时任务 "${alarm.taskName}"，现在到时间了。`);
+      reminderParts.push('');
+      reminderParts.push(`**任务目标：** ${alarm.prompt}`);
+
+      if (alarm.context) {
+        reminderParts.push('');
+        reminderParts.push(`**创建时的对话背景：** ${alarm.context}`);
+      }
+
+      if (alarm.executionMemory && alarm.executionMemory.length > 0) {
+        reminderParts.push('');
+        reminderParts.push('**历史执行记录：**');
+        for (const mem of alarm.executionMemory) {
+          reminderParts.push(`- ${mem}`);
+        }
+      }
+
+      reminderParts.push('');
+      reminderParts.push('请现在处理这个任务。你可以根据当前对话上下文和你的记忆，自主判断最佳的执行方式。');
+
+      const reminderMessage = reminderParts.join('\n');
+
+      // 清除闹钟信号（防止重复处理）
+      clearAlarm(alarm.taskId);
+
+      // 清除 scheduler 设置的 runningAtMs 标记
+      store.updateTask(alarm.taskId, {
+        runningAtMs: undefined,
+        lastRunAt: Date.now(),
+      });
+
+      // 通过 processMessageStream 处理提醒消息
+      // 这样模型在当前完整的对话上下文中执行任务
+      console.log(chalk.yellow(`\n⏰ 闹钟响了: "${alarm.taskName}"`));
+
+      try {
+        for await (const event of this.processMessageStream(reminderMessage)) {
+          if (event.type === 'text') {
+            process.stdout.write(event.content || '');
+          } else if (event.type === 'tool_start') {
+            console.log(chalk.cyan(`\n[Using tool: ${event.toolName}]`));
+          } else if (event.type === 'tool_end') {
+            const preview = (event.toolResult || '').substring(0, 200);
+            console.log(chalk.gray(`[Result: ${preview}${preview.length >= 200 ? '...' : ''}]`));
+          }
+        }
+        console.log('\n');
+
+        // 执行成功：更新任务状态，追加执行摘要
+        const task = store.getTask(alarm.taskId);
+        if (task) {
+          // 从最后一条 assistant 消息中提取摘要
+          const messages = this.session.getMessages();
+          const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
+          let summary = '(已在前台会话中执行)';
+          if (lastAssistant && typeof lastAssistant.content === 'string') {
+            summary = lastAssistant.content.slice(0, 200);
+          }
+
+          const memory = [...(task.executionMemory || [])];
+          memory.push(`[${new Date().toLocaleString()}] ${summary}`);
+          // 最多保留 10 条
+          while (memory.length > 10) memory.shift();
+
+          store.updateTask(alarm.taskId, {
+            lastRunStatus: 'success',
+            runCount: (task.runCount || 0) + 1,
+            consecutiveErrors: 0,
+            executionMemory: memory,
+          });
+        }
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error(chalk.red(`闹钟任务执行失败: ${errMsg}`));
+
+        const task = store.getTask(alarm.taskId);
+        if (task) {
+          store.updateTask(alarm.taskId, {
+            lastRunStatus: 'failed',
+            lastRunError: errMsg,
+            runCount: (task.runCount || 0) + 1,
+            consecutiveErrors: (task.consecutiveErrors || 0) + 1,
+          });
+        }
+      }
+    }
+
+    return alarms.length;
   }
 
   async processMessage(userInput: string): Promise<string> {

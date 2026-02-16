@@ -66,17 +66,61 @@ function SubagentToolItem({ toolCall }: { toolCall: SubagentToolCall }) {
   );
 }
 
+/**
+ * 格式化倒计时剩余时间
+ */
+function formatCountdown(ms: number): string {
+  const totalSec = Math.ceil(ms / 1000);
+  if (totalSec >= 60) {
+    const min = Math.floor(totalSec / 60);
+    const sec = totalSec % 60;
+    return `${min}m ${sec}s`;
+  }
+  return `${totalSec}s`;
+}
+
 export function ToolCall({ toolUse }: ToolCallProps) {
   const [expanded, setExpanded] = useState(false);
-  const { name, input, status, result, subagentToolCalls, toolUseCount, lastToolInfo } = toolUse;
+  const { name, input, status, result, subagentToolCalls, toolUseCount, lastToolInfo, scheduleCountdown } = toolUse;
 
   const icon = TOOL_ICONS[name] || '🔧';
   const displayName = TOOL_DISPLAY_NAMES[name] || name;
 
-  // 判断是否是 Task 工具
+  // 判断是否是 Task 或 ScheduleTask 工具
   const isTaskTool = name === 'Task';
+  const isScheduleTask = name === 'ScheduleTask';
+  const hasSubagentFeatures = isTaskTool || isScheduleTask;
+
+  // 计算 ScheduleTask 的显示状态（CSS class），解决倒计时期间 status 始终为 'running' 的不匹配问题
+  const getDisplayStatus = (): string => {
+    if (isScheduleTask && scheduleCountdown) {
+      switch (scheduleCountdown.phase) {
+        case 'countdown': return 'countdown';
+        case 'executing': return 'running';
+        case 'done':
+          if (result && !result.success) return 'error';
+          if (status === 'error') return 'error';
+          return 'completed';
+      }
+    }
+    return status;
+  };
+
+  const displayStatus = getDisplayStatus();
 
   const getStatusText = () => {
+    // ScheduleTask 倒计时状态
+    if (isScheduleTask && scheduleCountdown) {
+      switch (scheduleCountdown.phase) {
+        case 'countdown':
+          return `倒计时 ${formatCountdown(scheduleCountdown.remainingMs)}`;
+        case 'executing':
+          return '执行中...';
+        case 'done':
+          return (result && !result.success) || status === 'error' ? '错误' : '完成';
+      }
+    }
+
     switch (status) {
       case 'running': return '执行中...';
       case 'completed': return '完成';
@@ -85,11 +129,19 @@ export function ToolCall({ toolUse }: ToolCallProps) {
     }
   };
 
-  // 渲染 Task 工具的进度信息（类似官方 CLI）
+  // 渲染进度信息
   const renderTaskProgress = () => {
-    if (!isTaskTool) return null;
+    if (!hasSubagentFeatures) return null;
 
     const parts: string[] = [];
+
+    // ScheduleTask 倒计时信息
+    if (isScheduleTask && scheduleCountdown) {
+      if (scheduleCountdown.taskName) {
+        parts.push(scheduleCountdown.taskName);
+      }
+    }
+
     if (toolUseCount && toolUseCount > 0) {
       parts.push(`${toolUseCount} 工具调用`);
     }
@@ -106,15 +158,39 @@ export function ToolCall({ toolUse }: ToolCallProps) {
     );
   };
 
+  // 渲染 ScheduleTask 倒计时进度条
+  const renderCountdownBar = () => {
+    if (!isScheduleTask || !scheduleCountdown || scheduleCountdown.phase !== 'countdown') return null;
+
+    const triggerAt = scheduleCountdown.triggerAt;
+    const remainingMs = scheduleCountdown.remainingMs;
+    // 估算总等待时间：triggerAt - (triggerAt - remainingMs) = remainingMs 初始值
+    // 但我们只有当前 remainingMs，用 triggerAt - Date.now() 近似
+    const totalMs = triggerAt - (Date.now() - remainingMs);
+    const progress = totalMs > 0 ? Math.max(0, Math.min(100, ((totalMs - remainingMs) / totalMs) * 100)) : 100;
+
+    return (
+      <div className="schedule-countdown">
+        <div className="countdown-bar-track">
+          <div className="countdown-bar-fill" style={{ width: `${progress}%` }} />
+        </div>
+        <span className="countdown-time">还剩 {formatCountdown(remainingMs)}</span>
+      </div>
+    );
+  };
+
   return (
-    <div className={`tool-call ${isTaskTool ? 'task-tool' : ''}`}>
+    <div className={`tool-call ${hasSubagentFeatures ? 'task-tool' : ''}`}>
       <div className="tool-call-header" onClick={() => setExpanded(!expanded)}>
         <span className="tool-icon">{icon}</span>
         <span className="tool-name">{displayName}</span>
         {renderTaskProgress()}
-        <span className={`tool-status ${status}`}>{getStatusText()}</span>
+        <span className={`tool-status ${displayStatus}`}>{getStatusText()}</span>
         <span className="expand-icon">{expanded ? '▼' : '▶'}</span>
       </div>
+
+      {/* ScheduleTask 倒计时进度条（始终显示，不需要展开） */}
+      {renderCountdownBar()}
 
       {expanded && (
         <div className="tool-call-body">
@@ -126,7 +202,7 @@ export function ToolCall({ toolUse }: ToolCallProps) {
           </div>
 
           {/* 子 agent 工具调用列表 */}
-          {isTaskTool && subagentToolCalls && subagentToolCalls.length > 0 && (
+          {hasSubagentFeatures && subagentToolCalls && subagentToolCalls.length > 0 && (
             <div className="subagent-tools">
               <div className="tool-label">子 Agent 工具调用 ({subagentToolCalls.length})</div>
               <div className="subagent-tools-list">

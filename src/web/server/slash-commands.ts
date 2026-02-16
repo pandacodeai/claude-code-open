@@ -8,6 +8,9 @@ import type { WebSocket } from 'ws';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 import type { SessionInfo } from '../shared/types.js';
 
 // ============ 类型定义 ============

@@ -203,6 +203,7 @@ export type ServerMessage =
   | { type: 'task_list_response'; payload: TaskListPayload }
   | { type: 'task_status'; payload: TaskStatusPayload }
   | { type: 'task_cancelled'; payload: { taskId: string; success: boolean } }
+  | { type: 'schedule_countdown'; payload: ScheduleCountdownPayload }
   | { type: 'task_output_response'; payload: TaskOutputPayload }
   | { type: 'mcp_list_response'; payload: McpListPayload }
   | { type: 'mcp_server_added'; payload: { success: boolean; name: string; server?: McpServerConfig } }
@@ -546,6 +547,7 @@ export type ToolResultData =
   | TodoResultData
   | DiffResultData
   | TaskResultData
+  | ScheduleTaskResultData
   | NotebookResultData;
 
 export interface BashResultData {
@@ -656,6 +658,13 @@ export interface DiffResultData {
 export interface TaskResultData {
   tool: 'Task';
   agentType: string;
+  description: string;
+  status: 'running' | 'completed' | 'error';
+  output?: string;
+}
+
+export interface ScheduleTaskResultData {
+  tool: 'ScheduleTask';
   description: string;
   status: 'running' | 'completed' | 'error';
   output?: string;
@@ -882,6 +891,17 @@ export interface TaskSummary {
     total: number;
     message?: string;
   };
+}
+
+/**
+ * 定时任务倒计时负载
+ */
+export interface ScheduleCountdownPayload {
+  taskId: string;
+  taskName: string;
+  triggerAt: number;
+  remainingMs: number;
+  phase: 'countdown' | 'executing' | 'done';
 }
 
 /**

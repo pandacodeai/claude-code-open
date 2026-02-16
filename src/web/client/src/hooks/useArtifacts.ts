@@ -70,8 +70,8 @@ export function useArtifacts(messages: ChatMessage[]) {
           });
         }
 
-        // 递归扫描 Task 工具的 subagentToolCalls
-        if (toolUse.name === 'Task' && toolUse.subagentToolCalls) {
+        // 递归扫描 Task / ScheduleTask 工具的 subagentToolCalls
+        if ((toolUse.name === 'Task' || toolUse.name === 'ScheduleTask') && toolUse.subagentToolCalls) {
           for (const sub of toolUse.subagentToolCalls) {
             const subInput = sub.input as any;
             if (!subInput?.file_path) continue;

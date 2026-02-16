@@ -96,6 +96,7 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   Task: '子任务',
   NotebookEdit: '笔记本编辑',
   AskUserQuestion: '询问用户',
+  ScheduleTask: '定时任务',
 };
 
 // 工具图标映射
@@ -113,6 +114,7 @@ export const TOOL_ICONS: Record<string, string> = {
   Task: '🤖',
   NotebookEdit: '📓',
   AskUserQuestion: '❓',
+  ScheduleTask: '⏰',
 };
 
 // 格式化日期

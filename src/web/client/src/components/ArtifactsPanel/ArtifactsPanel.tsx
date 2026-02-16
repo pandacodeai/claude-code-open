@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { FileArtifact, ArtifactGroup } from '../../hooks/useArtifacts';
+import type { ScheduleArtifact } from '../../hooks/useScheduleArtifacts';
 import { computeSideBySideDiff } from '../../utils/diffUtils';
 import { useLanguage } from '../../i18n';
 import './ArtifactsPanel.css';
@@ -12,6 +13,10 @@ interface ArtifactsPanelProps {
   selectedArtifact: FileArtifact | null;
   onSelectArtifact: (id: string | null) => void;
   onClose: () => void;
+  scheduleArtifacts?: ScheduleArtifact[];
+  selectedScheduleId?: string | null;
+  selectedScheduleArtifact?: ScheduleArtifact | null;
+  onSelectScheduleArtifact?: (id: string | null) => void;
 }
 
 function getFileName(filePath: string): string {
@@ -185,6 +190,175 @@ function ArtifactDetailOverlay({
 }
 
 /**
+ * 格式化倒计时剩余时间
+ */
+function formatCountdown(ms: number): string {
+  const totalSec = Math.ceil(ms / 1000);
+  if (totalSec >= 60) {
+    const min = Math.floor(totalSec / 60);
+    const sec = totalSec % 60;
+    return `${min}m ${sec}s`;
+  }
+  return `${totalSec}s`;
+}
+
+/**
+ * 定时任务状态 badge 文字
+ */
+function getScheduleStatusText(artifact: ScheduleArtifact): string {
+  switch (artifact.phase) {
+    case 'countdown':
+      return artifact.remainingMs != null ? `倒计时 ${formatCountdown(artifact.remainingMs)}` : '倒计时';
+    case 'executing':
+      return '执行中...';
+    case 'done':
+      return artifact.result && !artifact.result.success ? '失败' : '完成';
+    default:
+      return '等待中';
+  }
+}
+
+/**
+ * 定时任务状态对应的 CSS modifier
+ */
+function getScheduleStatusClass(artifact: ScheduleArtifact): string {
+  switch (artifact.phase) {
+    case 'countdown': return 'countdown';
+    case 'executing': return 'running';
+    case 'done':
+      return artifact.result && !artifact.result.success ? 'error' : 'completed';
+    default: return 'pending';
+  }
+}
+
+/**
+ * 定时任务卡片
+ */
+function ScheduleArtifactItem({
+  artifact,
+  isSelected,
+  onClick,
+}: {
+  artifact: ScheduleArtifact;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const statusClass = getScheduleStatusClass(artifact);
+  const statusText = getScheduleStatusText(artifact);
+
+  // 倒计时进度
+  const progress = useMemo(() => {
+    if (artifact.phase !== 'countdown' || !artifact.triggerAt || artifact.remainingMs == null) return null;
+    const totalMs = artifact.triggerAt - (Date.now() - artifact.remainingMs);
+    if (totalMs <= 0) return 100;
+    return Math.max(0, Math.min(100, ((totalMs - artifact.remainingMs) / totalMs) * 100));
+  }, [artifact.phase, artifact.triggerAt, artifact.remainingMs]);
+
+  return (
+    <div
+      className={`schedule-artifact-item ${isSelected ? 'schedule-artifact-item--selected' : ''}`}
+      onClick={onClick}
+    >
+      <div className="schedule-artifact-header">
+        <span className="schedule-artifact-name">{artifact.taskName}</span>
+        <span className={`schedule-artifact-status schedule-artifact-status--${statusClass}`}>
+          {statusText}
+        </span>
+      </div>
+      {artifact.phase === 'countdown' && progress != null && (
+        <div className="schedule-artifact-bar">
+          <div className="countdown-bar-track">
+            <div className="countdown-bar-fill" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+      )}
+      {artifact.triggerAt && artifact.phase !== 'countdown' && (
+        <div className="schedule-artifact-time">
+          {new Date(artifact.triggerAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * 定时任务详情 overlay
+ */
+function ScheduleDetailOverlay({
+  artifact,
+  onClose,
+}: {
+  artifact: ScheduleArtifact;
+  onClose: () => void;
+}) {
+  const statusClass = getScheduleStatusClass(artifact);
+  const statusText = getScheduleStatusText(artifact);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className="artifacts-overlay" onClick={onClose}>
+      <div className="artifacts-overlay-content" onClick={e => e.stopPropagation()}>
+        <div className="artifacts-overlay-header">
+          <div className="artifacts-overlay-file-info">
+            <span className="artifacts-detail-tool-badge artifacts-detail-tool-badge--schedule">
+              ScheduleTask
+            </span>
+            <span className="artifacts-overlay-filepath">{artifact.taskName}</span>
+          </div>
+          <button className="artifacts-overlay-close" onClick={onClose} title="Close (Esc)">
+            &#215;
+          </button>
+        </div>
+        <div className="artifacts-overlay-body">
+          <div className="schedule-detail">
+            <div className="schedule-detail-row">
+              <span className="schedule-detail-label">状态</span>
+              <span className={`schedule-artifact-status schedule-artifact-status--${statusClass}`}>
+                {statusText}
+              </span>
+            </div>
+            {artifact.triggerAt && (
+              <div className="schedule-detail-row">
+                <span className="schedule-detail-label">触发时间</span>
+                <span className="schedule-detail-value">
+                  {new Date(artifact.triggerAt).toLocaleString()}
+                </span>
+              </div>
+            )}
+            {artifact.prompt && (
+              <div className="schedule-detail-section">
+                <div className="schedule-detail-label">提示词</div>
+                <pre className="schedule-detail-prompt"><code>{artifact.prompt}</code></pre>
+              </div>
+            )}
+            {artifact.result && (
+              <div className="schedule-detail-section">
+                <div className="schedule-detail-label">
+                  {artifact.result.success ? '执行结果' : '错误信息'}
+                </div>
+                <pre className={`schedule-detail-result ${artifact.result.success ? '' : 'schedule-detail-result--error'}`}>
+                  <code>{artifact.result.output || artifact.result.error || '(无输出)'}</code>
+                </pre>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Artifacts Panel 主组件
  */
 export function ArtifactsPanel({
@@ -194,9 +368,15 @@ export function ArtifactsPanel({
   selectedArtifact,
   onSelectArtifact,
   onClose,
+  scheduleArtifacts,
+  selectedScheduleId,
+  selectedScheduleArtifact,
+  onSelectScheduleArtifact,
 }: ArtifactsPanelProps) {
   const { t } = useLanguage();
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+  const totalCount = artifacts.length + (scheduleArtifacts?.length || 0);
+  const hasBothSections = (scheduleArtifacts?.length || 0) > 0 && groups.length > 0;
 
   const toggleFileExpand = (filePath: string) => {
     setExpandedFiles(prev => {
@@ -222,13 +402,20 @@ export function ArtifactsPanel({
 
   const handleCloseDetail = () => {
     onSelectArtifact(null);
+    onSelectScheduleArtifact?.(null);
   };
 
   return (
     <div className="artifacts-panel">
-      {/* 选中产物时通过 Portal 弹出大尺寸 overlay 到 body，避免 backdrop-filter 导致的包含块问题 */}
+      {/* 文件产物详情 overlay */}
       {selectedArtifact && createPortal(
         <ArtifactDetailOverlay artifact={selectedArtifact} onClose={handleCloseDetail} />,
+        document.body
+      )}
+
+      {/* 定时任务详情 overlay */}
+      {selectedScheduleArtifact && createPortal(
+        <ScheduleDetailOverlay artifact={selectedScheduleArtifact} onClose={handleCloseDetail} />,
         document.body
       )}
 
@@ -236,8 +423,8 @@ export function ArtifactsPanel({
         <div className="artifacts-panel-title">
           <span className="artifacts-panel-title-icon">&#9874;</span>
           {t('artifacts.title')}
-          {artifacts.length > 0 && (
-            <span className="artifacts-panel-badge">{artifacts.length}</span>
+          {totalCount > 0 && (
+            <span className="artifacts-panel-badge">{totalCount}</span>
           )}
         </div>
         <button className="artifacts-panel-close" onClick={onClose} title="Close panel">
@@ -245,13 +432,40 @@ export function ArtifactsPanel({
         </button>
       </div>
 
-      {groups.length === 0 ? (
+      {/* 定时任务分区 */}
+      {scheduleArtifacts && scheduleArtifacts.length > 0 && (
+        <div className="artifacts-section">
+          {hasBothSections && (
+            <div className="artifacts-section-header">定时任务</div>
+          )}
+          <div className="artifacts-file-list">
+            {scheduleArtifacts.map(sa => (
+              <ScheduleArtifactItem
+                key={sa.id}
+                artifact={sa}
+                isSelected={selectedScheduleId === sa.id}
+                onClick={() => {
+                  onSelectArtifact(null);
+                  onSelectScheduleArtifact?.(sa.id);
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 文件变更分区 */}
+      {groups.length === 0 && (!scheduleArtifacts || scheduleArtifacts.length === 0) ? (
         <div className="artifacts-empty">
           <div className="artifacts-empty-icon">&#128196;</div>
           <div className="artifacts-empty-text">{t('artifacts.empty')}</div>
         </div>
-      ) : (
-        <div className="artifacts-file-list">
+      ) : groups.length > 0 ? (
+        <div className="artifacts-section">
+          {hasBothSections && (
+            <div className="artifacts-section-header">文件变更</div>
+          )}
+          <div className="artifacts-file-list">
           {groups.map(group => {
             const fileName = getFileName(group.filePath);
             const dirPath = getDirPath(group.filePath);
@@ -317,8 +531,9 @@ export function ArtifactsPanel({
               </div>
             );
           })}
+          </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
