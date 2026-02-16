@@ -17,6 +17,7 @@ import { CrossSessionToast } from './components/CrossSessionToast';
 import { RewindOption } from './components/RewindMenu';
 import { InputArea } from './components/InputArea';
 import { ArtifactsPanel } from './components/ArtifactsPanel/ArtifactsPanel';
+import { GitPanel } from './components/GitPanel';
 import { useProject } from './contexts/ProjectContext';
 import { TerminalPanel } from './components/Terminal/TerminalPanel';
 import CodeView from './components/CodeView';
@@ -57,6 +58,7 @@ function AppContent({
   const [showTerminal, setShowTerminal] = useState(false);
   const [terminalHeight, setTerminalHeight] = useState(280);
   const [isInputVisible, setIsInputVisible] = useState(true);
+  const [showGitPanel, setShowGitPanel] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
 
@@ -196,6 +198,17 @@ function AppContent({
       if (e.ctrlKey && e.shiftKey && (e.key === 'E' || e.key === 'e')) {
         e.preventDefault();
         onToggleCodeView?.();
+      }
+      if (e.ctrlKey && e.shiftKey && (e.key === 'G' || e.key === 'g')) {
+        e.preventDefault();
+        setShowGitPanel(prev => {
+          const newValue = !prev;
+          // 如果打开 Git 面板，则关闭 Artifacts 面板（互斥显示）
+          if (newValue) {
+            artifactsState.setIsPanelOpen(false);
+          }
+          return newValue;
+        });
       }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
@@ -429,6 +442,16 @@ function AppContent({
               showTerminal={showTerminal}
               onToggleTerminal={() => setShowTerminal(!showTerminal)}
               onOpenDebugPanel={() => setShowDebugPanel(true)}
+              onOpenGitPanel={() => {
+                setShowGitPanel(prev => {
+                  const newValue = !prev;
+                  // 如果打开 Git 面板，则关闭 Artifacts 面板（互斥显示）
+                  if (newValue) {
+                    artifactsState.setIsPanelOpen(false);
+                  }
+                  return newValue;
+                });
+              }}
               isPinned={chatInput.isPinned}
               onTogglePin={chatInput.togglePin}
               onVisibilityChange={setIsInputVisible}
@@ -460,6 +483,17 @@ function AppContent({
               selectedScheduleId={scheduleState.selectedScheduleId}
               selectedScheduleArtifact={scheduleState.selectedScheduleArtifact}
               onSelectScheduleArtifact={scheduleState.setSelectedScheduleId}
+            />
+          )}
+
+          {/* 右侧：Git 面板 */}
+          {showGitPanel && (
+            <GitPanel
+              isOpen={showGitPanel}
+              onClose={() => setShowGitPanel(false)}
+              send={send}
+              addMessageHandler={addMessageHandler}
+              projectPath={currentProjectPath}
             />
           )}
         </div>
