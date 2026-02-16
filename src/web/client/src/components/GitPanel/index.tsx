@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../i18n';
 import { LogView } from './LogView';
+import { BranchesView } from './BranchesView';
 import './GitPanel.css';
 
 // Git 数据类型定义（与后端 GitManager 对应）
@@ -338,12 +339,11 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
 
             {activeTab === 'branches' && (
               <div className="git-tab-content">
-                {/* BranchesView 组件将在这里渲染 */}
-                <div className="git-placeholder">
-                  BranchesView coming soon...
-                  <br />
-                  Branches: {branches.length}
-                </div>
+                <BranchesView
+                  branches={branches}
+                  send={send}
+                  projectPath={projectPath}
+                />
               </div>
             )}
 

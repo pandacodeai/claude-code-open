@@ -337,6 +337,110 @@
 }
 
 /* ============================================
+   BranchesView - 分支管理视图
+   ============================================ */
+
+.git-branches-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.git-branches-header {
+  display: flex;
+  justify-content: flex-end;
+  padding-bottom: 8px;
+}
+
+.git-new-branch-button {
+  padding: 8px 16px;
+  background: var(--accent-primary);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.git-new-branch-button:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.git-branch-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.git-branch-group-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.git-branch-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.git-branch-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.git-branch-item--current {
+  border-left: 3px solid #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.git-branch-item--current .git-branch-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.git-branch-name {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-family: 'Consolas', 'Monaco', monospace;
+  flex: 1;
+}
+
+.git-branch-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.git-branch-actions button {
+  padding: 4px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.git-branch-actions button:hover {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
+/* ============================================
    响应式设计
    ============================================ */
 
