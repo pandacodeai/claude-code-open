@@ -121,6 +121,67 @@
   /* 子节点容器，由 TreeNode 的 paddingLeft 控制缩进 */
 }
 
+/* ==================== 符号节点 ==================== */
+
+.symbolNode {
+  height: 26px;
+}
+
+.symbolNode .name {
+  line-height: 26px;
+}
+
+.symbolActive {
+  background-color: rgba(99, 102, 241, 0.12) !important;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.symbolKindIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 3px;
+  line-height: 1;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+}
+
+.symbolName {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 26px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.symbolDetail {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.25);
+  margin-left: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
+  flex-shrink: 0;
+}
+
+.symbolCount {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0 5px;
+  border-radius: 8px;
+  margin-left: 4px;
+  flex-shrink: 0;
+  line-height: 16px;
+}
+
 /* ==================== 加载状态 ==================== */
 
 .loadingContainer {
@@ -169,4 +230,107 @@
   text-align: center;
   max-width: 200px;
   line-height: 1.5;
+}
+
+/* ==================== 右键菜单 ==================== */
+
+.contextMenuOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: transparent;
+}
+
+.contextMenu {
+  position: fixed;
+  z-index: 1001;
+  background: #1e1e1e;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 4px 0;
+  min-width: 200px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  font-size: 13px;
+  animation: contextMenuIn 0.1s ease-out;
+}
+
+@keyframes contextMenuIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.contextMenuItem {
+  padding: 6px 24px 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.85);
+  transition: background 0.1s;
+  user-select: none;
+}
+
+.contextMenuItem:hover {
+  background: rgba(99, 102, 241, 0.15);
+}
+
+.contextMenuItem.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+  cursor: default;
+}
+
+.contextMenuSeparator {
+  height: 1px;
+  margin: 4px 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.contextMenuShortcut {
+  margin-left: auto;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: 'JetBrains Mono', Consolas, monospace;
+}
+
+.contextMenuIcon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ==================== 内联编辑 ==================== */
+
+.inlineInput {
+  background: #1a1a1f;
+  border: 1px solid #6366f1;
+  color: white;
+  font-size: 13px;
+  padding: 2px 4px;
+  border-radius: 2px;
+  outline: none;
+  width: calc(100% - 40px);
+  font-family: inherit;
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.5);
+}
+
+.inlineInput:focus {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+}
+
+/* ==================== 剪切节点样式 ==================== */
+
+.cutNode {
+  opacity: 0.5;
+  transition: opacity 0.2s;
 }

@@ -5,11 +5,22 @@
  * - GET /api/files/tree - 获取目录树
  * - GET /api/files/read - 读取文件内容
  * - PUT /api/files/write - 写入文件内容
+ * - POST /api/files/rename - 重命名文件/目录
+ * - POST /api/files/delete - 删除文件/目录
+ * - POST /api/files/create - 新建文件
+ * - POST /api/files/mkdir - 新建目录
+ * - POST /api/files/copy - 复制文件/目录
+ * - POST /api/files/move - 移动文件/目录
+ * - POST /api/files/reveal - 在系统资源管理器中打开
  */
 
 import { Router, Request, Response } from 'express';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execPromise = promisify(exec);
 
 const router = Router();
 
@@ -373,6 +384,480 @@ router.put('/write', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: error instanceof Error ? error.message : '未知错误',
+    });
+  }
+});
+
+/**
+ * POST /api/files/rename
+ * 重命名文件/目录
+ * 
+ * Body:
+ * - oldPath: 原路径（相对）
+ * - newPath: 新路径（相对）
+ */
+router.post('/rename', async (req: Request, res: Response) => {
+  try {
+    const { oldPath, newPath } = req.body;
+    
+    if (!oldPath || !newPath) {
+      res.status(400).json({
+        success: false,
+        error: '缺少 oldPath 或 newPath 参数',
+      });
+      return;
+    }
+    
+    // 验证路径
+    const oldValidation = validatePath(oldPath);
+    const newValidation = validatePath(newPath);
+    
+    if (!oldValidation.valid) {
+      res.status(400).json({
+        success: false,
+        error: `源路径无效: ${oldValidation.error}`,
+      });
+      return;
+    }
+    
+    if (!newValidation.valid) {
+      res.status(400).json({
+        success: false,
+        error: `目标路径无效: ${newValidation.error}`,
+      });
+      return;
+    }
+    
+    // 检查源路径是否存在
+    try {
+      await fs.access(oldValidation.resolvedPath);
+    } catch {
+      res.status(404).json({
+        success: false,
+        error: '源路径不存在',
+      });
+      return;
+    }
+    
+    // 检查目标路径是否已存在
+    try {
+      await fs.access(newValidation.resolvedPath);
+      res.status(400).json({
+        success: false,
+        error: '目标路径已存在',
+      });
+      return;
+    } catch {
+      // 目标不存在，可以继续
+    }
+    
+    // 确保目标目录存在
+    const newDir = path.dirname(newValidation.resolvedPath);
+    await fs.mkdir(newDir, { recursive: true });
+    
+    // 重命名
+    await fs.rename(oldValidation.resolvedPath, newValidation.resolvedPath);
+    
+    res.json({
+      success: true,
+    });
+  } catch (error) {
+    console.error('[File API] 重命名失败:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : '重命名失败',
+    });
+  }
+});
+
+/**
+ * POST /api/files/delete
+ * 删除文件/目录
+ * 
+ * Body:
+ * - path: 文件或目录路径（相对）
+ */
+router.post('/delete', async (req: Request, res: Response) => {
+  try {
+    const { path: filePath } = req.body;
+    
+    if (!filePath) {
+      res.status(400).json({
+        success: false,
+        error: '缺少 path 参数',
+      });
+      return;
+    }
+    
+    // 验证路径
+    const validation = validatePath(filePath);
+    if (!validation.valid) {
+      res.status(400).json({
+        success: false,
+        error: validation.error,
+      });
+      return;
+    }
+    
+    // 检查路径是否存在
+    try {
+      await fs.access(validation.resolvedPath);
+    } catch {
+      res.status(404).json({
+        success: false,
+        error: '路径不存在',
+      });
+      return;
+    }
+    
+    // 检查是否是目录
+    const stats = await fs.stat(validation.resolvedPath);
+    
+    // 删除（目录使用 recursive）
+    if (stats.isDirectory()) {
+      await fs.rm(validation.resolvedPath, { recursive: true, force: true });
+    } else {
+      await fs.unlink(validation.resolvedPath);
+    }
+    
+    res.json({
+      success: true,
+    });
+  } catch (error) {
+    console.error('[File API] 删除失败:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : '删除失败',
+    });
+  }
+});
+
+/**
+ * POST /api/files/create
+ * 新建文件
+ * 
+ * Body:
+ * - path: 文件路径（相对）
+ * - content: 文件内容（可选，默认为空字符串）
+ */
+router.post('/create', async (req: Request, res: Response) => {
+  try {
+    const { path: filePath, content = '' } = req.body;
+    
+    if (!filePath) {
+      res.status(400).json({
+        success: false,
+        error: '缺少 path 参数',
+      });
+      return;
+    }
+    
+    // 验证路径
+    const validation = validatePath(filePath);
+    if (!validation.valid) {
+      res.status(400).json({
+        success: false,
+        error: validation.error,
+      });
+      return;
+    }
+    
+    // 检查文件是否已存在
+    try {
+      await fs.access(validation.resolvedPath);
+      res.status(400).json({
+        success: false,
+        error: '文件已存在',
+      });
+      return;
+    } catch {
+      // 文件不存在，可以继续
+    }
+    
+    // 确保目录存在
+    const dirPath = path.dirname(validation.resolvedPath);
+    await fs.mkdir(dirPath, { recursive: true });
+    
+    // 创建文件
+    await fs.writeFile(validation.resolvedPath, content, 'utf-8');
+    
+    res.json({
+      success: true,
+    });
+  } catch (error) {
+    console.error('[File API] 创建文件失败:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : '创建文件失败',
+    });
+  }
+});
+
+/**
+ * POST /api/files/mkdir
+ * 新建目录
+ * 
+ * Body:
+ * - path: 目录路径（相对）
+ */
+router.post('/mkdir', async (req: Request, res: Response) => {
+  try {
+    const { path: dirPath } = req.body;
+    
+    if (!dirPath) {
+      res.status(400).json({
+        success: false,
+        error: '缺少 path 参数',
+      });
+      return;
+    }
+    
+    // 验证路径
+    const validation = validatePath(dirPath);
+    if (!validation.valid) {
+      res.status(400).json({
+        success: false,
+        error: validation.error,
+      });
+      return;
+    }
+    
+    // 检查目录是否已存在
+    try {
+      await fs.access(validation.resolvedPath);
+      res.status(400).json({
+        success: false,
+        error: '目录已存在',
+      });
+      return;
+    } catch {
+      // 目录不存在，可以继续
+    }
+    
+    // 创建目录
+    await fs.mkdir(validation.resolvedPath, { recursive: true });
+    
+    res.json({
+      success: true,
+    });
+  } catch (error) {
+    console.error('[File API] 创建目录失败:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : '创建目录失败',
+    });
+  }
+});
+
+/**
+ * POST /api/files/copy
+ * 复制文件/目录
+ * 
+ * Body:
+ * - sourcePath: 源路径（相对）
+ * - destPath: 目标路径（相对）
+ */
+router.post('/copy', async (req: Request, res: Response) => {
+  try {
+    const { sourcePath, destPath } = req.body;
+    
+    if (!sourcePath || !destPath) {
+      res.status(400).json({
+        success: false,
+        error: '缺少 sourcePath 或 destPath 参数',
+      });
+      return;
+    }
+    
+    // 验证路径
+    const sourceValidation = validatePath(sourcePath);
+    const destValidation = validatePath(destPath);
+    
+    if (!sourceValidation.valid) {
+      res.status(400).json({
+        success: false,
+        error: `源路径无效: ${sourceValidation.error}`,
+      });
+      return;
+    }
+    
+    if (!destValidation.valid) {
+      res.status(400).json({
+        success: false,
+        error: `目标路径无效: ${destValidation.error}`,
+      });
+      return;
+    }
+    
+    // 检查源路径是否存在
+    try {
+      await fs.access(sourceValidation.resolvedPath);
+    } catch {
+      res.status(404).json({
+        success: false,
+        error: '源路径不存在',
+      });
+      return;
+    }
+    
+    // 确保目标目录存在
+    const destDir = path.dirname(destValidation.resolvedPath);
+    await fs.mkdir(destDir, { recursive: true });
+    
+    // 复制文件/目录
+    await fs.cp(sourceValidation.resolvedPath, destValidation.resolvedPath, { 
+      recursive: true,
+      force: false,
+    });
+    
+    res.json({
+      success: true,
+    });
+  } catch (error) {
+    console.error('[File API] 复制失败:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : '复制失败',
+    });
+  }
+});
+
+/**
+ * POST /api/files/move
+ * 移动文件/目录（剪切粘贴）
+ * 
+ * Body:
+ * - sourcePath: 源路径（相对）
+ * - destPath: 目标路径（相对）
+ */
+router.post('/move', async (req: Request, res: Response) => {
+  try {
+    const { sourcePath, destPath } = req.body;
+    
+    if (!sourcePath || !destPath) {
+      res.status(400).json({
+        success: false,
+        error: '缺少 sourcePath 或 destPath 参数',
+      });
+      return;
+    }
+    
+    // 验证路径
+    const sourceValidation = validatePath(sourcePath);
+    const destValidation = validatePath(destPath);
+    
+    if (!sourceValidation.valid) {
+      res.status(400).json({
+        success: false,
+        error: `源路径无效: ${sourceValidation.error}`,
+      });
+      return;
+    }
+    
+    if (!destValidation.valid) {
+      res.status(400).json({
+        success: false,
+        error: `目标路径无效: ${destValidation.error}`,
+      });
+      return;
+    }
+    
+    // 检查源路径是否存在
+    try {
+      await fs.access(sourceValidation.resolvedPath);
+    } catch {
+      res.status(404).json({
+        success: false,
+        error: '源路径不存在',
+      });
+      return;
+    }
+    
+    // 确保目标目录存在
+    const destDir = path.dirname(destValidation.resolvedPath);
+    await fs.mkdir(destDir, { recursive: true });
+    
+    // 移动文件/目录
+    await fs.rename(sourceValidation.resolvedPath, destValidation.resolvedPath);
+    
+    res.json({
+      success: true,
+    });
+  } catch (error) {
+    console.error('[File API] 移动失败:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : '移动失败',
+    });
+  }
+});
+
+/**
+ * POST /api/files/reveal
+ * 在系统资源管理器中打开文件/目录
+ * 
+ * Body:
+ * - path: 文件或目录路径（相对）
+ */
+router.post('/reveal', async (req: Request, res: Response) => {
+  try {
+    const { path: filePath } = req.body;
+    
+    if (!filePath) {
+      res.status(400).json({
+        success: false,
+        error: '缺少 path 参数',
+      });
+      return;
+    }
+    
+    // 验证路径
+    const validation = validatePath(filePath);
+    if (!validation.valid) {
+      res.status(400).json({
+        success: false,
+        error: validation.error,
+      });
+      return;
+    }
+    
+    // 检查路径是否存在
+    try {
+      await fs.access(validation.resolvedPath);
+    } catch {
+      res.status(404).json({
+        success: false,
+        error: '路径不存在',
+      });
+      return;
+    }
+    
+    // 根据操作系统执行不同的命令
+    const platform = process.platform;
+    let command: string;
+    
+    if (platform === 'win32') {
+      // Windows: 使用 explorer 并选中文件
+      command = `explorer /select,"${validation.resolvedPath}"`;
+    } else if (platform === 'darwin') {
+      // macOS: 使用 open -R
+      command = `open -R "${validation.resolvedPath}"`;
+    } else {
+      // Linux: 使用 xdg-open 打开所在目录
+      const dirPath = path.dirname(validation.resolvedPath);
+      command = `xdg-open "${dirPath}"`;
+    }
+    
+    await execPromise(command);
+    
+    res.json({
+      success: true,
+    });
+  } catch (error) {
+    console.error('[File API] 打开资源管理器失败:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : '打开资源管理器失败',
     });
   }
 });
