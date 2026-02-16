@@ -1,4 +1,6 @@
-# The world needs an open-source Claude Code. It will become the foundational infrastructure of AI in the future, running on every PC.
+# Claude Code Open - Open Source AI Coding Platform
+
+> The world needs an open-source Claude Code. It will become the foundational infrastructure of AI in the future, running on every PC.
 
 [![Website](https://img.shields.io/badge/Website-claude--code--open.vercel.app-blue?style=flat-square)](https://www.chatbi.site)
 [![GitHub Stars](https://img.shields.io/github/stars/kill136/claude-code-open?style=flat-square)](https://github.com/kill136/claude-code-open)
@@ -22,7 +24,7 @@ npm install -g @anthropic-ai/claude-code
 
 ## Features at a Glance
 
-- **30+ Built-in Tools** - File ops, search, execution, web access, task management, scheduled tasks, and more
+- **36+ Built-in Tools** - File ops, search, execution, web access, task management, scheduled tasks, and more
 - **One-Click Installer** - Automated installation scripts for Windows, macOS, and Linux with desktop shortcut creation
 - **Scheduled Task Daemon** - Background daemon for time-based tasks, interval jobs, file watching, and notifications
 - **Web UI** - Full-featured browser interface with React frontend and WebSocket communication
@@ -38,6 +40,14 @@ npm install -g @anthropic-ai/claude-code
 - **Docker Support** - Containerized deployment
 - **Teams** - Team collaboration features
 - **Plugin & Hook System** - Extensible architecture with lifecycle hooks
+
+## Why Claude Code Open?
+
+- **Open Source & Transparent** - Full MIT licensed source code you can audit, modify, and trust. No black boxes, complete community-driven development.
+- **Web UI IDE Experience** - Not just a CLI—get a complete browser-based IDE with React + WebSocket real-time communication, syntax highlighting, Blueprint visualization, and Swarm multi-agent console.
+- **Multi-Agent Collaboration** - Blueprint system breaks down complex tasks across multiple AI agents working in parallel: Smart Planner + Lead Agent + Autonomous Workers + Task Queue + Quality Reviewer.
+- **24/7 Automation** - Scheduled task daemon runs AI workflows automatically: natural language time config, file watching, multi-channel notifications (Desktop + Feishu), SQLite persistence.
+- **One-Click Install + Mobile Support** - Single command installation for Windows/macOS/Linux with desktop shortcuts + PWA mobile app via Tailscale for remote coding on your phone.
 
 ## Quick Installation (Recommended)
 
@@ -291,7 +301,7 @@ src/
 │   ├── loop.ts             # Conversation orchestrator
 │   └── backgroundTasks.ts  # Async background task processing
 │
-├── tools/                  # 29+ tools
+├── tools/                  # 36+ tools
 │   ├── base.ts             # BaseTool class & ToolRegistry
 │   ├── bash.ts             # Bash execution (sandbox support)
 │   ├── file.ts             # Read/Write/Edit/MultiEdit
@@ -377,7 +387,7 @@ src/
 └── utils/                  # Utility functions
 ```
 
-## Implemented Tools (30+)
+## Implemented Tools (36+)
 
 | Tool | Status | Description |
 | --- | --- | --- |
@@ -636,6 +646,7 @@ npx tsc --noEmit
 
 ## Community
 
+- **Website:** https://www.chatbi.site
 - **Discord:** [Join our Discord](https://discord.gg/bNyJKk6PVZ)
 - **X (Twitter):** [@wangbingjie1989](https://x.com/wangbingjie1989)
 

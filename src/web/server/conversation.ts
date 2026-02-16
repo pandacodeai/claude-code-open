@@ -42,6 +42,10 @@ import { getChromeIntegrationConfig } from '../../chrome-mcp/index.js';
 import { CHROME_MCP_TOOLS } from '../../chrome-mcp/tools.js';
 import { RewindManager, type RewindOption } from '../../rewind/index.js';
 import { MarketplaceManager } from '../../plugins/marketplace.js';
+import { TaskStore, type ScheduledTask } from '../../daemon/store.js';
+import { isDaemonRunning } from '../../daemon/index.js';
+import { parseTimeExpression } from '../../daemon/time-parser.js';
+import { appendRunLog } from '../../daemon/run-log.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -63,6 +67,8 @@ const RETRYABLE_NETWORK_PATTERNS = [
   'socket hang up',
   'overloaded_error',
   'rate_limit_error',
+  'Request timed out',
+  'timed out',
 ];
 
 /** conversation loop 层面的最大网络重试次数 */
@@ -926,6 +932,22 @@ export class ConversationManager {
   }
 
   /**
+   * 获取会话中待处理的权限请求（用于会话切换时重发到前端）
+   */
+  getPendingPermissionRequests(sessionId: string): PermissionRequest[] {
+    const state = this.sessions.get(sessionId);
+    return state?.permissionHandler.getPendingRequests() ?? [];
+  }
+
+  /**
+   * 获取会话中待处理的用户问题（用于会话切换时重发到前端）
+   */
+  getPendingUserQuestions(sessionId: string): Array<{ requestId: string; question: string; header: string; options?: any[]; multiSelect?: boolean }> {
+    const state = this.sessions.get(sessionId);
+    return state?.userInteractionHandler.getPendingPayloads() ?? [];
+  }
+
+  /**
    * 媒体附件信息（图片或 PDF）
    */
 
@@ -1288,6 +1310,20 @@ export class ConversationManager {
                 assistantContent.push({ type: 'text', text: currentTextContent } as TextBlock);
                 currentTextContent = '';
               }
+              // 如果有未完成的工具调用（多工具响应时 content_block_stop 不产生事件），先完成它
+              if (currentToolUse) {
+                let prevInput = {};
+                try {
+                  prevInput = JSON.parse(currentToolUse.inputJson || '{}');
+                } catch { /* 解析失败用空对象 */ }
+                assistantContent.push({
+                  type: 'tool_use',
+                  id: currentToolUse.id,
+                  name: currentToolUse.name,
+                  input: prevInput,
+                } as ToolUseBlock);
+                callbacks.onToolUseStart?.(currentToolUse.id, currentToolUse.name, prevInput);
+              }
               // 开始新的工具调用（先不发送 onToolUseStart，等参数解析完成后再发送）
               currentToolUse = {
                 id: event.id || '',
@@ -1392,8 +1428,33 @@ export class ConversationManager {
           // 收集所有工具返回的 newMessages（对齐官网实现）
           const allNewMessages: Array<{ role: 'user'; content: any[] }> = [];
 
+          // 预扫描：同一响应内 ScheduleTask create 去重
+          // 在 for 循环之前完成，重复的工具卡片会立即 resolve，不会阻塞在长时间执行的工具后面
+          const scheduledTaskNames = new Set<string>();
+          const skipToolIds = new Set<string>();
+          for (const toolUse of toolUseBlocks) {
+            if (toolUse.name === 'ScheduleTask') {
+              const inp = toolUse.input as any;
+              if (inp.action === 'create' && inp.name) {
+                if (scheduledTaskNames.has(inp.name)) {
+                  const skipMsg = `Task "${inp.name}" was already created in this response. Skipped duplicate.`;
+                  callbacks.onToolResult?.(toolUse.id, false, undefined, skipMsg);
+                  toolResults.push({
+                    type: 'tool_result',
+                    tool_use_id: toolUse.id,
+                    content: [{ type: 'text', text: skipMsg }],
+                  });
+                  skipToolIds.add(toolUse.id);
+                } else {
+                  scheduledTaskNames.add(inp.name);
+                }
+              }
+            }
+          }
+
           for (const toolUse of toolUseBlocks) {
             if (state.cancelled) break;
+            if (skipToolIds.has(toolUse.id)) continue;
 
             // 用 Promise.race 包裹，使 cancel 时 AbortController.abort() 能立即打断阻塞的工具执行
             const result = await this.executeToolWithCancellation(toolUse, state, callbacks);
@@ -1699,6 +1760,220 @@ export class ConversationManager {
   }
 
   /**
+   * ScheduleTask inline 执行拦截
+   * 阶段 1: 创建任务 + 倒计时推送
+   * 阶段 2: 通过 TaskManager 流式执行子 agent（前端可实时看到工具调用）
+   * 阶段 3: 返回精简结果
+   */
+  private async handleScheduleTaskInline(
+    toolUse: ToolUseBlock,
+    state: SessionState,
+    callbacks: StreamCallbacks,
+    input: any,
+    triggerAt: number,
+  ): Promise<{ success: boolean; output?: string; error?: string }> {
+    const store = new TaskStore();
+
+    // 重复任务检测：同名任务在 2 分钟内已创建，拒绝重复（不限 enabled 状态，因为已执行完的任务 enabled=false）
+    const existingTasks = store.listTasks();
+    const dupNow = Date.now();
+    const duplicate = existingTasks.find((t: any) =>
+      t.name === (input.name || 'Scheduled Task') && (dupNow - t.createdAt) < 120_000
+    );
+    if (duplicate) {
+      const msg = `Task "${duplicate.name}" already exists (ID: ${duplicate.id}, created ${Math.round((dupNow - duplicate.createdAt) / 1000)}s ago). Do NOT call ScheduleTask again for the same task.`;
+      callbacks.onToolResult?.(toolUse.id, false, undefined, msg);
+      return { success: false, error: msg };
+    }
+
+    // --- 创建任务 ---
+    const task = store.addTask({
+      type: 'once',
+      name: input.name || 'Scheduled Task',
+      triggerAt,
+      prompt: input.prompt || '',
+      notify: input.notify || ['desktop'],
+      feishuChatId: input.feishuChatId,
+      createdBy: 'conversation',
+      workingDir: state.session.cwd || process.cwd(),
+      model: input.model,
+      timeoutMs: input.timeoutMs,
+      enabled: true,
+    });
+
+    // 标记为运行中，防止 daemon 抢执行
+    store.updateTask(task.id, { runningAtMs: Date.now() });
+    store.signalReload();
+
+    // 自动拉起 daemon（非 inline 任务仍需 daemon 管理）
+    if (!isDaemonRunning()) {
+      try {
+        const { spawn } = await import('child_process');
+        const claudeDir = path.join(os.homedir(), '.claude');
+        if (!fs.existsSync(claudeDir)) fs.mkdirSync(claudeDir, { recursive: true });
+        const logPath = path.join(claudeDir, 'daemon.log');
+        const logFd = fs.openSync(logPath, 'a');
+        const compiledCliPath = path.join(import.meta.dirname, '..', '..', 'cli.js');
+        const isDev = !fs.existsSync(compiledCliPath);
+        let spawnCmd: string, spawnArgs: string[];
+        if (isDev) {
+          const tsCliPath = path.join(import.meta.dirname, '..', '..', 'cli.ts');
+          spawnCmd = process.execPath;
+          spawnArgs = ['--import', 'tsx', tsCliPath, 'daemon', 'start'];
+        } else {
+          spawnCmd = process.execPath;
+          spawnArgs = [compiledCliPath, 'daemon', 'start'];
+        }
+        const dp = spawn(spawnCmd, spawnArgs, { detached: true, stdio: ['ignore', logFd, logFd], cwd: process.cwd() });
+        dp.unref();
+        fs.closeSync(logFd);
+      } catch { /* 不影响任务执行 */ }
+    }
+
+    const taskName = task.name;
+    const totalMs = triggerAt - Date.now();
+
+    // onToolUseStart 已在流式阶段调用，不重复调用（否则前端会创建两张卡片）
+
+    // --- 阶段 1: 倒计时推送 ---
+    console.log(`[ScheduleTask] 开始倒计时: ${taskName}, 剩余 ${Math.ceil(totalMs / 1000)}s`);
+
+    const sendCountdown = (phase: 'countdown' | 'executing' | 'done', remainingMs: number) => {
+      if (state.ws && state.ws.readyState === 1) {
+        state.ws.send(JSON.stringify({
+          type: 'schedule_countdown',
+          payload: {
+            taskId: task.id,
+            taskName,
+            triggerAt,
+            remainingMs: Math.max(0, remainingMs),
+            phase,
+          },
+        }));
+      }
+    };
+
+    // 每秒推送倒计时（同时检查取消）
+    while (Date.now() < triggerAt) {
+      if (state.cancelled) {
+        store.updateTask(task.id, { runningAtMs: undefined, enabled: false });
+        sendCountdown('done', 0);
+        callbacks.onToolResult?.(toolUse.id, false, undefined, 'Cancelled by user');
+        return { success: false, error: 'Cancelled by user' };
+      }
+
+      const remaining = triggerAt - Date.now();
+      if (remaining <= 0) break;
+      sendCountdown('countdown', remaining);
+
+      // 分段等待，每 1 秒检查一次取消（同时也检查外部取消）
+      await new Promise(resolve => setTimeout(resolve, Math.min(remaining, 1000)));
+
+      store.reload();
+      const current = store.getTask(task.id);
+      if (!current || !current.enabled) {
+        sendCountdown('done', 0);
+        callbacks.onToolResult?.(toolUse.id, true, 'Task was cancelled before execution');
+        return { success: true, output: 'Task was cancelled before execution.' };
+      }
+    }
+
+    // --- 阶段 2: 执行子 agent ---
+    sendCountdown('executing', 0);
+    console.log(`[ScheduleTask] 倒计时结束，开始执行: ${taskName}`);
+
+    const mainClientConfig = this.buildClientConfig(input.model || state.model);
+    const startedAt = Date.now();
+
+    try {
+      const result = await state.taskManager.executeScheduleTaskInline(
+        taskName,
+        task.prompt,
+        {
+          model: task.model || 'sonnet',
+          workingDirectory: task.workingDir,
+          clientConfig: {
+            apiKey: mainClientConfig.apiKey,
+            authToken: mainClientConfig.authToken,
+            baseUrl: mainClientConfig.baseUrl,
+          },
+        }
+      );
+
+      const endedAt = Date.now();
+
+      // --- 阶段 3: 更新任务状态 + 返回精简结果 ---
+      store.updateTask(task.id, {
+        runningAtMs: undefined,
+        lastRunAt: startedAt,
+        lastRunStatus: result.success ? 'success' : 'failed',
+        lastRunError: result.error,
+        lastDurationMs: endedAt - startedAt,
+        runCount: (task.runCount || 0) + 1,
+        consecutiveErrors: result.success ? 0 : (task.consecutiveErrors || 0) + 1,
+        enabled: false,
+        nextRunAtMs: undefined,
+      });
+
+      await appendRunLog({
+        ts: endedAt,
+        taskId: task.id,
+        taskName,
+        action: 'finished',
+        status: result.success ? 'success' : 'failed',
+        summary: result.output?.slice(0, 500),
+        error: result.error,
+        durationMs: endedAt - startedAt,
+      }).catch(() => {});
+
+      sendCountdown('done', 0);
+
+      const durationSec = ((endedAt - startedAt) / 1000).toFixed(1);
+      const output = result.success
+        ? `定时任务 "${taskName}" 已执行完成（耗时 ${durationSec}s），执行结果已实时展示给用户，无需重复总结。`
+        : `定时任务 "${taskName}" 执行失败（耗时 ${durationSec}s）: ${result.error}`;
+
+      callbacks.onToolResult?.(toolUse.id, result.success, output, result.success ? undefined : result.error, {
+        tool: 'ScheduleTask',
+        description: taskName,
+        status: 'completed',
+        output,
+      });
+
+      return { success: result.success, output };
+    } catch (err) {
+      const endedAt = Date.now();
+      const errMsg = err instanceof Error ? err.message : String(err);
+
+      store.updateTask(task.id, {
+        runningAtMs: undefined,
+        lastRunAt: startedAt,
+        lastRunStatus: 'failed',
+        lastRunError: errMsg,
+        lastDurationMs: endedAt - startedAt,
+        runCount: (task.runCount || 0) + 1,
+        consecutiveErrors: (task.consecutiveErrors || 0) + 1,
+        enabled: false,
+        nextRunAtMs: undefined,
+      });
+
+      await appendRunLog({
+        ts: endedAt,
+        taskId: task.id,
+        taskName,
+        action: 'finished',
+        status: 'failed',
+        error: errMsg,
+        durationMs: endedAt - startedAt,
+      }).catch(() => {});
+
+      sendCountdown('done', 0);
+      callbacks.onToolResult?.(toolUse.id, false, undefined, errMsg);
+      return { success: false, error: errMsg };
+    }
+  }
+
+  /**
    * 可取消的工具执行包装器
    * 使用 Promise.race 让 AbortController.abort() 能立即打断阻塞的工具执行（如 Bash 命令）
    * 避免取消后会话卡在 isProcessing=true 状态导致后续消息无法处理
@@ -1868,6 +2143,27 @@ export class ConversationManager {
           callbacks.onToolResult?.(toolUse.id, false, undefined, errorMessage);
           return { success: false, error: errorMessage };
         }
+      }
+
+      // 拦截 ScheduleTask 工具 - inline 执行时提供倒计时 + 子 agent 渲染
+      if (toolUse.name === 'ScheduleTask') {
+        const input = toolUse.input as any;
+
+        // 只拦截 create + once + 10分钟内的情况（即 inline 执行路径）
+        if (input.action === 'create' && input.type === 'once' && input.triggerAt) {
+          try {
+            const triggerAt = parseTimeExpression(input.triggerAt);
+            const now = Date.now();
+            const INLINE_THRESHOLD_MS = 10 * 60 * 1000;
+
+            if (triggerAt > now && (triggerAt - now) <= INLINE_THRESHOLD_MS) {
+              return this.handleScheduleTaskInline(toolUse, state, callbacks, input, triggerAt);
+            }
+          } catch {
+            // parseTimeExpression 失败，走正常工具执行
+          }
+        }
+        // 非 inline 情况（list/cancel/watch/远期 once/interval），走正常工具执行路径
       }
 
       // 拦截 TaskOutput 工具 - 从 TaskManager 获取任务输出
@@ -2651,8 +2947,6 @@ export class ConversationManager {
    */
   private checkIsGitRepo(dir: string): boolean {
     try {
-      const fs = require('fs');
-      const path = require('path');
       let currentDir = dir;
       while (currentDir !== path.dirname(currentDir)) {
         if (fs.existsSync(path.join(currentDir, '.git'))) {

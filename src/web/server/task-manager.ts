@@ -84,6 +84,8 @@ interface TaskExecutionContext {
   abortController?: AbortController;
   /** 主 agent 的认证信息，供子 agent 复用 */
   clientConfig?: { apiKey?: string; authToken?: string; baseUrl?: string };
+  /** 禁用的工具列表（防止子 agent 递归调用特定工具） */
+  disallowedTools?: string[];
 }
 
 /**
@@ -449,6 +451,8 @@ export class TaskManager {
         apiKey: context.clientConfig?.apiKey,
         authToken: context.clientConfig?.authToken,
         baseUrl: context.clientConfig?.baseUrl,
+        // 禁用指定工具（防止递归调度等问题）
+        disallowedTools: context.disallowedTools,
       };
 
       // 创建对话循环
@@ -605,6 +609,65 @@ export class TaskManager {
 
       // 调用 SubagentStop Hook（即使失败也要调用）
       await runSubagentStopHooks(task.id, task.agentType);
+    }
+  }
+
+  /**
+   * 执行定时任务的子 agent（ScheduleTask inline 执行专用）
+   * 复用 TaskManager 的流式子 agent 推送机制，让前端能实时看到工具调用过程
+   */
+  async executeScheduleTaskInline(
+    taskName: string,
+    prompt: string,
+    options: {
+      model?: string;
+      workingDirectory?: string;
+      clientConfig?: { apiKey?: string; authToken?: string; baseUrl?: string };
+    }
+  ): Promise<{ success: boolean; output?: string; error?: string; taskId: string; durationMs: number }> {
+    const taskId = await this.createTask(
+      `ScheduleTask: ${taskName}`,
+      prompt,
+      'general-purpose',
+      {
+        model: options.model || 'sonnet',
+        workingDirectory: options.workingDirectory,
+        clientConfig: options.clientConfig,
+        runInBackground: false,
+      }
+    );
+
+    const context = this.tasks.get(taskId);
+    if (!context) {
+      return { success: false, error: 'Failed to create task context', taskId, durationMs: 0 };
+    }
+
+    // 定时任务执行环境中禁用特定工具，防止递归调度
+    // 与 executor.ts 保持一致
+    context.disallowedTools = ['ScheduleTask', 'AskUserQuestion'];
+
+    const startedAt = Date.now();
+
+    // 执行（复用已有的流式子 agent 逻辑，自动推送 subagent_tool_start/end 到前端）
+    await this.executeTaskInBackground(context);
+
+    const endedAt = Date.now();
+    const task = context.task;
+
+    if (task.status === 'completed') {
+      return {
+        success: true,
+        output: task.result,
+        taskId,
+        durationMs: endedAt - startedAt,
+      };
+    } else {
+      return {
+        success: false,
+        error: task.error || 'Task failed',
+        taskId,
+        durationMs: endedAt - startedAt,
+      };
     }
   }
 

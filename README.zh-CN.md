@@ -1,6 +1,6 @@
-# Claude Code (Open Source)
+# Claude Code Open - 开源 AI 编程平台
 
-基于 `@anthropic-ai/claude-code` v2.1.37 的开源实现。它将成为未来 AI 的基础设施，运行在每台 PC 上。
+> 基于 `@anthropic-ai/claude-code` v2.1.37 的开源实现。它将成为未来 AI 的基础设施，运行在每台 PC 上。
 
 [![Website](https://img.shields.io/badge/Website-claude--code--open.vercel.app-blue?style=flat-square)](https://www.chatbi.site)
 [![GitHub Stars](https://img.shields.io/github/stars/kill136/claude-code-open?style=flat-square)](https://github.com/kill136/claude-code-open)
@@ -22,7 +22,7 @@ npm install -g @anthropic-ai/claude-code
 
 ## 功能概览
 
-- **30+ 内置工具** - 文件操作、搜索、执行、Web 访问、任务管理、定时任务等
+- **36+ 内置工具** - 文件操作、搜索、执行、Web 访问、任务管理、定时任务等
 - **一键安装脚本** - Windows、macOS、Linux 自动化安装脚本，自动创建桌面快捷方式
 - **定时任务守护进程** - 后台守护进程支持定时任务、间隔任务、文件监控和通知推送
 - **Web UI** - 完整的浏览器界面，React 前端 + WebSocket 实时通信
@@ -38,6 +38,14 @@ npm install -g @anthropic-ai/claude-code
 - **Docker 部署** - 容器化部署支持
 - **团队协作** - 团队管理功能
 - **插件与 Hook 系统** - 可扩展架构，支持生命周期钩子
+
+## 为什么选择 Claude Code Open？
+
+- **开源透明** - 完整的 MIT 许可证源代码，可审计、可修改、可信赖。没有黑盒，完全社区驱动开发。
+- **Web UI IDE 体验** - 不仅仅是CLI——获得完整的浏览器IDE，包含 React + WebSocket 实时通信、语法高亮、Blueprint可视化、Swarm多Agent控制台。
+- **多智能体协作** - Blueprint系统将复杂任务分解给多个并行工作的AI Agent：智能规划器 + 首席Agent + 自主Worker + 任务队列 + 质量审查员。
+- **7×24自动化** - 定时任务守护进程自动运行AI工作流：自然语言时间配置、文件监控、多渠道通知（桌面+飞书）、SQLite持久化。
+- **一键安装 + 移动端支持** - Windows/macOS/Linux 单命令安装，含桌面快捷方式 + 通过 Tailscale 实现 PWA 移动应用，手机远程编程。
 
 ## 快速安装（推荐）
 
@@ -291,7 +299,7 @@ src/
 │   ├── loop.ts             # 对话编排器
 │   └── backgroundTasks.ts  # 异步后台任务处理
 │
-├── tools/                  # 29+ 工具
+├── tools/                  # 36+ 工具
 │   ├── base.ts             # BaseTool 基类 & ToolRegistry
 │   ├── bash.ts             # Bash 执行（沙箱支持）
 │   ├── file.ts             # Read/Write/Edit/MultiEdit
@@ -377,7 +385,7 @@ src/
 └── utils/                  # 工具函数
 ```
 
-## 已实现工具（29+）
+## 已实现工具（36+）
 
 | 工具 | 状态 | 说明 |
 | --- | --- | --- |
@@ -636,6 +644,7 @@ npx tsc --noEmit
 
 ## 社区
 
+- **网站：** https://www.chatbi.site
 - **Discord：** [加入我们的 Discord](https://discord.gg/bNyJKk6PVZ)
 - **X (Twitter)：** [@wangbingjie1989](https://x.com/wangbingjie1989)
 - **微信：** h694623326

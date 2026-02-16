@@ -10,6 +10,7 @@ import { authManager } from '../auth-manager.js';
 import { CheckpointManager } from '../checkpoint-manager.js';
 import blueprintApiRouter from './blueprint-api.js';
 import agentApiRouter from './agent-api.js';
+import fileApiRouter from './file-api.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -28,6 +29,10 @@ export function setupApiRoutes(app: Express, conversationManager: ConversationMa
   // ============ Agent 系统 API ============
   // 注册 Agent API 路由（提供 agent 元数据）
   app.use('/api/agents', agentApiRouter);
+
+  // ============ 文件系统 API ============
+  // 注册文件 API 路由（供 CodeView 文件树使用）
+  app.use('/api/files', fileApiRouter);
 
   // 健康检查
   app.get('/api/health', (req: Request, res: Response) => {

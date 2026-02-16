@@ -722,4 +722,11 @@ export class PermissionHandler {
   getPendingCount(): number {
     return this.pendingRequests.size;
   }
+
+  /**
+   * 获取所有待处理的权限请求（用于会话切换时重发到前端）
+   */
+  getPendingRequests(): PermissionRequest[] {
+    return Array.from(this.pendingRequests.values()).map(p => p.request);
+  }
 }

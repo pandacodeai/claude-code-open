@@ -6,6 +6,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import * as https from 'https';
 import * as crypto from 'crypto';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 
 
 // Export Vertex AI client

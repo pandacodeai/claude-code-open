@@ -5,10 +5,13 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
+import * as crypto from 'crypto';
 import { ConversationLoop } from '../core/loop.js';
 import { initAuth } from '../auth/index.js';
 import { Notifier } from './notifier.js';
-import type { ScheduledTask } from './store.js';
+import { TaskStore, type ScheduledTask } from './store.js';
+import { appendRunLog, type RunLogEntry } from './run-log.js';
 
 export interface ExecutorOptions {
   maxConcurrent: number;
@@ -82,10 +85,21 @@ export class TaskExecutor {
     const workingDir = 'workingDir' in task ? task.workingDir : this.options.defaultWorkingDir;
     const notify = task.notify || ['desktop'];
     const feishuChatId = 'feishuChatId' in task ? task.feishuChatId : undefined;
+    
+    // 获取超时配置，默认 5 分钟
+    const timeoutMs = ('timeoutMs' in task && task.timeoutMs) ? task.timeoutMs : 300000;
 
-    const timestamp = new Date().toISOString();
+    const startedAt = Date.now();
+    const timestamp = new Date(startedAt).toISOString();
     this.log(`[${timestamp}] Executing task: ${taskName}`);
     this.log(`  Prompt: ${prompt.slice(0, 200)}${prompt.length > 200 ? '...' : ''}`);
+    this.log(`  Timeout: ${timeoutMs}ms`);
+
+    // 获取 task id 用于状态更新（仅 ScheduledTask 类型有 id）
+    const taskId = 'id' in task ? task.id : undefined;
+
+    // 构造增强版 prompt：注入 notebook 和任务上下文（把模型当人看）
+    const enrichedPrompt = this.buildEnrichedPrompt(task, prompt, workingDir);
 
     try {
       // 确保认证初始化
@@ -95,6 +109,9 @@ export class TaskExecutor {
       }
 
       // 创建临时 ConversationLoop
+      // 排除 daemon 无人值守环境中不适用的工具：
+      // - ScheduleTask: 防止模型在执行任务时创建新的定时任务（递归调度）
+      // - AskUserQuestion: daemon 无人交互，不能提问
       const loop = new ConversationLoop({
         model,
         permissionMode: this.options.defaultPermissionMode as any,
@@ -102,12 +119,59 @@ export class TaskExecutor {
         maxTurns: 10,
         verbose: false,
         isSubAgent: false,
+        disallowedTools: ['ScheduleTask', 'AskUserQuestion'],
       });
 
-      // 执行 prompt
-      const response = await loop.processMessage(prompt);
+      // 执行增强版 prompt，使用 Promise.race 添加超时保护
+      const timeoutError = `Task execution timeout after ${timeoutMs}ms`;
+      let timeoutTimer: NodeJS.Timeout | undefined;
+      const response = await Promise.race<string>([
+        loop.processMessage(enrichedPrompt).finally(() => {
+          if (timeoutTimer) clearTimeout(timeoutTimer);
+        }),
+        new Promise<string>((_, reject) => {
+          timeoutTimer = setTimeout(() => {
+            // 尝试中止 ConversationLoop
+            if (typeof (loop as any).abort === 'function') {
+              (loop as any).abort();
+            }
+            reject(new Error(timeoutError));
+          }, timeoutMs);
+        }),
+      ]);
 
+      const endedAt = Date.now();
       this.log(`  Result: ${response.slice(0, 500)}${response.length > 500 ? '...' : ''}`);
+      this.log(`  Duration: ${endedAt - startedAt}ms`);
+
+      // 写入结构化运行日志
+      if (taskId) {
+        await appendRunLog({
+          ts: endedAt,
+          taskId,
+          taskName,
+          action: 'finished',
+          status: 'success',
+          summary: response.slice(0, 500),
+          durationMs: endedAt - startedAt,
+        }).catch(() => {});
+      }
+
+      // 追加执行摘要到 executionMemory（记忆链，让下次执行知道之前做了什么）
+      if (taskId) {
+        try {
+          const store = new TaskStore();
+          const currentTask = store.getTask(taskId);
+          if (currentTask) {
+            const memory = [...(currentTask.executionMemory || [])];
+            memory.push(`[${new Date().toLocaleString()}] ${response.slice(0, 200)}`);
+            while (memory.length > 10) memory.shift();
+            store.updateTask(taskId, { executionMemory: memory });
+          }
+        } catch {
+          // 记忆追加失败不影响主流程
+        }
+      }
 
       // 发送通知
       await this.options.notifier.send(
@@ -119,14 +183,30 @@ export class TaskExecutor {
 
       return response;
     } catch (err) {
+      const endedAt = Date.now();
       const errMsg = err instanceof Error ? err.message : String(err);
-      this.log(`  ERROR: ${errMsg}`);
+      const isTimeout = errMsg.includes('timeout');
+      this.log(`  ${isTimeout ? 'TIMEOUT' : 'ERROR'}: ${errMsg}`);
+      this.log(`  Duration: ${endedAt - startedAt}ms`);
+
+      // 写入结构化运行日志
+      if (taskId) {
+        await appendRunLog({
+          ts: endedAt,
+          taskId,
+          taskName,
+          action: 'finished',
+          status: isTimeout ? 'timeout' : 'failed',
+          error: errMsg,
+          durationMs: endedAt - startedAt,
+        }).catch(() => {});
+      }
 
       // 错误也通知用户
       try {
         await this.options.notifier.send(
-          `[Daemon] ${taskName} FAILED`,
-          `Task "${taskName}" failed: ${errMsg}`,
+          `[Daemon] ${taskName} ${isTimeout ? 'TIMEOUT' : 'FAILED'}`,
+          `Task "${taskName}" ${isTimeout ? 'timed out' : 'failed'}: ${errMsg}`,
           notify,
           feishuChatId,
         );
@@ -136,6 +216,75 @@ export class TaskExecutor {
 
       throw err;
     }
+  }
+
+  /**
+   * 构造增强版 prompt：注入 notebook 记忆和任务上下文
+   * 让后台执行的模型不再"失忆"
+   */
+  private buildEnrichedPrompt(
+    task: TaskExecution['task'],
+    basePrompt: string,
+    workingDir: string,
+  ): string {
+    const parts: string[] = [];
+
+    // 1. 读取用户 notebook（experience.md）
+    try {
+      const experiencePath = path.join(os.homedir(), '.claude', 'memory', 'experience.md');
+      if (fs.existsSync(experiencePath)) {
+        const content = fs.readFileSync(experiencePath, 'utf-8').trim();
+        if (content) {
+          parts.push('## 用户信息（你的记忆）');
+          parts.push(content);
+        }
+      }
+    } catch { /* 读取失败不影响执行 */ }
+
+    // 2. 读取项目 notebook（project.md）
+    try {
+      const projectHash = crypto.createHash('md5').update(workingDir).digest('hex').slice(0, 12);
+      const projectDir = path.join(os.homedir(), '.claude', 'memory', 'projects');
+      // 尝试匹配 projectHash 开头的目录
+      if (fs.existsSync(projectDir)) {
+        const dirs = fs.readdirSync(projectDir);
+        const matchDir = dirs.find(d => d.includes(projectHash));
+        if (matchDir) {
+          const projectMdPath = path.join(projectDir, matchDir, 'project.md');
+          if (fs.existsSync(projectMdPath)) {
+            const content = fs.readFileSync(projectMdPath, 'utf-8').trim();
+            if (content) {
+              parts.push('## 项目信息');
+              parts.push(content);
+            }
+          }
+        }
+      }
+    } catch { /* 读取失败不影响执行 */ }
+
+    // 3. 任务上下文
+    parts.push('## 定时任务信息');
+    parts.push(`任务名称：${task.name}`);
+
+    if ('context' in task && task.context) {
+      parts.push(`创建时的对话背景：${task.context}`);
+    }
+
+    // 4. 历史执行记录
+    if ('executionMemory' in task && task.executionMemory && task.executionMemory.length > 0) {
+      parts.push('');
+      parts.push('### 历史执行记录');
+      for (const mem of task.executionMemory) {
+        parts.push(`- ${mem}`);
+      }
+    }
+
+    // 5. 最后是实际任务指令
+    parts.push('');
+    parts.push('## 请执行以下任务');
+    parts.push(basePrompt);
+
+    return parts.join('\n');
   }
 
   private log(message: string): void {

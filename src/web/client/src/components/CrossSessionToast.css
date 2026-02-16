@@ -1,0 +1,118 @@
+/* CrossSessionToast - 跨会话通知提醒 */
+
+.cross-session-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent-warning);
+  border-radius: var(--radius-md, 12px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(245, 158, 11, 0.15);
+  cursor: pointer;
+  animation: toast-slide-in 0.3s ease-out;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  max-width: 360px;
+  user-select: none;
+}
+
+.cross-session-toast:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(245, 158, 11, 0.25);
+}
+
+.cross-session-toast:active {
+  transform: translateY(0);
+}
+
+.cross-session-toast-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-warning);
+  font-size: 16px;
+}
+
+.cross-session-toast-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.cross-session-toast-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.cross-session-toast-detail {
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cross-session-toast-action {
+  font-size: 11px;
+  color: var(--accent-warning);
+  margin-top: 4px;
+  opacity: 0.8;
+}
+
+.cross-session-toast-close {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cross-session-toast-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+/* 呼吸动画 - 持续提醒 */
+.cross-session-toast-pulse {
+  animation: toast-pulse 2s ease-in-out infinite;
+}
+
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(40px) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
+}
+
+@keyframes toast-pulse {
+  0%, 100% {
+    border-color: var(--accent-warning);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(245, 158, 11, 0.15);
+  }
+  50% {
+    border-color: rgba(245, 158, 11, 0.6);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 8px rgba(245, 158, 11, 0.2);
+  }
+}

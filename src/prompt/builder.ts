@@ -24,6 +24,7 @@ import {
 } from './templates.js';
 import { AttachmentManager, attachmentManager as defaultAttachmentManager } from './attachments.js';
 import { PromptCache, promptCache, generateCacheKey } from './cache.js';
+import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -188,10 +189,10 @@ function collectHostInfo(): Record<string, string | number | undefined> {
     const psScript = `Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 10 -Property Name,@{N='MB';E={[math]::Round($_.WorkingSet64/1MB)}} | ForEach-Object { "$($_.Name)($($_.MB)MB)" }`;
     const tmpFile = path.join(os.tmpdir(), '_claude_ps_top.ps1');
     try {
-      require('fs').writeFileSync(tmpFile, psScript, 'utf-8');
+      fs.writeFileSync(tmpFile, psScript, 'utf-8');
       const psOut = safeExec(`powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${tmpFile}"`);
       if (psOut) info.activeProcesses = psOut.split(/\r?\n/).filter(Boolean).join(', ');
-      require('fs').unlinkSync(tmpFile);
+      fs.unlinkSync(tmpFile);
     } catch { /* ignore */ }
   } else {
     const psOut = safeExec('ps aux --sort=-%mem 2>/dev/null | head -11 | tail -10 | awk \'{printf "%s(%dMB) ",$11,$6/1024}\'');
@@ -384,6 +385,18 @@ CRITICAL: When a user shares personal information (name, role, preferences, cont
 Similarly, when you discover important project-specific knowledge (gotchas, hidden dependencies, non-obvious patterns) during work, persist it to the project notebook immediately.
 
 Failing to write important information to notebooks is a critical error — it means the information will be lost when the conversation ends.`);
+    }
+
+    // 10.6 MemorySearch 长期记忆搜索提示
+    if (toolNames.has('MemorySearch')) {
+      staticParts.push(`# Long-term Memory Search
+
+You have access to a MemorySearch tool that searches past session history and memory files beyond the current notebook. Use it when:
+- The current notebook (experience.md + project.md) doesn't have the information you need
+- You want to recall past decisions, patterns, or lessons from previous sessions
+- Looking for historical context about a file, function, or topic
+
+The tool returns results with source attribution (file path, line numbers, timestamps, age) to help you judge relevance and freshness. This is a supplementary search layer — your primary knowledge source is still the fully-loaded notebook.`);
     }
 
     // 11. 代码引用格式 (uqz)

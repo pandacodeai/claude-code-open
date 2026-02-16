@@ -58,6 +58,7 @@ import { TeamCreateTool, TeamDeleteTool, TeamSendMessageTool } from './team.js';
 import { ScheduleTaskTool } from './schedule.js';
 import { SelfEvolveTool } from './self-evolve.js';
 import { BrowserTool } from './browser.js';
+import { MemorySearchTool } from './memory-search.js';
 
 // ============ 蓝图工具 imports (lazy) ============
 import { BlueprintTool } from './blueprint.js';
@@ -169,6 +170,9 @@ export function registerCoreTools(): void {
 
   // 15. Browser 浏览器控制工具
   toolRegistry.register(new BrowserTool());
+
+  // 16. MemorySearch 长期记忆搜索工具
+  toolRegistry.register(new MemorySearchTool());
 }
 
 /**

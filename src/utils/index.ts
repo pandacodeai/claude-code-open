@@ -3,8 +3,11 @@
  */
 
 import * as fs from 'fs';
+import * as fsPromises from 'fs/promises';
 import * as path from 'path';
+import * as os from 'os';
 import * as crypto from 'crypto';
+import { execSync } from 'child_process';
 
 /**
  * 生成 UUID
@@ -397,7 +400,6 @@ export function truncateMcpOutput(output: string, maxTokens?: number): string {
  * @returns boolean - 命令是否存在
  */
 export function commandExists(command: string): boolean {
-  const { execSync } = require('child_process') as typeof import('child_process');
   try {
     const whichCmd = process.platform === 'win32' ? 'where' : 'which';
     execSync(`${whichCmd} ${command}`, { stdio: 'ignore' });
@@ -454,7 +456,6 @@ export interface ExternalEditorResult {
  * @returns Promise<ExternalEditorResult> - 打开结果
  */
 export async function openInExternalEditor(filePath: string): Promise<ExternalEditorResult> {
-  const { execSync } = require('child_process') as typeof import('child_process');
   const editor = getDefaultEditor();
 
   if (!editor) {
@@ -474,7 +475,7 @@ export async function openInExternalEditor(filePath: string): Promise<ExternalEd
     });
 
     // 读取编辑后的内容
-    const fsPromises = require('fs/promises') as typeof import('fs/promises');
+    // fsPromises 已在文件顶部 ESM 导入
     const content = await fsPromises.readFile(filePath, 'utf-8');
 
     return {
@@ -500,10 +501,6 @@ export async function createTempFileForEditor(
   content: string = '',
   extension: string = '.md'
 ): Promise<string> {
-  const os = require('os') as typeof import('os');
-  const path = require('path') as typeof import('path');
-  const fsPromises = require('fs/promises') as typeof import('fs/promises');
-
   const tempDir = os.tmpdir();
   const tempFileName = `claude-code-${Date.now()}${extension}`;
   const tempFilePath = path.join(tempDir, tempFileName);
@@ -519,8 +516,6 @@ export async function createTempFileForEditor(
  * @returns Promise<ExternalEditorResult> - 编辑结果
  */
 export async function editInExternalEditor(initialContent: string = ''): Promise<ExternalEditorResult> {
-  const fsPromises = require('fs/promises') as typeof import('fs/promises');
-
   try {
     // 创建临时文件
     const tempFilePath = await createTempFileForEditor(initialContent);

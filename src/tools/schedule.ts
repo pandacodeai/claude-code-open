@@ -2,18 +2,28 @@
  * ScheduleTask 工具
  * 允许模型在对话中动态创建、取消、列出定时任务
  * 任务由 daemon 进程执行，结果通过桌面通知或飞书推送
+ *
+ * 特性：
+ * - once 类型任务如果触发时间在 10 分钟内，会自动在当前会话内等待执行
+ * - 支持 watch action 查看历史执行日志
  */
 
+import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import { spawn } from 'child_process';
 import { BaseTool } from './base.js';
 import type { ToolDefinition, ToolResult } from '../types/index.js';
 import { TaskStore, type ScheduledTask } from '../daemon/store.js';
 import { isDaemonRunning } from '../daemon/index.js';
 import { parseTimeExpression } from '../daemon/time-parser.js';
+import { appendRunLog, readRunLogEntries } from '../daemon/run-log.js';
+
+/** once 类型任务自动在会话内执行的最大等待时间（10 分钟） */
+const INLINE_WAIT_THRESHOLD_MS = 10 * 60 * 1000;
 
 interface ScheduleTaskInput {
-  action: 'create' | 'cancel' | 'list';
+  action: 'create' | 'cancel' | 'list' | 'watch';
 
   // create 参数
   name?: string;
@@ -27,14 +37,18 @@ interface ScheduleTaskInput {
   notify?: ('desktop' | 'feishu')[];
   feishuChatId?: string;
   model?: string;
+  timeoutMs?: number;
 
-  // cancel 参数
+  /** 创建任务时的对话上下文快照 — 简要描述当前对话场景，帮助执行时的模型理解背景 */
+  context?: string;
+
+  // cancel / watch 参数
   taskId?: string;
 }
 
 export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
   name = 'ScheduleTask';
-  description = 'Create, cancel, or list scheduled tasks. Tasks are executed by the daemon process and results are sent via desktop notification or Feishu. The daemon must be running (claude daemon start) for tasks to execute.';
+  description = 'Create, cancel, or list scheduled tasks. Tasks are executed by the daemon process and results are sent via desktop notification or Feishu. The daemon must be running (claude daemon start) for tasks to execute. For once-type tasks triggering within 10 minutes, execution happens inline in the current session. Use action=watch with taskId to view execution history.\n\nNever call ScheduleTask twice for the same task — one call is sufficient.';
 
   getInputSchema(): ToolDefinition['inputSchema'] {
     return {
@@ -42,7 +56,7 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
       properties: {
         action: {
           type: 'string',
-          enum: ['create', 'cancel', 'list'],
+          enum: ['create', 'cancel', 'list', 'watch'],
           description: 'Action to perform.',
         },
         name: {
@@ -93,6 +107,14 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
           type: 'string',
           description: 'Model to use for prompt execution. Default: sonnet.',
         },
+        timeoutMs: {
+          type: 'number',
+          description: 'Task execution timeout in milliseconds. Default: 300000 (5 minutes).',
+        },
+        context: {
+          type: 'string',
+          description: 'Brief context snapshot of the current conversation when creating the task. Helps the executing model understand the background. Keep it concise (100-300 chars).',
+        },
         taskId: {
           type: 'string',
           description: 'Task ID to cancel (required for action=cancel).',
@@ -112,8 +134,10 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
         return this.handleCancel(store, input);
       case 'list':
         return this.handleList(store);
+      case 'watch':
+        return this.handleWatch(store, input);
       default:
-        return { success: false, output: `Unknown action: ${input.action}. Use create, cancel, or list.` };
+        return { success: false, output: `Unknown action: ${input.action}. Use create, cancel, list, or watch.` };
     }
   }
 
@@ -127,6 +151,19 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
     }
     if (!input.prompt) {
       return { success: false, output: 'Error: "prompt" is required for create action.' };
+    }
+
+    // 重复任务检测：同名任务在 2 分钟内已创建，拒绝重复（不限 enabled 状态，已执行完的任务 enabled=false）
+    const existingTasks = store.listTasks();
+    const now = Date.now();
+    const duplicate = existingTasks.find(t =>
+      t.name === input.name && (now - t.createdAt) < 120_000
+    );
+    if (duplicate) {
+      return {
+        success: false,
+        output: `Error: Task "${input.name}" already exists (ID: ${duplicate.id}, created ${Math.round((now - duplicate.createdAt) / 1000)}s ago). A single create call is sufficient — do NOT call ScheduleTask again for the same task.`,
+      };
     }
 
     let triggerAt: number | undefined;
@@ -167,6 +204,8 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
       createdBy: 'conversation',
       workingDir: process.cwd(),
       model: input.model,
+      timeoutMs: input.timeoutMs,
+      context: input.context,
       enabled: true,
     });
 
@@ -177,14 +216,34 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
     let daemonAutoStarted = false;
     if (!isDaemonRunning()) {
       try {
-        // import.meta.dirname 在编译后已经在 dist/tools/ 下，所以向上一层就是 dist/
-        const cliPath = path.join(import.meta.dirname, '..', 'cli.js');
-        const daemonProcess = spawn(process.execPath, [cliPath, 'daemon', 'start'], {
+        const claudeDir = path.join(os.homedir(), '.claude');
+        if (!fs.existsSync(claudeDir)) {
+          fs.mkdirSync(claudeDir, { recursive: true });
+        }
+        const logPath = path.join(claudeDir, 'daemon.log');
+        const logFd = fs.openSync(logPath, 'a');
+        // 判断运行模式：编译后 dist/tools/ 下有 cli.js，开发模式 src/tools/ 下需要用 tsx 运行 cli.ts
+        const compiledCliPath = path.join(import.meta.dirname, '..', 'cli.js');
+        const isDev = !fs.existsSync(compiledCliPath);
+        let spawnCmd: string;
+        let spawnArgs: string[];
+        if (isDev) {
+          const tsCliPath = path.join(import.meta.dirname, '..', 'cli.ts');
+          // 用 node --import tsx 运行 .ts 文件，跨平台兼容
+          // 避免 Windows 上 spawn tsx.cmd + detached 导致 PID 指向 cmd.exe 的问题
+          spawnCmd = process.execPath;
+          spawnArgs = ['--import', 'tsx', tsCliPath, 'daemon', 'start'];
+        } else {
+          spawnCmd = process.execPath;
+          spawnArgs = [compiledCliPath, 'daemon', 'start'];
+        }
+        const daemonProcess = spawn(spawnCmd, spawnArgs, {
           detached: true,
-          stdio: 'ignore',
+          stdio: ['ignore', logFd, logFd],
           cwd: process.cwd(),
         });
         daemonProcess.unref();
+        fs.closeSync(logFd);
         daemonAutoStarted = true;
       } catch {
         // 自动启动失败，不影响任务创建
@@ -205,6 +264,11 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
     details += `Notify: ${task.notify.join(', ')}`;
     if (daemonAutoStarted) {
       details += `\n\nDaemon was not running — auto-started successfully.`;
+    }
+
+    // 会话内等待执行：once 类型 + 触发时间在阈值内 → 阻塞等待并在当前进程执行
+    if (task.type === 'once' && task.triggerAt && (task.triggerAt - Date.now()) <= INLINE_WAIT_THRESHOLD_MS) {
+      return this.waitAndExecuteInline(store, task, details);
     }
 
     return { success: true, output: details };
@@ -245,9 +309,182 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
       info += `\n  Prompt: ${t.prompt.slice(0, 100)}${t.prompt.length > 100 ? '...' : ''}`;
       info += `\n  Notify: ${t.notify.join(', ')}`;
       info += `\n  Enabled: ${t.enabled}`;
+      // 执行状态
+      if (t.lastRunAt) {
+        const statusIcon = t.lastRunStatus === 'success' ? 'OK' : t.lastRunStatus === 'timeout' ? 'TIMEOUT' : 'FAILED';
+        info += `\n  Last run: ${new Date(t.lastRunAt).toLocaleString()} [${statusIcon}]`;
+        if (t.lastRunError) {
+          info += `\n  Error: ${t.lastRunError.slice(0, 200)}`;
+        }
+      }
+      if (t.runCount) {
+        info += `\n  Run count: ${t.runCount}`;
+      }
       return info;
     });
 
     return { success: true, output: `Scheduled tasks (${tasks.length}):\n\n${lines.join('\n\n')}` };
+  }
+
+  /**
+   * 查看任务的历史执行日志
+   */
+  private handleWatch(store: TaskStore, input: ScheduleTaskInput): ToolResult {
+    if (!input.taskId) {
+      return { success: false, output: 'Error: "taskId" is required for watch action.' };
+    }
+
+    const task = store.getTask(input.taskId);
+    if (!task) {
+      return { success: false, output: `Task ${input.taskId} not found.` };
+    }
+
+    const entries = readRunLogEntries(input.taskId, { limit: 20 });
+
+    if (entries.length === 0) {
+      return { success: true, output: `Task "${task.name}" has no execution history yet.` };
+    }
+
+    const lines = entries.map(e => {
+      const time = new Date(e.ts).toLocaleString();
+      const status = e.status === 'success' ? 'OK' : e.status.toUpperCase();
+      const dur = e.durationMs ? `${Math.round(e.durationMs / 1000)}s` : '?';
+      let line = `[${time}] ${status} (${dur})`;
+      if (e.summary) line += `\n  ${e.summary.slice(0, 200)}`;
+      if (e.error) line += `\n  Error: ${e.error.slice(0, 200)}`;
+      return line;
+    });
+
+    return {
+      success: true,
+      output: `Execution history for "${task.name}" (last ${entries.length}):\n\n${lines.join('\n\n')}`,
+    };
+  }
+
+  /**
+   * 会话内等待执行：阻塞等待触发时间，然后在当前进程内执行 prompt
+   * 执行期间 UI 上显示 ScheduleTask 工具的 spinner，执行完成后显示结果
+   */
+  private async waitAndExecuteInline(store: TaskStore, task: ScheduledTask, createDetails: string): Promise<ToolResult> {
+    // 立即标记为正在执行，防止 daemon 在等待期间抢先执行（竞态）
+    store.updateTask(task.id, { runningAtMs: Date.now() });
+
+    const waitUntil = task.triggerAt!;
+
+    // 分段等待触发时间，每 3 秒检查一次任务是否被外部取消
+    while (Date.now() < waitUntil) {
+      const remaining = waitUntil - Date.now();
+      if (remaining <= 0) break;
+      await new Promise(resolve => setTimeout(resolve, Math.min(remaining, 3000)));
+
+      // 从磁盘重新加载，检查任务是否被外部取消（另一个会话调用 cancel）
+      store.reload();
+      const current = store.getTask(task.id);
+      if (!current || !current.enabled) {
+        return {
+          success: true,
+          output: `${createDetails}\n\nTask was cancelled before execution.`,
+        };
+      }
+    }
+
+    const startedAt = Date.now();
+    const timeoutMs = task.timeoutMs || 300000;
+
+    try {
+      const { initAuth } = await import('../auth/index.js');
+      initAuth();
+
+      const { ConversationLoop } = await import('../core/loop.js');
+      // 排除不适合在定时任务执行环境中使用的工具：
+      // - ScheduleTask: 防止递归调度，模型不应在执行任务时创建新定时任务
+      // - AskUserQuestion: 内联执行期间无法交互
+      const loop = new ConversationLoop({
+        model: task.model || 'sonnet',
+        permissionMode: 'bypassPermissions' as any,
+        workingDir: task.workingDir,
+        maxTurns: 10,
+        verbose: false,
+        isSubAgent: true,
+        disallowedTools: ['ScheduleTask', 'AskUserQuestion'],
+      });
+
+      // 带超时保护执行
+      let timeoutTimer: NodeJS.Timeout | undefined;
+      const response = await Promise.race<string>([
+        loop.processMessage(task.prompt).finally(() => {
+          if (timeoutTimer) clearTimeout(timeoutTimer);
+        }),
+        new Promise<string>((_, reject) => {
+          timeoutTimer = setTimeout(() => {
+            if (typeof (loop as any).abort === 'function') {
+              (loop as any).abort();
+            }
+            reject(new Error(`Task execution timeout after ${timeoutMs}ms`));
+          }, timeoutMs);
+        }),
+      ]);
+
+      const endedAt = Date.now();
+
+      // 更新任务状态
+      store.updateTask(task.id, {
+        runningAtMs: undefined,
+        lastRunAt: startedAt,
+        lastRunStatus: 'success',
+        lastDurationMs: endedAt - startedAt,
+        runCount: (task.runCount || 0) + 1,
+        consecutiveErrors: 0,
+        enabled: false,
+        nextRunAtMs: undefined,
+      });
+
+      // 写入运行日志
+      await appendRunLog({
+        ts: endedAt,
+        taskId: task.id,
+        taskName: task.name,
+        action: 'finished',
+        status: 'success',
+        summary: response.slice(0, 500),
+        durationMs: endedAt - startedAt,
+      }).catch(() => {});
+
+      return {
+        success: true,
+        output: `${createDetails}\n\n--- Inline Execution ---\nTask "${task.name}" executed successfully in ${Math.round((endedAt - startedAt) / 1000)}s.\n\nResult:\n${response}`,
+      };
+    } catch (err) {
+      const endedAt = Date.now();
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const isTimeout = errMsg.includes('timeout');
+
+      store.updateTask(task.id, {
+        runningAtMs: undefined,
+        lastRunAt: startedAt,
+        lastRunStatus: isTimeout ? 'timeout' : 'failed',
+        lastRunError: errMsg,
+        lastDurationMs: endedAt - startedAt,
+        runCount: (task.runCount || 0) + 1,
+        consecutiveErrors: (task.consecutiveErrors || 0) + 1,
+        enabled: false,
+        nextRunAtMs: undefined,
+      });
+
+      await appendRunLog({
+        ts: endedAt,
+        taskId: task.id,
+        taskName: task.name,
+        action: 'finished',
+        status: isTimeout ? 'timeout' : 'failed',
+        error: errMsg,
+        durationMs: endedAt - startedAt,
+      }).catch(() => {});
+
+      return {
+        success: false,
+        error: `${createDetails}\n\n--- Inline Execution ---\nTask "${task.name}" ${isTimeout ? 'timed out' : 'failed'}: ${errMsg}`,
+      };
+    }
   }
 }

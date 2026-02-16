@@ -47,6 +47,7 @@ export class DaemonManager {
   private watcher!: FileWatcher;
   private notifier!: Notifier;
   private reloadTimer: NodeJS.Timeout | null = null;
+  private keepaliveTimer: NodeJS.Timeout | null = null;
   private cwd: string;
 
   constructor(options: { cwd?: string } = {}) {
@@ -58,6 +59,13 @@ export class DaemonManager {
    * 启动 daemon
    */
   async start(): Promise<void> {
+    // 启动诊断日志
+    console.log(`[Daemon] Starting at ${new Date().toISOString()}`);
+    console.log(`[Daemon] PID: ${process.pid}`);
+    console.log(`[Daemon] Node: ${process.version}`);
+    console.log(`[Daemon] Platform: ${process.platform} ${process.arch}`);
+    console.log(`[Daemon] CWD: ${this.cwd}`);
+
     // 检查是否已有 daemon 运行
     if (isDaemonRunning()) {
       const pid = readPid();
@@ -67,6 +75,7 @@ export class DaemonManager {
     // 加载配置
     this.config = loadDaemonConfig(this.cwd);
     const settings = this.config.settings;
+    console.log(`[Daemon] Config loaded: maxConcurrent=${settings.maxConcurrent}, model=${settings.model}, reloadInterval=${settings.reloadInterval}ms`);
 
     // 解析日志文件路径
     const logFile = path.isAbsolute(settings.logFile)
@@ -127,17 +136,30 @@ export class DaemonManager {
     // 注册动态任务
     this.registerDynamicTasks();
 
+    // 重启补偿：执行错过的任务
+    console.log('[Daemon] Checking for missed jobs...');
+    await this.scheduler.runMissedJobs();
+
+    // 重新计算所有 nextRunAtMs 并启动 timer
+    this.scheduler.recomputeNextRuns();
+    this.scheduler.armTimer();
+
     // 写 PID 文件
     writePid();
 
-    // 启动 reload 轮询
+    // 启动 reload 轮询（不 unref，确保 daemon 进程存活）
     this.reloadTimer = setInterval(() => {
       if (this.store.checkReloadSignal()) {
         console.log(chalk.yellow('[Daemon] Reload signal detected, reloading tasks...'));
         this.reloadDynamicTasks();
       }
     }, settings.reloadInterval);
-    this.reloadTimer.unref();
+
+    // 启动 keepalive 定时器，防止进程因为没有活跃 timer 而退出
+    // 每 60 秒运行一次空操作，确保进程持续存活
+    this.keepaliveTimer = setInterval(() => {
+      // 空操作，仅用于保持进程存活
+    }, 60000);
 
     // 注册退出处理
     const cleanup = () => {
@@ -164,6 +186,10 @@ export class DaemonManager {
     if (this.reloadTimer) {
       clearInterval(this.reloadTimer);
       this.reloadTimer = null;
+    }
+    if (this.keepaliveTimer) {
+      clearInterval(this.keepaliveTimer);
+      this.keepaliveTimer = null;
     }
     this.watcher?.unwatchAll();
     this.scheduler?.cancelAll();
@@ -224,6 +250,10 @@ export class DaemonManager {
         console.log(chalk.blue(`  New task: ${task.name} (${task.type})`));
       }
     }
+
+    // 重新计算并启动 timer
+    this.scheduler.recomputeNextRuns();
+    this.scheduler.armTimer();
   }
 
   /**

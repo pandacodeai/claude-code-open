@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 
 <head>
@@ -341,424 +341,71 @@
                 <p class="section-subtitle">10 篇深度技术文章，记录我们从零构建 AI 编程平台的每一步</p>
             </div>
             <div class="blog-posts">
-
-                <!-- Blog 1: Web UI -->
+            <div class="blog-posts">
+                <!-- Blog 1: 核心优势 (featured) -->
                 <article class="blog-post featured">
                     <div class="blog-post-header">
-                        <span class="blog-tag">重磅功能</span>
+                        <span class="blog-tag">核心</span>
                         <span class="blog-date">2026年2月</span>
                     </div>
-                    <h3>Web UI：从终端走向浏览器，打造全栈 AI IDE</h3>
+                    <h3>为什么选择 Claude Code Open — 十大核心优势</h3>
                     <div class="blog-content">
-                        <h4>为什么需要 Web UI？</h4>
-                        <p>CLI 是开发者的利器，但它有天然的局限：无法展示富文本、不支持多窗口布局、缺少可视化调试能力。我们的目标是：<strong>在浏览器中获得和 VSCode 一样流畅的 AI 编程体验，同时保留 CLI 的全部能力</strong>。</p>
-
-                        <h4>技术架构</h4>
-                        <p>Web UI 采用经典的三层架构，每一层都经过精心选型：</p>
+                        <p>Claude Code Open 不只是一个开源复刻 — 它是一个远超官方 CLI 的完整 AI 编程平台。从 Web UI IDE、多智能体协作到定时任务自动化和移动端编程，了解让它成为开发者首选的十大核心优势。</p>
                         <ul>
-                            <li><strong>客户端</strong> — React 18 + Vite + TypeScript。多页路由支持 AuthPage（OAuth 登录）、BlueprintPage（工作流编辑器）、CodeBrowserPage（代码浏览）、SwarmConsole（多智能体控制台）</li>
-                            <li><strong>通信层</strong> — WebSocket 实时双向消息 + tRPC 类型安全 API。消息流、工具调用状态、Agent 进度全部实时推送</li>
-                            <li><strong>服务端</strong> — Express.js + Better-SQLite3。SessionManager 管理会话持久化，PermissionHandler 处理权限控制，TaskManager 协调后台任务，TerminalManager 对接 xterm.js 终端模拟</li>
+                            <li><strong>开源透明</strong> — 完整源码、MIT 许可证、社区驱动</li>
+                            <li><strong>Web UI 全栈 IDE</strong> — 完整的浏览器端编程体验，WebSocket 实时通信</li>
+                            <li><strong>多智能体协作 (Blueprint)</strong> — 智能规划器 + Lead Agent + 自主 Worker 处理复杂任务</li>
+                            <li><strong>定时任务守护进程</strong> — 7×24 AI 自动化，自然语言调度</li>
+                            <li><strong>移动端编程</strong> — PWA + Tailscale 手机远程编程</li>
                         </ul>
-
-                        <h4>核心组件一览</h4>
-                        <p>Web UI 包含 30+ 精心设计的 React 组件：</p>
-                        <ul>
-                            <li><strong>消息系统</strong> — MarkdownContent 渲染器、ToolCall 可视化、PermissionDialog 权限确认、UserQuestionDialog 交互式问答</li>
-                            <li><strong>代码浏览器</strong> — 虚拟化 TreeView 文件树、语法高亮、调用图可视化</li>
-                            <li><strong>配置面板</strong> — Hooks 配置、权限管理、API 设置、缓存控制、MCP 服务器管理、插件管理</li>
-                            <li><strong>终端集成</strong> — 基于 xterm.js 的完整终端模拟，可在 Web 中直接执行命令</li>
-                        </ul>
-
-                        <h4>OAuth 认证流程</h4>
-                        <p>我们实现了完整的 OAuth 认证体系：用户通过 AuthPage 登录后，OAuthManager 管理 token 生命周期，自动刷新、多设备同步。这意味着你可以在任何有浏览器的设备上安全地使用 Claude 编程助手。</p>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1)); border-radius: 8px;">
-                            <strong>亮点数据：</strong>30+ React 组件 · WebSocket 实时通信 · 4 个独立页面 · xterm.js 终端 · SQLite 持久化 · OAuth 全流程
-                        </p>
                     </div>
                     <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/web" target="_blank" class="btn btn-outline btn-small">
-                            查看 Web UI 源码 →
-                        </a>
+                        <a href="../advantages-blog.html" class="btn btn-primary btn-small">阅读全文 →</a>
                     </div>
                 </article>
 
-                <!-- Blog 2: Agent Teams -->
-                <article class="blog-post featured">
-                    <div class="blog-post-header">
-                        <span class="blog-tag">多智能体</span>
-                        <span class="blog-date">2026年1月</span>
-                    </div>
-                    <h3>Agent Teams：当一个 AI 不够用，就让一群 AI 协作</h3>
-                    <div class="blog-content">
-                        <h4>单一 Agent 的瓶颈</h4>
-                        <p>单个 Claude 实例处理复杂任务时，面临上下文窗口限制、专注力分散、无法并行等问题。我们的答案是：<strong>让多个 Agent 组成团队，每个成员专注自己的职责，通过消息系统协作完成大型任务</strong>。</p>
-
-                        <h4>架构设计</h4>
-                        <p>Agent Teams 系统由四个核心工具组成：</p>
-                        <div class="code-block" style="margin: 1rem 0;">
-                            <code>TeamCreate    — 创建团队，定义团队目标和成员角色<br>
-TeamSendMessage — 团队成员间发送消息，共享发现和进度<br>
-Teammate      — v2.1.32+ 新增，单个队友的上下文管理<br>
-TeamDelete    — 任务完成后清理团队资源</code>
-                        </div>
-
-                        <h4>消息通信机制</h4>
-                        <p>每个 Agent 拥有独立的上下文窗口和工具权限，通过结构化消息进行通信。TeamSendMessage 支持定向消息（发送给特定成员）和广播消息（全队共享），确保信息在正确的时间到达正确的人。</p>
-
-                        <h4>上下文记忆共享</h4>
-                        <p>团队成员通过 Memory 系统共享关键发现。当一个 Agent 分析出代码的关键架构信息，它可以将这些知识持久化到共享记忆中，其他成员无需重复劳动即可获取这些洞察。</p>
-
-                        <h4>典型使用场景</h4>
-                        <ul>
-                            <li><strong>大型重构</strong> — 3 个 Agent 分别负责前端、后端、测试，并行重构同一系统</li>
-                            <li><strong>代码审查</strong> — 安全审查员 + 性能审查员 + 架构审查员各司其职</li>
-                            <li><strong>文档生成</strong> — 一个 Agent 分析代码，一个编写文档，一个生成示例</li>
-                        </ul>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(34, 211, 238, 0.1), rgba(99, 102, 241, 0.1)); border-radius: 8px;">
-                            <strong>核心能力：</strong>团队创建/删除 · 成员角色定义 · 定向/广播消息 · 共享记忆 · 并行执行 · 进度监控
-                        </p>
-                    </div>
-                    <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/teams" target="_blank" class="btn btn-outline btn-small">
-                            查看 Teams 源码 →
-                        </a>
-                    </div>
-                </article>
-
-                <!-- Blog 3: Blueprint -->
-                <article class="blog-post featured">
-                    <div class="blog-post-header">
-                        <span class="blog-tag">工作流引擎</span>
-                        <span class="blog-date">2026年1月</span>
-                    </div>
-                    <h3>Blueprint：用可视化工作流编排多智能体任务</h3>
-                    <div class="blog-content">
-                        <h4>从手动调度到自动编排</h4>
-                        <p>Agent Teams 让多智能体协作成为可能，但手动管理团队分工仍然繁琐。Blueprint 系统在此基础上更进一步：<strong>你描述目标，系统自动生成执行计划、分配任务、调度 Worker、验证结果</strong>。</p>
-
-                        <h4>七大核心工具</h4>
-                        <ul>
-                            <li><strong>Blueprint</strong> — 定义项目蓝图，描述最终目标和约束条件</li>
-                            <li><strong>GenerateBlueprint</strong> — AI 自动分析蓝图，生成可执行的任务分解</li>
-                            <li><strong>GenerateDesign</strong> — 根据蓝图生成详细的技术设计方案</li>
-                            <li><strong>StartLeadAgent</strong> — 启动主控 Agent，负责全局调度和决策</li>
-                            <li><strong>UpdateTaskPlan</strong> — 动态更新任务计划，响应执行中的变化</li>
-                            <li><strong>DispatchWorker</strong> — 分派 Worker Agent 执行具体子任务</li>
-                            <li><strong>TriggerE2ETest</strong> — 触发端到端测试，验证整体交付质量</li>
-                        </ul>
-
-                        <h4>工作流执行过程</h4>
-                        <div class="code-block" style="margin: 1rem 0;">
-                            <code>用户描述目标 → GenerateBlueprint 生成计划<br>
-  → StartLeadAgent 启动主控<br>
-    → DispatchWorker 分派任务到各 Worker<br>
-      → Worker 并行执行，通过消息汇报进度<br>
-        → Lead Agent 动态调整 (UpdateTaskPlan)<br>
-          → TriggerE2ETest 验证最终结果</code>
-                        </div>
-
-                        <h4>Web UI 中的 Blueprint 编辑器</h4>
-                        <p>在 BlueprintPage 中，你可以可视化地查看整个工作流的执行状态：哪些 Worker 在运行、任务进度如何、哪里出现了阻塞。Swarm Console 提供了 Agent Explorer、任务树、Worker 面板等丰富的监控工具。</p>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(236, 72, 153, 0.1)); border-radius: 8px;">
-                            <strong>自动化链路：</strong>目标描述 → 蓝图生成 → 设计方案 → Lead Agent → Worker 分派 → E2E 验证 —— 全流程自动化
-                        </p>
-                    </div>
-                    <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/web/client/src/components/swarm" target="_blank" class="btn btn-outline btn-small">
-                            查看 Blueprint UI 源码 →
-                        </a>
-                    </div>
-                </article>
-
-                <!-- Blog 4: Plugin & Hooks -->
+                <!-- Blog 2: 定时任务守护进程 -->
                 <article class="blog-post">
                     <div class="blog-post-header">
-                        <span class="blog-tag">架构设计</span>
-                        <span class="blog-date">2026年1月</span>
-                    </div>
-                    <h3>插件 & Hooks：用 3 个设计模式打造无限可扩展的工具系统</h3>
-                    <div class="blog-content">
-                        <h4>为什么可扩展性至关重要</h4>
-                        <p>AI 编程工具的生命力在于生态。一个封闭的系统终将被淘汰，而一个开放的平台可以汇聚社区的力量不断进化。我们从第一天就把可扩展性作为核心设计目标。</p>
-
-                        <h4>三大设计模式</h4>
-                        <p><strong>1. Registry Pattern — ToolRegistry</strong></p>
-                        <p>所有工具通过 ToolRegistry 动态注册和管理。每个工具继承 BaseTool，定义 Zod schema 输入校验和 execute() 方法。支持运行时添加/移除工具，allow/disallow 列表控制工具可见性。</p>
-
-                        <p><strong>2. Plugin Pattern — PluginManager</strong></p>
-                        <p>插件系统提供完整的生命周期管理：加载 → 初始化 → 激活 → 停用 → 卸载。插件可以注册新工具、修改现有行为、添加 UI 组件。插件目录支持全局（<code>~/.claude/plugins/</code>）和项目级（<code>.claude/plugins/</code>）。</p>
-
-                        <p><strong>3. Observer Pattern — Hooks System</strong></p>
-                        <p>Hooks 系统让你在任何工具执行前后注入自定义逻辑。Pre-hook 可以拦截、修改甚至取消工具调用，Post-hook 可以处理结果、记录审计日志。这是实现安全审计、自定义审批流的基础设施。</p>
-
-                        <h4>Skill 系统 — 自定义命令</h4>
-                        <p>Skill 系统允许创建可复用的命令模板，存放在 <code>~/.claude/skills/</code> 或 <code>.claude/commands/</code> 目录。一条 <code>/commit</code> 斜杠命令背后，是一个完整的提交工作流模板。</p>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 211, 238, 0.1)); border-radius: 8px;">
-                            <strong>扩展方式：</strong>ToolRegistry 动态注册 · PluginManager 生命周期 · Hooks pre/post 钩子 · Skill 自定义命令 · MCP 外部协议
-                        </p>
-                    </div>
-                    <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/plugins" target="_blank" class="btn btn-outline btn-small">
-                            查看插件系统源码 →
-                        </a>
-                    </div>
-                </article>
-
-                <!-- Blog 5: i18n -->
-                <article class="blog-post">
-                    <div class="blog-post-header">
-                        <span class="blog-tag">国际化</span>
+                        <span class="blog-tag">自动化</span>
                         <span class="blog-date">2026年2月</span>
                     </div>
-                    <h3>i18n：为什么我们没用现成框架，而是从零搭建国际化系统</h3>
+                    <h3>定时任务守护进程：7×24 AI 自动化助手</h3>
                     <div class="blog-content">
-                        <h4>现有方案的问题</h4>
-                        <p>i18next、react-intl 等成熟框架功能强大，但对我们的场景来说太重了。我们需要的是：CLI 和 Web UI 共用一套翻译、零运行时依赖、支持动态加载、Tree-shaking 友好。</p>
-
-                        <h4>自研方案的核心设计</h4>
-                        <ul>
-                            <li><strong>统一翻译文件</strong> — 中英文翻译以 JSON 格式存放在 <code>src/i18n/</code> 目录，CLI 和 Web UI 共用同一份翻译源</li>
-                            <li><strong>类型安全</strong> — TypeScript 类型推导确保每个翻译 key 都有对应值，编译期就能发现缺失翻译</li>
-                            <li><strong>按需加载</strong> — 语言包支持动态 import，只加载当前语言，减小 bundle 体积</li>
-                            <li><strong>落地页双语</strong> — 两个独立 HTML 文件 + 语言切换链接，零 JS 开销实现多语言落地页</li>
-                        </ul>
-
-                        <h4>覆盖范围</h4>
-                        <p>国际化不只是 UI 文本翻译。我们覆盖了：CLI 提示语、错误信息、工具描述、Web UI 界面、落地页、配置说明 —— 确保中文用户获得完全原生的体验。</p>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(234, 179, 8, 0.1), rgba(249, 115, 22, 0.1)); border-radius: 8px;">
-                            <strong>设计原则：</strong>零依赖 · 类型安全 · CLI/Web 共用 · 按需加载 · 编译期校验
-                        </p>
+                        <p>想象一下：每天早上 AI 自动审查你的代码提交，文件修改时立即生成测试用例，每周五自动生成项目进度报告。定时任务守护进程支持三大任务类型 — 自然语言时间调度、文件变化监控、间隔执行，全部基于 SQLite 持久化存储和多渠道通知（桌面 + 飞书）。</p>
                     </div>
                     <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/i18n" target="_blank" class="btn btn-outline btn-small">
-                            查看 i18n 源码 →
-                        </a>
+                        <a href="../daemon-blog.html" class="btn btn-outline btn-small">阅读全文 →</a>
                     </div>
                 </article>
 
-                <!-- Blog 6: WeChat Bot -->
-                <article class="blog-post featured">
-                    <div class="blog-post-header">
-                        <span class="blog-tag">跨平台集成</span>
-                        <span class="blog-date">2026年1月</span>
-                    </div>
-                    <h3>微信机器人：让 12 亿用户通过聊天窗口使用 AI 编程助手</h3>
-                    <div class="blog-content">
-                        <h4>为什么是微信？</h4>
-                        <p>Web UI 面向开发者，CLI 面向极客，但我们想让 AI 编程触达更多人。微信是中国最大的即时通讯平台，把 Claude 搬进微信意味着：<strong>任何人在任何设备上，只需发送一条消息就能获得 AI 编程帮助</strong>。</p>
-
-                        <h4>基于 Wechaty 的完整实现</h4>
-                        <p>我们选择 Wechaty 作为底层框架，构建了完整的机器人系统：</p>
-                        <ul>
-                            <li><strong>QR 码登录</strong> — 终端直接展示二维码，扫码即登录，无需额外配置</li>
-                            <li><strong>消息路由</strong> — 支持私聊和群聊，自动识别 @机器人 的消息</li>
-                            <li><strong>会话管理</strong> — 每个用户/群组独立会话，互不干扰</li>
-                            <li><strong>预算控制</strong> — 可配置每日 USD 消费上限，防止 API 费用失控</li>
-                            <li><strong>速率限制</strong> — 每分钟请求数限制，保护 API 配额</li>
-                            <li><strong>工具白名单</strong> — 精细控制微信用户可以调用哪些工具</li>
-                        </ul>
-
-                        <h4>内置命令系统</h4>
-                        <div class="code-block" style="margin: 1rem 0;">
-                            <code>/help  — 查看帮助<br>
-/reset — 重置当前会话<br>
-/mode  — 切换模式（代码/对话）<br>
-/cost  — 查看今日消费统计</code>
-                        </div>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(99, 102, 241, 0.1)); border-radius: 8px;">
-                            <strong>核心能力：</strong>QR 码扫码登录 · 私聊/群聊 · 预算控制 · 速率限制 · 工具白名单 · 多语言支持
-                        </p>
-                    </div>
-                    <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/wechat" target="_blank" class="btn btn-outline btn-small">
-                            查看微信机器人源码 →
-                        </a>
-                    </div>
-                </article>
-
-                <!-- Blog 7: Checkpoint + Teleport -->
+                <!-- Blog 3: 移动端编程 -->
                 <article class="blog-post">
                     <div class="blog-post-header">
-                        <span class="blog-tag">版本控制</span>
-                        <span class="blog-date">2026年1月</span>
+                        <span class="blog-tag">移动端</span>
+                        <span class="blog-date">2026年2月</span>
                     </div>
-                    <h3>文件检查点 + 远程传送：给 AI 编辑加上「时间旅行」和「任意门」</h3>
+                    <h3>手机远程编程：Claude Code 随身携带</h3>
                     <div class="blog-content">
-                        <h4>检查点系统：比 Git 更细粒度的版本控制</h4>
-                        <p>Git 记录的是提交级别的变更，但 AI 编辑过程中你需要更细粒度的控制。我们的 Checkpoint 系统在<strong>每次文件编辑时自动创建快照</strong>，支持：</p>
-                        <ul>
-                            <li><strong>增量 Diff 存储</strong> — 不存全量文件，只记录变更，节省空间</li>
-                            <li><strong>Gzip 压缩</strong> — 超过 1KB 的内容自动压缩</li>
-                            <li><strong>时间范围检索</strong> — 按时间、标签、Git 提交检索历史快照</li>
-                            <li><strong>多文件恢复</strong> — 一次操作回滚到任意历史状态</li>
-                            <li><strong>会话导入/导出</strong> — 跨机器迁移编辑历史</li>
-                            <li><strong>500MB 存储上限</strong> — 自动清理过期检查点，30 天保留策略</li>
-                        </ul>
-
-                        <h4>远程会话传送 (Teleport)</h4>
-                        <p>想在另一台机器上继续当前的 Claude Code 会话？Teleport 系统通过 WebSocket 实现实时会话同步：</p>
-                        <ul>
-                            <li><strong>仓库验证</strong> — 自动检查目标机器的 Git 分支和工作区状态</li>
-                            <li><strong>断线重连</strong> — 网络中断后自动重新建立连接</li>
-                            <li><strong>认证管理</strong> — Token 安全传输，保护会话数据</li>
-                        </ul>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(34, 211, 238, 0.1)); border-radius: 8px;">
-                            <strong>时间旅行 + 任意门：</strong>增量快照 · Gzip 压缩 · 多文件回滚 · WebSocket 远程同步 · 断线重连 · 仓库验证
-                        </p>
+                        <p>在电脑上启动 Claude Code WebUI，手机通过 Tailscale 零配置组网访问，添加到主屏幕即为全功能 PWA 应用。无需公网 IP，端到端加密，深度触控优化和响应式布局 — 把通勤时间变成高效编程时间。</p>
                     </div>
                     <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/checkpoint" target="_blank" class="btn btn-outline btn-small">
-                            查看 Checkpoint 源码 →
-                        </a>
+                        <a href="../mobile-blog.html" class="btn btn-outline btn-small">阅读全文 →</a>
                     </div>
                 </article>
 
-                <!-- Blog 8: Multi-Cloud -->
+                <!-- Blog 4: 一键部署 -->
                 <article class="blog-post">
                     <div class="blog-post-header">
-                        <span class="blog-tag">企业级</span>
-                        <span class="blog-date">2026年1月</span>
-                    </div>
-                    <h3>多云提供商：一套代码跑遍 Anthropic / AWS Bedrock / GCP Vertex / Foundry</h3>
-                    <div class="blog-content">
-                        <h4>为什么需要多云支持？</h4>
-                        <p>企业用户的基础设施各不相同：有的用 AWS Bedrock 享受统一计费，有的用 GCP Vertex 集成现有 ML Pipeline，有的部署了 Anthropic Foundry 私有实例。我们的目标是：<strong>不改一行代码，切换环境变量就能无缝切换云提供商</strong>。</p>
-
-                        <h4>Provider 抽象层</h4>
-                        <ul>
-                            <li><strong>Anthropic API</strong> — 默认提供商，直连 Anthropic 官方 API</li>
-                            <li><strong>AWS Bedrock</strong> — Model ARN 解析、跨区域推理、Profile 认证、IAM 角色支持</li>
-                            <li><strong>GCP Vertex AI</strong> — OAuth 集成、区域端点路由、Service Account 认证</li>
-                            <li><strong>Anthropic Foundry</strong> — 自定义模型部署、私有端点支持</li>
-                        </ul>
-
-                        <h4>自动检测与切换</h4>
-                        <p><code>/doctor</code> 诊断命令自动检测当前配置的 Provider，验证凭证有效性，报告连接状态。切换只需修改一个环境变量。</p>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(249, 115, 22, 0.1), rgba(234, 179, 8, 0.1)); border-radius: 8px;">
-                            <strong>一套代码，四朵云：</strong>Anthropic API · AWS Bedrock · GCP Vertex AI · Foundry —— 环境变量切换，零代码改动
-                        </p>
-                    </div>
-                    <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/providers" target="_blank" class="btn btn-outline btn-small">
-                            查看 Providers 源码 →
-                        </a>
-                    </div>
-                </article>
-
-                <!-- Blog 9: Sandboxing & Security -->
-                <article class="blog-post featured">
-                    <div class="blog-post-header">
-                        <span class="blog-tag">安全体系</span>
+                        <span class="blog-tag">入门</span>
                         <span class="blog-date">2026年2月</span>
                     </div>
-                    <h3>四层安全沙箱：让 AI 执行代码时你依然睡得安稳</h3>
+                    <h3>一键部署：30 秒拥有你的专属 AI 助手</h3>
                     <div class="blog-content">
-                        <h4>AI 执行代码的风险</h4>
-                        <p>AI 编程助手最大的风险是：<strong>它会执行代码</strong>。一个 <code>rm -rf /</code> 或一个恶意依赖就能造成灾难。我们构建了四层安全防线，确保 AI 操作在受控环境中运行。</p>
-
-                        <h4>四层沙箱架构</h4>
-                        <p><strong>第 1 层：文件系统沙箱</strong></p>
-                        <p>路径白名单/黑名单机制，只允许 AI 访问指定目录。尝试访问 <code>/etc/passwd</code>？直接拒绝。</p>
-
-                        <p><strong>第 2 层：进程沙箱 (Linux: Bubblewrap / macOS: Seatbelt)</strong></p>
-                        <p>Linux 上使用 Bubblewrap 实现完整的进程隔离，限制 capabilities 和系统调用。macOS 上使用 Seatbelt sandbox profile 实现同等保护。</p>
-
-                        <p><strong>第 3 层：网络沙箱</strong></p>
-                        <p>HTTP/HTTPS 请求按域名过滤。AI 只能访问白名单域名，防止数据外泄和恶意下载。</p>
-
-                        <p><strong>第 4 层：Docker 沙箱</strong></p>
-                        <p>终极隔离方案：在 Docker 容器中运行所有 AI 操作，宿主机完全不受影响。</p>
-
-                        <h4>补充安全设施</h4>
-                        <ul>
-                            <li><strong>命令注入检测</strong> — 分析 Shell 命令，拦截危险模式</li>
-                            <li><strong>敏感数据遮蔽</strong> — 自动检测并掩盖 API Key、密码、PII</li>
-                            <li><strong>Ed25519 代码签名</strong> — 验证代码完整性，防止篡改</li>
-                            <li><strong>权限审计日志</strong> — 每一次权限决策都有记录可追溯</li>
-                        </ul>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(168, 85, 247, 0.1)); border-radius: 8px;">
-                            <strong>四层防线：</strong>文件系统白名单 → 进程隔离 (Bubblewrap/Seatbelt) → 网络域名过滤 → Docker 容器 + 命令注入检测 + 代码签名
-                        </p>
+                        <p>无需复杂配置，一行命令搞定一切：克隆代码、构建前后端、创建桌面快捷方式、预设 API 配置。双击启动，浏览器自动打开 — 立即开始与 Claude 对话。支持 Windows PowerShell 和 macOS/Linux bash。</p>
                     </div>
                     <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/tree/main/src/sandbox" target="_blank" class="btn btn-outline btn-small">
-                            查看沙箱系统源码 →
-                        </a>
-                    </div>
-                </article>
-
-                <!-- Blog 10: Original OAuth Blog (kept) -->
-                <article class="blog-post featured">
-                    <div class="blog-post-header">
-                        <span class="blog-tag">深度解析</span>
-                        <span class="blog-date">2026年2月</span>
-                    </div>
-                    <h3>攻克 Claude Code OAuth 代理之谜：如何修复「凭证仅限 Claude Code 使用」错误</h3>
-                    <div class="blog-content">
-                        <h4>问题背景</h4>
-                        <p>在构建透明代理以跨设备共享 Claude 订阅时，我们遇到了一个令人困惑的 400 错误：</p>
-                        <div class="code-block" style="margin: 1rem 0;">
-                            <code>"This credential is only authorized for use with Claude Code and cannot be used for other API requests."</code>
-                        </div>
-                        <p>通过 Postman 发送简单请求可以正常工作，但转发真实的 Claude Code CLI 请求却失败了。到底哪里不同？</p>
-
-                        <h4>问题根因</h4>
-                        <p>经过数小时的抓包分析和混淆代码逆向，我们发现了根本原因：<strong>代理破坏了 system prompt 的 block 结构</strong>。</p>
-
-                        <p>官方 Claude Code 发送的 system prompt 是一个包含特定结构的 text block 数组：</p>
-                        <div class="code-block" style="margin: 1rem 0;">
-                            <code>Block 0: "x-anthropic-billing-header: cc_version=2.1.31.593; cc_entrypoint=cli;"<br>
-Block 1: "You are Claude Code, Anthropic's official CLI for Claude..."<br>
-Block 2: "...其他系统提示词..."</code>
-                        </div>
-
-                        <p><code>x-anthropic-billing-header</code> 是 Anthropic 用于验证 Claude Code 客户端身份的特殊标记块。我们代理的身份注入逻辑找到第一个 text block（billing header），然后把 Claude Code 身份标识拼接到它前面：</p>
-                        <div class="code-block" style="margin: 1rem 0; background: #2d1b1b;">
-                            <code style="color: #ff6b6b;">// BUG: 这破坏了 billing header block！<br>
-block.text = CLAUDE_CODE_IDENTITY + '\n\n' + block.text;</code>
-                        </div>
-                        <p>结果：billing header 不再位于任何 block 的开头，API 找不到它就拒绝了请求。</p>
-
-                        <h4>解决方案</h4>
-                        <p>我们更新了身份注入逻辑：</p>
-                        <ol>
-                            <li><strong>跳过 billing header block</strong> - 永远不修改以 <code>x-anthropic-billing-header</code> 开头的 block</li>
-                            <li><strong>将身份标识作为独立 block 插入</strong> - 如果没有现有身份，在 billing header 之后插入新 block，保持官方结构</li>
-                            <li><strong>移除 prompt-caching-scope beta</strong> - v4 转发路径缺少这个关键的 beta header 过滤</li>
-                        </ol>
-
-                        <div class="code-block" style="margin: 1rem 0; background: #1b2d1b;">
-                            <code style="color: #6bff6b;">// FIX: 跳过 billing block，在其后插入身份标识<br>
-const isBillingBlock = (b) => b.text?.startsWith('x-anthropic-billing-header');<br>
-const insertIdx = system.findIndex(isBillingBlock) + 1;<br>
-system.splice(insertIdx, 0, { type: 'text', text: IDENTITY });</code>
-                        </div>
-
-                        <h4>核心收获</h4>
-                        <ul>
-                            <li><strong>Block 结构很重要</strong> - Claude Code 的 system prompt 不只是文本，而是每个 block 都有语义含义的结构化数组</li>
-                            <li><strong>Billing header 神圣不可侵犯</strong> - <code>x-anthropic-billing-header</code> block 用于客户端验证，必须保持原样</li>
-                            <li><strong>Beta header 需要谨慎处理</strong> - <code>prompt-caching-scope</code> 会改变缓存行为，在代理 OAuth 请求时必须移除</li>
-                        </ul>
-
-                        <p style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1)); border-radius: 8px;">
-                            <strong>最终效果：</strong>代理现在可以正确转发 OAuth 订阅请求，让你能够在多台设备之间无缝共享 Claude 订阅。
-                        </p>
-                    </div>
-                    <div class="blog-footer">
-                        <a href="https://github.com/kill136/claude-code-open/blob/main/src/proxy/server.ts#L598-L632" target="_blank" class="btn btn-outline btn-small">
-                            查看源码改动 →
-                        </a>
+                        <a href="../blog.html" class="btn btn-outline btn-small">阅读全文 →</a>
                     </div>
                 </article>
             </div>
