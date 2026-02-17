@@ -103,6 +103,14 @@ export function registerMcpServer(
 }
 
 /**
+ * 注销 MCP 服务器（从 mcpServers Map 中移除）
+ * 用于禁用 MCP 服务器时彻底清除，防止 MCPSearchTool 仍能搜索到已禁用的工具
+ */
+export function unregisterMcpServer(name: string): void {
+  mcpServers.delete(name);
+}
+
+/**
  * 获取所有已注册的 MCP 服务器
  */
 export function getMcpServers(): Map<string, McpServerState> {

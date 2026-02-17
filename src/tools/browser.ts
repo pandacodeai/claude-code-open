@@ -243,7 +243,18 @@ USAGE NOTES:
         case 'screenshot': {
           const buffer = await controller.screenshot({ fullPage: input.fullPage });
           const base64 = buffer.toString('base64');
-          return this.success(`[image]\ndata:image/png;base64,${base64}`);
+          return {
+            success: true,
+            output: 'Screenshot captured successfully.',
+            images: [{
+              type: 'image' as const,
+              source: {
+                type: 'base64' as const,
+                media_type: 'image/png' as const,
+                data: base64,
+              },
+            }],
+          } as any;
         }
 
         case 'click': {

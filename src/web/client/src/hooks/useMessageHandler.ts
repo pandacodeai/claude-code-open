@@ -277,6 +277,7 @@ export function useMessageHandler({
                         success: payload.success as boolean,
                         output: payload.output as string | undefined,
                         error: payload.error as string | undefined,
+                        data: payload.data,
                       },
                     };
                   }

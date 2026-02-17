@@ -2413,7 +2413,7 @@ export class ConversationLoop {
 
       // 处理响应内容
       const assistantContent: ContentBlock[] = [];
-      const toolResults: Array<{ type: 'tool_result'; tool_use_id: string; content: string }> = [];
+      const toolResults: Array<{ type: 'tool_result'; tool_use_id: string; content: string | any[] }> = [];
       // 收集所有工具返回的 newMessages（对齐官网实现）
       const allNewMessages: Array<{ role: 'user'; content: any[] }> = [];
 
@@ -2488,11 +2488,23 @@ export class ConversationLoop {
           // 使用格式化函数处理工具结果
           const formattedContent = formatToolResult(toolName, result);
 
-          toolResults.push({
-            type: 'tool_result',
-            tool_use_id: toolId,
-            content: formattedContent,
-          });
+          // 如果工具返回了 images，构建混合 content 数组（ImageBlockParam 嵌入 tool_result）
+          if (result.images && result.images.length > 0) {
+            toolResults.push({
+              type: 'tool_result',
+              tool_use_id: toolId,
+              content: [
+                { type: 'text', text: formattedContent || 'Tool completed.' },
+                ...result.images,
+              ],
+            });
+          } else {
+            toolResults.push({
+              type: 'tool_result',
+              tool_use_id: toolId,
+              content: formattedContent,
+            });
+          }
 
           // 收集 newMessages（对齐官网实现）
           if (result.newMessages && result.newMessages.length > 0) {
@@ -2854,7 +2866,7 @@ Guidelines:
       }
 
       // 执行所有工具调用
-      const toolResults: Array<{ type: 'tool_result'; tool_use_id: string; content: string }> = [];
+      const toolResults: Array<{ type: 'tool_result'; tool_use_id: string; content: string | any[] }> = [];
       // 收集所有工具返回的 newMessages（对齐官网实现）
       const allNewMessages: Array<{ role: 'user'; content: any[] }> = [];
 
@@ -2971,11 +2983,23 @@ Guidelines:
           // 使用格式化函数处理工具结果
           const formattedContent = formatToolResult(tool.name, result);
 
-          toolResults.push({
-            type: 'tool_result',
-            tool_use_id: id,
-            content: formattedContent,
-          });
+          // 如果工具返回了 images，构建混合 content 数组（ImageBlockParam 嵌入 tool_result）
+          if (result.images && result.images.length > 0) {
+            toolResults.push({
+              type: 'tool_result',
+              tool_use_id: id,
+              content: [
+                { type: 'text', text: formattedContent || 'Tool completed.' },
+                ...result.images,
+              ],
+            });
+          } else {
+            toolResults.push({
+              type: 'tool_result',
+              tool_use_id: id,
+              content: formattedContent,
+            });
+          }
 
           // 收集 newMessages（对齐官网实现）
           if (result.newMessages && result.newMessages.length > 0) {

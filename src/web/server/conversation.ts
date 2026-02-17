@@ -37,7 +37,7 @@ import {
   isSessionMemoryEnabled,
 } from '../../context/session-memory.js';
 import { initNotebookManager, getNotebookManager } from '../../memory/notebook.js';
-import { registerMcpServer, connectMcpServer, createMcpTools, getMcpServers, callMcpTool, disconnectMcpServer, type McpToolDefinition } from '../../tools/mcp.js';
+import { registerMcpServer, connectMcpServer, createMcpTools, getMcpServers, callMcpTool, disconnectMcpServer, unregisterMcpServer, type McpToolDefinition } from '../../tools/mcp.js';
 import { getChromeIntegrationConfig } from '../../chrome-mcp/index.js';
 import { CHROME_MCP_TOOLS } from '../../chrome-mcp/tools.js';
 import { RewindManager, type RewindOption } from '../../rewind/index.js';
@@ -410,13 +410,13 @@ export class ConversationManager {
           } catch {
             // 可能已存在，忽略
           }
-          // 注册到 MCP 服务器映射（预加载工具定义，使执行时可用）
-          registerMcpServer(name, config as any, CHROME_MCP_TOOLS as any);
-          // 如果服务器已禁用，跳过工具注入
+          // 如果服务器已禁用，跳过注册和工具加载
           if (disabledServers.includes(name)) {
             console.log(`[ConversationManager] Chrome MCP 服务器 ${name} 已禁用，跳过工具加载`);
             continue;
           }
+          // 注册到 MCP 服务器映射（预加载工具定义，使执行时可用）
+          registerMcpServer(name, config as any, CHROME_MCP_TOOLS as any);
           // 将工具定义加入 mcpTools（对应官方 mcp.tools state）
           for (const tool of (CHROME_MCP_TOOLS as any[])) {
             this.mcpTools.push({
@@ -1498,11 +1498,23 @@ export class ConversationManager {
             // 使用格式化函数处理工具结果（与 CLI 完全一致）
             const formattedContent = formatToolResult(toolUse.name, result);
 
-            toolResults.push({
-              type: 'tool_result',
-              tool_use_id: toolUse.id,
-              content: formattedContent,
-            });
+            // 如果工具返回了 images，构建混合 content 数组（ImageBlockParam 嵌入 tool_result）
+            if (result.images && result.images.length > 0) {
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: toolUse.id,
+                content: [
+                  { type: 'text', text: formattedContent || 'Tool completed.' },
+                  ...result.images,
+                ],
+              });
+            } else {
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: toolUse.id,
+                content: formattedContent,
+              });
+            }
 
             // 收集 newMessages（对齐官网实现）
             if (result.newMessages && result.newMessages.length > 0) {
@@ -2015,7 +2027,7 @@ export class ConversationManager {
     toolUse: ToolUseBlock,
     state: SessionState,
     callbacks: StreamCallbacks
-  ): Promise<{ success: boolean; output?: string; error?: string; data?: ToolResultData; newMessages?: Array<{ role: 'user'; content: any[] }> }> {
+  ): Promise<{ success: boolean; output?: string; error?: string; data?: ToolResultData; newMessages?: Array<{ role: 'user'; content: any[] }>; images?: Array<{ type: 'image'; source: { type: 'base64'; media_type: string; data: string } }> }> {
     const signal = state.currentAbortController?.signal;
 
     // 已经被取消
@@ -2049,7 +2061,7 @@ export class ConversationManager {
     toolUse: ToolUseBlock,
     state: SessionState,
     callbacks: StreamCallbacks
-  ): Promise<{ success: boolean; output?: string; error?: string; data?: ToolResultData; newMessages?: Array<{ role: 'user'; content: any[] }> }> {
+  ): Promise<{ success: boolean; output?: string; error?: string; data?: ToolResultData; newMessages?: Array<{ role: 'user'; content: any[] }>; images?: Array<{ type: 'image'; source: { type: 'base64'; media_type: string; data: string } }> }> {
     const tool = toolRegistry.get(toolUse.name);
 
     // MCP 工具不在 toolRegistry 中，通过 mcpTools state 管理
@@ -2489,6 +2501,12 @@ export class ConversationManager {
           ? (result.newMessages as Array<{ role: 'user'; content: any[] }>)
           : undefined;
 
+      // 提取 images（Browser screenshot 等工具返回的图片）
+      const images =
+        result && typeof result === 'object' && 'images' in result
+          ? (result as any).images as Array<{ type: 'image'; source: { type: 'base64'; media_type: string; data: string } }>
+          : undefined;
+
       // PostToolUse Hook
       try {
         await runPostToolUseHooks(toolUse.name, toolUse.input, output, hookSessionId);
@@ -2496,8 +2514,13 @@ export class ConversationManager {
         console.warn(`[Hook] PostToolUse hook 执行失败:`, hookError);
       }
 
-      callbacks.onToolResult?.(toolUse.id, true, output, undefined, data);
-      return { success: true, output, data, newMessages };
+      // 通过 data 传递 images 给前端
+      const dataWithImages = images && images.length > 0
+        ? { ...data, images } as any
+        : data;
+
+      callbacks.onToolResult?.(toolUse.id, true, output, undefined, dataWithImages);
+      return { success: true, output, data: dataWithImages, newMessages, images };
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -3749,7 +3772,7 @@ Guidelines:
 
       // 2. 当前会话实时生效
       if (!newEnabled) {
-        // 禁用：从 mcpTools 移除该服务器的工具，断开连接
+        // 禁用：从 mcpTools 移除该服务器的工具，断开连接，并从 mcpServers Map 中注销
         // 对应官方：Am(name, config) + state update
         const prefix = `mcp__${name}__`;
         this.mcpTools = this.mcpTools.filter(tool => !tool.name.startsWith(prefix));
@@ -3758,6 +3781,8 @@ Guidelines:
         } catch {
           // 断开失败不影响禁用操作
         }
+        // 从全局 mcpServers Map 中移除，防止 MCPSearchTool 仍能搜索到已禁用的工具
+        unregisterMcpServer(name);
       } else {
         // 启用：重新连接并加载工具
         // 对应官方：qm(name, config) + handleConnectionResult

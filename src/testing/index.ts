@@ -55,12 +55,12 @@ export class TestRunnerManager {
     const timeout = input.timeout ?? 120000;
     const maxLines = input.maxLines ?? 500;
 
-    let framework = input.framework || 'auto';
+    let framework: TestRunnerInput['framework'] = input.framework || 'auto';
     if (framework === 'auto') {
-      framework = await this.detectFramework(cwd);
+      framework = await this.detectFramework(cwd) as TestRunnerInput['framework'];
     }
 
-    const { cmd, args } = this.buildCommand(framework, input);
+    const { cmd, args } = this.buildCommand(framework!, input);
     const command = [cmd, ...args].join(' ');
 
     let stdout = '';
@@ -104,9 +104,9 @@ export class TestRunnerManager {
     const cwd = input.cwd || process.cwd();
     const timeout = input.timeout ?? 30000;
 
-    let framework = input.framework || 'auto';
+    let framework: TestRunnerInput['framework'] = input.framework || 'auto';
     if (framework === 'auto') {
-      framework = await this.detectFramework(cwd);
+      framework = await this.detectFramework(cwd) as TestRunnerInput['framework'];
     }
 
     let cmd: string;

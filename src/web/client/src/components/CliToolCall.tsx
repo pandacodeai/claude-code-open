@@ -26,6 +26,7 @@ const CLI_TOOL_NAMES: Record<string, string> = {
   Task: 'Task',
   NotebookEdit: 'NotebookEdit',
   AskUserQuestion: 'AskUserQuestion',
+  Browser: 'Browser',
 };
 
 interface CliToolCallProps {
@@ -112,6 +113,8 @@ function getToolDescription(name: string, input: any): string {
       return input?.query || '';
     case 'Task':
       return input?.description || '';
+    case 'Browser':
+      return input?.action || '';
     default:
       return '';
   }
@@ -369,6 +372,44 @@ function GrepToolContent({ input, result }: { input: any; result?: any }) {
 }
 
 /**
+ * Browser 工具内容渲染
+ * 支持截图预览和其他 Browser 操作的结果展示
+ */
+function BrowserToolContent({ input, result }: { input: any; result?: any }) {
+  const action = input?.action || '';
+  const images = result?.data?.images as Array<{ type: string; source: { type: string; media_type: string; data: string } }> | undefined;
+
+  // 截图操作：渲染图片
+  if (action === 'screenshot' && images && images.length > 0) {
+    return (
+      <div className="cli-browser-content">
+        {images.map((img, i) => (
+          <div key={i} style={{ marginTop: '8px' }}>
+            <img
+              src={`data:${img.source.media_type};base64,${img.source.data}`}
+              alt="Browser screenshot"
+              style={{
+                maxWidth: '100%',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color, #333)',
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // 其他 Browser 操作：显示文本输出
+  const output = result?.output || result?.error || '';
+  return output ? (
+    <div className="cli-browser-content">
+      <pre className="cli-generic-output">{output}</pre>
+    </div>
+  ) : null;
+}
+
+/**
  * 获取子工具的输入展示文本
  */
 function getSubagentToolInput(name: string, input: any): string {
@@ -522,6 +563,8 @@ export function CliToolCall({ toolUse }: CliToolCallProps) {
         return <ReadToolContent input={input} result={result} />;
       case 'Grep':
         return <GrepToolContent input={input} result={result} />;
+      case 'Browser':
+        return <BrowserToolContent input={input} result={result} />;
       case 'Task':
         return (
           <div className="cli-task-content">
