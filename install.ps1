@@ -436,15 +436,19 @@ if not exist "%INSTALL_DIR%" (
 cd /d "%INSTALL_DIR%"
 
 REM --- Determine which node.exe to use ---
-REM Priority 1: always prefer portable Node.js (guaranteed correct version)
+REM Priority 1: portable Node.js in .node/ (always wins if present)
 if exist "%INSTALL_DIR%\.node\node.exe" (
     set "NODE_EXE=%INSTALL_DIR%\.node\node.exe"
     echo [OK] Using portable Node.js
     goto :node_ready
 )
 
-REM Priority 2: no portable found — install it (always, to avoid system node version issues)
-echo [INFO] Setting up portable Node.js v22 LTS...
+REM Priority 2: system Node.js if version is compatible (v18-v22)
+call :check_system_node
+if defined NODE_EXE goto :node_ready
+
+REM Priority 3: no compatible node found — download portable
+echo [WARN] No compatible Node.js found, downloading portable v22 LTS...
 call :install_node_portable
 if !errorlevel! neq 0 goto :error_exit
 set "NODE_EXE=%INSTALL_DIR%\.node\node.exe"
@@ -465,6 +469,30 @@ if !errorlevel! neq 0 (
     goto :error_exit
 )
 goto :end
+
+:check_system_node
+set "NODE_EXE="
+where node >nul 2>&1
+if !errorlevel! neq 0 exit /b 0
+REM Get major version: "v22.14.0" -> powershell extracts reliably
+for /f "tokens=*" %%v in ('powershell -NoProfile -Command "(node -v).TrimStart('v').Split('.')[0]" 2^>nul') do set "SYS_NODE_MAJOR=%%v"
+if not defined SYS_NODE_MAJOR exit /b 0
+if !SYS_NODE_MAJOR! lss 18 (
+    echo [WARN] System Node.js v!SYS_NODE_MAJOR! is too old, need v18-v22
+    exit /b 0
+)
+if !SYS_NODE_MAJOR! gtr 22 (
+    echo [WARN] System Node.js v!SYS_NODE_MAJOR! is too new, need v18-v22
+    exit /b 0
+)
+REM System node is compatible — use its full path to bypass shim issues
+for /f "tokens=*" %%p in ('where node') do (
+    set "NODE_EXE=%%p"
+    goto :found_sys_node
+)
+:found_sys_node
+echo [OK] Using system Node.js v!SYS_NODE_MAJOR!
+exit /b 0
 
 :install_node_portable
 set "NODE_VER=22.14.0"
