@@ -133,6 +133,11 @@ ensure_git() {
 }
 
 # --- C++ Build Tools ---
+# NOTE: C++ build tools and Python are only needed as fallback.
+# All native modules (node-pty, better-sqlite3, leveldown, tree-sitter)
+# ship prebuilt binaries. node-gyp compilation only triggers if prebuild
+# download fails (unusual arch/OS, or network issues).
+
 ensure_build_tools() {
     local need_install=false
     if ! command -v g++ &> /dev/null && ! command -v c++ &> /dev/null && ! command -v clang++ &> /dev/null; then
@@ -147,24 +152,30 @@ ensure_build_tools() {
         return
     fi
 
-    warn "C++ build tools not found, installing..."
+    warn "C++ build tools not found, attempting to install (optional, needed only if prebuilt binaries unavailable)..."
     if [ "$PLATFORM" = "linux" ]; then
         case "$PKG_MGR" in
-            dnf)    pkg_install gcc-c++ make ;;
-            yum)    pkg_install gcc-c++ make ;;
-            apt)    pkg_install build-essential ;;
-            pacman) pkg_install base-devel ;;
-            apk)    pkg_install build-base python3 ;;
-            *)      error "Cannot auto-install build tools. Please install g++ and make manually." ;;
+            dnf)    pkg_install gcc-c++ make || true ;;
+            yum)    pkg_install gcc-c++ make || true ;;
+            apt)    pkg_install build-essential || true ;;
+            pacman) pkg_install base-devel || true ;;
+            apk)    pkg_install build-base python3 || true ;;
+            *)      warn "Cannot auto-install build tools. If npm install fails, install g++ and make manually." ;;
         esac
     elif [ "$PLATFORM" = "macos" ]; then
         xcode-select --install 2>/dev/null || true
-        until xcode-select -p &>/dev/null; do sleep 5; done
+        # Don't block waiting - xcode-select may already be installed
+        sleep 2
     fi
-    success "C++ build tools installed"
+
+    if command -v g++ &> /dev/null || command -v c++ &> /dev/null || command -v clang++ &> /dev/null; then
+        success "C++ build tools installed"
+    else
+        warn "C++ build tools not available. Installation will continue (prebuilt binaries should work)."
+    fi
 }
 
-# --- Python (needed by node-gyp) ---
+# --- Python (optional, needed by node-gyp as fallback) ---
 ensure_python() {
     if command -v python3 &> /dev/null; then
         success "Python3 detected ($(python3 --version 2>&1))"
@@ -179,30 +190,27 @@ ensure_python() {
         fi
     fi
 
-    warn "Python3 not found (needed by node-gyp for native modules), installing..."
+    warn "Python3 not found. Attempting to install (optional, needed only if prebuilt binaries unavailable)..."
     if [ "$PLATFORM" = "linux" ]; then
         case "$PKG_MGR" in
-            dnf)    pkg_install python3 ;;
-            yum)    pkg_install python3 ;;
-            apt)    pkg_install python3 ;;
-            pacman) pkg_install python ;;
-            apk)    pkg_install python3 ;;
-            *)      error "Cannot auto-install Python3. Please install Python >= 3.7 manually." ;;
+            dnf)    pkg_install python3 || true ;;
+            yum)    pkg_install python3 || true ;;
+            apt)    pkg_install python3 || true ;;
+            pacman) pkg_install python || true ;;
+            apk)    pkg_install python3 || true ;;
+            *)      warn "Cannot auto-install Python3." ;;
         esac
     elif [ "$PLATFORM" = "macos" ]; then
         if command -v brew &> /dev/null; then
-            brew install python@3
-        else
-            # xcode-select provides python3 on modern macOS
-            xcode-select --install 2>/dev/null || true
-            until command -v python3 &>/dev/null; do sleep 3; done
+            brew install python@3 || true
         fi
+        # macOS usually has python3 via Xcode CLT
     fi
 
     if command -v python3 &> /dev/null || command -v python &> /dev/null; then
         success "Python3 installed"
     else
-        error "Python3 installation failed. Please install Python >= 3.7 manually: https://www.python.org/"
+        warn "Python3 not available. Installation will continue (prebuilt binaries should work)."
     fi
 }
 
@@ -765,10 +773,10 @@ main() {
     # 1.5. Detect best repo source (GitHub vs Gitee for China)
     detect_repo_url
 
-    # 2. Build tools (needed for native modules)
+    # 2. Build tools (optional, prebuilt binaries usually available)
     ensure_build_tools
 
-    # 2.5. Python (needed by node-gyp for native modules)
+    # 2.5. Python (optional, only needed if prebuilt binaries unavailable)
     ensure_python
 
     # 3. Node.js

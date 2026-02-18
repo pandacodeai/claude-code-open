@@ -148,7 +148,10 @@ Failed to install Node.js automatically.
 "@
 }
 
-# --- Check Python (needed by node-gyp for native modules) ---
+# --- Check Python (optional, only needed if prebuilt binaries unavailable) ---
+# NOTE: All native modules (node-pty, better-sqlite3, leveldown, tree-sitter)
+# ship prebuilt binaries. Python/C++ are only needed as fallback for node-gyp
+# compilation when prebuild download fails (unusual arch/OS or network issues).
 function Test-Python {
     try {
         $ver = (python --version 2>&1)
@@ -167,19 +170,19 @@ function Test-Python {
     return $false
 }
 
-# --- Auto-install Python ---
+# --- Auto-install Python (optional, non-blocking) ---
 function Install-Python {
-    Write-Warn "Python3 not found (needed by node-gyp for native modules), installing..."
+    Write-Warn "Python3 not found. Attempting to install (optional, needed only if prebuilt binaries unavailable)..."
 
     # Strategy 1: winget
     if (Test-Winget) {
         Write-Info "Installing Python via winget..."
-        winget install Python.Python.3.12 --accept-source-agreements --accept-package-agreements --silent
+        winget install Python.Python.3.12 --accept-source-agreements --accept-package-agreements --silent 2>$null
         if ($LASTEXITCODE -eq 0) {
             Refresh-Path
             if (Test-Python) { return }
         }
-        Write-Warn "winget install completed but python not found in PATH, trying direct download..."
+        Write-Warn "winget install did not succeed, trying direct download..."
     }
 
     # Strategy 2: Direct download (try official first, then China mirror)
@@ -206,21 +209,18 @@ function Install-Python {
     }
 
     if ($downloaded) {
-        Write-Info "Installing Python v$pyVersion (this may take a minute)..."
-        Start-Process $pyPath -ArgumentList "/quiet InstallAllUsers=0 PrependPath=1 Include_test=0" -Wait -NoNewWindow
-        Remove-Item $pyPath -Force -ErrorAction SilentlyContinue
-        Refresh-Path
-        if (Test-Python) { return }
+        try {
+            Write-Info "Installing Python v$pyVersion (this may take a minute)..."
+            Start-Process $pyPath -ArgumentList "/quiet InstallAllUsers=0 PrependPath=1 Include_test=0" -Wait -NoNewWindow
+            Remove-Item $pyPath -Force -ErrorAction SilentlyContinue
+            Refresh-Path
+            if (Test-Python) { return }
+        } catch {
+            Write-Warn "Python installation failed: $_"
+        }
     }
 
-    Write-Err @"
-Failed to install Python automatically.
-
-  Please install Python >= 3.7 manually:
-    https://www.python.org/downloads/
-
-  Then re-run this script.
-"@
+    Write-Warn "Python3 not available. Installation will continue (prebuilt binaries should work)."
 }
 
 # --- Check Docker ---
@@ -680,7 +680,7 @@ function Main {
         Install-Node
     }
 
-    # 4. Python (needed by node-gyp for native modules) - auto-install if missing
+    # 4. Python (optional, only needed if prebuilt binaries unavailable)
     if (-not (Test-Python)) {
         Install-Python
     }
