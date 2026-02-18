@@ -435,27 +435,29 @@ if not exist "%INSTALL_DIR%" (
 )
 cd /d "%INSTALL_DIR%"
 
-REM --- Use portable Node.js if available ---
+REM --- Determine which node.exe to use ---
+REM Priority 1: always prefer portable Node.js (guaranteed correct version)
 if exist "%INSTALL_DIR%\.node\node.exe" (
-    set "PATH=%INSTALL_DIR%\.node;%PATH%"
+    set "NODE_EXE=%INSTALL_DIR%\.node\node.exe"
     echo [OK] Using portable Node.js
+    goto :node_ready
 )
 
-REM --- Verify node is available, auto-install if not ---
-where node >nul 2>&1
-if !errorlevel! neq 0 (
-    echo [WARN] Node.js not found, downloading portable v22 LTS...
-    call :install_node_portable
-    if !errorlevel! neq 0 goto :error_exit
-)
+REM Priority 2: no portable found — install it (always, to avoid system node version issues)
+echo [INFO] Setting up portable Node.js v22 LTS...
+call :install_node_portable
+if !errorlevel! neq 0 goto :error_exit
+set "NODE_EXE=%INSTALL_DIR%\.node\node.exe"
 
-for /f "tokens=*" %%v in ('node -v 2^>nul') do echo [OK] Node.js %%v
+:node_ready
+for /f "tokens=*" %%v in ('"!NODE_EXE!" -v 2^>nul') do echo [OK] Node.js %%v
 
 echo.
 echo [INFO] Starting Claude Code WebUI...
 echo.
 
-node_modules\.bin\tsx.cmd src\web-cli.ts --evolve -H 0.0.0.0
+REM Use node.exe directly to invoke tsx (bypass .cmd shim which may use wrong node)
+"!NODE_EXE!" "%INSTALL_DIR%\node_modules\tsx\dist\cli.mjs" "%INSTALL_DIR%\src\web-cli.ts" --evolve -H 0.0.0.0
 
 if !errorlevel! neq 0 (
     echo.
