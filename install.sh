@@ -21,6 +21,7 @@ REPO_URL=""  # Will be set by detect_repo_url()
 DOCKER_IMAGE="wbj66/claude-code-open:latest"
 INSTALL_DIR="$HOME/.claude-code-open"
 NODE_MAJOR_REQUIRED=18
+NODE_MAJOR_MAX=22  # LTS; native modules may lack prebuilds for newer versions
 
 print_banner() {
     echo -e "${CYAN}"
@@ -221,11 +222,15 @@ ensure_node() {
         ver=$(node -v | sed 's/v//')
         local major
         major=$(echo "$ver" | cut -d. -f1)
-        if [ "$major" -ge "$NODE_MAJOR_REQUIRED" ]; then
+        if [ "$major" -ge "$NODE_MAJOR_REQUIRED" ] && [ "$major" -le "$NODE_MAJOR_MAX" ]; then
             success "Node.js v$ver detected"
             return
+        elif [ "$major" -gt "$NODE_MAJOR_MAX" ]; then
+            warn "Node.js v$ver is too new (max supported: v${NODE_MAJOR_MAX}.x LTS). Native modules may lack prebuilt binaries."
+            warn "Will install Node.js v22 LTS..."
+        else
+            warn "Node.js v$ver found, but >= $NODE_MAJOR_REQUIRED required. Upgrading..."
         fi
-        warn "Node.js v$ver found, but >= $NODE_MAJOR_REQUIRED required. Upgrading..."
     else
         warn "Node.js not found, installing..."
     fi

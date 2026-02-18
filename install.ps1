@@ -24,6 +24,7 @@ $RepoUrl       = ""  # Will be set by Detect-RepoUrl
 $DockerImage   = "wbj66/claude-code-open:latest"
 $InstallDir    = "$env:USERPROFILE\.claude-code-open"
 $NodeMajorRequired = 18
+$NodeMajorMax = 22  # LTS; native modules may lack prebuilds for newer versions
 
 function Write-Banner {
     Write-Host ""
@@ -81,9 +82,12 @@ function Test-Node {
         $ver = (node -v 2>$null)
         if ($ver) {
             $major = [int]($ver -replace 'v','').Split('.')[0]
-            if ($major -ge $script:NodeMajorRequired) {
+            if ($major -ge $script:NodeMajorRequired -and $major -le $script:NodeMajorMax) {
                 Write-Ok "Node.js $ver detected"
                 return $true
+            } elseif ($major -gt $script:NodeMajorMax) {
+                Write-Warn "Node.js $ver detected, but version is too new (max supported: v$($script:NodeMajorMax).x LTS). Native modules may lack prebuilt binaries."
+                Write-Warn "Will install Node.js v22 LTS alongside..."
             } else {
                 Write-Warn "Node.js $ver found, but >= $script:NodeMajorRequired required"
             }
@@ -96,10 +100,10 @@ function Test-Node {
 function Install-Node {
     Write-Warn "Node.js not found or version too low, installing..."
 
-    # Strategy 1: winget
+    # Strategy 1: winget (force LTS v22, not current)
     if (Test-Winget) {
-        Write-Info "Installing Node.js via winget..."
-        winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements --silent
+        Write-Info "Installing Node.js v22 LTS via winget..."
+        winget install OpenJS.NodeJS.LTS --version "22.14.0" --accept-source-agreements --accept-package-agreements --silent --force
         if ($LASTEXITCODE -eq 0) {
             Refresh-Path
             if (Test-Node) { return }
