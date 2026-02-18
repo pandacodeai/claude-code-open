@@ -1,7 +1,19 @@
 # ============================================
 # Claude Code Open - Windows One-Click Installer
-# Usage (GitHub):  irm https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.ps1 | iex
-# Usage (Gitee):   irm https://gitee.com/lubanbbs/claude-code-open/raw/private_web_ui/install.ps1 | iex
+#
+# Method 1 - Batch file (recommended, no policy issues):
+#   Double-click install.bat, or in cmd:
+#     curl -fsSL https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.bat -o install.bat && install.bat
+#
+# Method 2 - PowerShell (irm pipe, bypasses execution policy):
+#   irm https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.ps1 | iex
+#
+# Method 3 - PowerShell (explicit bypass):
+#   powershell -ExecutionPolicy Bypass -File install.ps1
+#
+# China mirrors (Gitee):
+#   curl -fsSL https://gitee.com/lubanbbs/claude-code-open/raw/private_web_ui/install.bat -o install.bat && install.bat
+#   irm https://gitee.com/lubanbbs/claude-code-open/raw/private_web_ui/install.ps1 | iex
 # ============================================
 
 $ErrorActionPreference = "Stop"
@@ -95,26 +107,35 @@ function Install-Node {
         Write-Warn "winget install completed but node not found in PATH, trying direct download..."
     }
 
-    # Strategy 2: Direct MSI download
-    Write-Info "Downloading Node.js v22 installer..."
+    # Strategy 2: Direct MSI download (try official first, then China mirror)
     $arch = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
     $nodeVersion = "22.14.0"
-    $msiUrl = "https://nodejs.org/dist/v$nodeVersion/node-v$nodeVersion-$arch.msi"
-    $msiPath = Join-Path $env:TEMP "node-v$nodeVersion-$arch.msi"
+    $msiFile = "node-v$nodeVersion-$arch.msi"
+    $msiPath = Join-Path $env:TEMP $msiFile
 
-    try {
-        Invoke-WebRequest -Uri $msiUrl -OutFile $msiPath -UseBasicParsing
+    $nodeUrls = @(
+        "https://nodejs.org/dist/v$nodeVersion/$msiFile",
+        "https://npmmirror.com/mirrors/node/v$nodeVersion/$msiFile"
+    )
+
+    $downloaded = $false
+    foreach ($url in $nodeUrls) {
+        Write-Info "Downloading Node.js v$nodeVersion from $url ..."
+        try {
+            Invoke-WebRequest -Uri $url -OutFile $msiPath -UseBasicParsing -TimeoutSec 30
+            $downloaded = $true
+            break
+        } catch {
+            Write-Warn "Download failed from $url, trying next source..."
+        }
+    }
+
+    if ($downloaded) {
         Write-Info "Installing Node.js v$nodeVersion (this may take a minute)..."
         Start-Process msiexec.exe -ArgumentList "/i `"$msiPath`" /qn /norestart" -Wait -NoNewWindow
         Remove-Item $msiPath -Force -ErrorAction SilentlyContinue
-
         Refresh-Path
-
-        if (Test-Node) {
-            return
-        }
-    } catch {
-        Write-Warn "Direct download failed: $_"
+        if (Test-Node) { return }
     }
 
     Write-Err @"
@@ -166,24 +187,39 @@ function Install-Git {
         Write-Warn "winget install completed but git not found in PATH, trying direct download..."
     }
 
-    # Strategy 2: Direct download
-    Write-Info "Downloading Git installer..."
-    $arch = if ([Environment]::Is64BitOperatingSystem) { "64-bit" } else { "32-bit" }
-    # Use the Git for Windows redirect URL which always points to latest
-    $gitInstallerUrl = "https://github.com/git-for-windows/git/releases/latest/download/Git-2.47.1.2-$arch.exe"
+    # Strategy 2: Direct download (try multiple sources)
     $gitInstallerPath = Join-Path $env:TEMP "git-installer.exe"
 
-    try {
-        Invoke-WebRequest -Uri $gitInstallerUrl -OutFile $gitInstallerPath -UseBasicParsing
+    # Git for Windows uses different naming: Git-2.47.1.2-64-bit.exe
+    # npmmirror uses: Git-2.47.1.2-64-bit.exe
+    # We try npmmirror first (faster in China), then GitHub
+    $gitVersion = "2.47.1.2"
+    $arch = if ([Environment]::Is64BitOperatingSystem) { "64-bit" } else { "32-bit" }
+    $gitFile = "Git-$gitVersion-$arch.exe"
+
+    $gitUrls = @(
+        "https://registry.npmmirror.com/-/binary/git-for-windows/v$gitVersion.windows.1/$gitFile",
+        "https://github.com/git-for-windows/git/releases/download/v$gitVersion.windows.1/$gitFile"
+    )
+
+    $downloaded = $false
+    foreach ($url in $gitUrls) {
+        Write-Info "Downloading Git from $url ..."
+        try {
+            Invoke-WebRequest -Uri $url -OutFile $gitInstallerPath -UseBasicParsing -TimeoutSec 60
+            $downloaded = $true
+            break
+        } catch {
+            Write-Warn "Download failed from $url, trying next source..."
+        }
+    }
+
+    if ($downloaded) {
         Write-Info "Installing Git (this may take a minute)..."
         Start-Process $gitInstallerPath -ArgumentList "/VERYSILENT /NORESTART /NOCANCEL /SP- /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS /COMPONENTS=`"icons,ext\reg\shellhere,assoc,assoc_sh`"" -Wait -NoNewWindow
         Remove-Item $gitInstallerPath -Force -ErrorAction SilentlyContinue
-
         Refresh-Path
-
         if (Test-Git) { return }
-    } catch {
-        Write-Warn "Direct download failed: $_"
     }
 
     Write-Err @"
