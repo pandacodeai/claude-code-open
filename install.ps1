@@ -404,137 +404,15 @@ Failed to install Git automatically.
 "@
 }
 
-# --- Create Auto-Update Startup Script ---
+# --- Verify startup script exists (shipped in git repo) ---
 function New-UpdateAndStartScript {
     param([string]$InstallPath)
-
-    Write-Info "Creating auto-update startup script..."
-
     $ScriptPath = Join-Path $InstallPath "update-and-start.bat"
-    $ScriptContent = @"
-@echo off
-chcp 65001 >nul 2>&1
-setlocal enabledelayedexpansion
-
-echo.
-echo   +=============================================+
-echo   ^|   Claude Code Open - Auto Update ^& Start   ^|
-echo   +=============================================+
-echo.
-
-set "INSTALL_DIR=%USERPROFILE%\.claude-code-open"
-
-if not exist "%INSTALL_DIR%" (
-    echo [ERROR] Installation directory not found: %INSTALL_DIR%
-    echo         Please run the installer first.
-    goto :error_exit
-)
-cd /d "%INSTALL_DIR%"
-
-REM --- Use portable Node.js if available ---
-if exist "%INSTALL_DIR%\.node\node.exe" (
-    set "PATH=%INSTALL_DIR%\.node;%PATH%"
-    echo [OK] Using portable Node.js from .node\
-)
-
-REM --- Verify node is available ---
-where node >nul 2>&1
-if !errorlevel! neq 0 (
-    echo [ERROR] Node.js not found. Please install Node.js v22 LTS or re-run the installer.
-    goto :error_exit
-)
-
-REM --- Check for updates ---
-if not exist ".git" (
-    echo [WARN] Not a git repository, skipping update
-    goto :start_app
-)
-
-echo [INFO] Checking for updates...
-for /f "tokens=*" %%i in ('git rev-parse HEAD 2^>nul') do set "OLD_HASH=%%i"
-
-REM Discard local changes (protect .node portable directory)
-git checkout -- . >nul 2>&1
-git clean -fd --exclude=.node >nul 2>&1
-
-REM Pull latest code
-git pull origin private_web_ui 2>&1
-if !errorlevel! neq 0 (
-    echo [WARN] Git pull failed ^(network issue?^), starting with current version...
-    goto :start_app
-)
-
-for /f "tokens=*" %%i in ('git rev-parse HEAD 2^>nul') do set "NEW_HASH=%%i"
-
-if "!OLD_HASH!" == "!NEW_HASH!" (
-    echo [OK] Already up to date
-    goto :start_app
-)
-
-echo [OK] Updated: !OLD_HASH:~0,8! -^> !NEW_HASH:~0,8!
-
-REM Check what changed to decide rebuild scope
-set "NEED_REBUILD=0"
-set "NEED_FRONTEND_REBUILD=0"
-for /f "tokens=*" %%f in ('git diff --name-only !OLD_HASH! !NEW_HASH! 2^>nul') do (
-    echo %%f | findstr /i "package.json" >nul && set "NEED_REBUILD=1"
-    echo %%f | findstr /i "src\\web\\client\\" >nul && set "NEED_FRONTEND_REBUILD=1"
-    echo %%f | findstr /i "\.ts$ \.tsx$" >nul && set "NEED_REBUILD=1"
-)
-
-if "!NEED_REBUILD!" == "0" goto :start_app
-
-echo [INFO] Source code changed, rebuilding...
-
-echo [INFO] Installing dependencies...
-call npm install 2>&1 | findstr /i "error warn added removed"
-
-if "!NEED_FRONTEND_REBUILD!" == "1" (
-    echo [INFO] Frontend changed, rebuilding...
-    cd /d "%INSTALL_DIR%\src\web\client"
-    call npm install 2>&1 | findstr /i "error warn added removed"
-    call npm run build
-    if !errorlevel! neq 0 (
-        echo [WARN] Frontend build failed, starting with old version...
-    )
-    cd /d "%INSTALL_DIR%"
-)
-
-echo [INFO] Building backend...
-call npm run build
-if !errorlevel! neq 0 (
-    echo [WARN] Backend build failed, attempting to start anyway...
-)
-
-echo [OK] Rebuild complete!
-
-:start_app
-echo.
-echo [INFO] Starting Claude Code WebUI...
-echo.
-
-REM --- Start the application ---
-cd /d "%INSTALL_DIR%"
-node_modules\.bin\tsx.cmd src\web-cli.ts --evolve -H 0.0.0.0
-
-if !errorlevel! neq 0 (
-    echo.
-    echo [ERROR] Application exited with error code !errorlevel!
-    goto :error_exit
-)
-goto :end
-
-:error_exit
-echo.
-echo Press any key to exit...
-pause >nul
-exit /b 1
-
-:end
-pause
-"@
-    Set-Content -Path $ScriptPath -Value $ScriptContent -Encoding ASCII
-    Write-Ok "Auto-update startup script created: $ScriptPath"
+    if (Test-Path $ScriptPath) {
+        Write-Ok "Startup script found: $ScriptPath"
+    } else {
+        Write-Warn "update-and-start.bat not found in repository (unexpected)"
+    }
 }
 
 # --- Create Desktop Shortcut ---
