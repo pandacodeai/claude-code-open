@@ -568,21 +568,30 @@ This usually means the git clone was incomplete. Please try:
     Write-Info "Building backend..."
     npm run build
 
-    # Configure npm to use user-level global directory (avoids permission issues)
-    $NpmPrefix = Join-Path $env:USERPROFILE ".local"
-    $NpmBinDir = Join-Path $NpmPrefix "bin"
-    if (-not (Test-Path $NpmBinDir)) { New-Item -ItemType Directory -Path $NpmBinDir -Force | Out-Null }
-    npm config set prefix $NpmPrefix
-
+    # Link globally using npm's default prefix
+    # On Windows, Node.js MSI sets default prefix to %APPDATA%\npm and adds it to PATH
+    # We use the default prefix to avoid PATH issues; if custom prefix is needed, we handle it
     Write-Info "Linking globally..."
     npm link
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warn "npm link failed, trying with --force..."
+        npm link --force
+    }
 
-    # Ensure npm global bin is in user PATH
-    $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
-    if ($UserPath -notlike "*$NpmBinDir*") {
-        [Environment]::SetEnvironmentVariable("Path", "$NpmBinDir;$UserPath", "User")
-        $env:Path = "$NpmBinDir;$env:Path"
-        Write-Warn "Added $NpmBinDir to user PATH."
+    # Determine where npm placed the global .cmd files
+    # On Windows, npm global bin = prefix root (not prefix/bin)
+    $NpmGlobalDir = (npm config get prefix 2>$null)
+    if ($NpmGlobalDir) {
+        $NpmGlobalDir = $NpmGlobalDir.Trim()
+        # Ensure this directory is in user PATH
+        $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+        $MachinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+        $AllPath = "$MachinePath;$UserPath"
+        if ($AllPath -notlike "*$NpmGlobalDir*") {
+            [Environment]::SetEnvironmentVariable("Path", "$NpmGlobalDir;$UserPath", "User")
+            $env:Path = "$NpmGlobalDir;$env:Path"
+            Write-Ok "Added $NpmGlobalDir to user PATH."
+        }
     }
 
     Pop-Location
@@ -592,6 +601,8 @@ This usually means the git clone was incomplete. Please try:
     New-DesktopShortcut -Type "npm" -InstallPath $InstallDir
 
     Write-Ok "Installation complete via npm!"
+    Write-Host ""
+    Write-Host "  IMPORTANT: Please open a NEW terminal window for PATH changes to take effect!" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "  Usage:" -ForegroundColor White
     Write-Host "    claude                        " -ForegroundColor Green -NoNewline; Write-Host "# Interactive mode"
