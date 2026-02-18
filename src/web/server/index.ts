@@ -160,7 +160,6 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<We
 
   // 蓝图 API 路由（项目导航、符号浏览、调用图等）
   const blueprintRouter = await import('./routes/blueprint-api.js');
-  blueprintRouter.initBlueprintStore(cwd);
   app.use('/api/blueprint', blueprintRouter.default);
 
   // tRPC API 路由（端到端类型安全）
