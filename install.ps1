@@ -404,15 +404,109 @@ Failed to install Git automatically.
 "@
 }
 
-# --- Verify startup script exists (shipped in git repo) ---
-function New-UpdateAndStartScript {
+# --- Create launcher script (OUTSIDE git repo, never affected by git operations) ---
+function New-LauncherScript {
     param([string]$InstallPath)
-    $ScriptPath = Join-Path $InstallPath "update-and-start.bat"
-    if (Test-Path $ScriptPath) {
-        Write-Ok "Startup script found: $ScriptPath"
-    } else {
-        Write-Warn "update-and-start.bat not found in repository (unexpected)"
-    }
+
+    Write-Info "Creating launcher script..."
+
+    $LauncherDir = Join-Path $env:USERPROFILE ".local\bin"
+    if (-not (Test-Path $LauncherDir)) { New-Item -ItemType Directory -Path $LauncherDir -Force | Out-Null }
+    $LauncherPath = Join-Path $LauncherDir "claude-web-start.bat"
+
+    # This launcher lives outside git repo, so git operations never break it
+    $LauncherContent = @'
+@echo off
+chcp 65001 >nul 2>&1
+setlocal enabledelayedexpansion
+
+echo.
+echo   +=============================================+
+echo   ^|       Claude Code Open - WebUI              ^|
+echo   +=============================================+
+echo.
+
+set "INSTALL_DIR=%USERPROFILE%\.claude-code-open"
+
+if not exist "%INSTALL_DIR%" (
+    echo [ERROR] Installation directory not found: %INSTALL_DIR%
+    echo         Please run the installer first.
+    goto :error_exit
+)
+cd /d "%INSTALL_DIR%"
+
+REM --- Use portable Node.js if available ---
+if exist "%INSTALL_DIR%\.node\node.exe" (
+    set "PATH=%INSTALL_DIR%\.node;%PATH%"
+    echo [OK] Using portable Node.js
+)
+
+REM --- Verify node is available, auto-install if not ---
+where node >nul 2>&1
+if !errorlevel! neq 0 (
+    echo [WARN] Node.js not found, downloading portable v22 LTS...
+    call :install_node_portable
+    if !errorlevel! neq 0 goto :error_exit
+)
+
+for /f "tokens=*" %%v in ('node -v 2^>nul') do echo [OK] Node.js %%v
+
+echo.
+echo [INFO] Starting Claude Code WebUI...
+echo.
+
+node_modules\.bin\tsx.cmd src\web-cli.ts --evolve -H 0.0.0.0
+
+if !errorlevel! neq 0 (
+    echo.
+    echo [ERROR] Application exited with error code !errorlevel!
+    goto :error_exit
+)
+goto :end
+
+:install_node_portable
+set "NODE_VER=22.14.0"
+if "%PROCESSOR_ARCHITECTURE%"=="AMD64" (set "NODE_ARCH=x64") else (set "NODE_ARCH=x86")
+set "NODE_ZIP=node-v%NODE_VER%-win-%NODE_ARCH%.zip"
+set "NODE_DIR=%INSTALL_DIR%\.node"
+set "DL_PATH=%TEMP%\%NODE_ZIP%"
+
+set "URL1=https://nodejs.org/dist/v%NODE_VER%/%NODE_ZIP%"
+set "URL2=https://npmmirror.com/mirrors/node/v%NODE_VER%/%NODE_ZIP%"
+
+echo [INFO] Downloading %NODE_ZIP% ...
+powershell -NoProfile -Command "try { Invoke-WebRequest -Uri '%URL1%' -OutFile '%DL_PATH%' -UseBasicParsing -TimeoutSec 60; exit 0 } catch { try { Invoke-WebRequest -Uri '%URL2%' -OutFile '%DL_PATH%' -UseBasicParsing -TimeoutSec 60; exit 0 } catch { exit 1 } }"
+if !errorlevel! neq 0 (
+    echo [ERROR] Failed to download Node.js.
+    exit /b 1
+)
+
+echo [INFO] Extracting...
+if exist "%NODE_DIR%" rmdir /s /q "%NODE_DIR%"
+powershell -NoProfile -Command "Expand-Archive -Path '%DL_PATH%' -DestinationPath '%TEMP%\node-extract' -Force; $d = Get-ChildItem '%TEMP%\node-extract' -Directory | Select-Object -First 1; Move-Item $d.FullName '%NODE_DIR%' -Force; Remove-Item '%TEMP%\node-extract' -Recurse -Force -ErrorAction SilentlyContinue"
+del "%DL_PATH%" >nul 2>&1
+
+if not exist "%NODE_DIR%\node.exe" (
+    echo [ERROR] Node.js extraction failed.
+    exit /b 1
+)
+
+set "PATH=%NODE_DIR%;%PATH%"
+echo [OK] Node.js portable installed
+exit /b 0
+
+:error_exit
+echo.
+echo Press any key to exit...
+pause >nul
+exit /b 1
+
+:end
+pause
+'@
+    Set-Content -Path $LauncherPath -Value $LauncherContent -Encoding ASCII
+    Write-Ok "Launcher created: $LauncherPath"
+    return $LauncherPath
 }
 
 # --- Create Desktop Shortcut ---
@@ -432,15 +526,12 @@ function New-DesktopShortcut {
         $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
 
         if ($Type -eq "npm") {
-            # npm installation: shortcut points to auto-update script
-            $UpdateScript = Join-Path $InstallPath "update-and-start.bat"
-
-            $Shortcut.TargetPath = $UpdateScript
-            $Shortcut.Description = "Launch Claude Code Web Interface (Auto-Update)"
+            $LauncherPath = Join-Path $env:USERPROFILE ".local\bin\claude-web-start.bat"
+            $Shortcut.TargetPath = $LauncherPath
+            $Shortcut.Description = "Launch Claude Code Web Interface"
             $Shortcut.WorkingDirectory = "$env:USERPROFILE"
         }
         elseif ($Type -eq "docker") {
-            # Docker installation: create a batch file and shortcut to it
             $BatPath = Join-Path $env:USERPROFILE ".local\bin\claude-web.bat"
             $BatContent = @"
 @echo off
@@ -588,7 +679,7 @@ This usually means the git clone was incomplete. Please try:
     Pop-Location
 
     # Create auto-update startup script and desktop shortcut
-    New-UpdateAndStartScript -InstallPath $InstallDir
+    New-LauncherScript -InstallPath $InstallDir
     New-DesktopShortcut -Type "npm" -InstallPath $InstallDir
 
     Write-Ok "Installation complete via npm!"
