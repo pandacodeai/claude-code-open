@@ -530,9 +530,17 @@ export function saveSession(session: SessionData, options?: { useResumedPath?: b
   session.metadata.updatedAt = Date.now();
   session.metadata.messageCount = session.messages.length;
 
-  fs.writeFileSync(sessionPath, JSON.stringify(session, null, 2), {
-    mode: 0o600,
-  });
+  // 原子写入：先写临时文件再 rename，防止进程中途被杀导致文件半写损坏
+  const content = JSON.stringify(session, null, 2);
+  const tmpFile = `${sessionPath}.tmp.${process.pid}.${Date.now()}`;
+  try {
+    fs.writeFileSync(tmpFile, content, { mode: 0o600, flush: true });
+    fs.renameSync(tmpFile, sessionPath);
+  } catch {
+    // rename 失败（Windows 上目标被锁定时可能发生），降级为直接写
+    try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+    fs.writeFileSync(sessionPath, content, { mode: 0o600, flush: true });
+  }
 
   // 使该会话的缓存失效（因为文件已更新）
   invalidateSessionCache(sessionId);
@@ -1663,7 +1671,15 @@ export function cleanupSessions(options: {
           // 清除父会话引用而不是删除会话
           session.metadata.parentId = undefined;
           session.metadata.forkPoint = undefined;
-          fs.writeFileSync(sessionPath, JSON.stringify(session, null, 2));
+          const repairContent = JSON.stringify(session, null, 2);
+          const repairTmp = `${sessionPath}.tmp.${process.pid}.${Date.now()}`;
+          try {
+            fs.writeFileSync(repairTmp, repairContent, { flush: true });
+            fs.renameSync(repairTmp, sessionPath);
+          } catch {
+            try { fs.unlinkSync(repairTmp); } catch { /* ignore */ }
+            fs.writeFileSync(sessionPath, repairContent, { flush: true });
+          }
         }
       }
     } catch {

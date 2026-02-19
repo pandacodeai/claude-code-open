@@ -11,6 +11,7 @@ export {
   PERMISSION_MODES,
   SECURITY_RULES,
   EXECUTING_WITH_CARE,
+  PROACTIVE_SKILL_CREATION,
   getSystemSection,
   getCodingGuidelines,
   getToolGuidelines,

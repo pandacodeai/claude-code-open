@@ -7,6 +7,8 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { randomUUID } from 'crypto';
 import { ConversationManager } from './conversation.js';
 import { isSlashCommand, executeSlashCommand } from './slash-commands.js';
+import { initializeSkills, getAllSkills, findSkill } from '../../tools/skill.js';
+import { runWithCwd } from '../../core/cwd-context.js';
 import { apiManager } from './api-manager.js';
 import { authManager } from './auth-manager.js';
 import { oauthManager } from './oauth-manager.js';
@@ -1695,6 +1697,37 @@ export function setupWebSocket(
       } as any);
     }
 
+    // 推送已加载的 skills 列表（供前端斜杠命令补全使用）
+    // initializeSkills 内部使用 getCurrentCwd()，需要在 runWithCwd 上下文中执行
+    const skillsCwd = client.projectPath || process.cwd();
+    runWithCwd(skillsCwd, () => {
+      initializeSkills().then(() => {
+        const allSkills = getAllSkills().filter(s => s.userInvocable !== false);
+
+        // 按 base name（冒号后面的部分）去重，后出现的覆盖先出现的（高优先级 source 后加载）
+        // 推送给前端时用完整 skillName（供执行时精确匹配），但用 baseName 作为显示名
+        const deduped = new Map<string, { name: string; description: string; argumentHint?: string }>();
+        for (const s of allSkills) {
+          const baseName = s.skillName.includes(':') ? s.skillName.split(':').pop()! : s.skillName;
+          deduped.set(baseName, {
+            name: baseName,
+            description: s.description || '',
+            argumentHint: s.argumentHint,
+          });
+        }
+        const skills = Array.from(deduped.values());
+
+        if (skills.length > 0) {
+          sendMessage(ws, {
+            type: 'skills_list',
+            payload: { skills },
+          } as any);
+        }
+      }).catch((err) => {
+        console.error('[WebSocket] Skills 加载失败:', err);
+      });
+    });
+
     // 处理心跳
     ws.on('pong', () => {
       client.isAlive = true;
@@ -2720,6 +2753,38 @@ async function handleSlashCommand(
       cwd,
       model,
     });
+
+    console.log(`[WebSocket] handleSlashCommand result: success=${result.success}, message=${result.message?.substring(0, 60)}`);
+
+    // 如果内置命令未找到，尝试作为 skill 执行
+    if (!result.success && result.message?.startsWith('未知命令:')) {
+      const trimmed = command.trim();
+      const parts = trimmed.slice(1).split(/\s+/);
+      const skillName = parts[0];
+      const skillArgs = parts.slice(1).join(' ');
+
+      console.log(`[WebSocket] 尝试查找 skill: ${skillName}`);
+
+      // 确保 skills 已加载（需要 runWithCwd 上下文，因为 initializeSkills 内部使用 getCurrentCwd）
+      const skill = await runWithCwd(cwd, async () => {
+        await initializeSkills();
+        return findSkill(skillName);
+      });
+
+      console.log(`[WebSocket] findSkill(${skillName}): ${skill ? 'FOUND' : 'NOT FOUND'}`);
+      if (skill) {
+        // 找到 skill，将其内容作为消息发送给 AI
+        let skillContent = skill.markdownContent;
+        // 替换 $ARGUMENTS 占位符
+        if (skillArgs) {
+          skillContent = skillContent.replace(/\$ARGUMENTS/g, skillArgs);
+        }
+        const messageContent = `[Skill: ${skill.skillName}]\n\n${skillContent}`;
+        console.log(`[WebSocket] 执行 skill ${skill.skillName}, 内容长度: ${skillContent.length}`);
+        await handleChatMessage(client, messageContent, undefined, conversationManager);
+        return;
+      }
+    }
 
     // /resume <id> 成功后需要切换会话
     if (result.data?.switchToSessionId) {

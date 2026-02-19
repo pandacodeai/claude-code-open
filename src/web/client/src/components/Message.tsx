@@ -248,7 +248,7 @@ export function Message({
           data={item.data}
           onPause={() => onDevAction?.('pause')}
           onResume={() => onDevAction?.('resume')}
-          onCancel={() => onDevAction?.('cancel')} // TODO: 实现 cancel
+          onCancel={() => onDevAction?.('cancel')}
         />
       );
     }

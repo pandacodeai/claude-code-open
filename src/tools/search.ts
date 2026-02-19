@@ -264,8 +264,8 @@ Usage:
       // 搜索路径
       args.push(searchPath);
 
-      // v2.1.23: 添加超时配置（默认 30 秒）
-      const GREP_TIMEOUT_MS = parseInt(process.env.GREP_TIMEOUT_MS || '30000', 10);
+      // v2.1.23: 添加超时配置（默认 600 秒）
+      const GREP_TIMEOUT_MS = parseInt(process.env.GREP_TIMEOUT_MS || '600000', 10);
 
       // 获取 ripgrep 可执行文件路径（vendored 优先，回退到系统 PATH）
       const rgPath = getRgPath();

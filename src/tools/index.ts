@@ -65,8 +65,6 @@ import { CreateToolTool } from './create-tool.js';
 import { DatabaseTool } from './database.js';
 import { DebuggerTool } from './debugger.js';
 
-import { REPLTool } from './repl.js';
-
 // ============ 蓝图工具 imports (lazy) ============
 import { BlueprintTool } from './blueprint.js';
 import { GenerateBlueprintTool } from './generate-blueprint.js';
@@ -184,10 +182,9 @@ export function registerCoreTools(): void {
   // 17. CreateTool 自定义 Skill 创建（写入 ~/.claude/skills/，利用 Skill 系统）
   toolRegistry.register(new CreateToolTool());
 
-  // 20. 开发工具 (3个) - Database, Debugger, REPL
+  // 20. 开发工具 (2个) - Database, Debugger
   toolRegistry.register(new DatabaseTool());
   toolRegistry.register(new DebuggerTool());
-  toolRegistry.register(new REPLTool());
 }
 
 /**
