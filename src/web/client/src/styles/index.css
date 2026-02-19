@@ -1321,6 +1321,17 @@ body {
   color: white;
 }
 
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .welcome-screen {
   display: flex;
   flex-direction: column;
@@ -1329,13 +1340,14 @@ body {
   height: 100%;
   text-align: center;
   padding: 40px;
+  background: radial-gradient(ellipse at center, rgba(99,102,241,0.08) 0%, transparent 70%);
 }
 
 .welcome-logo {
   width: 120px;
   height: 120px;
   margin-bottom: 32px;
-  animation: pulse-glow 4s infinite;
+  animation: pulse-glow 4s infinite, fadeInUp 0.6s ease-out both;
   filter: drop-shadow(0 0 30px rgba(99, 102, 241, 0.5));
   object-fit: contain;
 }
@@ -1343,10 +1355,24 @@ body {
 .welcome-title {
   font-size: 32px;
   font-weight: 700;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  animation: fadeInUp 0.6s ease-out 0.1s both;
+}
+
+.welcome-version {
+  display: inline-block;
+  margin-bottom: 16px;
+  padding: 2px 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  animation: fadeInUp 0.6s ease-out 0.15s both;
 }
 
 .welcome-subtitle {
@@ -1354,6 +1380,7 @@ body {
   color: var(--text-muted);
   max-width: 600px;
   line-height: 1.6;
+  animation: fadeInUp 0.6s ease-out 0.2s both;
 }
 
 /* Welcome Actions */
@@ -1418,6 +1445,7 @@ body {
   margin-top: 32px;
   max-width: 500px;
   text-align: left;
+  animation: fadeInUp 0.6s ease-out 0.25s both;
 }
 
 .welcome-hint-item {
@@ -1429,11 +1457,38 @@ body {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   transition: all 0.2s var(--ease-smooth);
+  position: relative;
+  overflow: hidden;
+  padding-left: 20px;
+}
+
+.welcome-hint-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 0;
+}
+
+.welcome-hint-item:nth-child(1)::before {
+  background: var(--accent-primary);
+}
+
+.welcome-hint-item:nth-child(2)::before {
+  background: var(--accent-success);
+}
+
+.welcome-hint-item:nth-child(3)::before {
+  background: var(--accent-warning);
 }
 
 .welcome-hint-item:hover {
   background: var(--bg-tertiary);
-  border-color: var(--border-hover);
+  border-color: var(--border-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
 .hint-icon {
