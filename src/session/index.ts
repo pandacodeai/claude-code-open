@@ -273,7 +273,7 @@ function isOfficialFormat(data: any): data is OfficialSessionData {
 function convertOfficialToMetadata(data: OfficialSessionData): SessionMetadata {
   return {
     id: data.state.sessionId,
-    name: data.metadata?.firstPrompt?.substring(0, 50) || `会话 ${data.state.sessionId.substring(0, 8)}`,
+    name: (data.metadata as any)?.customTitle || data.metadata?.firstPrompt?.substring(0, 50) || undefined,
     createdAt: data.metadata?.created || data.state.startTime || Date.now(),
     updatedAt: data.metadata?.modified || data.state.startTime || Date.now(),
     workingDirectory: data.state.cwd || data.metadata?.projectPath || process.cwd(),
@@ -696,6 +696,19 @@ export function listSessions(options: SessionListOptions = {}): SessionMetadata[
       }
 
       if (metadata) {
+        // WAL 感知：如果存在未 checkpoint 的 WAL 文件，修正 messageCount
+        // 强制重启时主 JSON 可能未更新，messageCount=0 会导致会话被列表过滤掉
+        const walPath = getWalPath(sessionId);
+        if (fs.existsSync(walPath)) {
+          const walEntries = walRead(sessionId);
+          const walMsgCount = walEntries.filter(e => e.op === 'msg').length;
+          const extraMsgs = walMsgCount - (metadata.messageCount || 0);
+          if (extraMsgs > 0) {
+            // 浅拷贝 metadata 避免污染缓存
+            metadata = { ...metadata, messageCount: (metadata.messageCount || 0) + extraMsgs };
+          }
+        }
+
         // 更新缓存（stat 已在前面获取）
         sessionMetadataCache.set(sessionId, {
           metadata,

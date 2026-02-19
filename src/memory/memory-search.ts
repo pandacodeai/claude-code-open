@@ -16,7 +16,6 @@ import type { MemorySource, MemorySearchResult } from './types.js';
 export interface MemorySearchOptions {
   source?: MemorySource | 'all';
   maxResults?: number;
-  minScore?: number;
 }
 
 /**
@@ -91,7 +90,6 @@ export class MemorySearchManager {
     return this.store.search(query, {
       source,
       maxResults: opts?.maxResults,
-      minScore: opts?.minScore,
     });
   }
 
@@ -102,10 +100,12 @@ export class MemorySearchManager {
     const claudeDir = getClaudeDir();
     const memoryDir = path.join(claudeDir, 'memory', 'projects', this.projectHash);
     const sessionsDir = path.join(claudeDir, 'projects', sanitizeProjectPath(this.projectDir));
+    const transcriptsDir = path.join(claudeDir, 'sessions');
 
     const result = await this.syncEngine.syncAll({
       memoryDir,
       sessionsDir,
+      transcriptsDir,
     });
 
     if (process.env.CLAUDE_DEBUG) {

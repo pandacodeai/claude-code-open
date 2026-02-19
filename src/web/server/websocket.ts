@@ -2849,9 +2849,12 @@ async function handleSessionList(
       projectPath,
     });
 
-    // 官方规范：只显示有消息的会话（messageCount > 0）
-    // 会话只有在发送第一条消息后才会出现在列表中
-    const sessions = allSessions.filter(s => s.messageCount > 0).slice(0, limit);
+    // 对齐官方：过滤掉没有任何内容标识的空会话
+    // 官方 CLI 通过 firstPrompt/customTitle 判断，我们用 name/summary/messageCount
+    // 不再仅依赖 messageCount > 0，避免强制重启后 WAL 未 checkpoint 导致会话消失
+    const sessions = allSessions.filter(s =>
+      s.messageCount > 0 || s.name || s.summary
+    ).slice(0, limit);
 
     sendMessage(ws, {
       type: 'session_list_response',
@@ -3114,6 +3117,143 @@ async function handleSessionSwitch(
           } as any);
           console.log(`[WebSocket] 重发待处理用户问题: ${q.header} (${q.requestId})`);
         }
+      } else if (conversationManager.needsContinuation(sessionId)) {
+        // SelfEvolve 重启等场景：工具结果已保存但模型还没来得及继续回复
+        // 自动触发对话继续，让模型接着上次中断的地方回复
+        console.log(`[WebSocket] 会话 ${sessionId} 需要继续对话（最后一条是 tool_result），自动触发`);
+
+        const continueMessageId = randomUUID();
+        const chatSessionId = sessionId;
+        const getActiveWs = (): WebSocket => {
+          return conversationManager.getWebSocket(chatSessionId) || ws;
+        };
+
+        sendMessage(getActiveWs(), {
+          type: 'message_start',
+          payload: { messageId: continueMessageId, sessionId: chatSessionId },
+        });
+        sendMessage(getActiveWs(), {
+          type: 'status',
+          payload: { status: 'thinking', sessionId: chatSessionId },
+        });
+
+        // 异步触发，不阻塞 handleSessionSwitch 返回
+        conversationManager.continueAfterRestore(chatSessionId, {
+          onThinkingStart: () => {
+            sendMessage(getActiveWs(), {
+              type: 'thinking_start',
+              payload: { messageId: continueMessageId, sessionId: chatSessionId },
+            });
+          },
+          onThinkingDelta: (text: string) => {
+            sendMessage(getActiveWs(), {
+              type: 'thinking_delta',
+              payload: { messageId: continueMessageId, text, sessionId: chatSessionId },
+            });
+          },
+          onThinkingComplete: () => {
+            sendMessage(getActiveWs(), {
+              type: 'thinking_complete',
+              payload: { messageId: continueMessageId, sessionId: chatSessionId },
+            });
+          },
+          onTextDelta: (text: string) => {
+            sendMessage(getActiveWs(), {
+              type: 'text_delta',
+              payload: { messageId: continueMessageId, text, sessionId: chatSessionId },
+            });
+          },
+          onToolUseStart: (toolUseId: string, toolName: string, input: unknown) => {
+            sendMessage(getActiveWs(), {
+              type: 'tool_use_start',
+              payload: { messageId: continueMessageId, toolUseId, toolName, input, sessionId: chatSessionId },
+            });
+            sendMessage(getActiveWs(), {
+              type: 'status',
+              payload: { status: 'tool_executing', message: `执行 ${toolName}...`, sessionId: chatSessionId },
+            });
+          },
+          onToolUseDelta: (toolUseId: string, partialJson: string) => {
+            sendMessage(getActiveWs(), {
+              type: 'tool_use_delta',
+              payload: { toolUseId, partialJson, sessionId: chatSessionId },
+            });
+          },
+          onToolResult: (toolUseId: string, success: boolean, output?: string, error?: string, data?: unknown) => {
+            sendMessage(getActiveWs(), {
+              type: 'tool_result',
+              payload: {
+                toolUseId,
+                success,
+                output,
+                error,
+                data: data as any,
+                defaultCollapsed: true,
+                sessionId: chatSessionId,
+              },
+            });
+          },
+          onPermissionRequest: (request: any) => {
+            sendMessage(getActiveWs(), {
+              type: 'permission_request',
+              payload: { ...request, sessionId: chatSessionId },
+            });
+          },
+          onComplete: async (stopReason: string | null, usage?: { inputTokens: number; outputTokens: number }) => {
+            await conversationManager.persistSession(chatSessionId);
+            sendMessage(getActiveWs(), {
+              type: 'message_complete',
+              payload: {
+                messageId: continueMessageId,
+                stopReason: (stopReason || 'end_turn') as 'end_turn' | 'max_tokens' | 'stop_sequence' | 'tool_use',
+                usage,
+                sessionId: chatSessionId,
+              },
+            });
+            sendMessage(getActiveWs(), {
+              type: 'status',
+              payload: { status: 'idle', sessionId: chatSessionId },
+            });
+          },
+          onError: (error: Error) => {
+            sendMessage(getActiveWs(), {
+              type: 'error',
+              payload: { message: error.message, sessionId: chatSessionId },
+            });
+            sendMessage(getActiveWs(), {
+              type: 'status',
+              payload: { status: 'idle', sessionId: chatSessionId },
+            });
+          },
+          onContextUpdate: (usage: { usedTokens: number; maxTokens: number; percentage: number; model: string }) => {
+            sendMessage(getActiveWs(), {
+              type: 'context_update',
+              payload: { ...usage, sessionId: chatSessionId },
+            });
+          },
+          onContextCompact: (phase: 'start' | 'end' | 'error', info?: Record<string, any>) => {
+            sendMessage(getActiveWs(), {
+              type: 'context_compact',
+              payload: { phase, ...info, sessionId: chatSessionId },
+            });
+            if (phase === 'start') {
+              sendMessage(getActiveWs(), {
+                type: 'status',
+                payload: { status: 'thinking', message: '正在压缩上下文...', sessionId: chatSessionId },
+              });
+            }
+          },
+        }).catch((err) => {
+          console.error(`[WebSocket] 自动继续对话失败:`, err);
+          sendMessage(getActiveWs(), {
+            type: 'error',
+            payload: { message: '自动继续对话失败: ' + (err instanceof Error ? err.message : String(err)), sessionId: chatSessionId },
+          });
+          sendMessage(getActiveWs(), {
+            type: 'status',
+            payload: { status: 'idle', sessionId: chatSessionId },
+          });
+        });
       }
     } else {
       sendMessage(ws, {

@@ -12,6 +12,18 @@ import type { MemorySource, MemorySearchResult } from './types.js';
 // 时间衰减参数：半衰期 30 天（毫秒）
 const HALF_LIFE = 30 * 24 * 60 * 60 * 1000;
 
+// CJK Unicode 范围正则
+const CJK_RE = /([\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff])/g;
+
+/**
+ * 中文字级分词：在每个 CJK 字符间插入空格
+ * "会话消息丢失" → "会 话 消 息 丢 失"
+ * 非 CJK 字符保持原样，英文单词照常按空格分词
+ */
+function tokenizeChinese(text: string): string {
+  return text.replace(CJK_RE, ' $1 ').replace(/\s{2,}/g, ' ').trim();
+}
+
 /**
  * 文件条目
  */
@@ -38,7 +50,6 @@ export interface ChunkOptions {
 export interface SearchOptions {
   source?: MemorySource;
   maxResults?: number;
-  minScore?: number;
 }
 
 /**
@@ -130,9 +141,22 @@ export class LongTermStore {
       this.hasFTS5 = false;
     }
 
-    // 设置版本
+    // 版本迁移：v1→v2 引入中文字级分词，需要重建 FTS 索引
+    const CURRENT_VERSION = '2';
+    const versionRow = this.db.prepare('SELECT value FROM meta WHERE key = ?').get('version') as { value: string } | undefined;
+    const existingVersion = versionRow?.value;
+
+    if (existingVersion && existingVersion < CURRENT_VERSION) {
+      // 清空所有数据，让下次 sync 重建（带字级分词）
+      this.db.exec('DELETE FROM chunks');
+      this.db.exec('DELETE FROM files');
+      if (this.hasFTS5) {
+        this.db.exec('DELETE FROM chunks_fts');
+      }
+    }
+
     const versionStmt = this.db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)');
-    versionStmt.run('version', '1');
+    versionStmt.run('version', CURRENT_VERSION);
   }
 
   /**
@@ -236,7 +260,7 @@ export class LongTermStore {
 
         if (insertFtsStmt) {
           insertFtsStmt.run(
-            chunk.text,
+            tokenizeChinese(chunk.text),
             chunkId,
             entry.path,
             entry.source,
@@ -269,12 +293,14 @@ export class LongTermStore {
    */
   search(query: string, opts?: SearchOptions): MemorySearchResult[] {
     const maxResults = opts?.maxResults ?? 8;
-    const minScore = opts?.minScore ?? 0.3;
     const source = opts?.source;
 
     let results: MemorySearchResult[] = [];
 
     if (this.hasFTS5) {
+      // 对查询做中文字级分词，与入库时一致
+      const ftsQuery = tokenizeChinese(query);
+
       // 使用 FTS5 搜索
       let sql = `
         SELECT 
@@ -291,7 +317,7 @@ export class LongTermStore {
         WHERE chunks_fts MATCH ?
       `;
 
-      const params: any[] = [query];
+      const params: any[] = [ftsQuery];
       if (source) {
         sql += ` AND c.source = ?`;
         params.push(source);
@@ -314,28 +340,29 @@ export class LongTermStore {
 
       const now = Date.now();
 
+      // BM25 rank 是负数，绝对值越大匹配越好
+      // 用最佳 rank 做归一化，保证最佳结果 score 接近 1.0
+      const bestRank = rows.length > 0 ? Math.abs(rows[0].rank) : 1;
+
       for (const row of rows) {
-        // 转换 FTS5 rank 为正分数
-        const rawScore = 1 / (1 + Math.abs(row.rank));
+        const rawScore = Math.abs(row.rank) / bestRank;
         
         // 时间衰减
         const age = now - row.created_at;
         const decay = 1 / (1 + age / HALF_LIFE);
         const finalScore = rawScore * decay;
 
-        if (finalScore >= minScore) {
-          results.push({
-            id: row.id,
-            path: row.path,
-            startLine: row.start_line,
-            endLine: row.end_line,
-            score: finalScore,
-            snippet: this.extractSnippet(row.text, query),
-            source: row.source as MemorySource,
-            timestamp: new Date(row.created_at).toISOString(),
-            age,
-          });
-        }
+        results.push({
+          id: row.id,
+          path: row.path,
+          startLine: row.start_line,
+          endLine: row.end_line,
+          score: finalScore,
+          snippet: this.extractSnippet(row.text, query),
+          source: row.source as MemorySource,
+          timestamp: new Date(row.created_at).toISOString(),
+          age,
+        });
       }
     } else {
       // Fallback: 简单的 LIKE 搜索
@@ -373,19 +400,17 @@ export class LongTermStore {
         const rawScore = 0.5; // 简单搜索给固定分数
         const finalScore = rawScore * decay;
 
-        if (finalScore >= minScore) {
-          results.push({
-            id: row.id,
-            path: row.path,
-            startLine: row.start_line,
-            endLine: row.end_line,
-            score: finalScore,
-            snippet: this.extractSnippet(row.text, query),
-            source: row.source as MemorySource,
-            timestamp: new Date(row.created_at).toISOString(),
-            age,
-          });
-        }
+        results.push({
+          id: row.id,
+          path: row.path,
+          startLine: row.start_line,
+          endLine: row.end_line,
+          score: finalScore,
+          snippet: this.extractSnippet(row.text, query),
+          source: row.source as MemorySource,
+          timestamp: new Date(row.created_at).toISOString(),
+          age,
+        });
       }
     }
 
