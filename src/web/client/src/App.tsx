@@ -466,6 +466,10 @@ function AppContent({
               isPinned={chatInput.isPinned}
               onTogglePin={chatInput.togglePin}
               onVisibilityChange={setIsInputVisible}
+              voiceState={chatInput.voiceState}
+              isVoiceSupported={chatInput.isVoiceSupported}
+              voiceTranscript={chatInput.voiceTranscript}
+              onToggleVoice={chatInput.toggleVoice}
             />
           </div>
 

@@ -14,6 +14,8 @@ import type {
 } from '../types';
 import type { Status, PermissionMode } from './useMessageHandler';
 import type { Project } from '../contexts/ProjectContext';
+import { useVoiceRecognition } from './useVoiceRecognition';
+import type { VoiceState } from './useVoiceRecognition';
 
 interface UseChatInputParams {
   connected: boolean;
@@ -58,6 +60,11 @@ interface UseChatInputReturn {
   handlePermissionRespondWithDestination: (response: { approved: boolean; remember: boolean; destination: string }) => void;
   handlePermissionModeChange: (mode: PermissionMode) => void;
   handleDevAction: (action: string, data?: any) => void;
+  // 语音识别
+  voiceState: VoiceState;
+  isVoiceSupported: boolean;
+  voiceTranscript: string;
+  toggleVoice: () => void;
 }
 
 export function useChatInput({
@@ -86,6 +93,28 @@ export function useChatInput({
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 语音识别 - 使用 ref 持有 handleSend，避免循环依赖
+  const handleSendRef = useRef<() => Promise<void>>(async () => {});
+
+  const { voiceState, transcript: voiceTranscript, isSupported: isVoiceSupported, startListening, stopListening } = useVoiceRecognition({
+    wakeWord: 'claude',
+    silenceTimeout: 2000,
+    lang: 'zh-CN',
+    onCommand: (text) => {
+      setInput(text);
+      // 用 setTimeout 确保 setInput 先完成
+      setTimeout(() => { handleSendRef.current(); }, 50);
+    },
+  });
+
+  const toggleVoice = useCallback(() => {
+    if (voiceState === 'idle') {
+      startListening();
+    } else {
+      stopListening();
+    }
+  }, [voiceState, startListening, stopListening]);
 
   // 会话切换时清空输入框
   useEffect(() => {
@@ -293,6 +322,9 @@ export function useChatInput({
     }
   };
 
+  // 保持 handleSendRef 最新，供语音识别回调使用
+  handleSendRef.current = handleSend;
+
   // 命令选择
   const handleCommandSelect = (command: SlashCommand) => {
     setInput(command.name + ' ');
@@ -432,5 +464,10 @@ export function useChatInput({
     handlePermissionRespondWithDestination,
     handlePermissionModeChange,
     handleDevAction,
+    // 语音识别
+    voiceState,
+    isVoiceSupported,
+    voiceTranscript,
+    toggleVoice,
   };
 }
