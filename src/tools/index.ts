@@ -64,7 +64,7 @@ import { MemoryDiagnosticsTool } from './memory-diagnostics.js';
 import { CreateToolTool } from './create-tool.js';
 import { DatabaseTool } from './database.js';
 import { DebuggerTool } from './debugger.js';
-import { TestRunnerTool } from './test-runner.js';
+
 import { REPLTool } from './repl.js';
 
 // ============ 蓝图工具 imports (lazy) ============
@@ -184,10 +184,9 @@ export function registerCoreTools(): void {
   // 17. CreateTool 自定义 Skill 创建（写入 ~/.claude/skills/，利用 Skill 系统）
   toolRegistry.register(new CreateToolTool());
 
-  // 20. 开发工具 (4个) - Database, Debugger, TestRunner, REPL
+  // 20. 开发工具 (3个) - Database, Debugger, REPL
   toolRegistry.register(new DatabaseTool());
   toolRegistry.register(new DebuggerTool());
-  toolRegistry.register(new TestRunnerTool());
   toolRegistry.register(new REPLTool());
 }
 

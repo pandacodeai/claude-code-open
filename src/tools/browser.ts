@@ -10,6 +10,7 @@
 import { BaseTool } from './base.js';
 import type { ToolResult, ToolDefinition } from '../types/index.js';
 import type { BrowserToolInput } from '../browser/types.js';
+import { t } from '../i18n/index.js';
 
 export class BrowserTool extends BaseTool<BrowserToolInput, ToolResult> {
   name = 'Browser';
@@ -154,12 +155,12 @@ USAGE NOTES:
         case 'stop': {
           await manager.stop();
           this.controller = null;
-          return this.success('Browser stopped successfully.');
+          return this.success(t('browser.stopped'));
         }
 
         case 'status': {
           if (!manager.isRunning()) {
-            return this.success('Browser is not running. Use "start" action to launch browser.');
+            return this.success(t('browser.notRunning'));
           }
 
           const page = await manager.getPage();
@@ -180,7 +181,7 @@ USAGE NOTES:
 
         case 'goto': {
           if (!input.url) {
-            return this.error('Missing required parameter: url');
+            return this.error(t('browser.missingUrl'));
           }
           const result = await controller.goto(input.url);
           return this.success(
@@ -200,7 +201,7 @@ USAGE NOTES:
           const base64 = buffer.toString('base64');
           return {
             success: true,
-            output: 'Screenshot captured successfully.',
+            output: t('browser.screenshotCaptured'),
             images: [{
               type: 'image' as const,
               source: {
@@ -214,7 +215,7 @@ USAGE NOTES:
 
         case 'click': {
           if (!input.ref) {
-            return this.error('Missing required parameter: ref');
+            return this.error(t('browser.missingRef'));
           }
           await controller.click(input.ref);
           return this.success(`Clicked element: ${input.ref}`);
@@ -222,7 +223,7 @@ USAGE NOTES:
 
         case 'fill': {
           if (!input.ref || !input.value) {
-            return this.error('Missing required parameters: ref, value');
+            return this.error(t('browser.missingRefValue'));
           }
           await controller.fill(input.ref, input.value);
           return this.success(`Filled element ${input.ref} with: ${input.value}`);
@@ -230,7 +231,7 @@ USAGE NOTES:
 
         case 'type': {
           if (!input.text) {
-            return this.error('Missing required parameter: text');
+            return this.error(t('browser.missingText'));
           }
           await controller.type(input.text);
           return this.success(`Typed: ${input.text}`);
@@ -238,7 +239,7 @@ USAGE NOTES:
 
         case 'press': {
           if (!input.key) {
-            return this.error('Missing required parameter: key');
+            return this.error(t('browser.missingKey'));
           }
           await controller.press(input.key);
           return this.success(`Pressed key: ${input.key}`);
@@ -246,7 +247,7 @@ USAGE NOTES:
 
         case 'hover': {
           if (!input.ref) {
-            return this.error('Missing required parameter: ref');
+            return this.error(t('browser.missingRef'));
           }
           await controller.hover(input.ref);
           return this.success(`Hovered over element: ${input.ref}`);
@@ -254,7 +255,7 @@ USAGE NOTES:
 
         case 'select': {
           if (!input.ref || !input.value) {
-            return this.error('Missing required parameters: ref, value');
+            return this.error(t('browser.missingRefValue'));
           }
           const values = input.value.split(',').map((v) => v.trim());
           await controller.select(input.ref, values);
@@ -263,17 +264,17 @@ USAGE NOTES:
 
         case 'go_back': {
           await controller.goBack();
-          return this.success('Navigated back');
+          return this.success(t('browser.navigatedBack'));
         }
 
         case 'go_forward': {
           await controller.goForward();
-          return this.success('Navigated forward');
+          return this.success(t('browser.navigatedForward'));
         }
 
         case 'reload': {
           await controller.reload();
-          return this.success('Page reloaded');
+          return this.success(t('browser.pageReloaded'));
         }
 
         case 'tab_list': {
@@ -294,7 +295,7 @@ USAGE NOTES:
 
         case 'tab_select': {
           if (input.index === undefined) {
-            return this.error('Missing required parameter: index');
+            return this.error(t('browser.missingIndex'));
           }
           await controller.tabSelect(input.index);
           return this.success(`Switched to tab ${input.index}`);
@@ -309,7 +310,7 @@ USAGE NOTES:
 
         case 'evaluate': {
           if (!input.expression) {
-            return this.error('Missing required parameter: expression');
+            return this.error(t('browser.missingExpression'));
           }
           const result = await controller.evaluate(input.expression);
           return this.success(`Result: ${JSON.stringify(result, null, 2)}`);
@@ -324,7 +325,7 @@ USAGE NOTES:
 
         case 'cookie_set': {
           if (!input.name || !input.value) {
-            return this.error('Missing required parameters: name, value');
+            return this.error(t('browser.missingNameValue'));
           }
           await controller.setCookie(input.name, input.value, {
             domain: input.domain,
@@ -334,7 +335,7 @@ USAGE NOTES:
 
         case 'cookie_clear': {
           await controller.clearCookies();
-          return this.success('All cookies cleared');
+          return this.success(t('browser.cookiesCleared'));
         }
 
         default:

@@ -2131,9 +2131,30 @@ export class SessionManager {
   }
 }
 
-// 默认实例（从配置管理器读取配置）
-const config = configManager.getAll();
-export const sessionManager = new SessionManager(config.sessionManager || {});
+// 默认实例（懒加载，避免模块级副作用导致测试环境崩溃）
+let _sessionManager: SessionManager | null = null;
+export function getSessionManagerInstance(): SessionManager {
+  if (!_sessionManager) {
+    const config = configManager.getAll();
+    _sessionManager = new SessionManager(config.sessionManager || {});
+  }
+  return _sessionManager;
+}
+// 保持向后兼容的导出（通过 getter 延迟初始化）
+export const sessionManager: SessionManager = new Proxy({} as SessionManager, {
+  get(_target, prop, receiver) {
+    const instance = getSessionManagerInstance();
+    const value = Reflect.get(instance, prop, instance);
+    if (typeof value === 'function') {
+      return value.bind(instance);
+    }
+    return value;
+  },
+  set(_target, prop, value) {
+    const instance = getSessionManagerInstance();
+    return Reflect.set(instance, prop, value);
+  },
+});
 
 // 导出增强的列表功能
 export {

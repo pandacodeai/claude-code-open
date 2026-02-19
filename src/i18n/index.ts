@@ -46,6 +46,10 @@ function detectSystemLocale(): string {
 export async function initI18n(language?: string): Promise<void> {
   const locale = language ? resolveLocale(language) : 'en';
 
+  // i18next 在初始化时通过 console.info 打印赞助广告，临时静默
+  const origInfo = console.info;
+  console.info = () => {};
+
   await i18next.init({
     lng: locale,
     fallbackLng: 'en',
@@ -57,6 +61,8 @@ export async function initI18n(language?: string): Promise<void> {
       zh: { translation: zh },
     },
   });
+
+  console.info = origInfo;
 }
 
 /**

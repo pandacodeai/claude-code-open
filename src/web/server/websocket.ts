@@ -192,8 +192,14 @@ interface ClientConnection {
   permissionMode?: string; // 客户端级别的权限模式（跨会话持久化）
 }
 
-// 全局检查点管理器实例
-const checkpointManager = new CheckpointManager();
+// 全局检查点管理器实例（惰性初始化，避免模块加载时的副作用日志）
+let _checkpointManager: CheckpointManager | null = null;
+function getCheckpointManager(): CheckpointManager {
+  if (!_checkpointManager) {
+    _checkpointManager = new CheckpointManager();
+  }
+  return _checkpointManager;
+}
 
 // 全局终端管理器实例
 const terminalManager = new TerminalManager();
@@ -4081,7 +4087,7 @@ async function handleCheckpointCreate(
       return;
     }
 
-    const checkpoint = await checkpointManager.createCheckpoint(
+    const checkpoint = await getCheckpointManager().createCheckpoint(
       description,
       filePaths,
       workingDirectory,
@@ -4126,13 +4132,13 @@ async function handleCheckpointList(
     const sortBy = payload?.sortBy || 'timestamp';
     const sortOrder = payload?.sortOrder || 'desc';
 
-    const checkpoints = checkpointManager.listCheckpoints({
+    const checkpoints = getCheckpointManager().listCheckpoints({
       limit,
       sortBy,
       sortOrder,
     });
 
-    const stats = checkpointManager.getStats();
+    const stats = getCheckpointManager().getStats();
 
     const checkpointSummaries = checkpoints.map(cp => ({
       id: cp.id,
@@ -4190,7 +4196,7 @@ async function handleCheckpointRestore(
       return;
     }
 
-    const result = await checkpointManager.restoreCheckpoint(checkpointId, {
+    const result = await getCheckpointManager().restoreCheckpoint(checkpointId, {
       dryRun: dryRun || false,
       skipBackup: false,
     });
@@ -4242,7 +4248,7 @@ async function handleCheckpointDelete(
       return;
     }
 
-    const success = checkpointManager.deleteCheckpoint(checkpointId);
+    const success = getCheckpointManager().deleteCheckpoint(checkpointId);
 
     console.log(`[WebSocket] 删除检查点: ${checkpointId} (${success ? '成功' : '失败'})`);
 
@@ -4285,7 +4291,7 @@ async function handleCheckpointDiff(
       return;
     }
 
-    const diffs = await checkpointManager.diffCheckpoint(checkpointId);
+    const diffs = await getCheckpointManager().diffCheckpoint(checkpointId);
 
     const stats = {
       added: diffs.filter(d => d.type === 'added').length,
@@ -4328,7 +4334,7 @@ async function handleCheckpointClear(
   const { ws } = client;
 
   try {
-    const count = checkpointManager.clearCheckpoints();
+    const count = getCheckpointManager().clearCheckpoints();
 
     console.log(`[WebSocket] 清除所有检查点: ${count} 个`);
 

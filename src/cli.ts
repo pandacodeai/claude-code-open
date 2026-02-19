@@ -278,6 +278,17 @@ program
   .option('--init-only', 'Run Setup hook and exit (repository setup/maintenance)')
   .option('--maintenance', 'Alias for --init-only')
   .action(async (prompt, options) => {
+    // Print 模式下，将 console.log/warn/info 重定向到 stderr
+    // 避免各模块的调试日志污染 stdout（用户只期望看到 AI 回复）
+    if (options.print) {
+      const origLog = console.log;
+      const origWarn = console.warn;
+      const origInfo = console.info;
+      console.log = (...args: any[]) => process.stderr.write(args.join(' ') + '\n');
+      console.warn = (...args: any[]) => process.stderr.write(args.join(' ') + '\n');
+      console.info = (...args: any[]) => process.stderr.write(args.join(' ') + '\n');
+    }
+
     // T504: action_handler_start - Action 处理器开始
     await emitLifecycleEvent('action_handler_start');
 

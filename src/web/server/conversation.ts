@@ -29,6 +29,7 @@ import { blueprintStore, executionManager } from './routes/blueprint-api.js';
 import type { Blueprint } from '../../blueprint/types.js';
 import { StartLeadAgentTool } from '../../tools/start-lead-agent.js';
 import { geminiImageService } from './services/gemini-image-service.js';
+import { compressRawBase64 } from '../../media/image.js';
 import {
   initSessionMemory,
   readSessionMemory,
@@ -1038,16 +1039,17 @@ export class ConversationManager {
         content: content,
       };
 
-      // 如果有图片附件，转换为多内容块格式（直接传递给 Claude API）
+      // 如果有图片附件，压缩后转换为多内容块格式传递给 Claude API
       if (mediaAttachments && mediaAttachments.length > 0) {
         const contentBlocks: any[] = [{ type: 'text', text: content }];
         for (const attachment of mediaAttachments) {
+          const compressed = await compressRawBase64(attachment.data, attachment.mimeType);
           contentBlocks.push({
             type: 'image',
             source: {
               type: 'base64',
-              media_type: attachment.mimeType,
-              data: attachment.data,
+              media_type: compressed.mediaType,
+              data: compressed.data,
             },
           });
         }

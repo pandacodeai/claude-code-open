@@ -2601,12 +2601,9 @@ class ExecutionManager {
 export const executionManager = new ExecutionManager();
 
 // 服务器启动时自动恢复未完成的执行
-// 使用 setTimeout 延迟执行，确保其他模块先初始化完成
-setTimeout(() => {
-  executionManager.initRecovery().catch(error => {
-    console.error('[ExecutionManager] 初始化恢复失败:', error);
-  });
-}, 1000);
+// 仅在 WebUI 服务器模式下触发，避免 CLI 模式下保持 event loop 活跃导致进程不退出
+// WebUI 服务器通过调用 executionManager.initRecovery() 显式触发
+// 在 web/server/index.ts 的 startWebServer() 中调用
 
 // ============================================================================
 // 蓝图 API 路由 - v2.0

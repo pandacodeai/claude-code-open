@@ -307,6 +307,42 @@ export async function compressBase64Image(
 }
 
 /**
+ * 压缩纯 base64 图片数据（不带 data URI 前缀）
+ * 用于 Web 附件等场景，返回压缩后的纯 base64 和 media_type
+ */
+export async function compressRawBase64(
+  base64Data: string,
+  mediaType: string,
+  maxTokens: number = MAX_IMAGE_TOKENS
+): Promise<{ data: string; mediaType: string }> {
+  const estimatedTokens = Math.ceil(base64Data.length * 0.125);
+
+  if (estimatedTokens <= maxTokens) {
+    return { data: base64Data, mediaType };
+  }
+
+  try {
+    const buffer = Buffer.from(base64Data, 'base64');
+    const compressed = await sharp(buffer)
+      .resize(IMAGE_COMPRESSION_CONFIG.maxWidth, IMAGE_COMPRESSION_CONFIG.maxHeight, {
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: IMAGE_COMPRESSION_CONFIG.quality })
+      .toBuffer();
+
+    const compressedBase64 = compressed.toString('base64');
+    const newTokens = Math.ceil(compressedBase64.length * 0.125);
+    console.log(`[ImageCompression] 附件压缩: ${estimatedTokens} -> ${newTokens} tokens (${Math.round((1 - newTokens / estimatedTokens) * 100)}% 减少)`);
+
+    return { data: compressedBase64, mediaType: 'image/jpeg' };
+  } catch (error) {
+    console.error('[ImageCompression] 附件压缩失败，使用原始数据:', error);
+    return { data: base64Data, mediaType };
+  }
+}
+
+/**
  * 验证图片文件
  */
 export function validateImageFile(filePath: string): { valid: boolean; error?: string } {
