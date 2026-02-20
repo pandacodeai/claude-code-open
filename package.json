@@ -1,7 +1,7 @@
 {
   "name": "claude-code-open",
   "version": "2.1.33",
-  "description": "Open source Claude Code CLI - Educational Purpose Only",
+  "description": "Open source AI coding platform with 37+ tools, Web IDE, multi-agent system, and MCP protocol support",
   "type": "module",
   "bin": {
     "claude": "./dist/cli.js",
@@ -47,10 +47,22 @@
   },
   "keywords": [
     "claude",
+    "claude-code",
     "cli",
     "ai",
+    "ai-coding",
+    "ai-assistant",
+    "code-assistant",
     "anthropic",
-    "code-assistant"
+    "llm",
+    "open-source",
+    "web-ide",
+    "multi-agent",
+    "mcp",
+    "model-context-protocol",
+    "developer-tools",
+    "terminal",
+    "coding-agent"
   ],
   "repository": {
     "type": "git",
