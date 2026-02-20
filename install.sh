@@ -559,7 +559,13 @@ EOF
             SHORTCUT_FILE="$DESKTOP_DIR/Claude Code WebUI.command"
             cat > "$SHORTCUT_FILE" << EOF
 #!/bin/bash
-exec "$HOME/.claude-code-open/update-and-start.sh"
+"$HOME/.claude-code-open/update-and-start.sh" &
+APP_PID=\$!
+# Wait for server to start and open browser
+sleep 3
+open http://localhost:3456 2>/dev/null || true
+# Bring app to foreground
+wait \$APP_PID
 EOF
             chmod +x "$SHORTCUT_FILE"
             success "Desktop shortcut created: $SHORTCUT_FILE"
@@ -607,7 +613,14 @@ cd ~
 echo "Starting Claude Code WebUI..."
 echo "Press Ctrl+C to stop the server"
 echo ""
-docker run -it --rm -p 3456:3456 -v "\$HOME/.claude:/root/.claude" -v "\$(pwd):/workspace" $DOCKER_IMAGE
+# Start server in background and open browser
+docker run -it --rm -p 3456:3456 \${ANTHROPIC_API_KEY:+-e ANTHROPIC_API_KEY="\$ANTHROPIC_API_KEY"} -v "\$HOME/.claude:/root/.claude" -v "\$(pwd):/workspace" $DOCKER_IMAGE &
+DOCKER_PID=\$!
+# Wait for server to start and open browser
+sleep 3
+open http://localhost:3456 2>/dev/null || true
+# Bring docker to foreground
+wait \$DOCKER_PID
 EOF
             chmod +x "$SHORTCUT_FILE"
             success "Desktop shortcut created: $SHORTCUT_FILE"
