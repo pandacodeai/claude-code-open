@@ -644,6 +644,12 @@ function Install-Npm {
         Push-Location $InstallDir
     }
 
+    # Auto-detect China network and set npm mirror
+    if ($script:RepoUrl -like '*gitee*') {
+        Write-Info "Detected China network, setting npm registry to npmmirror..."
+        npm config set registry https://registry.npmmirror.com
+    }
+
     Write-Info "Installing dependencies..."
     npm install --legacy-peer-deps
     if ($LASTEXITCODE -ne 0) {
