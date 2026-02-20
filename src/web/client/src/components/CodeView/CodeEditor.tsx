@@ -10,6 +10,9 @@ import { useAutoComplete } from '../../hooks/useAutoComplete';
 import { useIntentToCode } from '../../hooks/useIntentToCode';
 import { useCodeReview } from '../../hooks/useCodeReview';
 import { useTestGenerator } from '../../hooks/useTestGenerator';
+import { useCodeConversation } from '../../hooks/useCodeConversation';
+import { useSmartDiff } from '../../hooks/useSmartDiff';
+import { useDeadCode } from '../../hooks/useDeadCode';
 
 /**
  * CodeEditor Props
@@ -189,6 +192,33 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
       filePath: currentTab?.path || null,
       language: currentTab?.language || 'plaintext',
       editorRef,
+    });
+
+    // Code Conversation 代码对话
+    const conversation = useCodeConversation({
+      filePath: currentTab?.path || null,
+      content: currentTab?.content || '',
+      language: currentTab?.language || 'plaintext',
+      editorRef,
+    });
+
+    // Smart Diff 语义 Diff 分析
+    const smartDiff = useSmartDiff({
+      filePath: currentTab?.path || null,
+      content: currentTab?.content || '',
+      originalContent: currentTab?.originalContent || '',
+      language: currentTab?.language || 'plaintext',
+      modified: currentTab?.modified || false,
+    });
+
+    // Dead Code Detection 死代码检测
+    const deadCode = useDeadCode({
+      filePath: currentTab?.path || null,
+      content: currentTab?.content || '',
+      language: currentTab?.language || 'plaintext',
+      editorRef,
+      monacoRef,
+      editorReady,
     });
 
     // ========================================================================
@@ -442,7 +472,8 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
       }
 
       const showReviewPanel = codeReview.enabled && codeReview.issues.length > 0;
-      const showAnyPanel = showLineDetails || showReviewPanel;
+      const showConversationPanel = conversation.state.visible;
+      const showAnyPanel = showLineDetails || showReviewPanel || showConversationPanel;
 
       return (
         <div className={showAnyPanel ? styles.editorWithPanel : styles.editorFull}>
@@ -628,6 +659,83 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
               </div>
             </div>
           )}
+
+          {/* Code Conversation 对话面板 */}
+          {showConversationPanel && (
+            <div className={styles.conversationPanel}>
+              <div className={styles.conversationHeader}>
+                <span className={styles.conversationTitle}>💬 代码对话</span>
+                <button className={styles.conversationClear} onClick={conversation.clear} title="清空对话">
+                  🗑️
+                </button>
+                <button className={styles.conversationClose} onClick={conversation.close}>
+                  ×
+                </button>
+              </div>
+
+              {/* 对话列表 */}
+              <div className={styles.conversationMessages}>
+                {conversation.state.messages.length === 0 ? (
+                  <div className={styles.conversationHints}>
+                    <div className={styles.conversationHintItem} onClick={() => conversation.setInput('这段代码做什么？')}>
+                      💡 这段代码做什么？
+                    </div>
+                    <div className={styles.conversationHintItem} onClick={() => conversation.setInput('有什么替代方案？')}>
+                      💡 有什么替代方案？
+                    </div>
+                    <div className={styles.conversationHintItem} onClick={() => conversation.setInput('如何测试这个功能？')}>
+                      💡 如何测试这个功能？
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {conversation.state.messages.map((msg, idx) => (
+                      <div
+                        key={idx}
+                        className={msg.role === 'user' ? styles.userMessage : styles.assistantMessage}
+                      >
+                        <div className={styles.messageRole}>
+                          {msg.role === 'user' ? '👤 你' : '🤖 AI'}
+                        </div>
+                        <div className={styles.messageContent}>{msg.content}</div>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {conversation.state.loading && (
+                  <div className={styles.assistantMessage}>
+                    <div className={styles.messageRole}>🤖 AI</div>
+                    <div className={styles.messageContent}>🤔 思考中...</div>
+                  </div>
+                )}
+              </div>
+
+              {/* 输入框 */}
+              <div className={styles.conversationInputArea}>
+                <textarea
+                  className={styles.conversationInput}
+                  placeholder="输入你的问题..."
+                  value={conversation.state.input}
+                  onChange={(e) => conversation.setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      conversation.send();
+                    }
+                  }}
+                  rows={3}
+                />
+                <button
+                  className={styles.conversationSendBtn}
+                  onClick={conversation.send}
+                  disabled={conversation.state.loading || !conversation.state.input.trim()}
+                >
+                  {conversation.state.loading ? '⏳ 发送中' : '📤 发送'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       );
     };
@@ -707,6 +815,14 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
               >
                 🎯 审查 {codeReview.loading && '⏳'}
               </button>
+              <button
+                className={`${styles.aiBtn} ${deadCode.enabled ? styles.active : ''}`}
+                onClick={deadCode.toggle}
+                disabled={deadCode.loading}
+                title={`死代码检测${deadCode.items.length > 0 ? ` (${deadCode.items.length})` : ''}`}
+              >
+                💀 死代码 {deadCode.loading && '⏳'}
+              </button>
             </div>
 
             <span className={styles.toolDivider}></span>
@@ -733,6 +849,23 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
               >
                 🧪 测试
               </button>
+              <button
+                className={`${styles.aiBtn} ${conversation.state.visible ? styles.active : ''}`}
+                onClick={conversation.open}
+                title="代码对话：与 AI 讨论代码"
+              >
+                💬 对话
+              </button>
+              {currentTab?.modified && (
+                <button
+                  className={styles.aiBtn}
+                  onClick={smartDiff.analyze}
+                  disabled={smartDiff.state.loading}
+                  title="语义 Diff 分析：分析代码改动的影响"
+                >
+                  🔍 Diff {smartDiff.state.loading && '⏳'}
+                </button>
+              )}
               <button
                 className={`${styles.aiBtn} ${showLineDetails ? styles.active : ''}`}
                 onClick={() => setShowLineDetails(!showLineDetails)}
@@ -1008,6 +1141,81 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Smart Diff 对话框 */}
+        {smartDiff.state.visible && (
+          <div className={styles.askAIOverlay}>
+            <div className={styles.askAIDialog}>
+              <div className={styles.askAIHeader}>
+                <span className={styles.askAITitle}>🔍 语义 Diff 分析</span>
+                {smartDiff.state.analysis && (
+                  <span className={`${styles.diffImpact} ${styles[`diffImpact_${smartDiff.state.analysis.impact}`]}`}>
+                    {smartDiff.state.analysis.impact === 'safe' && '✅ 安全'}
+                    {smartDiff.state.analysis.impact === 'warning' && '⚠️ 警告'}
+                    {smartDiff.state.analysis.impact === 'danger' && '🚨 危险'}
+                  </span>
+                )}
+                <button className={styles.askAIClose} onClick={smartDiff.close}>×</button>
+              </div>
+
+              {smartDiff.state.loading ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: 'rgba(255,255,255,0.6)' }}>
+                  🤖 AI 分析改动中...
+                </div>
+              ) : smartDiff.state.analysis ? (
+                <div style={{ padding: '16px', overflow: 'auto', maxHeight: '500px' }}>
+                  {/* 摘要 */}
+                  <div className={styles.askAIAnswerLabel}>改动摘要：</div>
+                  <div className={styles.askAIAnswerContent} style={{ marginBottom: '16px' }}>
+                    {smartDiff.state.analysis.summary}
+                  </div>
+
+                  {/* 改动列表 */}
+                  {smartDiff.state.analysis.changes.length > 0 && (
+                    <>
+                      <div className={styles.askAIAnswerLabel}>具体改动：</div>
+                      <div style={{ marginBottom: '16px' }}>
+                        {smartDiff.state.analysis.changes.map((change, idx) => (
+                          <div key={idx} className={styles.diffChange} style={{ marginBottom: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                              <span style={{ fontSize: '14px' }}>
+                                {change.type === 'added' && '➕'}
+                                {change.type === 'removed' && '➖'}
+                                {change.type === 'modified' && '🔄'}
+                              </span>
+                              <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)' }}>
+                                {change.description}
+                              </span>
+                            </div>
+                            {change.risk && (
+                              <div style={{ fontSize: '11px', color: '#ffc107', paddingLeft: '20px' }}>
+                                ⚠️ {change.risk}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* 警告列表 */}
+                  {smartDiff.state.analysis.warnings.length > 0 && (
+                    <>
+                      <div className={styles.askAIAnswerLabel}>⚠️ 警告：</div>
+                      <div>
+                        {smartDiff.state.analysis.warnings.map((warning, idx) => (
+                          <div key={idx} className={styles.diffWarning} style={{ marginBottom: '6px' }}>
+                            {warning}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : null}
             </div>
           </div>
         )}

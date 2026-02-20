@@ -314,6 +314,101 @@ export interface GenerateTestResponse {
   error?: string;
 }
 
+/**
+ * Code Conversation Message
+ */
+export interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+/**
+ * Code Conversation 请求
+ */
+export interface CodeConversationRequest {
+  filePath: string;
+  language: string;
+  codeContext: string;
+  cursorLine?: number;
+  messages: ConversationMessage[];
+  question: string;
+}
+
+/**
+ * Code Conversation 响应
+ */
+export interface CodeConversationResponse {
+  success: boolean;
+  answer?: string;
+  error?: string;
+}
+
+/**
+ * Smart Diff Change
+ */
+export interface SmartDiffChange {
+  type: 'added' | 'removed' | 'modified';
+  description: string;
+  risk?: string;
+}
+
+/**
+ * Smart Diff 请求
+ */
+export interface SmartDiffRequest {
+  filePath: string;
+  language: string;
+  originalContent: string;
+  modifiedContent: string;
+}
+
+/**
+ * Smart Diff 响应
+ */
+export interface SmartDiffResponse {
+  success: boolean;
+  analysis?: {
+    summary: string;
+    impact: 'safe' | 'warning' | 'danger';
+    changes: SmartDiffChange[];
+    warnings: string[];
+  };
+  fromCache?: boolean;
+  error?: string;
+}
+
+/**
+ * Dead Code Item
+ */
+export interface DeadCodeItem {
+  line: number;
+  endLine: number;
+  type: 'unused' | 'unreachable' | 'redundant' | 'suspicious';
+  name: string;
+  reason: string;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+/**
+ * Dead Code 请求
+ */
+export interface DeadCodeRequest {
+  filePath: string;
+  content: string;
+  language: string;
+}
+
+/**
+ * Dead Code 响应
+ */
+export interface DeadCodeResponse {
+  success: boolean;
+  deadCode: DeadCodeItem[];
+  summary?: string;
+  fromCache?: boolean;
+  error?: string;
+}
+
 // ============================================================================
 // API 调用函数
 // ============================================================================
@@ -675,6 +770,107 @@ export const aiTestGenApi = {
   },
 };
 
+/**
+ * AI Code Conversation API - 多轮代码对话
+ */
+export const aiConversationApi = {
+  /**
+   * 发送对话消息
+   */
+  chat: async (request: CodeConversationRequest): Promise<CodeConversationResponse> => {
+    try {
+      const response = await fetch('/api/ai-editor/conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        return {
+          success: false,
+          error: error.error || `HTTP ${response.status}`,
+        };
+      }
+
+      return response.json();
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err.message || 'Network error',
+      };
+    }
+  },
+};
+
+/**
+ * AI Smart Diff API - 语义 Diff 分析
+ */
+export const aiSmartDiffApi = {
+  /**
+   * 分析代码改动
+   */
+  analyze: async (request: SmartDiffRequest): Promise<SmartDiffResponse> => {
+    try {
+      const response = await fetch('/api/ai-editor/smart-diff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        return {
+          success: false,
+          error: error.error || `HTTP ${response.status}`,
+        };
+      }
+
+      return response.json();
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err.message || 'Network error',
+      };
+    }
+  },
+};
+
+/**
+ * AI Dead Code API - 死代码检测
+ */
+export const aiDeadCodeApi = {
+  /**
+   * 分析死代码
+   */
+  analyze: async (request: DeadCodeRequest): Promise<DeadCodeResponse> => {
+    try {
+      const response = await fetch('/api/ai-editor/dead-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        return {
+          success: false,
+          deadCode: [],
+          error: error.error || `HTTP ${response.status}`,
+        };
+      }
+
+      return response.json();
+    } catch (err: any) {
+      return {
+        success: false,
+        deadCode: [],
+        error: err.message || 'Network error',
+      };
+    }
+  },
+};
+
 // ============================================================================
 // 统一导出
 // ============================================================================
@@ -690,6 +886,9 @@ export const aiEditorApi = {
   intent: aiIntentApi,
   codeReview: aiCodeReviewApi,
   testGen: aiTestGenApi,
+  conversation: aiConversationApi,
+  smartDiff: aiSmartDiffApi,
+  deadCode: aiDeadCodeApi,
 };
 
 export default aiEditorApi;

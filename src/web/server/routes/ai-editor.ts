@@ -70,6 +70,18 @@ const testGenCache = new LRUCache<string, GenerateTestResponse>({
   ttl: 1000 * 60 * 15,
 });
 
+// Smart Diff 结果缓存
+const smartDiffCache = new LRUCache<string, SmartDiffResponse>({
+  max: 200,
+  ttl: 1000 * 60 * 10, // 10分钟
+});
+
+// Dead Code 结果缓存
+const deadCodeCache = new LRUCache<string, DeadCodeResponse>({
+  max: 500,
+  ttl: 1000 * 60 * 15, // 15分钟
+});
+
 // 防止重复请求
 const pendingRequests = new Map<string, Promise<any>>();
 
@@ -1178,6 +1190,526 @@ ${code}
     }
   } catch (error: any) {
     console.error('[AI Editor] /generate-test 请求处理失败:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || '服务器内部错误',
+    });
+  }
+});
+
+// ============================================================================
+// Smart Diff API - 语义 Diff 分析
+// ============================================================================
+
+/**
+ * Smart Diff Change
+ */
+interface SmartDiffChange {
+  type: 'added' | 'removed' | 'modified';
+  description: string;
+  risk?: string;
+}
+
+/**
+ * Smart Diff 请求体
+ */
+interface SmartDiffRequest {
+  filePath: string;
+  language: string;
+  originalContent: string;
+  modifiedContent: string;
+}
+
+/**
+ * Smart Diff 响应
+ */
+interface SmartDiffResponse {
+  success: boolean;
+  analysis?: {
+    summary: string;
+    impact: 'safe' | 'warning' | 'danger';
+    changes: SmartDiffChange[];
+    warnings: string[];
+  };
+  fromCache?: boolean;
+  error?: string;
+}
+
+/**
+ * POST /api/ai-editor/smart-diff
+ * 分析代码改动的语义影响
+ */
+router.post('/smart-diff', async (req: Request, res: Response) => {
+  try {
+    const { filePath, language, originalContent, modifiedContent }: SmartDiffRequest = req.body;
+
+    // 参数验证
+    if (!filePath || !originalContent || !modifiedContent) {
+      return res.status(400).json({
+        success: false,
+        error: '缺少必要参数 (filePath, originalContent, modifiedContent)',
+      });
+    }
+
+    // 生成缓存键
+    const cacheKey = crypto
+      .createHash('md5')
+      .update(`smart-diff:${filePath}:${originalContent}:${modifiedContent}`)
+      .digest('hex');
+
+    // 检查缓存
+    const cached = smartDiffCache.get(cacheKey);
+    if (cached) {
+      console.log(`[AI Editor] /smart-diff 命中缓存: ${cacheKey}`);
+      return res.json({ ...cached, fromCache: true });
+    }
+
+    // 检查是否有正在处理的相同请求
+    if (pendingRequests.has(cacheKey)) {
+      console.log(`[AI Editor] /smart-diff 请求已在处理中，复用: ${cacheKey}`);
+      const result = await pendingRequests.get(cacheKey);
+      return res.json(result);
+    }
+
+    // 创建新请求
+    const requestPromise = (async (): Promise<SmartDiffResponse> => {
+      try {
+        const client = createClient();
+        if (!client) {
+          return {
+            success: false,
+            error: 'API 客户端未初始化，请检查 API Key 配置',
+          };
+        }
+
+        const prompt = `请分析以下代码改动的语义影响。
+
+文件路径: ${filePath}
+编程语言: ${language}
+
+原始代码:
+\`\`\`${language}
+${originalContent}
+\`\`\`
+
+修改后代码:
+\`\`\`${language}
+${modifiedContent}
+\`\`\`
+
+请分析：
+1. 改动摘要（summary）：简要说明这次改动做了什么
+2. 风险等级（impact）：safe（安全，无风险）、warning（有潜在问题需注意）、danger（危险，可能引入 bug）
+3. 具体改动列表（changes）：每个改动包含 type（added/removed/modified）、description（语义描述）、risk（可选，风险提示）
+4. 警告列表（warnings）：列出所有潜在问题
+
+请以 JSON 格式返回，格式如下：
+{
+  "summary": "改动摘要",
+  "impact": "safe" | "warning" | "danger",
+  "changes": [
+    { "type": "added" | "removed" | "modified", "description": "语义描述", "risk": "可选风险提示" }
+  ],
+  "warnings": ["警告1", "警告2"]
+}`;
+
+        console.log(`[AI Editor] /smart-diff 调用 Claude: ${filePath}`);
+
+        const response = await client.createMessage(
+          [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+          undefined, // 无工具
+          undefined, // 无 system prompt
+          { enableThinking: false }
+        );
+
+        const rawText = response.content[0]?.type === 'text' ? response.content[0].text : '';
+
+        if (!rawText) {
+          return {
+            success: false,
+            error: 'AI 未返回有效分析结果',
+          };
+        }
+
+        // 尝试解析 JSON
+        const parsed = extractJSON(rawText);
+        if (!parsed || !parsed.summary || !parsed.impact) {
+          console.error('[AI Editor] /smart-diff 无法解析 AI 返回的 JSON:', rawText);
+          return {
+            success: false,
+            error: 'AI 返回格式不正确',
+          };
+        }
+
+        return {
+          success: true,
+          analysis: {
+            summary: parsed.summary,
+            impact: parsed.impact,
+            changes: parsed.changes || [],
+            warnings: parsed.warnings || [],
+          },
+        };
+      } catch (error: any) {
+        console.error('[AI Editor] /smart-diff AI 调用失败:', error);
+        return {
+          success: false,
+          error: error.message || 'AI 调用失败',
+        };
+      }
+    })();
+
+    pendingRequests.set(cacheKey, requestPromise);
+
+    try {
+      const result = await requestPromise;
+
+      // 只缓存成功的结果
+      if (result.success) {
+        smartDiffCache.set(cacheKey, result);
+      }
+
+      res.json(result);
+    } finally {
+      pendingRequests.delete(cacheKey);
+    }
+  } catch (error: any) {
+    console.error('[AI Editor] /smart-diff 请求处理失败:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || '服务器内部错误',
+    });
+  }
+});
+
+// ============================================================================
+// Dead Code Detection API - 死代码检测
+// ============================================================================
+
+/**
+ * Dead Code Item
+ */
+interface DeadCodeItem {
+  line: number;
+  endLine: number;
+  type: 'unused' | 'unreachable' | 'redundant' | 'suspicious';
+  name: string;
+  reason: string;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+/**
+ * Dead Code 请求体
+ */
+interface DeadCodeRequest {
+  filePath: string;
+  content: string;
+  language: string;
+}
+
+/**
+ * Dead Code 响应
+ */
+interface DeadCodeResponse {
+  success: boolean;
+  deadCode: DeadCodeItem[];
+  summary?: string;
+  fromCache?: boolean;
+  error?: string;
+}
+
+/**
+ * POST /api/ai-editor/dead-code
+ * 检测代码中的死代码
+ */
+router.post('/dead-code', async (req: Request, res: Response) => {
+  try {
+    const { filePath, content, language }: DeadCodeRequest = req.body;
+
+    // 参数验证
+    if (!filePath || !content) {
+      return res.status(400).json({
+        success: false,
+        deadCode: [],
+        error: '缺少必要参数 (filePath, content)',
+      });
+    }
+
+    // 生成缓存键
+    const cacheKey = crypto
+      .createHash('md5')
+      .update(`dead-code:${filePath}:${content}`)
+      .digest('hex');
+
+    // 检查缓存
+    const cached = deadCodeCache.get(cacheKey);
+    if (cached) {
+      console.log(`[AI Editor] /dead-code 命中缓存: ${cacheKey}`);
+      return res.json({ ...cached, fromCache: true });
+    }
+
+    // 检查是否有正在处理的相同请求
+    if (pendingRequests.has(cacheKey)) {
+      console.log(`[AI Editor] /dead-code 请求已在处理中，复用: ${cacheKey}`);
+      const result = await pendingRequests.get(cacheKey);
+      return res.json(result);
+    }
+
+    // 创建新请求
+    const requestPromise = (async (): Promise<DeadCodeResponse> => {
+      try {
+        const client = createClient();
+        if (!client) {
+          return {
+            success: false,
+            deadCode: [],
+            error: 'API 客户端未初始化，请检查 API Key 配置',
+          };
+        }
+
+        const prompt = `请分析以下代码中的死代码（dead code）。
+
+文件路径: ${filePath}
+编程语言: ${language}
+
+代码内容:
+\`\`\`${language}
+${content}
+\`\`\`
+
+请检测以下类型的死代码：
+1. unused: 未使用的变量、函数、导入
+2. unreachable: 不可达代码（如 return 后的代码）
+3. redundant: 冗余代码（重复赋值、永真条件等）
+4. suspicious: 导出了但可能整个项目没人使用（单文件分析无法确定，标记为可疑）
+
+对于每个死代码，返回：
+- line: 起始行号
+- endLine: 结束行号
+- type: 类型（unused/unreachable/redundant/suspicious）
+- name: 变量/函数/导入名
+- reason: 为什么被判定为死代码
+- confidence: 置信度（high/medium/low）
+
+请以 JSON 格式返回，格式如下：
+{
+  "deadCode": [
+    {
+      "line": 10,
+      "endLine": 12,
+      "type": "unused",
+      "name": "unusedVar",
+      "reason": "变量声明后从未使用",
+      "confidence": "high"
+    }
+  ],
+  "summary": "检测到 N 个死代码"
+}
+
+如果没有死代码，返回空数组。`;
+
+        console.log(`[AI Editor] /dead-code 调用 Claude: ${filePath}`);
+
+        const response = await client.createMessage(
+          [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+          undefined, // 无工具
+          undefined, // 无 system prompt
+          { enableThinking: false }
+        );
+
+        const rawText = response.content[0]?.type === 'text' ? response.content[0].text : '';
+
+        if (!rawText) {
+          return {
+            success: false,
+            deadCode: [],
+            error: 'AI 未返回有效分析结果',
+          };
+        }
+
+        // 尝试解析 JSON
+        const parsed = extractJSON(rawText);
+        if (!parsed || !Array.isArray(parsed.deadCode)) {
+          console.error('[AI Editor] /dead-code 无法解析 AI 返回的 JSON:', rawText);
+          return {
+            success: false,
+            deadCode: [],
+            error: 'AI 返回格式不正确',
+          };
+        }
+
+        return {
+          success: true,
+          deadCode: parsed.deadCode,
+          summary: parsed.summary || `检测到 ${parsed.deadCode.length} 个死代码`,
+        };
+      } catch (error: any) {
+        console.error('[AI Editor] /dead-code AI 调用失败:', error);
+        return {
+          success: false,
+          deadCode: [],
+          error: error.message || 'AI 调用失败',
+        };
+      }
+    })();
+
+    pendingRequests.set(cacheKey, requestPromise);
+
+    try {
+      const result = await requestPromise;
+
+      // 只缓存成功的结果
+      if (result.success) {
+        deadCodeCache.set(cacheKey, result);
+      }
+
+      res.json(result);
+    } finally {
+      pendingRequests.delete(cacheKey);
+    }
+  } catch (error: any) {
+    console.error('[AI Editor] /dead-code 请求处理失败:', error);
+    res.status(500).json({
+      success: false,
+      deadCode: [],
+      error: error.message || '服务器内部错误',
+    });
+  }
+});
+
+// ============================================================================
+// Code Conversation API - 多轮代码对话
+// ============================================================================
+
+/**
+ * Code Conversation 请求体
+ */
+interface ConversationRequest {
+  filePath: string;
+  language: string;
+  codeContext: string;
+  cursorLine?: number;
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  question: string;
+}
+
+/**
+ * Code Conversation 响应
+ */
+interface ConversationResponse {
+  success: boolean;
+  answer?: string;
+  error?: string;
+}
+
+/**
+ * POST /api/ai-editor/conversation
+ * 多轮代码对话，支持历史上下文
+ */
+router.post('/conversation', async (req: Request, res: Response) => {
+  try {
+    const { filePath, language, codeContext, cursorLine, messages, question }: ConversationRequest = req.body;
+
+    // 参数验证
+    if (!filePath || !codeContext || !question) {
+      return res.status(400).json({
+        success: false,
+        error: '缺少必要参数 (filePath, codeContext, question)',
+      });
+    }
+
+    // 生成缓存键（不缓存，但用于防重）
+    const cacheKey = crypto
+      .createHash('md5')
+      .update(`conversation:${filePath}:${JSON.stringify(messages)}:${question}`)
+      .digest('hex');
+
+    // 检查是否有正在处理的相同请求（防重）
+    if (pendingRequests.has(cacheKey)) {
+      console.log(`[AI Editor] /conversation 请求已在处理中，复用: ${cacheKey}`);
+      const result = await pendingRequests.get(cacheKey);
+      return res.json(result);
+    }
+
+    // 创建新请求
+    const requestPromise = (async (): Promise<ConversationResponse> => {
+      try {
+        const client = createClient();
+        if (!client) {
+          return {
+            success: false,
+            error: 'API 客户端未初始化，请检查 API Key 配置',
+          };
+        }
+
+        // 构建 system prompt
+        const systemPrompt = `你是一个专业的代码助手。用户正在查看以下文件：
+
+文件路径: ${filePath}
+编程语言: ${language}
+${cursorLine ? `光标行号: ${cursorLine}` : ''}
+
+当前代码上下文:
+\`\`\`${language}
+${codeContext}
+\`\`\`
+
+请基于上述代码上下文，回答用户的问题。如果用户提到"这段代码"、"当前位置"等，请参考上述代码上下文。`;
+
+        // 构建消息列表
+        const conversationMessages = [
+          ...messages.map(msg => ({
+            role: msg.role,
+            content: [{ type: 'text' as const, text: msg.content }],
+          })),
+          {
+            role: 'user' as const,
+            content: [{ type: 'text' as const, text: question }],
+          },
+        ];
+
+        console.log(`[AI Editor] /conversation 调用 Claude: ${filePath}, ${conversationMessages.length} 条消息`);
+
+        // 调用 Claude API
+        const response = await client.createMessage(
+          conversationMessages,
+          undefined, // 无工具
+          systemPrompt, // system prompt
+          { enableThinking: false }
+        );
+
+        const answer = response.content[0]?.type === 'text' ? response.content[0].text : '';
+
+        if (!answer) {
+          return {
+            success: false,
+            error: 'AI 未返回有效回答',
+          };
+        }
+
+        return {
+          success: true,
+          answer,
+        };
+      } catch (error: any) {
+        console.error('[AI Editor] /conversation AI 调用失败:', error);
+        return {
+          success: false,
+          error: error.message || 'AI 调用失败',
+        };
+      }
+    })();
+
+    pendingRequests.set(cacheKey, requestPromise);
+
+    try {
+      const result = await requestPromise;
+      res.json(result);
+    } finally {
+      pendingRequests.delete(cacheKey);
+    }
+  } catch (error: any) {
+    console.error('[AI Editor] /conversation 请求处理失败:', error);
     res.status(500).json({
       success: false,
       error: error.message || '服务器内部错误',
