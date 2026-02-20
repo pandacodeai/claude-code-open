@@ -13,6 +13,9 @@ import { useTestGenerator } from '../../hooks/useTestGenerator';
 import { useCodeConversation } from '../../hooks/useCodeConversation';
 import { useSmartDiff } from '../../hooks/useSmartDiff';
 import { useDeadCode } from '../../hooks/useDeadCode';
+import { useTimeMachine } from '../../hooks/useTimeMachine';
+import { usePatternDetector } from '../../hooks/usePatternDetector';
+import { useApiDocOverlay } from '../../hooks/useApiDocOverlay';
 
 /**
  * CodeEditor Props
@@ -110,6 +113,7 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
     const [beginnerMode, setBeginnerMode] = useState(false);
     const [showMinimap, setShowMinimap] = useState(true);
     const [autoCompleteEnabled, setAutoCompleteEnabled] = useState(true);
+    const [apiDocEnabled, setApiDocEnabled] = useState(false); // API Doc Overlay 默认关闭
 
     // 编辑器就绪标志
     const [editorReady, setEditorReady] = useState(false);
@@ -215,6 +219,34 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
     const deadCode = useDeadCode({
       filePath: currentTab?.path || null,
       content: currentTab?.content || '',
+      language: currentTab?.language || 'plaintext',
+      editorRef,
+      monacoRef,
+      editorReady,
+    });
+
+    // Time Machine 代码时光机
+    const timeMachine = useTimeMachine({
+      filePath: currentTab?.path || null,
+      content: currentTab?.content || '',
+      language: currentTab?.language || 'plaintext',
+      editorRef,
+    });
+
+    // Pattern Detector 模式检测器
+    const pattern = usePatternDetector({
+      filePath: currentTab?.path || null,
+      content: currentTab?.content || '',
+      language: currentTab?.language || 'plaintext',
+      editorRef,
+      monacoRef,
+      editorReady,
+    });
+
+    // API Doc Overlay API 文档叠加
+    const apiDoc = useApiDocOverlay({
+      enabled: apiDocEnabled,
+      filePath: currentTab?.path || null,
       language: currentTab?.language || 'plaintext',
       editorRef,
       monacoRef,
@@ -347,6 +379,17 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
           testGenerator.openGenerator();
         },
       });
+
+      // 注册右键菜单 "代码时光机" action
+      editor.addAction({
+        id: 'time-machine',
+        label: '⏰ 代码时光机',
+        contextMenuGroupId: 'navigation',
+        contextMenuOrder: 3,
+        run: () => {
+          timeMachine.open();
+        },
+      });
     };
 
     // 内容变化回调
@@ -473,7 +516,8 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
 
       const showReviewPanel = codeReview.enabled && codeReview.issues.length > 0;
       const showConversationPanel = conversation.state.visible;
-      const showAnyPanel = showLineDetails || showReviewPanel || showConversationPanel;
+      const showPatternPanel = pattern.enabled && pattern.patterns.length > 0;
+      const showAnyPanel = showLineDetails || showReviewPanel || showConversationPanel || showPatternPanel;
 
       return (
         <div className={showAnyPanel ? styles.editorWithPanel : styles.editorFull}>
@@ -736,6 +780,77 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
               </div>
             </div>
           )}
+
+          {/* Pattern Detector 面板 */}
+          {showPatternPanel && (
+            <div className={styles.patternPanel}>
+              <div className={styles.patternHeader}>
+                <span className={styles.patternTitle}>🔍 代码模式</span>
+                <span className={styles.patternCount}>{pattern.patterns.length} 个模式</span>
+                <button className={styles.patternClose} onClick={pattern.toggle}>
+                  ×
+                </button>
+              </div>
+
+              {/* 摘要 */}
+              {pattern.summary && (
+                <div className={styles.patternSummary}>{pattern.summary}</div>
+              )}
+
+              {/* 模式列表 */}
+              <div className={styles.patternList}>
+                {pattern.patterns.map((p, idx) => {
+                  // 确定图标
+                  const icon = p.type === 'duplicate' ? '🔄' :
+                              p.type === 'similar-logic' ? '↔️' :
+                              p.type === 'extract-candidate' ? '✂️' : '🏗️';
+
+                  // 确定影响级别样式
+                  const impactClass = p.impact === 'high' ? styles.patternImpactHigh :
+                                     p.impact === 'medium' ? styles.patternImpactMedium :
+                                     styles.patternImpactLow;
+
+                  return (
+                    <div key={idx} className={styles.patternItem}>
+                      <div className={styles.patternItemHeader}>
+                        <span className={styles.patternIcon}>{icon}</span>
+                        <span className={styles.patternName}>{p.name}</span>
+                        <span className={`${styles.patternImpact} ${impactClass}`}>
+                          {p.impact}
+                        </span>
+                      </div>
+                      <div className={styles.patternDescription}>{p.description}</div>
+                      <div className={styles.patternSuggestion}>
+                        💡 <strong>建议</strong>: {p.suggestion}
+                      </div>
+                      <div className={styles.patternLocations}>
+                        <strong>位置</strong>:
+                        {p.locations.map((loc, locIdx) => (
+                          <button
+                            key={locIdx}
+                            className={styles.patternLocation}
+                            onClick={() => {
+                              if (editorRef.current) {
+                                editorRef.current.revealLineInCenter(loc.line);
+                                editorRef.current.setSelection({
+                                  startLineNumber: loc.line,
+                                  startColumn: 1,
+                                  endLineNumber: loc.endLine,
+                                  endColumn: 1,
+                                });
+                              }
+                            }}
+                          >
+                            行 {loc.line}-{loc.endLine}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       );
     };
@@ -823,6 +938,14 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
               >
                 💀 死代码 {deadCode.loading && '⏳'}
               </button>
+              <button
+                className={`${styles.aiBtn} ${pattern.enabled ? styles.active : ''}`}
+                onClick={pattern.toggle}
+                disabled={pattern.loading}
+                title={`模式检测${pattern.patterns.length > 0 ? ` (${pattern.patterns.length})` : ''}`}
+              >
+                🔍 模式 {pattern.loading && '⏳'}
+              </button>
             </div>
 
             <span className={styles.toolDivider}></span>
@@ -886,6 +1009,20 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
                 title="代码小地图"
               >
                 🗺️ 小地图
+              </button>
+              <button
+                className={styles.aiBtn}
+                onClick={timeMachine.open}
+                title="代码时光机：查看代码演变历史"
+              >
+                ⏰ 时光机
+              </button>
+              <button
+                className={`${styles.aiBtn} ${apiDocEnabled ? styles.active : ''}`}
+                onClick={() => setApiDocEnabled(!apiDocEnabled)}
+                title="API 文档叠加：悬停显示第三方 API 文档"
+              >
+                📚 API
               </button>
             </div>
           </div>
@@ -1216,6 +1353,77 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
                   )}
                 </div>
               ) : null}
+            </div>
+          </div>
+        )}
+
+        {/* Time Machine 对话框 */}
+        {timeMachine.state.visible && (
+          <div className={styles.overlay} onClick={timeMachine.close}>
+            <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.dialogHeader}>
+                <span className={styles.dialogTitle}>⏰ 代码时光机</span>
+                <button className={styles.dialogClose} onClick={timeMachine.close}>
+                  ×
+                </button>
+              </div>
+
+              <div className={styles.dialogBody}>
+                {timeMachine.state.loading ? (
+                  <div className={styles.dialogLoading}>
+                    🤖 正在分析代码历史...
+                  </div>
+                ) : timeMachine.state.result ? (
+                  <>
+                    {/* 选中的代码 */}
+                    {timeMachine.state.selectedRange && (
+                      <div className={styles.timeMachineSelection}>
+                        <strong>分析范围</strong>: 第 {timeMachine.state.selectedRange.startLine}-{timeMachine.state.selectedRange.endLine} 行
+                      </div>
+                    )}
+
+                    {/* Commits 时间线 */}
+                    {timeMachine.state.result.commits.length > 0 && (
+                      <div className={styles.timeMachineSection}>
+                        <h4>📜 提交历史 ({timeMachine.state.result.commits.length} 条)</h4>
+                        <div className={styles.timeMachineTimeline}>
+                          {timeMachine.state.result.commits.map((commit, idx) => (
+                            <div key={idx} className={styles.timeMachineCommit}>
+                              <span className={styles.commitHash}>{commit.hash.substring(0, 7)}</span>
+                              <span className={styles.commitAuthor}>{commit.author}</span>
+                              <span className={styles.commitDate}>{commit.date}</span>
+                              <span className={styles.commitMessage}>{commit.message}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* AI 讲述的演变故事 */}
+                    <div className={styles.timeMachineSection}>
+                      <h4>📖 演变故事</h4>
+                      <div className={styles.timeMachineStory}>{timeMachine.state.result.story}</div>
+                    </div>
+
+                    {/* 关键改动 */}
+                    {timeMachine.state.result.keyChanges.length > 0 && (
+                      <div className={styles.timeMachineSection}>
+                        <h4>🔑 关键改动</h4>
+                        <div className={styles.timeMachineKeyChanges}>
+                          {timeMachine.state.result.keyChanges.map((change, idx) => (
+                            <div key={idx} className={styles.timeMachineChange}>
+                              <span className={styles.changeDate}>{change.date}</span>
+                              <span className={styles.changeDescription}>{change.description}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className={styles.dialogError}>无法获取代码历史</div>
+                )}
+              </div>
             </div>
           </div>
         )}

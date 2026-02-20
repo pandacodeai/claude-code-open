@@ -15,6 +15,7 @@ import { configManager } from '../../../config/index.js';
 import { getAuth } from '../../../auth/index.js';
 import { LRUCache } from 'lru-cache';
 import crypto from 'crypto';
+import { execSync } from 'child_process';
 
 const router = Router();
 
@@ -80,6 +81,24 @@ const smartDiffCache = new LRUCache<string, SmartDiffResponse>({
 const deadCodeCache = new LRUCache<string, DeadCodeResponse>({
   max: 500,
   ttl: 1000 * 60 * 15, // 15分钟
+});
+
+// Time Machine 结果缓存
+const timeMachineCache = new LRUCache<string, TimeMachineResponse>({
+  max: 200,
+  ttl: 1000 * 60 * 15, // 15分钟
+});
+
+// Pattern Detector 结果缓存
+const patternCache = new LRUCache<string, PatternDetectorResponse>({
+  max: 300,
+  ttl: 1000 * 60 * 15, // 15分钟
+});
+
+// API Doc 结果缓存
+const apiDocCache = new LRUCache<string, ApiDocResponse>({
+  max: 500,
+  ttl: 1000 * 60 * 30, // 30分钟（API文档不常变）
 });
 
 // 防止重复请求
@@ -1418,6 +1437,142 @@ interface DeadCodeResponse {
   error?: string;
 }
 
+// ============================================================================
+// 第三批 AI 功能类型定义
+// ============================================================================
+
+/**
+ * Time Machine Commit
+ */
+interface TimeMachineCommit {
+  hash: string;
+  author: string;
+  email: string;
+  date: string;
+  message: string;
+}
+
+/**
+ * Time Machine Key Change
+ */
+interface TimeMachineKeyChange {
+  date: string;
+  description: string;
+}
+
+/**
+ * Time Machine 请求体
+ */
+interface TimeMachineRequest {
+  filePath: string;
+  content: string;
+  language: string;
+  selectedCode?: string;
+  startLine?: number;
+  endLine?: number;
+}
+
+/**
+ * Time Machine 响应
+ */
+interface TimeMachineResponse {
+  success: boolean;
+  history?: {
+    commits: TimeMachineCommit[];
+    story: string;
+    keyChanges: TimeMachineKeyChange[];
+  };
+  fromCache?: boolean;
+  error?: string;
+}
+
+/**
+ * Pattern Location
+ */
+interface PatternLocation {
+  line: number;
+  endLine: number;
+}
+
+/**
+ * Detected Pattern
+ */
+interface DetectedPattern {
+  type: 'duplicate' | 'similar-logic' | 'extract-candidate' | 'design-pattern';
+  name: string;
+  locations: PatternLocation[];
+  description: string;
+  suggestion: string;
+  impact: 'high' | 'medium' | 'low';
+}
+
+/**
+ * Pattern Detector 请求体
+ */
+interface PatternDetectorRequest {
+  filePath: string;
+  content: string;
+  language: string;
+}
+
+/**
+ * Pattern Detector 响应
+ */
+interface PatternDetectorResponse {
+  success: boolean;
+  patterns: DetectedPattern[];
+  summary?: string;
+  fromCache?: boolean;
+  error?: string;
+}
+
+/**
+ * API Doc Param
+ */
+interface ApiDocParam {
+  name: string;
+  type: string;
+  description: string;
+  optional?: boolean;
+}
+
+/**
+ * API Doc Result
+ */
+interface ApiDocResult {
+  name: string;
+  package: string;
+  brief: string;
+  params?: ApiDocParam[];
+  returns?: {
+    type: string;
+    description: string;
+  };
+  examples: string[];
+  pitfalls: string[];
+  seeAlso: string[];
+}
+
+/**
+ * API Doc 请求体
+ */
+interface ApiDocRequest {
+  symbolName: string;
+  packageName?: string;
+  language: string;
+  codeContext: string;
+}
+
+/**
+ * API Doc 响应
+ */
+interface ApiDocResponse {
+  success: boolean;
+  doc?: ApiDocResult;
+  fromCache?: boolean;
+  error?: string;
+}
+
 /**
  * POST /api/ai-editor/dead-code
  * 检测代码中的死代码
@@ -1710,6 +1865,558 @@ ${codeContext}
     }
   } catch (error: any) {
     console.error('[AI Editor] /conversation 请求处理失败:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || '服务器内部错误',
+    });
+  }
+});
+
+// ============================================================================
+// 第三批 AI 功能 API 端点
+// ============================================================================
+
+/**
+ * POST /api/ai-editor/time-machine
+ * 代码时光机：分析代码的 git 历史演变
+ */
+router.post('/time-machine', async (req: Request, res: Response) => {
+  try {
+    const { filePath, content, language, selectedCode, startLine, endLine }: TimeMachineRequest = req.body;
+
+    // 参数验证
+    if (!filePath || !content) {
+      return res.status(400).json({
+        success: false,
+        error: '缺少必要参数 (filePath, content)',
+      });
+    }
+
+    // 生成缓存键
+    const cacheKey = crypto
+      .createHash('md5')
+      .update(`time-machine:${filePath}:${selectedCode || content}:${startLine}:${endLine}`)
+      .digest('hex');
+
+    // 检查缓存
+    const cached = timeMachineCache.get(cacheKey);
+    if (cached) {
+      console.log(`[AI Editor] /time-machine 命中缓存: ${cacheKey}`);
+      return res.json({ ...cached, fromCache: true });
+    }
+
+    // 检查是否有正在处理的相同请求
+    if (pendingRequests.has(cacheKey)) {
+      console.log(`[AI Editor] /time-machine 请求已在处理中，复用: ${cacheKey}`);
+      const result = await pendingRequests.get(cacheKey);
+      return res.json(result);
+    }
+
+    // 创建新请求
+    const requestPromise = (async (): Promise<TimeMachineResponse> => {
+      try {
+        const client = createClient();
+        if (!client) {
+          return {
+            success: false,
+            error: 'API 客户端未初始化，请检查 API Key 配置',
+          };
+        }
+
+        // 获取 git 历史
+        let commits: TimeMachineCommit[] = [];
+        let gitError = '';
+
+        try {
+          // 获取文件的整体历史（最近20条）
+          const gitLogCmd = `git log --follow --format='%H|%an|%ae|%ad|%s' -20 -- "${filePath}"`;
+          const gitOutput = execSync(gitLogCmd, {
+            cwd: process.cwd(),
+            encoding: 'utf-8',
+            timeout: 5000,
+          });
+
+          // 解析 git log 输出
+          const lines = gitOutput.trim().split('\n').filter(line => line);
+          commits = lines.map(line => {
+            const [hash, author, email, date, ...messageParts] = line.split('|');
+            return {
+              hash: hash || '',
+              author: author || '',
+              email: email || '',
+              date: date || '',
+              message: messageParts.join('|') || '',
+            };
+          });
+
+          // 如果指定了行号范围，还获取该区域的历史
+          if (startLine && endLine) {
+            try {
+              const gitLineLogCmd = `git log -L ${startLine},${endLine}:"${filePath}" --format='%H|%an|%ad|%s' -10`;
+              const lineLogOutput = execSync(gitLineLogCmd, {
+                cwd: process.cwd(),
+                encoding: 'utf-8',
+                timeout: 5000,
+              });
+              // 这个输出会更详细，但格式复杂，我们暂时只用于丰富上下文
+            } catch (lineError: any) {
+              console.log('[AI Editor] /time-machine git log -L 失败（可能不支持），跳过');
+            }
+          }
+        } catch (error: any) {
+          console.error('[AI Editor] /time-machine git 命令失败:', error);
+          gitError = error.message || 'Git 命令执行失败';
+          // 不是 git repo 或文件无历史，继续但通知 AI
+        }
+
+        // 构建 AI prompt
+        const codeToAnalyze = selectedCode || content;
+        const rangeDesc = startLine && endLine ? `选中的代码范围（第 ${startLine}-${endLine} 行）` : '整个文件';
+
+        const prompt = `请分析以下代码的演变历史。
+
+文件路径: ${filePath}
+分析范围: ${rangeDesc}
+
+${commits.length > 0 ? `Git 历史（最近 ${commits.length} 次提交）：
+${commits.map(c => `- ${c.hash.substring(0, 7)} | ${c.author} | ${c.date} | ${c.message}`).join('\n')}
+` : `注意：此文件无 Git 历史${gitError ? `（原因：${gitError}）` : ''}，请基于代码内容推测可能的演变过程。`}
+
+代码内容:
+\`\`\`${language}
+${codeToAnalyze}
+\`\`\`
+
+请以 JSON 格式返回分析结果：
+{
+  "story": "用通俗易懂的语言讲述这段代码是如何一步步演变到现在的，包括主要的设计决策和重构过程",
+  "keyChanges": [
+    {
+      "date": "2024-01-15",
+      "description": "初始版本，实现了基本功能"
+    },
+    {
+      "date": "2024-02-20",
+      "description": "重构：引入依赖注入模式"
+    }
+  ]
+}
+
+如果没有 Git 历史，请根据代码结构和注释推测可能的演变过程（例如从简单到复杂、从硬编码到配置化等）。`;
+
+        console.log(`[AI Editor] /time-machine 调用 Claude: ${filePath}, ${commits.length} commits`);
+
+        const response = await client.createMessage(
+          [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+          undefined,
+          undefined,
+          { enableThinking: false }
+        );
+
+        const rawText = response.content[0]?.type === 'text' ? response.content[0].text : '';
+
+        if (!rawText) {
+          return {
+            success: false,
+            error: 'AI 未返回有效分析结果',
+          };
+        }
+
+        // 解析 JSON
+        const parsed = extractJSON(rawText);
+        if (!parsed || !parsed.story) {
+          console.error('[AI Editor] /time-machine 无法解析 AI 返回的 JSON:', rawText);
+          return {
+            success: false,
+            error: 'AI 返回格式不正确',
+          };
+        }
+
+        return {
+          success: true,
+          history: {
+            commits: commits,
+            story: parsed.story,
+            keyChanges: parsed.keyChanges || [],
+          },
+        };
+      } catch (error: any) {
+        console.error('[AI Editor] /time-machine AI 调用失败:', error);
+        return {
+          success: false,
+          error: error.message || 'AI 调用失败',
+        };
+      }
+    })();
+
+    pendingRequests.set(cacheKey, requestPromise);
+
+    try {
+      const result = await requestPromise;
+
+      // 只缓存成功的结果
+      if (result.success) {
+        timeMachineCache.set(cacheKey, result);
+      }
+
+      res.json(result);
+    } finally {
+      pendingRequests.delete(cacheKey);
+    }
+  } catch (error: any) {
+    console.error('[AI Editor] /time-machine 请求处理失败:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || '服务器内部错误',
+    });
+  }
+});
+
+/**
+ * POST /api/ai-editor/detect-patterns
+ * 模式检测器：检测代码中的重复模式
+ */
+router.post('/detect-patterns', async (req: Request, res: Response) => {
+  try {
+    const { filePath, content, language }: PatternDetectorRequest = req.body;
+
+    // 参数验证
+    if (!filePath || !content) {
+      return res.status(400).json({
+        success: false,
+        patterns: [],
+        error: '缺少必要参数 (filePath, content)',
+      });
+    }
+
+    // 生成缓存键
+    const cacheKey = crypto
+      .createHash('md5')
+      .update(`detect-patterns:${filePath}:${content}`)
+      .digest('hex');
+
+    // 检查缓存
+    const cached = patternCache.get(cacheKey);
+    if (cached) {
+      console.log(`[AI Editor] /detect-patterns 命中缓存: ${cacheKey}`);
+      return res.json({ ...cached, fromCache: true });
+    }
+
+    // 检查是否有正在处理的相同请求
+    if (pendingRequests.has(cacheKey)) {
+      console.log(`[AI Editor] /detect-patterns 请求已在处理中，复用: ${cacheKey}`);
+      const result = await pendingRequests.get(cacheKey);
+      return res.json(result);
+    }
+
+    // 创建新请求
+    const requestPromise = (async (): Promise<PatternDetectorResponse> => {
+      try {
+        const client = createClient();
+        if (!client) {
+          return {
+            success: false,
+            patterns: [],
+            error: 'API 客户端未初始化，请检查 API Key 配置',
+          };
+        }
+
+        const prompt = `请分析以下代码中的重复模式和可抽象的代码。
+
+文件路径: ${filePath}
+编程语言: ${language}
+
+代码内容:
+\`\`\`${language}
+${content}
+\`\`\`
+
+请检测以下类型的模式：
+
+1. **duplicate**（重复代码块）：
+   - 相似的 try-catch 块
+   - 相似的 API 调用模式
+   - 重复的数据转换逻辑
+   - 重复的验证代码
+
+2. **similar-logic**（相似逻辑）：
+   - 相似的条件判断
+   - 相似的循环处理
+   - 相似的错误处理
+
+3. **extract-candidate**（可提取候选）：
+   - 可以提取为独立函数的代码块
+   - 可以提取为工具类的方法
+   - 可以提取为自定义 Hook（React）
+
+4. **design-pattern**（设计模式机会）：
+   - 可以应用策略模式的地方
+   - 可以应用工厂模式的地方
+   - 可以应用装饰器模式的地方
+   - 其他设计模式
+
+对于每个检测到的模式，返回：
+- type: 模式类型
+- name: 模式名称（简短描述）
+- locations: 出现的位置数组 [{ line, endLine }, ...]
+- description: 详细描述
+- suggestion: 建议的抽象/重构方式
+- impact: 影响级别（high/medium/low）
+
+请以 JSON 格式返回：
+{
+  "patterns": [
+    {
+      "type": "duplicate",
+      "name": "重复的错误处理",
+      "locations": [
+        { "line": 10, "endLine": 15 },
+        { "line": 30, "endLine": 35 }
+      ],
+      "description": "两处相似的 try-catch 错误处理逻辑",
+      "suggestion": "提取为 handleError 工具函数",
+      "impact": "medium"
+    }
+  ],
+  "summary": "检测到 N 个模式，建议优先处理 X 个高影响模式"
+}
+
+如果没有检测到模式，返回空数组。`;
+
+        console.log(`[AI Editor] /detect-patterns 调用 Claude: ${filePath}`);
+
+        const response = await client.createMessage(
+          [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+          undefined,
+          undefined,
+          { enableThinking: false }
+        );
+
+        const rawText = response.content[0]?.type === 'text' ? response.content[0].text : '';
+
+        if (!rawText) {
+          return {
+            success: false,
+            patterns: [],
+            error: 'AI 未返回有效分析结果',
+          };
+        }
+
+        // 解析 JSON
+        const parsed = extractJSON(rawText);
+        if (!parsed || !Array.isArray(parsed.patterns)) {
+          console.error('[AI Editor] /detect-patterns 无法解析 AI 返回的 JSON:', rawText);
+          return {
+            success: false,
+            patterns: [],
+            error: 'AI 返回格式不正确',
+          };
+        }
+
+        return {
+          success: true,
+          patterns: parsed.patterns,
+          summary: parsed.summary || `检测到 ${parsed.patterns.length} 个模式`,
+        };
+      } catch (error: any) {
+        console.error('[AI Editor] /detect-patterns AI 调用失败:', error);
+        return {
+          success: false,
+          patterns: [],
+          error: error.message || 'AI 调用失败',
+        };
+      }
+    })();
+
+    pendingRequests.set(cacheKey, requestPromise);
+
+    try {
+      const result = await requestPromise;
+
+      // 只缓存成功的结果
+      if (result.success) {
+        patternCache.set(cacheKey, result);
+      }
+
+      res.json(result);
+    } finally {
+      pendingRequests.delete(cacheKey);
+    }
+  } catch (error: any) {
+    console.error('[AI Editor] /detect-patterns 请求处理失败:', error);
+    res.status(500).json({
+      success: false,
+      patterns: [],
+      error: error.message || '服务器内部错误',
+    });
+  }
+});
+
+/**
+ * POST /api/ai-editor/api-doc
+ * API 文档叠加：查询第三方库 API 的使用文档
+ */
+router.post('/api-doc', async (req: Request, res: Response) => {
+  try {
+    const { symbolName, packageName, language, codeContext }: ApiDocRequest = req.body;
+
+    // 参数验证
+    if (!symbolName || !codeContext) {
+      return res.status(400).json({
+        success: false,
+        error: '缺少必要参数 (symbolName, codeContext)',
+      });
+    }
+
+    // 生成缓存键
+    const cacheKey = crypto
+      .createHash('md5')
+      .update(`api-doc:${symbolName}:${packageName || ''}:${language}`)
+      .digest('hex');
+
+    // 检查缓存
+    const cached = apiDocCache.get(cacheKey);
+    if (cached) {
+      console.log(`[AI Editor] /api-doc 命中缓存: ${cacheKey}`);
+      return res.json({ ...cached, fromCache: true });
+    }
+
+    // 检查是否有正在处理的相同请求
+    if (pendingRequests.has(cacheKey)) {
+      console.log(`[AI Editor] /api-doc 请求已在处理中，复用: ${cacheKey}`);
+      const result = await pendingRequests.get(cacheKey);
+      return res.json(result);
+    }
+
+    // 创建新请求
+    const requestPromise = (async (): Promise<ApiDocResponse> => {
+      try {
+        const client = createClient();
+        if (!client) {
+          return {
+            success: false,
+            error: 'API 客户端未初始化，请检查 API Key 配置',
+          };
+        }
+
+        const prompt = `请提供以下第三方库 API 的使用文档。
+
+符号名称: ${symbolName}
+${packageName ? `所属包: ${packageName}` : ''}
+编程语言: ${language}
+
+代码上下文:
+\`\`\`${language}
+${codeContext}
+\`\`\`
+
+请提供该 API 的详细使用说明，包括：
+1. 简要描述（一句话说明这个 API 是做什么的）
+2. 参数说明（每个参数的类型、含义、是否可选）
+3. 返回值说明（返回值类型和含义）
+4. 常见用法示例（至少 2-3 个实用示例）
+5. 常见陷阱/注意事项（使用时需要注意的问题）
+6. 相关 API（相关或替代的 API）
+
+请以 JSON 格式返回：
+{
+  "name": "${symbolName}",
+  "package": "${packageName || '未知'}",
+  "brief": "简要描述",
+  "params": [
+    {
+      "name": "参数名",
+      "type": "类型",
+      "description": "说明",
+      "optional": false
+    }
+  ],
+  "returns": {
+    "type": "返回值类型",
+    "description": "返回值说明"
+  },
+  "examples": [
+    "示例代码1",
+    "示例代码2"
+  ],
+  "pitfalls": [
+    "注意事项1",
+    "注意事项2"
+  ],
+  "seeAlso": [
+    "relatedAPI1",
+    "relatedAPI2"
+  ]
+}
+
+如果无法识别该 API 或不是第三方库 API，请在 brief 中说明。`;
+
+        console.log(`[AI Editor] /api-doc 调用 Claude: ${symbolName}`);
+
+        const response = await client.createMessage(
+          [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+          undefined,
+          undefined,
+          { enableThinking: false }
+        );
+
+        const rawText = response.content[0]?.type === 'text' ? response.content[0].text : '';
+
+        if (!rawText) {
+          return {
+            success: false,
+            error: 'AI 未返回有效文档',
+          };
+        }
+
+        // 解析 JSON
+        const parsed = extractJSON(rawText);
+        if (!parsed || !parsed.name) {
+          console.error('[AI Editor] /api-doc 无法解析 AI 返回的 JSON:', rawText);
+          return {
+            success: false,
+            error: 'AI 返回格式不正确',
+          };
+        }
+
+        return {
+          success: true,
+          doc: {
+            name: parsed.name,
+            package: parsed.package || packageName || '未知',
+            brief: parsed.brief || '',
+            params: parsed.params || [],
+            returns: parsed.returns,
+            examples: parsed.examples || [],
+            pitfalls: parsed.pitfalls || [],
+            seeAlso: parsed.seeAlso || [],
+          },
+        };
+      } catch (error: any) {
+        console.error('[AI Editor] /api-doc AI 调用失败:', error);
+        return {
+          success: false,
+          error: error.message || 'AI 调用失败',
+        };
+      }
+    })();
+
+    pendingRequests.set(cacheKey, requestPromise);
+
+    try {
+      const result = await requestPromise;
+
+      // 只缓存成功的结果
+      if (result.success) {
+        apiDocCache.set(cacheKey, result);
+      }
+
+      res.json(result);
+    } finally {
+      pendingRequests.delete(cacheKey);
+    }
+  } catch (error: any) {
+    console.error('[AI Editor] /api-doc 请求处理失败:', error);
     res.status(500).json({
       success: false,
       error: error.message || '服务器内部错误',

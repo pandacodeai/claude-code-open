@@ -410,6 +410,142 @@ export interface DeadCodeResponse {
 }
 
 // ============================================================================
+// 第三批 AI 功能类型定义
+// ============================================================================
+
+/**
+ * Time Machine Commit
+ */
+export interface TimeMachineCommit {
+  hash: string;
+  author: string;
+  email: string;
+  date: string;
+  message: string;
+}
+
+/**
+ * Time Machine Key Change
+ */
+export interface TimeMachineKeyChange {
+  date: string;
+  description: string;
+}
+
+/**
+ * Time Machine 请求
+ */
+export interface TimeMachineRequest {
+  filePath: string;
+  content: string;
+  language: string;
+  selectedCode?: string;
+  startLine?: number;
+  endLine?: number;
+}
+
+/**
+ * Time Machine 响应
+ */
+export interface TimeMachineResponse {
+  success: boolean;
+  history?: {
+    commits: TimeMachineCommit[];
+    story: string;
+    keyChanges: TimeMachineKeyChange[];
+  };
+  fromCache?: boolean;
+  error?: string;
+}
+
+/**
+ * Pattern Location
+ */
+export interface PatternLocation {
+  line: number;
+  endLine: number;
+}
+
+/**
+ * Detected Pattern
+ */
+export interface DetectedPattern {
+  type: 'duplicate' | 'similar-logic' | 'extract-candidate' | 'design-pattern';
+  name: string;
+  locations: PatternLocation[];
+  description: string;
+  suggestion: string;
+  impact: 'high' | 'medium' | 'low';
+}
+
+/**
+ * Pattern Detector 请求
+ */
+export interface PatternDetectorRequest {
+  filePath: string;
+  content: string;
+  language: string;
+}
+
+/**
+ * Pattern Detector 响应
+ */
+export interface PatternDetectorResponse {
+  success: boolean;
+  patterns: DetectedPattern[];
+  summary?: string;
+  fromCache?: boolean;
+  error?: string;
+}
+
+/**
+ * API Doc Param
+ */
+export interface ApiDocParam {
+  name: string;
+  type: string;
+  description: string;
+  optional?: boolean;
+}
+
+/**
+ * API Doc Result
+ */
+export interface ApiDocResult {
+  name: string;
+  package: string;
+  brief: string;
+  params?: ApiDocParam[];
+  returns?: {
+    type: string;
+    description: string;
+  };
+  examples: string[];
+  pitfalls: string[];
+  seeAlso: string[];
+}
+
+/**
+ * API Doc 请求
+ */
+export interface ApiDocRequest {
+  symbolName: string;
+  packageName?: string;
+  language: string;
+  codeContext: string;
+}
+
+/**
+ * API Doc 响应
+ */
+export interface ApiDocResponse {
+  success: boolean;
+  doc?: ApiDocResult;
+  fromCache?: boolean;
+  error?: string;
+}
+
+// ============================================================================
 // API 调用函数
 // ============================================================================
 
@@ -871,6 +1007,107 @@ export const aiDeadCodeApi = {
   },
 };
 
+/**
+ * AI Time Machine API - 代码时光机
+ */
+export const aiTimeMachineApi = {
+  /**
+   * 分析代码历史演变
+   */
+  analyze: async (request: TimeMachineRequest): Promise<TimeMachineResponse> => {
+    try {
+      const response = await fetch('/api/ai-editor/time-machine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        return {
+          success: false,
+          error: error.error || `HTTP ${response.status}`,
+        };
+      }
+
+      return response.json();
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err.message || 'Network error',
+      };
+    }
+  },
+};
+
+/**
+ * AI Pattern Detector API - 模式检测器
+ */
+export const aiPatternApi = {
+  /**
+   * 检测代码模式
+   */
+  detect: async (request: PatternDetectorRequest): Promise<PatternDetectorResponse> => {
+    try {
+      const response = await fetch('/api/ai-editor/detect-patterns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        return {
+          success: false,
+          patterns: [],
+          error: error.error || `HTTP ${response.status}`,
+        };
+      }
+
+      return response.json();
+    } catch (err: any) {
+      return {
+        success: false,
+        patterns: [],
+        error: err.message || 'Network error',
+      };
+    }
+  },
+};
+
+/**
+ * AI API Doc API - API 文档叠加
+ */
+export const aiApiDocApi = {
+  /**
+   * 查询 API 文档
+   */
+  lookup: async (request: ApiDocRequest): Promise<ApiDocResponse> => {
+    try {
+      const response = await fetch('/api/ai-editor/api-doc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        return {
+          success: false,
+          error: error.error || `HTTP ${response.status}`,
+        };
+      }
+
+      return response.json();
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err.message || 'Network error',
+      };
+    }
+  },
+};
+
 // ============================================================================
 // 统一导出
 // ============================================================================
@@ -889,6 +1126,9 @@ export const aiEditorApi = {
   conversation: aiConversationApi,
   smartDiff: aiSmartDiffApi,
   deadCode: aiDeadCodeApi,
+  timeMachine: aiTimeMachineApi,
+  pattern: aiPatternApi,
+  apiDoc: aiApiDocApi,
 };
 
 export default aiEditorApi;
