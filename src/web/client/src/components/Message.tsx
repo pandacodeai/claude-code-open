@@ -130,6 +130,7 @@ export function Message({
   // TTS 朗读处理
   const handleSpeak = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!window.speechSynthesis) return;
     if (isSpeaking) {
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
@@ -160,7 +161,7 @@ export function Message({
   // 组件卸载时停止播放
   useEffect(() => {
     return () => {
-      window.speechSynthesis.cancel();
+      window.speechSynthesis?.cancel();
     };
   }, []);
 
