@@ -6406,12 +6406,12 @@ router.post('/coordinator/conflicts/:conflictId/resolve', (req: Request, res: Re
  * GET /logs/task/:taskId
  * 获取指定任务的执行日志
  */
-router.get('/logs/task/:taskId', (req: Request, res: Response) => {
+router.get('/logs/task/:taskId', async (req: Request, res: Response) => {
   try {
     const { taskId } = req.params;
     const { limit = '100', offset = '0', since, until } = req.query;
 
-    const logDB = getSwarmLogDB();
+    const logDB = await getSwarmLogDB();
 
     // 获取任务执行历史
     const history = logDB.getTaskHistory(taskId);
@@ -6454,12 +6454,12 @@ router.get('/logs/task/:taskId', (req: Request, res: Response) => {
  * GET /logs/blueprint/:blueprintId
  * 获取指定蓝图的所有执行日志
  */
-router.get('/logs/blueprint/:blueprintId', (req: Request, res: Response) => {
+router.get('/logs/blueprint/:blueprintId', async (req: Request, res: Response) => {
   try {
     const { blueprintId } = req.params;
     const { limit = '500', offset = '0' } = req.query;
 
-    const logDB = getSwarmLogDB();
+    const logDB = await getSwarmLogDB();
 
     // 获取所有执行记录
     const executions = logDB.getExecutions({
@@ -6495,12 +6495,12 @@ router.get('/logs/blueprint/:blueprintId', (req: Request, res: Response) => {
  * DELETE /logs/task/:taskId
  * 清空指定任务的日志（用于重试前）
  */
-router.delete('/logs/task/:taskId', (req: Request, res: Response) => {
+router.delete('/logs/task/:taskId', async (req: Request, res: Response) => {
   try {
     const { taskId } = req.params;
     const { keepLatest = 'false' } = req.query;
 
-    const logDB = getSwarmLogDB();
+    const logDB = await getSwarmLogDB();
     const deletedCount = logDB.clearTaskLogs(taskId, keepLatest === 'true');
 
     res.json({
@@ -6520,9 +6520,9 @@ router.delete('/logs/task/:taskId', (req: Request, res: Response) => {
  * GET /logs/stats
  * 获取日志数据库统计信息
  */
-router.get('/logs/stats', (_req: Request, res: Response) => {
+router.get('/logs/stats', async (_req: Request, res: Response) => {
   try {
-    const logDB = getSwarmLogDB();
+    const logDB = await getSwarmLogDB();
     const stats = logDB.getStats();
 
     res.json({
@@ -6542,9 +6542,9 @@ router.get('/logs/stats', (_req: Request, res: Response) => {
  * POST /logs/cleanup
  * 手动触发日志清理
  */
-router.post('/logs/cleanup', (_req: Request, res: Response) => {
+router.post('/logs/cleanup', async (_req: Request, res: Response) => {
   try {
-    const logDB = getSwarmLogDB();
+    const logDB = await getSwarmLogDB();
     const deletedCount = logDB.cleanupOldLogs();
 
     res.json({

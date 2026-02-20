@@ -3,7 +3,6 @@
  * 基于 SQLite + FTS5 实现高效的 BM25 搜索
  */
 
-import Database from 'better-sqlite3';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -65,17 +64,30 @@ function ensureDir(dir: string): void {
  * 长期记忆存储管理器
  */
 export class LongTermStore {
-  private db: Database.Database;
+  private db!: import('better-sqlite3').Database;
   private hasFTS5: boolean = false;
 
-  constructor(dbPath: string) {
+  private constructor(dbPath: string) {
     // 确保目录存在
     ensureDir(path.dirname(dbPath));
+  }
 
-    // 打开数据库
-    this.db = new Database(dbPath);
-    
-    // 初始化 schema
+  static async create(dbPath: string): Promise<LongTermStore> {
+    const store = new LongTermStore(dbPath);
+    await store._init(dbPath);
+    return store;
+  }
+
+  private async _init(dbPath: string): Promise<void> {
+    const mod = await import('better-sqlite3').catch(e => {
+      throw new Error(
+        'better-sqlite3 模块加载失败。请确保已安装编译依赖：\n' +
+        '  Ubuntu/Debian: apt-get install python3 make g++\n' +
+        '  然后重新运行: npm install better-sqlite3\n' +
+        '原始错误: ' + (e.message)
+      );
+    });
+    this.db = new mod.default(dbPath);
     this.initSchema();
   }
 

@@ -274,20 +274,22 @@ export function setupWebSocket(
     const bufferKey = `${workerId}:${taskId}`;
     const buffer = streamBuffers.get(bufferKey);
     if (buffer && buffer.content.trim()) {
-      try {
-        const logDB = getSwarmLogDB();
-        logDB.insertStream({
-          id: `stream-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          blueprintId: buffer.blueprintId,
-          taskId: buffer.taskId,
-          workerId: buffer.workerId,
-          timestamp: buffer.timestamp,
-          streamType: buffer.type,
-          content: buffer.content,
-        });
-      } catch (err) {
-        console.error('[SwarmLogDB] 刷新缓冲区失败:', err);
-      }
+      (async () => {
+        try {
+          const logDB = await getSwarmLogDB();
+          logDB.insertStream({
+            id: `stream-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            blueprintId: buffer.blueprintId,
+            taskId: buffer.taskId,
+            workerId: buffer.workerId,
+            timestamp: buffer.timestamp,
+            streamType: buffer.type,
+            content: buffer.content,
+          });
+        } catch (err) {
+          console.error('[SwarmLogDB] 刷新缓冲区失败:', err);
+        }
+      })();
     }
     streamBuffers.delete(bufferKey);
   };
@@ -1211,22 +1213,24 @@ export function setupWebSocket(
 
     // v4.0: 存储到 SQLite
     if (data.taskId) {
-      try {
-        const logDB = getSwarmLogDB();
-        logDB.insertLog({
-          id: data.log.id,
-          blueprintId: data.blueprintId,
-          taskId: data.taskId,
-          workerId: data.workerId,
-          timestamp: data.log.timestamp,
-          level: data.log.level,
-          type: data.log.type,
-          message: data.log.message,
-          details: data.log.details,
-        });
-      } catch (err) {
-        console.error('[SwarmLogDB] 存储日志失败:', err);
-      }
+      (async () => {
+        try {
+          const logDB = await getSwarmLogDB();
+          logDB.insertLog({
+            id: data.log.id,
+            blueprintId: data.blueprintId,
+            taskId: data.taskId,
+            workerId: data.workerId,
+            timestamp: data.log.timestamp,
+            level: data.log.level,
+            type: data.log.type,
+            message: data.log.message,
+            details: data.log.details,
+          });
+        } catch (err) {
+          console.error('[SwarmLogDB] 存储日志失败:', err);
+        }
+      })();
     }
 
     broadcastToSubscribers(data.blueprintId, {
@@ -1288,8 +1292,9 @@ export function setupWebSocket(
     // v5.0: 存储所有 stream 类型到 SQLite（修复历史日志加载为空的问题）
     // thinking/text 使用缓冲区聚合后再写入，避免碎片化
     if (data.taskId) {
+      (async () => {
       try {
-        const logDB = getSwarmLogDB();
+        const logDB = await getSwarmLogDB();
         const bufferKey = `${data.workerId}:${data.taskId}`;
 
         if (data.streamType === 'thinking' || data.streamType === 'text') {
@@ -1353,6 +1358,7 @@ export function setupWebSocket(
       } catch (err) {
         console.error('[SwarmLogDB] 存储流失败:', err);
       }
+      })();
     }
 
     broadcastToSubscribers(data.blueprintId, {

@@ -59,21 +59,22 @@ function sanitizeProjectPath(projectPath: string): string {
 export class MemorySearchManager {
   private projectDir: string;
   private projectHash: string;
-  private store: LongTermStore;
-  private syncEngine: MemorySyncEngine;
+  private store!: LongTermStore;
+  private syncEngine!: MemorySyncEngine;
   private dirty: boolean = true;
 
-  constructor(opts: { projectDir: string; projectHash: string }) {
+  private constructor(opts: { projectDir: string; projectHash: string }) {
     this.projectDir = opts.projectDir;
     this.projectHash = opts.projectHash;
+  }
 
-    // 初始化 LongTermStore
+  static async create(opts: { projectDir: string; projectHash: string }): Promise<MemorySearchManager> {
+    const manager = new MemorySearchManager(opts);
     const claudeDir = getClaudeDir();
-    const dbPath = path.join(claudeDir, 'memory', 'projects', this.projectHash, 'ltm.sqlite');
-    this.store = new LongTermStore(dbPath);
-
-    // 初始化 MemorySyncEngine
-    this.syncEngine = new MemorySyncEngine(this.store, { projectDir: this.projectDir });
+    const dbPath = path.join(claudeDir, 'memory', 'projects', manager.projectHash, 'ltm.sqlite');
+    manager.store = await LongTermStore.create(dbPath);
+    manager.syncEngine = new MemorySyncEngine(manager.store, { projectDir: manager.projectDir });
+    return manager;
   }
 
   /**
@@ -162,11 +163,11 @@ let managerInstance: MemorySearchManager | null = null;
 /**
  * 初始化 MemorySearchManager
  */
-export function initMemorySearchManager(
+export async function initMemorySearchManager(
   projectDir: string,
   projectHash: string
-): MemorySearchManager {
-  managerInstance = new MemorySearchManager({ projectDir, projectHash });
+): Promise<MemorySearchManager> {
+  managerInstance = await MemorySearchManager.create({ projectDir, projectHash });
   return managerInstance;
 }
 

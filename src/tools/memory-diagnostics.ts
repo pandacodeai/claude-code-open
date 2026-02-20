@@ -68,7 +68,7 @@ export class MemoryDiagnosticsTool extends BaseTool<MemoryDiagnosticsInput, Tool
       const projectHash = hashProjectPath(projectDir);
       const dbPath = path.join(claudeDir, 'memory', 'projects', projectHash, 'ltm.sqlite');
       if (fsModule.existsSync(dbPath)) {
-        const store = new LongTermStore(dbPath);
+        const store = await LongTermStore.create(dbPath);
         const stats = store.getStats();
         store.close();
         rows.push('| **LongTermStore (SQLite)** | ✅ | ' + stats.totalFiles + ' files, ' + stats.totalChunks + ' chunks | ' + formatBytes(stats.dbSizeBytes) + ' |');

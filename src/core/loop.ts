@@ -1929,9 +1929,11 @@ export class ConversationLoop {
     const notebookMgr = initNotebookManager(effectiveWorkingDir);
     const notebookSummary = notebookMgr.getNotebookSummaryForPrompt();
 
-    // 初始化长期记忆搜索系统
+    // 初始化长期记忆搜索系统（异步，fire-and-forget）
     const projectHash = crypto.createHash('md5').update(effectiveWorkingDir).digest('hex').slice(0, 12);
-    initMemorySearchManager(effectiveWorkingDir, projectHash);
+    initMemorySearchManager(effectiveWorkingDir, projectHash).catch(err => {
+      console.warn('[MemorySearch] 初始化失败:', err);
+    });
 
     this.promptContext = {
       workingDir: effectiveWorkingDir,

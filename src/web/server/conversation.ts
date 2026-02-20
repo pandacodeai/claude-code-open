@@ -448,7 +448,7 @@ export class ConversationManager {
     try {
       const crypto = await import('crypto');
       const projectHash = crypto.createHash('md5').update(this.cwd).digest('hex').slice(0, 12);
-      initMemorySearchManager(this.cwd, projectHash);
+      await initMemorySearchManager(this.cwd, projectHash);
       console.log(`[ConversationManager] 初始化 MemorySearchManager: ${this.cwd}`);
     } catch (error) {
       console.warn('[ConversationManager] 初始化 MemorySearchManager 失败:', error);
