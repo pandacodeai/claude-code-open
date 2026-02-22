@@ -1792,14 +1792,22 @@ export function setupWebSocket(
 
 /**
  * 发送消息到客户端
+ *
+ * 当 WebSocket 已关闭时（readyState !== OPEN），消息被静默丢弃。
+ * 仅在首次检测到某个 ws 连接关闭时记录一条 warn 日志，
+ * 避免高频流式事件（thinking_delta 等）产生日志洪水。
  */
+const closedWsLogged = new WeakSet<WebSocket>();
 function sendMessage(ws: WebSocket, message: ServerMessage): void {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(message));
   } else {
-    // 记录丢弃的消息类型，便于排查消息丢失问题
-    const sessionId = ('payload' in message ? (message.payload as any)?.sessionId : '') || '';
-    console.warn(`[WebSocket] 消息被丢弃 (ws.readyState=${ws.readyState}): type=${message.type}, session=${sessionId}`);
+    // 每个已关闭的 ws 只 warn 一次
+    if (!closedWsLogged.has(ws)) {
+      closedWsLogged.add(ws);
+      const sessionId = ('payload' in message ? (message.payload as any)?.sessionId : '') || '';
+      console.warn(`[WebSocket] 连接已关闭 (readyState=${ws.readyState}), 后续消息将静默丢弃. session=${sessionId}, first_dropped=${message.type}`);
+    }
   }
 }
 
@@ -1841,7 +1849,7 @@ async function handleClientMessage(
       const history = conversationManager.getHistory(client.sessionId);
       sendMessage(ws, {
         type: 'history',
-        payload: { messages: history },
+        payload: { messages: history, sessionId: client.sessionId },
       });
       break;
 
@@ -1849,7 +1857,7 @@ async function handleClientMessage(
       conversationManager.clearHistory(client.sessionId);
       sendMessage(ws, {
         type: 'history',
-        payload: { messages: [] },
+        payload: { messages: [], sessionId: client.sessionId },
       });
       break;
 
@@ -2753,7 +2761,7 @@ async function handleChatMessage(
           const updatedHistory = conversationManager.getHistory(chatSessionId);
           sendMessage(getActiveWs(), {
             type: 'history',
-            payload: { messages: updatedHistory },
+            payload: { messages: updatedHistory, sessionId: chatSessionId },
           });
         } else {
           sendMessage(getActiveWs(), {
@@ -2778,7 +2786,7 @@ async function handleChatMessage(
           const updatedHistory = conversationManager.getHistory(chatSessionId);
           sendMessage(getActiveWs(), {
             type: 'history',
-            payload: { messages: updatedHistory },
+            payload: { messages: updatedHistory, sessionId: chatSessionId },
           });
         }
         sendMessage(getActiveWs(), {
@@ -2907,7 +2915,7 @@ async function handleSlashCommand(
     if (result.action === 'clear') {
       sendMessage(ws, {
         type: 'history',
-        payload: { messages: [] },
+        payload: { messages: [], sessionId: client.sessionId },
       });
     }
   } catch (error) {
@@ -3114,11 +3122,10 @@ async function handleSessionSwitch(
       // 恢复后再次更新 ws（resumeSession 可能从磁盘新建了 SessionState）
       conversationManager.setWebSocket(sessionId, ws);
 
-      // 更新客户端项目路径（从会话元数据中获取）
-      const sessionManager = conversationManager.getSessionManager();
-      const sessionData = sessionManager.loadSessionById(sessionId);
-      if (sessionData?.metadata?.projectPath) {
-        client.projectPath = sessionData.metadata.projectPath;
+      // 更新客户端项目路径（优化：从内存中的 SessionState 获取，避免重复读磁盘）
+      const projectPath = conversationManager.getSessionProjectPath(sessionId);
+      if (projectPath) {
+        client.projectPath = projectPath;
       }
 
       // 获取会话历史（使用 getLiveHistory：处理中时从 messages 实时构建，确保工具调用中间 turn 不丢失）
@@ -3132,7 +3139,7 @@ async function handleSessionSwitch(
 
       sendMessage(ws, {
         type: 'history',
-        payload: { messages: history },
+        payload: { messages: history, sessionId },
       });
 
       // 同步权限配置到客户端（刷新后客户端 permissionMode 会重置为 'default'，需要从服务端恢复）
@@ -3507,7 +3514,7 @@ async function handleSessionResume(
 
       sendMessage(ws, {
         type: 'history',
-        payload: { messages: history },
+        payload: { messages: history, sessionId },
       });
     } else {
       sendMessage(ws, {

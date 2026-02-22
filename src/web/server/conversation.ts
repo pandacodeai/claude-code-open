@@ -289,6 +289,8 @@ interface SessionState {
   lastCompactedUuid?: string;
   /** 标记：处理中 WebSocket 被刷新替换，完成后需要重发 history */
   needsHistoryResend?: boolean;
+  /** 上次持久化时的消息数量（用于判断是否需要持久化，避免磁盘读取） */
+  lastPersistedMessageCount: number;
   /** 用于取消正在执行的工具（如 Bash 命令）的 AbortController */
   currentAbortController?: AbortController;
   /** 正在流式生成的助手消息内容（用于浏览器刷新后恢复中间状态） */
@@ -761,6 +763,7 @@ export class ConversationManager {
       },
       isProcessing: false,
       lastActualInputTokens: 0,
+      lastPersistedMessageCount: 0,
     };
 
     this.sessions.set(sessionId, state);
@@ -3352,6 +3355,18 @@ Guidelines:
   }
 
   /**
+   * 从内存中获取会话的工作目录和项目路径
+   * 用于避免重复从磁盘加载会话数据
+   */
+  getSessionProjectPath(sessionId: string): string | null {
+    const state = this.sessions.get(sessionId);
+    if (!state) {
+      return null;
+    }
+    return state.session.cwd;
+  }
+
+  /**
    * 持久化会话
    */
   async persistSession(sessionId: string): Promise<boolean> {
@@ -3365,8 +3380,13 @@ Guidelines:
       return true;
     }
 
+    // 优化：通过 lastPersistedMessageCount 判断是否有变化，避免从磁盘加载会话
+    if (state.messages.length === state.lastPersistedMessageCount) {
+      return true; // 没有新消息，跳过持久化
+    }
+
     try {
-      // 先检查会话是否存在于 sessionManager
+      // 从内存缓存获取会话数据（loadSessionById 有内存缓存，不会重复读磁盘）
       const sessionData = this.sessionManager.loadSessionById(sessionId);
 
       if (!sessionData) {
@@ -3374,16 +3394,6 @@ Guidelines:
         // 不要创建新会话，直接返回 false
         console.warn(`[ConversationManager] 会话不存在于 sessionManager，跳过持久化: ${sessionId}`);
         return false;
-      }
-
-      // 检查是否有实际变化（避免不必要的磁盘写入）
-      const hasChanges =
-        sessionData.messages.length !== state.messages.length ||
-        sessionData.chatHistory?.length !== state.chatHistory.length ||
-        sessionData.currentModel !== state.model;
-
-      if (!hasChanges) {
-        return true; // 没有变化，直接返回
       }
 
       // 更新会话数据
@@ -3400,6 +3410,8 @@ Guidelines:
       // 保存到磁盘
       const success = this.sessionManager.saveSession(sessionId);
       if (success) {
+        // 更新 lastPersistedMessageCount，标记已持久化
+        state.lastPersistedMessageCount = state.messages.length;
         console.log(`[ConversationManager] 会话已持久化: ${sessionId}`);
       }
       return success;
@@ -3461,7 +3473,8 @@ Guidelines:
 
       // 从持久化数据恢复会话状态
       const session = new Session(sessionData.metadata.workingDirectory || this.cwd);
-      await session.initializeGitInfo();
+      // 在后台异步获取 Git 信息，不阻塞会话切换（Git 信息主要用于 system prompt，在用户发送消息时才需要）
+      session.initializeGitInfo().catch(() => {});
 
       const clientConfig = this.buildClientConfig(sessionData.currentModel || this.defaultModel);
       const client = new ClaudeClient({
@@ -3494,9 +3507,19 @@ Guidelines:
         },
         isProcessing: false,
         lastActualInputTokens: 0,
+        lastPersistedMessageCount: sessionData.messages.length, // 从磁盘加载时，初始化为当前消息数
       };
 
       this.sessions.set(sessionId, state);
+
+      // 初始化 NotebookManager（SelfEvolve 重启后 resumeSession 不经过 getOrCreateSession，需要在这里初始化）
+      const workingDir = sessionData.metadata.workingDirectory || this.cwd;
+      try {
+        initNotebookManager(workingDir);
+      } catch (error) {
+        console.warn('[ConversationManager] resumeSession: 初始化 NotebookManager 失败:', error);
+      }
+
       console.log(`[ConversationManager] 会话已恢复: ${sessionId}, 消息数: ${sessionData.messages.length}, chatHistory: ${chatHistory.length}, permissionMode: ${permissionMode || 'default'}`);
       return true;
     } catch (error) {
