@@ -930,30 +930,30 @@ export function updateSessionSummary(session: SessionData, summary: string): voi
 function cleanupOldSessions(): void {
   ensureSessionDir();
 
-  const files = fs.readdirSync(getSessionDir()).filter((f) => f.endsWith('.json'));
+  const sessionDir = getSessionDir();
+  const allFiles = fs.readdirSync(sessionDir);
+  const jsonFiles = allFiles.filter((f) => f.endsWith('.json'));
   const sessions: { file: string; mtime: number }[] = [];
 
   const expiryTime = Date.now() - getSessionExpiryDays() * 24 * 60 * 60 * 1000;
 
-  for (const file of files) {
+  for (const file of jsonFiles) {
     try {
-      const filePath = path.join(getSessionDir(), file);
+      const filePath = path.join(sessionDir, file);
       // 优化：使用 fs.statSync 获取文件修改时间，而不是读取完整 JSON
       const stats = fs.statSync(filePath);
       const mtime = stats.mtimeMs;
 
       // 删除过期会话（基于文件修改时间）
       if (mtime < expiryTime) {
-        fs.unlinkSync(filePath);
+        deleteSessionFiles(sessionDir, file);
         continue;
       }
 
       sessions.push({ file, mtime });
     } catch {
       // 删除无法访问的文件
-      try {
-        fs.unlinkSync(path.join(getSessionDir(), file));
-      } catch {}
+      deleteSessionFiles(sessionDir, file);
     }
   }
 
@@ -963,11 +963,41 @@ function cleanupOldSessions(): void {
     const toDelete = sessions.slice(0, sessions.length - getMaxSessions());
 
     for (const { file } of toDelete) {
-      try {
-        fs.unlinkSync(path.join(getSessionDir(), file));
-      } catch {}
+      deleteSessionFiles(sessionDir, file);
     }
   }
+
+  // 清理孤立 WAL 文件（有 .wal.jsonl 但没有对应的 .json）
+  const jsonSet = new Set(jsonFiles.map(f => f.replace('.json', '')));
+  const walFiles = allFiles.filter(f => f.endsWith('.wal.jsonl'));
+  for (const walFile of walFiles) {
+    const sessionId = walFile.replace('.wal.jsonl', '');
+    if (!jsonSet.has(sessionId)) {
+      try {
+        fs.unlinkSync(path.join(sessionDir, walFile));
+      } catch { /* ignore */ }
+    }
+  }
+}
+
+/**
+ * 删除会话的所有关联文件（.json + .wal.jsonl）
+ */
+function deleteSessionFiles(sessionDir: string, jsonFile: string): void {
+  const sessionId = jsonFile.replace('.json', '');
+  // 删除主 JSON 文件
+  try {
+    fs.unlinkSync(path.join(sessionDir, jsonFile));
+  } catch { /* ignore */ }
+  // 删除对应的 WAL 文件
+  try {
+    const walPath = path.join(sessionDir, `${sessionId}.wal.jsonl`);
+    if (fs.existsSync(walPath)) {
+      fs.unlinkSync(walPath);
+    }
+  } catch { /* ignore */ }
+  // 清除内存缓存
+  sessionMetadataCache.delete(sessionId);
 }
 
 /**

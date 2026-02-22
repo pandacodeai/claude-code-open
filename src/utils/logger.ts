@@ -83,6 +83,9 @@ class RuntimeLogger {
   private statsCache: { ts: number; hours: number; result: ReturnType<RuntimeLogger['getStats']> } | null = null;
   private static STATS_CACHE_TTL = 30_000; // 30 秒缓存
 
+  // ErrorWatcher hook（仅在 evolve 模式下设置）
+  private errorWatcherCallback: ((entry: LogEntry) => void) | null = null;
+
   // 保存原始方法
   private originalConsoleError: typeof console.error = console.error;
   private originalConsoleWarn: typeof console.warn = console.warn;
@@ -306,6 +309,11 @@ class RuntimeLogger {
     } catch {
       // 日志系统自身的错误不能再用 console.error，避免无限递归
     }
+
+    // 通知 ErrorWatcher（error 级别）
+    if (entry.level === 'error' && this.errorWatcherCallback) {
+      try { this.errorWatcherCallback(entry); } catch { /* ErrorWatcher 错误不能影响日志系统 */ }
+    }
   }
 
   /**
@@ -400,6 +408,13 @@ class RuntimeLogger {
       msg,
       data: data !== undefined ? data : undefined,
     });
+  }
+
+  /**
+   * 设置 ErrorWatcher 回调（由 ErrorWatcher 模块在 evolve 模式下注入）
+   */
+  setErrorWatcher(callback: (entry: LogEntry) => void): void {
+    this.errorWatcherCallback = callback;
   }
 
   /**

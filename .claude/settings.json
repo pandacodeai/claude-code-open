@@ -16,7 +16,8 @@
       "Write(*.ts)",
       "Edit(*.css)",
       "Bash(ls*)",
-      "Bash(ssh*)"
+      "Bash(ssh*)",
+      "Bash(curl*)"
     ],
     "deny": []
   },

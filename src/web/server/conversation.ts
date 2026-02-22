@@ -836,8 +836,47 @@ export class ConversationManager {
       return state.chatHistory;
     }
 
-    // 会话处理中：从 messages 实时构建，确保包含所有中间工具调用 turn
-    return this.convertMessagesToChatHistory(state.messages);
+    // 会话处理中：需要包含 chatHistory 中尚未同步的实时消息（工具调用中间 turn）
+    // 关键修复：如果 chatHistory 中有 compact_boundary 标记，说明经历过 AutoCompact 压缩，
+    // 此时 state.messages 只包含压缩后的摘要+最近消息，不能完全重建，
+    // 必须以 chatHistory 为基础，仅追加增量。
+    const hasCompactBoundary = state.chatHistory.some(m => m.isCompactBoundary);
+    if (!hasCompactBoundary) {
+      // 未压缩：messages 是完整的，可以安全重建
+      return this.convertMessagesToChatHistory(state.messages);
+    }
+
+    // 已压缩：以 chatHistory 为基础，找出 messages 中还没同步的增量部分
+    // chatHistory 中最后一条记录的 _messagesLen 表示已经同步到 messages 的哪个位置
+    const lastSyncedIndex = this.getLastSyncedMessageIndex(state.chatHistory);
+    if (lastSyncedIndex >= state.messages.length) {
+      // 没有新增消息，直接返回
+      return state.chatHistory;
+    }
+
+    // 从未同步的位置开始，转换增量消息
+    const incrementalMessages = state.messages.slice(lastSyncedIndex);
+    if (incrementalMessages.length === 0) {
+      return state.chatHistory;
+    }
+
+    const incrementalHistory = this.convertMessagesToChatHistory(incrementalMessages);
+    return [...state.chatHistory, ...incrementalHistory];
+  }
+
+  /**
+   * 获取 chatHistory 中最后一条已同步的 messages 索引
+   */
+  private getLastSyncedMessageIndex(chatHistory: ChatMessage[]): number {
+    // 从后往前找有 _messagesLen 的条目
+    for (let i = chatHistory.length - 1; i >= 0; i--) {
+      if (chatHistory[i]._messagesLen !== undefined) {
+        return chatHistory[i]._messagesLen!;
+      }
+    }
+    // 没有 _messagesLen 标记，无法确定同步位置
+    // 返回 Infinity 表示不追加增量（保守策略：宁可少显示正在处理的消息，也不丢历史）
+    return Infinity;
   }
 
   /**

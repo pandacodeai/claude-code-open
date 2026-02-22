@@ -226,7 +226,7 @@ export type ClientMessage =
 export type ServerMessage =
   | { type: 'connected'; payload: { sessionId: string; model: string } }
   | { type: 'pong' }
-  | { type: 'history'; payload: { messages: ChatMessage[] } }
+  | { type: 'history'; payload: { messages: ChatMessage[]; sessionId?: string } }
   | { type: 'message_start'; payload: { messageId: string; sessionId?: string } }
   | { type: 'text_delta'; payload: { messageId: string; text: string; sessionId?: string } }
   | { type: 'tool_use_start'; payload: ToolUseStartPayload }
