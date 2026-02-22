@@ -60,6 +60,23 @@ npm install -g @anthropic-ai/claude-code
 
 ## Quick Installation (Recommended)
 
+### Windows Quick Install (Easiest) 🪟
+
+**Download and double-click to install - no command line needed!**
+
+[![Windows Installer](https://img.shields.io/badge/Windows-Download%20Installer-blue?style=for-the-badge&logo=windows)](https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.bat)
+
+**3 Simple Steps:**
+1. Click the button above to download `install.bat`
+2. Double-click the downloaded file to run
+3. Done! The installer will handle everything automatically
+
+**China users (GitHub not accessible):**
+
+[![Gitee Mirror](https://img.shields.io/badge/Gitee-下载安装器-orange?style=for-the-badge&logo=gitee)](https://gitee.com/lubanbbs/claude-code-open/raw/private_web_ui/install.bat)
+
+---
+
 ### One-Click Install Script
 
 **Windows (PowerShell):**
