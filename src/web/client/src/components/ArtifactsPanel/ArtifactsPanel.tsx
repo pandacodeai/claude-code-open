@@ -4,7 +4,6 @@ import type { FileArtifact, ArtifactGroup } from '../../hooks/useArtifacts';
 import type { ScheduleArtifact } from '../../hooks/useScheduleArtifacts';
 import { computeSideBySideDiff } from '../../utils/diffUtils';
 import { useLanguage } from '../../i18n';
-import { LogsView } from '../Terminal/LogsView';
 import './ArtifactsPanel.css';
 
 interface ArtifactsPanelProps {
@@ -18,10 +17,6 @@ interface ArtifactsPanelProps {
   selectedScheduleId?: string | null;
   selectedScheduleArtifact?: ScheduleArtifact | null;
   onSelectScheduleArtifact?: (id: string | null) => void;
-  // 日志 Tab 相关
-  connected?: boolean;
-  send?: (msg: any) => void;
-  addMessageHandler?: (handler: (msg: any) => void) => () => void;
 }
 
 function getFileName(filePath: string): string {
@@ -377,16 +372,11 @@ export function ArtifactsPanel({
   selectedScheduleId,
   selectedScheduleArtifact,
   onSelectScheduleArtifact,
-  connected,
-  send,
-  addMessageHandler,
 }: ArtifactsPanelProps) {
   const { t } = useLanguage();
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<'artifacts' | 'logs'>('artifacts');
   const totalCount = artifacts.length + (scheduleArtifacts?.length || 0);
   const hasBothSections = (scheduleArtifacts?.length || 0) > 0 && groups.length > 0;
-  const hasLogsSupport = !!(send && addMessageHandler);
 
   const toggleFileExpand = (filePath: string) => {
     setExpandedFiles(prev => {
@@ -430,23 +420,11 @@ export function ArtifactsPanel({
       )}
 
       <div className="artifacts-panel-header">
-        <div className="artifacts-panel-tabs">
-          <button
-            className={`artifacts-tab-btn ${activeTab === 'artifacts' ? 'active' : ''}`}
-            onClick={() => setActiveTab('artifacts')}
-          >
-            {t('artifacts.title')}
-            {totalCount > 0 && (
-              <span className="artifacts-panel-badge">{totalCount}</span>
-            )}
-          </button>
-          {hasLogsSupport && (
-            <button
-              className={`artifacts-tab-btn ${activeTab === 'logs' ? 'active' : ''}`}
-              onClick={() => setActiveTab('logs')}
-            >
-              Logs
-            </button>
+        <div className="artifacts-panel-title">
+          <span className="artifacts-panel-title-icon">&#9874;</span>
+          {t('artifacts.title')}
+          {totalCount > 0 && (
+            <span className="artifacts-panel-badge">{totalCount}</span>
           )}
         </div>
         <button className="artifacts-panel-close" onClick={onClose} title="Close panel">
@@ -454,21 +432,7 @@ export function ArtifactsPanel({
         </button>
       </div>
 
-      {/* Logs Tab */}
-      {activeTab === 'logs' && hasLogsSupport && (
-        <LogsView
-          active={true}
-          panelVisible={true}
-          connected={connected ?? false}
-          send={send!}
-          addMessageHandler={addMessageHandler!}
-        />
-      )}
-
-      {/* Artifacts Tab 内容 */}
-      {activeTab === 'artifacts' && (
-        <>
-          {/* 定时任务分区 */}
+      {/* 定时任务分区 */}
           {scheduleArtifacts && scheduleArtifacts.length > 0 && (
             <div className="artifacts-section">
               {hasBothSections && (
@@ -570,8 +534,6 @@ export function ArtifactsPanel({
               </div>
             </div>
           ) : null}
-        </>
-      )}
     </div>
   );
 }
