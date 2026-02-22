@@ -27,6 +27,8 @@ import { getSwarmLogDB, type WorkerLog, type WorkerStream } from './database/swa
 import { registerE2EAgent, unregisterE2EAgent, getE2EAgent } from '../../blueprint/e2e-agent-registry.js';
 // 终端管理器
 import { TerminalManager } from './terminal-manager.js';
+// 日志系统
+import { logger } from '../../utils/logger.js';
 // Git 管理器
 import { GitManager } from './git-manager.js';
 // Git WebSocket 处理函数
@@ -208,6 +210,9 @@ const terminalManager = new TerminalManager();
 // 客户端终端映射：clientId -> Set of terminalIds
 const clientTerminals = new Map<string, Set<string>>();
 
+// 日志订阅管理：clientId -> { interval, lastFileSize }
+const logSubscriptions = new Map<string, { interval: NodeJS.Timeout; lastFileSize: number }>();
+
 // 全局 WebSocket 客户端连接池（用于跨模块广播消息）
 const wsClients = new Map<string, ClientConnection>();
 
@@ -256,6 +261,12 @@ export function setupWebSocket(
         swarmSubscriptions.delete(blueprintId);
       }
     });
+    // 清理日志订阅
+    const logSub = logSubscriptions.get(clientId);
+    if (logSub) {
+      clearInterval(logSub.interval);
+      logSubscriptions.delete(clientId);
+    }
   };
 
   // v5.0: thinking/text 流式内容聚合缓冲区（避免碎片化存储到 SQLite）
@@ -2401,6 +2412,87 @@ async function handleClientMessage(
           terms.delete(destroyPayload.terminalId);
           if (terms.size === 0) clientTerminals.delete(client.id);
         }
+      }
+      break;
+    }
+
+    // ========== 日志消息 ==========
+    case 'logs:read': {
+      const logsPayload = (message as any).payload || {};
+      const count = logsPayload.count || 200;
+      const levelFilter = logsPayload.level as string | undefined;
+      
+      let entries = logger.readRecent(count);
+      
+      // 按级别过滤
+      if (levelFilter && levelFilter !== 'ALL') {
+        entries = entries.filter(e => e.level === levelFilter.toLowerCase());
+      }
+      
+      sendMessage(client.ws, {
+        type: 'logs:data',
+        payload: { entries },
+      });
+      break;
+    }
+
+    case 'logs:subscribe': {
+      // 如果已经订阅了，先取消
+      const existing = logSubscriptions.get(client.id);
+      if (existing) {
+        clearInterval(existing.interval);
+      }
+
+      // 获取当前日志文件大小
+      const fs = await import('fs');
+      const logFile = logger.getLogFile();
+      let lastFileSize = 0;
+      try {
+        const stat = fs.statSync(logFile);
+        lastFileSize = stat.size;
+      } catch {
+        // 文件不存在或无法读取
+      }
+
+      // 每 2 秒检查新日志
+      const interval = setInterval(() => {
+        try {
+          const stat = fs.statSync(logFile);
+          const currentSize = stat.size;
+          
+          // 如果文件变大了，说明有新日志
+          if (currentSize > lastFileSize) {
+            // 读取最近 50 条日志（包含新的）
+            const entries = logger.readRecent(50);
+            
+            if (entries.length > 0) {
+              sendMessage(client.ws, {
+                type: 'logs:tail',
+                payload: { entries },
+              });
+            }
+            
+            lastFileSize = currentSize;
+            // 更新存储的文件大小
+            const sub = logSubscriptions.get(client.id);
+            if (sub) {
+              sub.lastFileSize = currentSize;
+            }
+          }
+        } catch {
+          // 读取失败，忽略
+        }
+      }, 2000);
+
+      logSubscriptions.set(client.id, { interval, lastFileSize });
+      break;
+    }
+
+    case 'logs:unsubscribe': {
+      const sub = logSubscriptions.get(client.id);
+      if (sub) {
+        clearInterval(sub.interval);
+        logSubscriptions.delete(client.id);
       }
       break;
     }
