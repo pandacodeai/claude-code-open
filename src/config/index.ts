@@ -88,6 +88,9 @@ const UserConfigSchema = z.object({
   enableTelemetry: z.boolean().default(false),
   disableFileCheckpointing: z.boolean().default(false),
   enableAutoSave: z.boolean().default(true),
+  
+  /** 自动链接理解 - 自动提取用户消息中的 URL 并获取内容注入上下文 */
+  autoLinkUnderstanding: z.boolean().default(true).optional(),
 
   /** Extended Thinking 配置 (P0) */
   thinking: z.object({
@@ -132,6 +135,9 @@ const UserConfigSchema = z.object({
   // 高级配置
   maxConcurrentTasks: z.number().int().positive().max(100).default(10),
   requestTimeout: z.number().int().positive().default(300000), // 5分钟
+  
+  /** Skill Hub URL - 社区 skill 注册中心地址 */
+  skillHubUrl: z.string().url().optional(),
 
   // 遥测配置（新增）
   telemetry: z.object({

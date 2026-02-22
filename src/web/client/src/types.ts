@@ -216,6 +216,8 @@ export interface ToolUse {
   input: unknown;
   status: ToolStatus;
   result?: ToolResult;
+  /** 工具分类（用于 UI 状态显示）：code/search/read/web/agent/other */
+  toolCategory?: string;
   /** 子 agent 工具调用（Task / ScheduleTask 使用） */
   subagentToolCalls?: SubagentToolCall[];
   /** 工具调用计数（Task / ScheduleTask 使用） */

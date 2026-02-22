@@ -384,6 +384,7 @@ export interface ToolUseStartPayload {
   toolUseId: string;
   toolName: string;
   input: unknown;
+  toolCategory?: string;
   sessionId?: string;
 }
 

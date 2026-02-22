@@ -2175,6 +2175,68 @@ export class ConversationLoop {
   }
 
   /**
+   * 预处理用户输入：提取 URL 并获取内容注入上下文
+   * @param userInput 原始用户输入
+   * @returns 处理后的用户输入（附加了链接内容）
+   */
+  private async preprocessUserInput(userInput: string): Promise<string> {
+    // 检查是否启用自动链接理解
+    const config = configManager.get('autoLinkUnderstanding');
+    if (!config) {
+      return userInput;
+    }
+
+    try {
+      // 动态导入链接检测模块
+      const { extractUrls } = await import('../context/link-detector.js');
+      const urls = extractUrls(userInput);
+
+      if (urls.length === 0) {
+        return userInput;
+      }
+
+      // 动态导入 WebFetch 工具
+      const { WebFetchTool } = await import('../tools/web.js');
+      const webFetchTool = new WebFetchTool();
+
+      // 获取每个 URL 的内容（并行，带超时）
+      const linkContexts: string[] = [];
+      
+      await Promise.all(
+        urls.map(async (url) => {
+          try {
+            // 3秒超时
+            const timeoutPromise = new Promise<never>((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout')), 3000)
+            );
+
+            const fetchPromise = webFetchTool.execute({ url, prompt: 'Extract the main content from this page' });
+
+            const result = await Promise.race([fetchPromise, timeoutPromise]);
+
+            if (result && !result.error && result.output) {
+              // 截断内容到 2000 字符
+              const content = result.output.substring(0, 2000);
+              linkContexts.push(`\n\n<link-context url="${url}">\n${content}\n</link-context>`);
+            }
+          } catch {
+            // 单个 URL 获取失败不影响其他
+          }
+        })
+      );
+
+      if (linkContexts.length > 0) {
+        return userInput + linkContexts.join('');
+      }
+
+      return userInput;
+    } catch {
+      // 任何错误都不影响正常流程
+      return userInput;
+    }
+  }
+
+  /**
    * 检查是否为 Git 仓库
    */
   private checkIsGitRepo(dir: string): boolean {
@@ -2330,10 +2392,13 @@ export class ConversationLoop {
     // 确保认证已完成（处理 OAuth API Key 创建）
     await this.ensureAuthenticated();
 
+    // 自动链接理解：提取用户消息中的 URL 并获取内容
+    const processedInput = await this.preprocessUserInput(userInput);
+
     // 添加用户消息
     this.session.addMessage({
       role: 'user',
-      content: userInput,
+      content: processedInput,
     });
 
     let turns = 0;
@@ -2678,9 +2743,15 @@ Guidelines:
     // 创建新的 AbortController 用于此次请求
     this.abortController = new AbortController();
 
+    // 自动链接理解：提取用户消息中的 URL 并获取内容（仅处理字符串输入）
+    let processedInput = userInput;
+    if (typeof userInput === 'string') {
+      processedInput = await this.preprocessUserInput(userInput);
+    }
+
     this.session.addMessage({
       role: 'user',
-      content: userInput,
+      content: processedInput,
     });
 
     let turns = 0;

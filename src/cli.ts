@@ -3506,6 +3506,19 @@ async function handleSlashCommand(input: string, loop: ConversationLoop): Promis
   }
 }
 
+// ============================================================================
+// Onboard command - 首次启动引导向导
+// ============================================================================
+
+program
+  .command('onboard')
+  .description('Run the onboarding wizard to configure Claude Code')
+  .action(async () => {
+    const { runOnboardingWizard } = await import('./wizard/onboarding.js');
+    await runOnboardingWizard();
+    safeExit(0);
+  });
+
 // 错误处理
 process.on('uncaughtException', (err) => {
   console.error(chalk.red('Uncaught Exception:'), err.message);
@@ -3569,6 +3582,20 @@ async function main(): Promise<void> {
   // 这里主模块已经导入（在 Node.js ES Module 中，导入是同步的）
   // 所以我们直接触发导入后事件
   await emitLifecycleEvent('cli_after_main_import');
+
+  // 检查是否首次启动（非 --print 模式）
+  const isPrintMode = args.includes('--print') || args.includes('-p');
+  const isOnboardCommand = args.includes('onboard');
+  
+  if (!isPrintMode && !isOnboardCommand) {
+    const { isOnboarded, runOnboardingWizard } = await import('./wizard/onboarding.js');
+    
+    if (!isOnboarded()) {
+      // 首次启动，运行向导
+      await runOnboardingWizard();
+      return;
+    }
+  }
 
   // 运行主程序
   program.parse();

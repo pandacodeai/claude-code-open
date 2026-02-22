@@ -247,6 +247,7 @@ export function useMessageHandler({
                 name: payload.toolName as string,
                 input: payload.input,
                 status: 'running' as const,
+                toolCategory: payload.toolCategory as string | undefined,
               },
             ];
             const updatedMsg = { ...currentMsg, content: newContent };

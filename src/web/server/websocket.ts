@@ -56,6 +56,39 @@ import {
 } from './websocket-git-handlers.js';
 
 // ============================================================================
+// 工具分类函数 - 用于 Web UI 状态反馈
+// ============================================================================
+
+/**
+ * 根据工具名返回工具分类
+ * 用于 Web UI 显示不同的执行状态提示
+ */
+function getToolCategory(toolName: string): string {
+  // Code execution tools
+  if (['Bash', 'Edit', 'Write', 'MultiEdit'].includes(toolName)) {
+    return 'code';
+  }
+  // Search tools
+  if (['Grep', 'Glob', 'Search'].includes(toolName)) {
+    return 'search';
+  }
+  // Read tools
+  if (['Read'].includes(toolName)) {
+    return 'read';
+  }
+  // Web tools
+  if (['WebFetch', 'WebSearch', 'Browser'].includes(toolName)) {
+    return 'web';
+  }
+  // Agent/Task tools
+  if (['Task', 'Agent', 'DispatchWorker', 'UpdateTaskPlan', 'StartLeadAgent'].includes(toolName)) {
+    return 'agent';
+  }
+  // Default
+  return 'other';
+}
+
+// ============================================================================
 // 旧蓝图系统已被移除，以下是类型占位符和空函数
 // 新架构使用 SmartPlanner，蜂群相关功能将在 /api/blueprint/planning 中实现
 // ============================================================================
@@ -2711,9 +2744,10 @@ async function handleChatMessage(
       },
 
       onToolUseStart: (toolUseId: string, toolName: string, input: unknown) => {
+        const toolCategory = getToolCategory(toolName);
         sendMessage(getActiveWs(), {
           type: 'tool_use_start',
-          payload: { messageId, toolUseId, toolName, input, sessionId: chatSessionId },
+          payload: { messageId, toolUseId, toolName, input, toolCategory, sessionId: chatSessionId },
         });
         sendMessage(getActiveWs(), {
           type: 'status',

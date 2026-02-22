@@ -198,12 +198,38 @@ function ToolUseContent({ toolUse }: { toolUse: ToolUse }) {
   else if (toolUse.status === 'error') statusIcon = '✗';
   else if (toolUse.status === 'running') statusIcon = '⟳';
 
+  // 根据工具分类显示状态文字（仅在执行中且没有输出时显示）
+  let statusText = '';
+  if (toolUse.status === 'running' && !toolUse.result) {
+    const category = toolUse.toolCategory || 'other';
+    switch (category) {
+      case 'code':
+        statusText = '执行命令...';
+        break;
+      case 'search':
+        statusText = '搜索文件...';
+        break;
+      case 'read':
+        statusText = '读取文件...';
+        break;
+      case 'web':
+        statusText = '获取网页...';
+        break;
+      case 'agent':
+        statusText = '子任务执行中...';
+        break;
+      default:
+        statusText = '工具执行中...';
+    }
+  }
+
   return (
     <div className={styles.toolUse}>
       <div className={styles.toolHeader} onClick={() => setExpanded(!expanded)}>
         <span className={styles.toolStatus}>{statusIcon}</span>
         <span className={styles.toolName}>{toolUse.name}</span>
         {pathInfo && <span className={styles.toolPath}>{pathInfo}</span>}
+        {statusText && <span className={styles.toolStatusText}>{statusText}</span>}
         <svg
           width="12"
           height="12"

@@ -613,7 +613,8 @@ export class ConversationManager {
       config.apiKey = auth.apiKey;
     } else if (auth.type === 'oauth') {
       const scopes = auth.scopes || auth.scope || [];
-      const hasInferenceScope = scopes.includes('user:inference');
+      const INFERENCE_SCOPES = ['user:inference', 'user:ccr_inference', 'user:voice', 'org:service_key_inference'];
+      const hasInferenceScope = scopes.some((s: string) => INFERENCE_SCOPES.includes(s));
       const oauthToken = auth.authToken || auth.accessToken;
 
       if (hasInferenceScope && oauthToken) {
