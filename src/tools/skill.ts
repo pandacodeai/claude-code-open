@@ -15,6 +15,7 @@ import type { ToolResult, ToolDefinition } from '../types/index.js';
 import { getCurrentCwd } from '../core/cwd-context.js';
 import { registerHook, type HookEvent, type HookConfig } from '../hooks/index.js';
 import { t } from '../i18n/index.js';
+import { scanSkillContent } from '../security/skill-scanner.js';
 
 /**
  * v2.1.32: 额外目录列表（由 --add-dir 设置）
@@ -628,6 +629,28 @@ async function loadSkillsFromDirectory(
     if (fs.existsSync(rootSkillFile)) {
       try {
         const content = fs.readFileSync(rootSkillFile, { encoding: 'utf-8' });
+        
+        // 安全扫描
+        const scanResult = scanSkillContent(content);
+        if (!scanResult.safe) {
+          // 有 critical 级别的警告，跳过加载
+          console.warn(`[Security] Skipping skill ${rootSkillFile} due to critical security issues:`);
+          scanResult.warnings.forEach(w => {
+            if (w.level === 'critical') {
+              console.warn(`  [CRITICAL] ${w.rule}: ${w.detail}`);
+            }
+          });
+          return results;
+        }
+        
+        // 输出 warn 级别的警告
+        if (scanResult.warnings.length > 0) {
+          console.warn(`[Security] Loading skill ${rootSkillFile} with warnings:`);
+          scanResult.warnings.forEach(w => {
+            console.warn(`  [WARN] ${w.rule}: ${w.detail}`);
+          });
+        }
+        
         const { frontmatter, content: markdownContent } = parseFrontmatter(content);
 
         // 使用目录名作为 skillName
@@ -669,6 +692,28 @@ async function loadSkillsFromDirectory(
       if (fs.existsSync(skillFile)) {
         try {
           const content = fs.readFileSync(skillFile, { encoding: 'utf-8' });
+          
+          // 安全扫描
+          const scanResult = scanSkillContent(content);
+          if (!scanResult.safe) {
+            // 有 critical 级别的警告，跳过加载
+            console.warn(`[Security] Skipping skill ${skillFile} due to critical security issues:`);
+            scanResult.warnings.forEach(w => {
+              if (w.level === 'critical') {
+                console.warn(`  [CRITICAL] ${w.rule}: ${w.detail}`);
+              }
+            });
+            continue; // 跳过这个 skill，继续处理下一个
+          }
+          
+          // 输出 warn 级别的警告
+          if (scanResult.warnings.length > 0) {
+            console.warn(`[Security] Loading skill ${skillFile} with warnings:`);
+            scanResult.warnings.forEach(w => {
+              console.warn(`  [WARN] ${w.rule}: ${w.detail}`);
+            });
+          }
+          
           const { frontmatter, content: markdownContent } = parseFrontmatter(content);
 
           // 使用子目录名作为 skillName

@@ -901,8 +901,14 @@ function getAgentBackgroundTasksPrompt(): string {
 - You can optionally run agents in the background using the run_in_background parameter. When an agent runs in the background, you will need to use TaskOutput to retrieve its results once it's done. You can continue to work while background agents run - When you need their results to continue you can use TaskOutput in blocking mode to pause and wait for their results.`;
 }
 
+// Subagent 深度限制配置（防止无限递归）
+const MAX_SUBAGENT_DEPTH = 5;
+
 export class TaskTool extends BaseTool<AgentInput, ToolResult> {
   name = 'Task';
+  
+  // 全局跟踪当前嵌套深度
+  private static currentDepth: number = 0;
 
   /**
    * 动态生成 description，包含所有活跃的 agents（内置 + 自定义）
@@ -1064,6 +1070,14 @@ ${!isAgentTeamsEnabled() ? `\nNote: The "Agent Teams" feature (TeammateTool, Sen
   }
 
   async execute(input: AgentInput): Promise<ToolResult> {
+    // 检查 subagent 嵌套深度限制
+    if (TaskTool.currentDepth >= MAX_SUBAGENT_DEPTH) {
+      return {
+        success: false,
+        error: `Subagent depth limit exceeded (max: ${MAX_SUBAGENT_DEPTH}). Cannot create nested subagent to prevent infinite recursion.`,
+      };
+    }
+
     const { description, prompt, subagent_type, model, resume, run_in_background,
             max_turns, name: agentName, team_name, mode } = input;
 
@@ -1297,6 +1311,9 @@ ${!isAgentTeamsEnabled() ? `\nNote: The "Agent Teams" feature (TeammateTool, Sen
     // 调用 SubagentStart Hook - 注意参数顺序是 (id, agentType)
     await runSubagentStartHooks(agent.id, agent.agentType);
 
+    // 增加 subagent 嵌套深度
+    TaskTool.currentDepth++;
+
     try {
       // 构建代理的初始消息
       let initialMessages: Message[] = [];
@@ -1440,6 +1457,9 @@ ${!isAgentTeamsEnabled() ? `\nNote: The "Agent Teams" feature (TeammateTool, Sen
       await runSubagentStopHooks(agent.id, agent.agentType);
 
       throw error;
+    } finally {
+      // 减少 subagent 嵌套深度
+      TaskTool.currentDepth--;
     }
   }
 

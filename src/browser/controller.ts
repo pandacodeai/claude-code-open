@@ -10,6 +10,7 @@
 import type { Locator, Page } from 'playwright-core';
 import type { BrowserManager } from './manager.js';
 import type { SnapshotResult, TabInfo, CookieOptions, RefEntry } from './types.js';
+import { isNavigationAllowed } from './navigation-guard.js';
 
 const INTERACTIVE_ROLES = new Set([
   'button', 'link', 'textbox', 'checkbox', 'radio', 'combobox',
@@ -22,15 +23,61 @@ export class BrowserController {
   private manager: BrowserManager;
   private refsMap: Map<string, RefEntry> = new Map();
   private refCounter: number = 0;
+  
+  // 页面状态追踪
+  private consoleMessages: string[] = [];
+  private pageErrors: string[] = [];
+  private listenersAttached = false;
 
   constructor(manager: BrowserManager) {
     this.manager = manager;
+  }
+
+  /**
+   * 绑定页面事件监听器（console 和 pageerror）
+   */
+  private attachPageListeners(page: Page): void {
+    if (this.listenersAttached) return;
+
+    // 监听 console 消息
+    page.on('console', (msg) => {
+      const type = msg.type();
+      const text = msg.text();
+      
+      // 只记录 error 和 warning
+      if (type === 'error' || type === 'warning') {
+        const entry = `[${type.toUpperCase()}] ${text}`;
+        this.consoleMessages.push(entry);
+        
+        // 保留最近 50 条
+        if (this.consoleMessages.length > 50) {
+          this.consoleMessages.shift();
+        }
+      }
+    });
+
+    // 监听页面错误
+    page.on('pageerror', (error) => {
+      const entry = `${error.message}\n${error.stack || ''}`;
+      this.pageErrors.push(entry);
+      
+      // 保留最近 20 条
+      if (this.pageErrors.length > 20) {
+        this.pageErrors.shift();
+      }
+    });
+
+    this.listenersAttached = true;
   }
 
   // --- Snapshot ---
 
   async snapshot(options?: { interactive?: boolean }): Promise<SnapshotResult> {
     const page = await this.manager.getPage();
+    
+    // 绑定页面事件监听器（如果还没有绑定）
+    this.attachPageListeners(page);
+    
     this.refsMap.clear();
     this.refCounter = 0;
 
@@ -83,10 +130,26 @@ export class BrowserController {
       }
     }
 
+    // 追加页面错误和 console 信息（如果有的话）
+    let finalContent = outputLines.join('\n');
+    
+    if (this.pageErrors.length > 0) {
+      finalContent += '\n\n=== Page Errors ===\n';
+      finalContent += this.pageErrors.slice(-5).join('\n---\n'); // 最近 5 条
+    }
+    
+    if (this.consoleMessages.length > 0) {
+      const errorMessages = this.consoleMessages.filter(msg => msg.startsWith('[ERROR]'));
+      if (errorMessages.length > 0) {
+        finalContent += '\n\n=== Console Errors ===\n';
+        finalContent += errorMessages.slice(-5).join('\n'); // 最近 5 条
+      }
+    }
+
     return {
       title: await page.title(),
       url: page.url(),
-      content: outputLines.join('\n'),
+      content: finalContent,
       refs: this.refsMap,
     };
   }
@@ -94,7 +157,17 @@ export class BrowserController {
   // --- Navigation ---
 
   async goto(url: string): Promise<SnapshotResult> {
+    // 导航守卫检查（SSRF 防护）
+    const guardResult = isNavigationAllowed(url);
+    if (!guardResult.allowed) {
+      throw new Error(`Navigation blocked: ${guardResult.reason}`);
+    }
+    
     const page = await this.manager.getPage();
+    
+    // 绑定页面事件监听器（如果还没有绑定）
+    this.attachPageListeners(page);
+    
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(500);
     return this.snapshot();
@@ -281,5 +354,17 @@ export class BrowserController {
   async evaluate(expression: string): Promise<any> {
     const page = await this.manager.getPage();
     return await page.evaluate(expression);
+  }
+
+  // --- Console Log ---
+
+  /**
+   * 获取最近的 console 消息和页面错误
+   */
+  getConsoleLog(): { consoleMessages: string[]; pageErrors: string[] } {
+    return {
+      consoleMessages: [...this.consoleMessages],
+      pageErrors: [...this.pageErrors],
+    };
   }
 }

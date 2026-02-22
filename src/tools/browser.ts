@@ -63,6 +63,7 @@ USAGE NOTES:
             'cookies',
             'cookie_set',
             'cookie_clear',
+            'console_log',
           ],
           description: 'The browser action to perform',
         },
@@ -357,6 +358,25 @@ USAGE NOTES:
           return this.success(t('browser.cookiesCleared'));
         }
 
+        case 'console_log': {
+          const logs = controller.getConsoleLog();
+          let output = '=== Console Messages (errors/warnings) ===\n';
+          if (logs.consoleMessages.length > 0) {
+            output += logs.consoleMessages.join('\n');
+          } else {
+            output += '(no console messages)\n';
+          }
+          
+          output += '\n\n=== Page Errors ===\n';
+          if (logs.pageErrors.length > 0) {
+            output += logs.pageErrors.join('\n---\n');
+          } else {
+            output += '(no page errors)';
+          }
+          
+          return this.success(output);
+        }
+
         default:
           return this.error(`Unknown action: ${input.action}`);
       }
@@ -376,6 +396,12 @@ USAGE NOTES:
       if (error.message?.includes('Unknown ref')) {
         return this.error(
           `${error.message}\nPlease use "snapshot" action to get current page structure and valid ref IDs.`
+        );
+      }
+
+      if (error.message?.includes('Navigation blocked')) {
+        return this.error(
+          `${error.message}\nThis URL is blocked by security policy (SSRF protection).`
         );
       }
 

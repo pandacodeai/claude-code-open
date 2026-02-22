@@ -64,7 +64,8 @@ export type BrowserAction =
   | 'evaluate'
   | 'cookies'
   | 'cookie_set'
-  | 'cookie_clear';
+  | 'cookie_clear'
+  | 'console_log';
 
 export interface BrowserToolInput {
   action: BrowserAction;
