@@ -22,6 +22,7 @@ interface LogEntry {
 interface LogsViewProps {
   active: boolean;         // 当前是否是活跃 Tab
   panelVisible: boolean;   // 面板是否可见
+  connected: boolean;      // WebSocket 是否已连接
   send: (msg: any) => void;
   addMessageHandler: (handler: (msg: any) => void) => () => void;
 }
@@ -57,7 +58,7 @@ function formatTime(ts: string): string {
 /**
  * LogsView 组件
  */
-export function LogsView({ active, panelVisible, send, addMessageHandler }: LogsViewProps) {
+export function LogsView({ active, panelVisible, connected, send, addMessageHandler }: LogsViewProps) {
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [levelFilter, setLevelFilter] = useState<LevelFilter>('ALL');
   const [autoScroll, setAutoScroll] = useState(true);
@@ -70,29 +71,11 @@ export function LogsView({ active, panelVisible, send, addMessageHandler }: Logs
     ? entries 
     : entries.filter(e => e.level === levelFilter.toLowerCase());
 
-  // 初始化：请求初始数据 + 订阅实时更新
+  // 先注册消息处理器，再发请求——避免竞态（响应早于 handler 注册）
+  // 依赖 connected：组件可能在 WebSocket 连接前就挂载，connected 变 true 时重新订阅
   useEffect(() => {
-    // 请求最近 200 条日志
-    send({
-      type: 'logs:read',
-      payload: { count: 200 },
-    });
+    if (!connected) return;
 
-    // 订阅实时日志
-    send({
-      type: 'logs:subscribe',
-    });
-
-    // 组件卸载时取消订阅
-    return () => {
-      send({
-        type: 'logs:unsubscribe',
-      });
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // 监听日志消息
-  useEffect(() => {
     const unsubscribe = addMessageHandler((msg: any) => {
       if (msg.type === 'logs:data') {
         // 初始数据
@@ -102,10 +85,10 @@ export function LogsView({ active, panelVisible, send, addMessageHandler }: Logs
         const newEntries = msg.payload.entries || [];
         if (newEntries.length > 0) {
           setEntries(prev => {
-            // 合并新日志，去重（基于时间戳）
+            // 合并新日志，去重（基于时间戳+消息）
             const combined = [...prev, ...newEntries];
             const unique = Array.from(
-              new Map(combined.map(e => [e.ts, e])).values()
+              new Map(combined.map(e => [`${e.ts}:${e.msg}`, e])).values()
             );
             // 保留最近 1000 条
             return unique.slice(-1000);
@@ -114,8 +97,15 @@ export function LogsView({ active, panelVisible, send, addMessageHandler }: Logs
       }
     });
 
-    return unsubscribe;
-  }, [addMessageHandler]);
+    // handler 注册后再发请求
+    send({ type: 'logs:read', payload: { count: 200 } });
+    send({ type: 'logs:subscribe' });
+
+    return () => {
+      unsubscribe();
+      send({ type: 'logs:unsubscribe' });
+    };
+  }, [addMessageHandler, send, connected]);
 
   // 自动滚动到底部
   useEffect(() => {

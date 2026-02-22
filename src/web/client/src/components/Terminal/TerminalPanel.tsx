@@ -662,6 +662,7 @@ export function TerminalPanel({
         <LogsView
           active={panelMode === 'logs'}
           panelVisible={visible}
+          connected={connected}
           send={send}
           addMessageHandler={addMessageHandler}
         />

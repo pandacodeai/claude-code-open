@@ -49,6 +49,7 @@ import { isDaemonRunning } from '../../daemon/index.js';
 import { parseTimeExpression } from '../../daemon/time-parser.js';
 import { appendRunLog } from '../../daemon/run-log.js';
 import { promptSnippetsManager } from './prompt-snippets.js';
+import { isEvolveRestartRequested, triggerGracefulShutdown } from './evolve-state.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -1126,6 +1127,8 @@ export class ConversationManager {
     let networkRetryCount = 0;
     /** 是否刚执行过因 "prompt too long" 而触发的强制压缩（防止无限循环） */
     let justForceCompacted = false;
+    /** 是否刚执行过自动压缩（防止连续压缩：压缩后 API 实际 inputTokens 仍含系统提示词+工具定义，可能仍超阈值） */
+    let justAutoCompacted = false;
 
     // 创建 AbortController，用于在取消时中断正在执行的工具
     state.currentAbortController = new AbortController();
@@ -1159,8 +1162,13 @@ export class ConversationManager {
       // 双重检查：1) 估算值检查  2) 上一次 API 实际 inputTokens 检查
       const resolvedModel = modelConfig.resolveAlias(state.model);
       const threshold = calculateAutoCompactThreshold(resolvedModel);
-      const needsCompact = shouldAutoCompact(cleanedMessages, resolvedModel) ||
-        (state.lastActualInputTokens > 0 && state.lastActualInputTokens >= threshold);
+      // 防止连续压缩：刚压缩完的下一轮跳过（系统提示词+工具定义的 token 开销不可压缩，
+      // lastActualInputTokens 包含了这些不可压缩的部分，可能仍超阈值导致死循环）
+      const needsCompact = !justAutoCompacted && (
+        shouldAutoCompact(cleanedMessages, resolvedModel) ||
+        (state.lastActualInputTokens > 0 && state.lastActualInputTokens >= threshold)
+      );
+      justAutoCompacted = false; // 重置标志（仅跳过紧接的一轮）
 
       if (needsCompact) {
         try {
@@ -1252,6 +1260,7 @@ export class ConversationManager {
             cleanedMessages = [...compactResult.messages, ...messagesToKeep];
             state.messages = [...compactResult.messages, ...messagesToKeep];
             state.lastActualInputTokens = 0; // 压缩后重置
+            justAutoCompacted = true; // 标记刚压缩完，防止下一轮再次触发
             // 对齐官方：保存边界 UUID 用于增量压缩
             if (compactResult.boundaryUuid) {
               state.lastCompactedUuid = compactResult.boundaryUuid;
@@ -1562,8 +1571,15 @@ export class ConversationManager {
             }
           }
 
-          // 继续循环
-          continueLoop = true;
+          // SelfEvolve 检查：如果进化重启已请求，不再发起下一轮 API 调用
+          // 这样可以确保工具结果已保存，然后在循环结束后的持久化逻辑中触发关闭
+          if (isEvolveRestartRequested()) {
+            console.log('[ConversationManager] Evolve restart requested, stopping conversation loop after tool persistence.');
+            continueLoop = false;
+          } else {
+            // 继续循环
+            continueLoop = true;
+          }
         } else {
           // 对话结束
           continueLoop = false;
@@ -1651,6 +1667,7 @@ export class ConversationManager {
             if (compactResult.wasCompacted) {
               state.messages = [...compactResult.messages, ...forceKeepMsgs];
               state.lastActualInputTokens = 0;
+              justAutoCompacted = true; // 防止连续压缩
               // 对齐官方：保存边界 UUID 用于增量压缩
               if (compactResult.boundaryUuid) {
                 state.lastCompactedUuid = compactResult.boundaryUuid;
@@ -1774,6 +1791,15 @@ export class ConversationManager {
         // fallback：sessionData 不存在时走老路径
         await this.persistSession(sessionId);
       }
+    }
+
+    // SelfEvolve：会话已完整持久化，现在安全触发 gracefulShutdown
+    // 延迟 200ms 让 WebSocket 有机会推送最后的工具结果给前端
+    if (isEvolveRestartRequested()) {
+      console.log('[ConversationManager] Session persisted, triggering graceful shutdown for evolve restart...');
+      setTimeout(() => {
+        triggerGracefulShutdown();
+      }, 200);
     }
 
   }

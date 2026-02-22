@@ -17,6 +17,7 @@ import { setupApiRoutes } from './routes/api.js';
 import { setupConfigApiRoutes } from './routes/config-api.js';
 import { initI18n } from '../../i18n/index.js';
 import { configManager } from '../../config/index.js';
+import { logger } from '../../utils/logger.js';
 import {
   requestEvolveRestart,
   isEvolveEnabled,
@@ -45,6 +46,12 @@ export interface WebServerResult {
 }
 
 export async function startWebServer(options: WebServerOptions = {}): Promise<WebServerResult> {
+  // 初始化运行时日志系统 — 拦截所有 console 输出并持久化到 ~/.claude/runtime.log
+  logger.init({
+    interceptConsole: true,
+    minLevel: 'info',
+  });
+
   // 设置 CLAUDE_CODE_ENTRYPOINT 环境变量（如果未设置）
   // 官方 Claude Code 使用此变量标识启动入口点
   // WebUI 模式使用 'claude-vscode' 以匹配官方的 VSCode 扩展入口

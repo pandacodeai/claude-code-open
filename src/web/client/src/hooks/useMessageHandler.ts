@@ -429,6 +429,8 @@ export function useMessageHandler({
           setMessages([]);
           setPermissionRequest(null);
           setUserQuestion(null);
+          setCompactState({ phase: 'idle' });
+          setContextUsage(null);
           refreshSessionsRef.current();
           break;
 
@@ -460,6 +462,8 @@ export function useMessageHandler({
             // 不在此处调用 refreshSessions()：
             // 让 useSessionManager 的乐观插入先展示，避免刷新时数据不一致。
             // 列表刷新由 message_complete 事件负责。
+            setCompactState({ phase: 'idle' });
+            setContextUsage(null);
           }
           break;
 
@@ -475,6 +479,8 @@ export function useMessageHandler({
           setStatus('idle');
           setPermissionRequest(null);
           setUserQuestion(null);
+          setCompactState({ phase: 'idle' });
+          setContextUsage(null);
           break;
 
         case 'task_status': {

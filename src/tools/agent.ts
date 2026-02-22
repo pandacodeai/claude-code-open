@@ -1232,11 +1232,13 @@ ${!isAgentTeamsEnabled() ? `\nNote: The "Agent Teams" feature (TeammateTool, Sen
         this.sendAgentCompletionNotification(agent);
       })
       .catch((error) => {
-        // 执行失败
+        // 执行失败 — 记录完整堆栈到日志
         agent.status = 'failed';
-        agent.error = error instanceof Error ? error.message : String(error);
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        agent.error = errorStack || errorMsg;
         agent.endTime = new Date();
-        addAgentHistory(agent, 'failed', `Agent failed: ${agent.error}`);
+        addAgentHistory(agent, 'failed', `Agent failed: ${errorMsg}${errorStack ? '\n' + errorStack : ''}`);
         saveAgentState(agent);
 
         // v2.1.7: 发送代理失败通知
@@ -1272,15 +1274,17 @@ ${!isAgentTeamsEnabled() ? `\nNote: The "Agent Teams" feature (TeammateTool, Sen
       return agent.result;
     } catch (error) {
       agent.status = 'failed';
-      agent.error = error instanceof Error ? error.message : String(error);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      agent.error = errorStack || errorMsg;
       agent.endTime = new Date();
 
-      addAgentHistory(agent, 'failed', `Agent failed: ${agent.error}`);
+      addAgentHistory(agent, 'failed', `Agent failed: ${errorMsg}${errorStack ? '\n' + errorStack : ''}`);
       saveAgentState(agent);
 
       return {
         success: false,
-        error: `Agent execution failed: ${agent.error}`,
+        error: `Agent execution failed: ${errorMsg}${errorStack ? '\nStack: ' + errorStack : ''}`,
       };
     }
   }

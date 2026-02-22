@@ -4,6 +4,7 @@ import type { FileArtifact, ArtifactGroup } from '../../hooks/useArtifacts';
 import type { ScheduleArtifact } from '../../hooks/useScheduleArtifacts';
 import { computeSideBySideDiff } from '../../utils/diffUtils';
 import { useLanguage } from '../../i18n';
+import { LogsView } from '../Terminal/LogsView';
 import './ArtifactsPanel.css';
 
 interface ArtifactsPanelProps {
@@ -17,6 +18,10 @@ interface ArtifactsPanelProps {
   selectedScheduleId?: string | null;
   selectedScheduleArtifact?: ScheduleArtifact | null;
   onSelectScheduleArtifact?: (id: string | null) => void;
+  // 日志 Tab 相关
+  connected?: boolean;
+  send?: (msg: any) => void;
+  addMessageHandler?: (handler: (msg: any) => void) => () => void;
 }
 
 function getFileName(filePath: string): string {
@@ -372,11 +377,16 @@ export function ArtifactsPanel({
   selectedScheduleId,
   selectedScheduleArtifact,
   onSelectScheduleArtifact,
+  connected,
+  send,
+  addMessageHandler,
 }: ArtifactsPanelProps) {
   const { t } = useLanguage();
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<'artifacts' | 'logs'>('artifacts');
   const totalCount = artifacts.length + (scheduleArtifacts?.length || 0);
   const hasBothSections = (scheduleArtifacts?.length || 0) > 0 && groups.length > 0;
+  const hasLogsSupport = !!(send && addMessageHandler);
 
   const toggleFileExpand = (filePath: string) => {
     setExpandedFiles(prev => {
@@ -420,11 +430,23 @@ export function ArtifactsPanel({
       )}
 
       <div className="artifacts-panel-header">
-        <div className="artifacts-panel-title">
-          <span className="artifacts-panel-title-icon">&#9874;</span>
-          {t('artifacts.title')}
-          {totalCount > 0 && (
-            <span className="artifacts-panel-badge">{totalCount}</span>
+        <div className="artifacts-panel-tabs">
+          <button
+            className={`artifacts-tab-btn ${activeTab === 'artifacts' ? 'active' : ''}`}
+            onClick={() => setActiveTab('artifacts')}
+          >
+            {t('artifacts.title')}
+            {totalCount > 0 && (
+              <span className="artifacts-panel-badge">{totalCount}</span>
+            )}
+          </button>
+          {hasLogsSupport && (
+            <button
+              className={`artifacts-tab-btn ${activeTab === 'logs' ? 'active' : ''}`}
+              onClick={() => setActiveTab('logs')}
+            >
+              Logs
+            </button>
           )}
         </div>
         <button className="artifacts-panel-close" onClick={onClose} title="Close panel">
@@ -432,108 +454,124 @@ export function ArtifactsPanel({
         </button>
       </div>
 
-      {/* 定时任务分区 */}
-      {scheduleArtifacts && scheduleArtifacts.length > 0 && (
-        <div className="artifacts-section">
-          {hasBothSections && (
-            <div className="artifacts-section-header">定时任务</div>
-          )}
-          <div className="artifacts-file-list">
-            {scheduleArtifacts.map(sa => (
-              <ScheduleArtifactItem
-                key={sa.id}
-                artifact={sa}
-                isSelected={selectedScheduleId === sa.id}
-                onClick={() => {
-                  onSelectArtifact(null);
-                  onSelectScheduleArtifact?.(sa.id);
-                }}
-              />
-            ))}
-          </div>
-        </div>
+      {/* Logs Tab */}
+      {activeTab === 'logs' && hasLogsSupport && (
+        <LogsView
+          active={true}
+          panelVisible={true}
+          connected={connected ?? false}
+          send={send!}
+          addMessageHandler={addMessageHandler!}
+        />
       )}
 
-      {/* 文件变更分区 */}
-      {groups.length === 0 && (!scheduleArtifacts || scheduleArtifacts.length === 0) ? (
-        <div className="artifacts-empty">
-          <div className="artifacts-empty-icon">&#128196;</div>
-          <div className="artifacts-empty-text">{t('artifacts.empty')}</div>
-        </div>
-      ) : groups.length > 0 ? (
-        <div className="artifacts-section">
-          {hasBothSections && (
-            <div className="artifacts-section-header">文件变更</div>
-          )}
-          <div className="artifacts-file-list">
-          {groups.map(group => {
-            const fileName = getFileName(group.filePath);
-            const dirPath = getDirPath(group.filePath);
-            const toolName = getLatestToolName(group);
-            const status = getLatestStatus(group);
-            const isExpanded = expandedFiles.has(group.filePath);
-            const iconClass = toolName === 'Write' ? 'artifacts-file-icon--write' : 'artifacts-file-icon--edit';
-            const iconChar = toolName === 'Write' ? '\u2795' : '\u270E';
-
-            return (
-              <div key={group.filePath} className="artifacts-file-group">
-                <div
-                  className="artifacts-file-item"
-                  onClick={() => handleFileClick(group)}
-                >
-                  <div className={`artifacts-file-icon ${iconClass}`}>
-                    {iconChar}
-                  </div>
-                  <div className="artifacts-file-info">
-                    <span className="artifacts-file-name">{fileName}</span>
-                    {dirPath && <span className="artifacts-file-path">{dirPath}</span>}
-                  </div>
-                  <div className="artifacts-file-meta">
-                    {group.artifacts.length > 1 && (
-                      <span className="artifacts-change-count">
-                        {group.artifacts.length}
-                      </span>
-                    )}
-                    <span className={`artifacts-status-dot artifacts-status-dot--${status}`} />
-                  </div>
-                </div>
-
-                {/* 展开的变更子列表 */}
-                {isExpanded && group.artifacts.length > 1 && (
-                  <div className="artifacts-changes-list">
-                    {group.artifacts.map(artifact => {
-                      const toolClass = artifact.toolName === 'Write'
-                        ? 'artifacts-change-tool--write'
-                        : 'artifacts-change-tool--edit';
-                      const isSelected = selectedId === artifact.id;
-
-                      return (
-                        <div
-                          key={artifact.id}
-                          className={`artifacts-change-item ${isSelected ? 'artifacts-change-item--selected' : ''}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectArtifact(artifact.id);
-                          }}
-                        >
-                          <span className={`artifacts-change-tool ${toolClass}`}>
-                            {artifact.toolName}
-                          </span>
-                          <span className={`artifacts-status-dot artifacts-status-dot--${artifact.status}`} />
-                          <span className="artifacts-change-time">
-                            {formatTime(artifact.timestamp)}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+      {/* Artifacts Tab 内容 */}
+      {activeTab === 'artifacts' && (
+        <>
+          {/* 定时任务分区 */}
+          {scheduleArtifacts && scheduleArtifacts.length > 0 && (
+            <div className="artifacts-section">
+              {hasBothSections && (
+                <div className="artifacts-section-header">定时任务</div>
+              )}
+              <div className="artifacts-file-list">
+                {scheduleArtifacts.map(sa => (
+                  <ScheduleArtifactItem
+                    key={sa.id}
+                    artifact={sa}
+                    isSelected={selectedScheduleId === sa.id}
+                    onClick={() => {
+                      onSelectArtifact(null);
+                      onSelectScheduleArtifact?.(sa.id);
+                    }}
+                  />
+                ))}
               </div>
-            );
-          })}
-          </div>
-        </div>
-      ) : null}
+            </div>
+          )}
+
+          {/* 文件变更分区 */}
+          {groups.length === 0 && (!scheduleArtifacts || scheduleArtifacts.length === 0) ? (
+            <div className="artifacts-empty">
+              <div className="artifacts-empty-icon">&#128196;</div>
+              <div className="artifacts-empty-text">{t('artifacts.empty')}</div>
+            </div>
+          ) : groups.length > 0 ? (
+            <div className="artifacts-section">
+              {hasBothSections && (
+                <div className="artifacts-section-header">文件变更</div>
+              )}
+              <div className="artifacts-file-list">
+              {groups.map(group => {
+                const fileName = getFileName(group.filePath);
+                const dirPath = getDirPath(group.filePath);
+                const toolName = getLatestToolName(group);
+                const status = getLatestStatus(group);
+                const isExpanded = expandedFiles.has(group.filePath);
+                const iconClass = toolName === 'Write' ? 'artifacts-file-icon--write' : 'artifacts-file-icon--edit';
+                const iconChar = toolName === 'Write' ? '\u2795' : '\u270E';
+
+                return (
+                  <div key={group.filePath} className="artifacts-file-group">
+                    <div
+                      className="artifacts-file-item"
+                      onClick={() => handleFileClick(group)}
+                    >
+                      <div className={`artifacts-file-icon ${iconClass}`}>
+                        {iconChar}
+                      </div>
+                      <div className="artifacts-file-info">
+                        <span className="artifacts-file-name">{fileName}</span>
+                        {dirPath && <span className="artifacts-file-path">{dirPath}</span>}
+                      </div>
+                      <div className="artifacts-file-meta">
+                        {group.artifacts.length > 1 && (
+                          <span className="artifacts-change-count">
+                            {group.artifacts.length}
+                          </span>
+                        )}
+                        <span className={`artifacts-status-dot artifacts-status-dot--${status}`} />
+                      </div>
+                    </div>
+
+                    {/* 展开的变更子列表 */}
+                    {isExpanded && group.artifacts.length > 1 && (
+                      <div className="artifacts-changes-list">
+                        {group.artifacts.map(artifact => {
+                          const toolClass = artifact.toolName === 'Write'
+                            ? 'artifacts-change-tool--write'
+                            : 'artifacts-change-tool--edit';
+                          const isSelected = selectedId === artifact.id;
+
+                          return (
+                            <div
+                              key={artifact.id}
+                              className={`artifacts-change-item ${isSelected ? 'artifacts-change-item--selected' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSelectArtifact(artifact.id);
+                              }}
+                            >
+                              <span className={`artifacts-change-tool ${toolClass}`}>
+                                {artifact.toolName}
+                              </span>
+                              <span className={`artifacts-status-dot artifacts-status-dot--${artifact.status}`} />
+                              <span className="artifacts-change-time">
+                                {formatTime(artifact.timestamp)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              </div>
+            </div>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

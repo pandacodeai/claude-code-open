@@ -54,6 +54,37 @@
   opacity: 0.7;
 }
 
+/* Tab 切换按钮组 */
+.artifacts-panel-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.artifacts-tab-btn {
+  background: none;
+  border: none;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.artifacts-tab-btn:hover {
+  color: var(--text-secondary);
+}
+
+.artifacts-tab-btn.active {
+  color: var(--accent-primary);
+  border-bottom-color: var(--accent-primary);
+}
+
 .artifacts-panel-badge {
   font-size: 11px;
   font-weight: 500;

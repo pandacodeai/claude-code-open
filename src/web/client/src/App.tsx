@@ -522,6 +522,9 @@ function AppContent({
               selectedScheduleId={scheduleState.selectedScheduleId}
               selectedScheduleArtifact={scheduleState.selectedScheduleArtifact}
               onSelectScheduleArtifact={scheduleState.setSelectedScheduleId}
+              connected={connected}
+              send={send}
+              addMessageHandler={addMessageHandler}
             />
           )}
 
