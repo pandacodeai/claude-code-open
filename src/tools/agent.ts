@@ -1284,7 +1284,7 @@ ${!isAgentTeamsEnabled() ? `\nNote: The "Agent Teams" feature (TeammateTool, Sen
 
       return {
         success: false,
-        error: `Agent execution failed: ${errorMsg}${errorStack ? '\nStack: ' + errorStack : ''}`,
+        error: t('agent.executionFailed', { error: errorMsg + (errorStack ? '\nStack: ' + errorStack : '') }),
       };
     }
   }
@@ -1419,7 +1419,7 @@ ${!isAgentTeamsEnabled() ? `\nNote: The "Agent Teams" feature (TeammateTool, Sen
           break;
         } else if (event.type === 'interrupted') {
           // 如果被中断，记录状态
-          throw new Error('Agent execution was interrupted');
+          throw new Error(t('agent.executionInterrupted'));
         }
       }
 
@@ -1548,13 +1548,13 @@ Usage notes:
         return this.handleBashTaskFromDisk(input.task_id, meta);
       }
 
-      return { success: false, error: `Task ${input.task_id} not found` };
+      return { success: false, error: t('agent.taskNotFound', { id: input.task_id }) };
     }
 
     // 处理 Agent 任务
     const agent = getBackgroundAgent(input.task_id);
     if (!agent) {
-      return { success: false, error: `Task ${input.task_id} not found` };
+      return { success: false, error: t('agent.taskNotFound', { id: input.task_id }) };
     }
 
     if (input.block && agent.status === 'running') {
