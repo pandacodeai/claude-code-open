@@ -68,6 +68,8 @@ USAGE NOTES:
             'profile_list',
             'profile_create',
             'profile_delete',
+            'extension_install',
+            'extension_path',
           ],
           description: 'The browser action to perform',
         },
@@ -492,6 +494,24 @@ USAGE NOTES:
           deleteProfile(input.profileName);
           
           return this.success(`Profile "${input.profileName}" deleted successfully.`);
+        }
+
+        case 'extension_install': {
+          const installDir = manager.installExtension();
+          return this.success(
+            `Extension installed to: ${installDir}\n\n` +
+            `Next steps:\n` +
+            `1. Open Chrome and go to chrome://extensions\n` +
+            `2. Enable "Developer mode" (top-right toggle)\n` +
+            `3. Click "Load unpacked" and select the directory above\n` +
+            `4. Start browser with: { action: "start", useRelay: true, relayMode: "extension" }\n` +
+            `5. Click the extension icon on the tab you want to control`
+          );
+        }
+
+        case 'extension_path': {
+          const extPath = manager.getExtensionSourcePath();
+          return this.success(`Extension source path: ${extPath}`);
         }
 
         default:

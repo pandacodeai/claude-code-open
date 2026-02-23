@@ -75,7 +75,9 @@ export type BrowserAction =
   | 'console_log'
   | 'profile_list'
   | 'profile_create'
-  | 'profile_delete';
+  | 'profile_delete'
+  | 'extension_install'
+  | 'extension_path';
 
 export interface BrowserToolInput {
   action: BrowserAction;

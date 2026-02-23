@@ -55,10 +55,28 @@ let readyResolvers = [];
  */
 async function initialize() {
   try {
-    // Load config from chrome.storage.local
-    const config = await chrome.storage.local.get(['relayPort', 'gatewayToken']);
-    if (config.relayPort) relayPort = config.relayPort;
-    if (config.gatewayToken) gatewayToken = config.gatewayToken;
+    // 1. Try to load config from _config.json (injected by CLI install command)
+    let configFromFile = false;
+    try {
+      const resp = await fetch(chrome.runtime.getURL('_config.json'));
+      if (resp.ok) {
+        const fileConfig = await resp.json();
+        if (fileConfig.relayPort) relayPort = fileConfig.relayPort;
+        if (fileConfig.gatewayToken) gatewayToken = fileConfig.gatewayToken;
+        configFromFile = true;
+        console.log('[Bridge] Config loaded from _config.json');
+      }
+    } catch {
+      // _config.json doesn't exist, fall through to storage
+    }
+
+    // 2. Fallback: load from chrome.storage.local (options page)
+    if (!configFromFile) {
+      const config = await chrome.storage.local.get(['relayPort', 'gatewayToken']);
+      if (config.relayPort) relayPort = config.relayPort;
+      if (config.gatewayToken) gatewayToken = config.gatewayToken;
+      console.log('[Bridge] Config loaded from chrome.storage.local');
+    }
 
     console.log('[Bridge] Initialized with relay port:', relayPort);
 

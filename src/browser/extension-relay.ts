@@ -149,15 +149,9 @@ async function createRelayServer(
       return;
     }
 
-    // Auth check for /json/* endpoints
-    if (url.pathname.startsWith('/json/')) {
-      const headerToken = req.headers['x-claude-relay-token'] as string;
-      if (headerToken !== authToken) {
-        res.writeHead(401, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Unauthorized' }));
-        return;
-      }
-    }
+    // /json/* endpoints: no auth required (loopback-only is sufficient).
+    // Playwright connectOverCDP fetches /json/version internally and cannot send custom headers.
+    // Security is ensured by loopback binding + /extension and /cdp WS auth.
 
     // GET /json/version
     if (url.pathname === '/json/version') {

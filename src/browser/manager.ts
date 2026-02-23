@@ -89,11 +89,29 @@ async function findAvailableCdpPort(preferredPort?: number): Promise<number> {
   throw new Error(`No available CDP port found in range ${CDP_PORT_RANGE_START}-${CDP_PORT_RANGE_END}.`);
 }
 
-async function fetchCdpVersion(cdpUrl: string, timeoutMs = 1500): Promise<{ webSocketDebuggerUrl?: string } | null> {
+/** Get auth headers for relay server (no-op for direct Chrome CDP) */
+function getRelayAuthHeaders(cdpUrl: string): Record<string, string> {
+  try {
+    const parsed = new URL(cdpUrl);
+    const host = parsed.hostname;
+    if (host !== '127.0.0.1' && host !== 'localhost' && host !== '::1') return {};
+    const port = parseInt(parsed.port, 10);
+    if (!port || port < 1 || port > 65535) return {};
+    // Check if this is a known relay server
+    // The relay uses resolveRelayAuthToken(port) — if we can compute it, send it
+    const token = resolveRelayAuthToken(port);
+    return { 'x-claude-relay-token': token };
+  } catch {
+    return {};
+  }
+}
+
+async function fetchCdpVersion(cdpUrl: string, timeoutMs = 1500, extraHeaders?: Record<string, string>): Promise<{ webSocketDebuggerUrl?: string } | null> {
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-    const res = await fetch(`${cdpUrl}/json/version`, { signal: ctrl.signal });
+    const headers = extraHeaders || {};
+    const res = await fetch(`${cdpUrl}/json/version`, { signal: ctrl.signal, headers });
     clearTimeout(timer);
     if (!res.ok) return null;
     return (await res.json()) as { webSocketDebuggerUrl?: string };
@@ -118,7 +136,8 @@ function normalizeCdpWsUrl(wsUrl: string, cdpUrl: string): string {
 }
 
 async function getChromeWebSocketUrl(cdpUrl: string, timeoutMs = 2000): Promise<string | null> {
-  const data = await fetchCdpVersion(cdpUrl, timeoutMs);
+  const headers = getRelayAuthHeaders(cdpUrl);
+  const data = await fetchCdpVersion(cdpUrl, timeoutMs, Object.keys(headers).length > 0 ? headers : undefined);
   const wsUrl = data?.webSocketDebuggerUrl?.trim();
   if (!wsUrl) return null;
   return normalizeCdpWsUrl(wsUrl, cdpUrl);
@@ -144,6 +163,7 @@ async function connectBrowser(cdpUrl: string): Promise<CachedConnection> {
   }
 
   const doConnect = async (): Promise<CachedConnection> => {
+    const authHeaders = getRelayAuthHeaders(normalized);
     let lastErr: unknown;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -152,7 +172,11 @@ async function connectBrowser(cdpUrl: string): Promise<CachedConnection> {
         const endpoint = wsUrl ?? normalized;
 
         const { chromium } = await import('playwright-core');
-        const browser = await chromium.connectOverCDP(endpoint, { timeout });
+        const connectOpts: { timeout: number; headers?: Record<string, string> } = { timeout };
+        if (Object.keys(authHeaders).length > 0) {
+          connectOpts.headers = authHeaders;
+        }
+        const browser = await chromium.connectOverCDP(endpoint, connectOpts);
 
         const conn: CachedConnection = { browser, cdpUrl: normalized };
         cachedConnection = conn;
@@ -700,5 +724,50 @@ export class BrowserManager {
   isExtensionConnected(): boolean {
     if (!this._relayServer) return false;
     return this._relayServer.extensionConnected();
+  }
+
+  // --- Extension install helpers ---
+
+  /** Get the source extension directory path (in dist/ or src/) */
+  getExtensionSourcePath(): string {
+    let srcDir = path.dirname(new URL(import.meta.url).pathname);
+    if (process.platform === 'win32' && srcDir.startsWith('/')) {
+      srcDir = srcDir.substring(1);
+    }
+    const distPath = path.join(srcDir, 'extension');
+    if (fs.existsSync(distPath)) return distPath;
+
+    const altPath = path.resolve(srcDir, '..', '..', 'src', 'browser', 'extension');
+    if (fs.existsSync(altPath)) return altPath;
+
+    throw new Error('Extension source directory not found.');
+  }
+
+  /**
+   * Install extension to a stable directory with auto-generated config.
+   * Returns the install path for the user to load in chrome://extensions.
+   */
+  installExtension(relayPort: number = 18792): string {
+    const installDir = path.join(CONFIG_DIR, 'browser', 'extension');
+    const sourcePath = this.getExtensionSourcePath();
+
+    // Copy all extension files
+    fs.mkdirSync(installDir, { recursive: true });
+    const files = fs.readdirSync(sourcePath);
+    for (const file of files) {
+      if (file === '_config.json') continue; // Don't copy old config
+      const src = path.join(sourcePath, file);
+      const dst = path.join(installDir, file);
+      if (fs.statSync(src).isFile()) {
+        fs.copyFileSync(src, dst);
+      }
+    }
+
+    // Generate _config.json with auth token
+    const authToken = resolveRelayAuthToken(relayPort);
+    const config = { relayPort, gatewayToken: authToken };
+    fs.writeFileSync(path.join(installDir, '_config.json'), JSON.stringify(config, null, 2));
+
+    return installDir;
   }
 }
