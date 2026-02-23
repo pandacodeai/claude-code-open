@@ -85,13 +85,13 @@ export function DiffView({ diff, fileName, onClose }: DiffViewProps) {
     return (
       <div className="git-diff-view">
         <div className="git-diff-header">
-          <span className="git-diff-file-name">{fileName || 'Diff'}</span>
-          <button className="git-diff-close" onClick={onClose} title="Close">
+          <span className="git-diff-file-name">{fileName || t('git.diff')}</span>
+          <button className="git-diff-close" onClick={onClose} title={t('common.close')}>
             ✕
           </button>
         </div>
         <div className="git-diff-content">
-          <div className="git-empty-state">No changes</div>
+          <div className="git-empty-state">{t('git.noChanges')}</div>
         </div>
       </div>
     );
@@ -101,8 +101,8 @@ export function DiffView({ diff, fileName, onClose }: DiffViewProps) {
     <div className="git-diff-view">
       {/* 头部 */}
       <div className="git-diff-header">
-        <span className="git-diff-file-name">{fileName || 'Diff'}</span>
-        <button className="git-diff-close" onClick={onClose} title="Close">
+        <span className="git-diff-file-name">{fileName || t('git.diff')}</span>
+        <button className="git-diff-close" onClick={onClose} title={t('common.close')}>
           ✕
         </button>
       </div>

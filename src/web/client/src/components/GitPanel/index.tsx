@@ -323,14 +323,14 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
         {error && (
           <div className="git-error-banner">
             <span>⚠️ {error}</span>
-            <button onClick={refreshGitData}>Retry</button>
+            <button onClick={refreshGitData}>{t('git.retry')}</button>
           </div>
         )}
 
         {loading && (
           <div className="git-loading">
             <div className="git-loading-spinner"></div>
-            Loading...
+            {t('common.loading')}
           </div>
         )}
 
@@ -411,7 +411,7 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
               >
                 {t('git.commit')}
               </button>
-              <button onClick={() => setSmartCommitMessage(null)}>Cancel</button>
+              <button onClick={() => setSmartCommitMessage(null)}>{t('git.cancel')}</button>
             </div>
           </div>
         </div>
