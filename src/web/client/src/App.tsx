@@ -24,6 +24,7 @@ import { TerminalPanel } from './components/Terminal/TerminalPanel';
 import { LogsView } from './components/Terminal/LogsView';
 import CodeView from './components/CodeView';
 import type { SessionActions } from './types';
+import { useLanguage } from './i18n/LanguageContext';
 
 // 获取 WebSocket URL
 function getWebSocketUrl(): string {
@@ -57,6 +58,7 @@ function AppContent({
   onSessionsChange, onSessionIdChange, onConnectedChange,
   registerSessionActions,
 }: AppProps) {
+  const { t } = useLanguage();
   const { state: projectState, openFolder } = useProject();
   const currentProjectPath = projectState.currentProject?.path;
   const [showDebugPanel, setShowDebugPanel] = useState(false);
@@ -436,8 +438,8 @@ function AppContent({
                       </svg>
                     </div>
                     <div className="compact-progress-content">
-                      <span className="compact-progress-title">正在压缩上下文…</span>
-                      <span className="compact-progress-desc">AI 正在生成对话摘要以释放上下文窗口空间</span>
+                      <span className="compact-progress-title">{t('app.compacting')}</span>
+                      <span className="compact-progress-desc">{t('app.compactingDesc')}</span>
                     </div>
                     <div className="compact-progress-dots">
                       <span className="compact-dot" />
@@ -550,8 +552,8 @@ function AppContent({
           {showLogsPanel && (
             <div className="logs-side-panel">
               <div className="logs-side-panel-header">
-                <span className="logs-side-panel-title">Logs</span>
-                <button className="logs-side-panel-close" onClick={() => setShowLogsPanel(false)} title="Close">
+                <span className="logs-side-panel-title">{t('logs.title')}</span>
+                <button className="logs-side-panel-close" onClick={() => setShowLogsPanel(false)} title={t('common.close')}>
                   &#215;
                 </button>
               </div>

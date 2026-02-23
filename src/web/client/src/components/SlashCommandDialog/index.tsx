@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useCallback } from 'react';
+import { useLanguage } from '../../i18n/LanguageContext';
 import './SlashCommandDialog.css';
 
 interface SessionInfo {
@@ -33,21 +34,22 @@ interface SlashCommandDialogProps {
   onSessionSelect?: (sessionId: string) => void;
 }
 
-function formatTimeAgo(timestamp: number): string {
+function formatTimeAgo(timestamp: number, t: (key: string, params?: Record<string, string | number>) => string): string {
   const now = Date.now();
   const diff = now - timestamp;
   const mins = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
 
-  if (mins < 1) return '刚刚';
-  if (mins < 60) return `${mins}分钟前`;
-  if (hours < 24) return `${hours}小时前`;
-  if (days < 7) return `${days}天前`;
+  if (mins < 1) return t('time.justNow');
+  if (mins < 60) return t('time.minutesAgo', { count: mins });
+  if (hours < 24) return t('time.hoursAgo', { count: hours });
+  if (days < 7) return t('time.daysAgo', { count: days });
   return new Date(timestamp).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
 }
 
 export function SlashCommandDialog({ isOpen, onClose, result, onSessionSelect }: SlashCommandDialogProps) {
+  const { t } = useLanguage();
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') onClose();
   }, [onClose]);
@@ -80,12 +82,12 @@ export function SlashCommandDialog({ isOpen, onClose, result, onSessionSelect }:
               {result.success ? '✓' : '✗'}
             </div>
             <h3 className="slash-cmd-title">
-              {dialogType === 'session-list' ? '恢复会话' :
-               dialogType === 'compact-result' ? '上下文压缩' :
+              {dialogType === 'session-list' ? t('session.restore') :
+               dialogType === 'compact-result' ? t('session.compactResult') :
                commandName}
             </h3>
           </div>
-          <button className="slash-cmd-close" onClick={onClose} title="关闭">✕</button>
+          <button className="slash-cmd-close" onClick={onClose} title={t('common.close')}>✕</button>
         </div>
 
         {/* Content */}
@@ -101,13 +103,13 @@ export function SlashCommandDialog({ isOpen, onClose, result, onSessionSelect }:
           ) : dialogType === 'compact-result' ? (
             <CompactResultView result={result} />
           ) : (
-            <div className="slash-cmd-text">{result.message || (result.success ? '命令执行成功' : '命令执行失败')}</div>
+            <div className="slash-cmd-text">{result.message || (result.success ? t('session.commandSuccess') : t('session.commandFailed'))}</div>
           )}
         </div>
 
         {/* Footer */}
         <div className="slash-cmd-footer">
-          <button className="slash-cmd-footer-btn" onClick={onClose}>关闭</button>
+          <button className="slash-cmd-footer-btn" onClick={onClose}>{t('common.close')}</button>
         </div>
       </div>
     </div>
@@ -115,8 +117,10 @@ export function SlashCommandDialog({ isOpen, onClose, result, onSessionSelect }:
 }
 
 function SessionListView({ sessions, onSelect }: { sessions: SessionInfo[]; onSelect: (id: string) => void }) {
+  const { t } = useLanguage();
+  
   if (sessions.length === 0) {
-    return <div className="slash-cmd-empty">没有可恢复的历史会话</div>;
+    return <div className="slash-cmd-empty">{t('session.noSessions')}</div>;
   }
 
   return (
@@ -128,11 +132,11 @@ function SessionListView({ sessions, onSelect }: { sessions: SessionInfo[]; onSe
           onClick={() => onSelect(session.id)}
         >
           <div className="slash-cmd-session-name">
-            {session.name || `会话 ${session.id.slice(0, 8)}`}
+            {session.name || t('session.name', { id: session.id.slice(0, 8) })}
           </div>
           <div className="slash-cmd-session-meta">
-            <span>{formatTimeAgo(session.updatedAt)}</span>
-            <span>{session.messageCount} 条消息</span>
+            <span>{formatTimeAgo(session.updatedAt, t)}</span>
+            <span>{t('session.messageCount', { count: session.messageCount })}</span>
             {session.model && <span>{session.model}</span>}
             {session.projectPath && (
               <span title={session.projectPath}>
@@ -147,10 +151,11 @@ function SessionListView({ sessions, onSelect }: { sessions: SessionInfo[]; onSe
 }
 
 function CompactResultView({ result }: { result: SlashCommandResult }) {
+  const { t } = useLanguage();
   const data = result.data || {};
 
   if (!result.success) {
-    return <div className="slash-cmd-text">{result.message || '压缩失败'}</div>;
+    return <div className="slash-cmd-text">{result.message || t('session.compactFailed')}</div>;
   }
 
   return (
@@ -158,15 +163,15 @@ function CompactResultView({ result }: { result: SlashCommandResult }) {
       <div className="slash-cmd-compact-stats">
         <div className="slash-cmd-stat-card highlight">
           <div className="slash-cmd-stat-value">~{(data.savedTokens || 0).toLocaleString()}</div>
-          <div className="slash-cmd-stat-label">节省 tokens</div>
+          <div className="slash-cmd-stat-label">{t('session.tokensSaved')}</div>
         </div>
         <div className="slash-cmd-stat-card">
           <div className="slash-cmd-stat-value">{data.messagesBefore || '?'}</div>
-          <div className="slash-cmd-stat-label">压缩前消息数</div>
+          <div className="slash-cmd-stat-label">{t('session.beforeMessages')}</div>
         </div>
         <div className="slash-cmd-stat-card">
           <div className="slash-cmd-stat-value">{data.messagesAfter || '?'}</div>
-          <div className="slash-cmd-stat-label">压缩后消息数</div>
+          <div className="slash-cmd-stat-label">{t('session.afterMessages')}</div>
         </div>
         <div className="slash-cmd-stat-card">
           <div className="slash-cmd-stat-value">
@@ -174,7 +179,7 @@ function CompactResultView({ result }: { result: SlashCommandResult }) {
               ? `${Math.round((1 - data.messagesAfter / data.messagesBefore) * 100)}%`
               : '?'}
           </div>
-          <div className="slash-cmd-stat-label">压缩率</div>
+          <div className="slash-cmd-stat-label">{t('session.compactRate')}</div>
         </div>
       </div>
     </>
