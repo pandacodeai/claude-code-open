@@ -17,7 +17,7 @@ interface LanguageContextValue {
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
-function getInitialLocale(): Locale {
+export function getInitialLocale(): Locale {
   const stored = localStorage.getItem('claude-code-language');
   if (stored === 'zh' || stored === 'en') return stored;
   return 'zh';

@@ -158,34 +158,33 @@ export function PromptSnippetsPanel({ onClose, onSendMessage, addMessageHandler 
 
     return (
       <div className="prompt-snippets-panel">
-        <h3>Prompt Snippets</h3>
+        <h3>{t('snippets.title')}</h3>
         <p className="settings-description">
-          管理自定义提示词片段，动态注入系统提示词。片段持久化到 ~/.claude/prompt-snippets/。
+          {t('snippets.description')}
         </p>
 
         <div className="snippets-stats">
-          <span>{snippets.length} 个片段</span>
+          <span>{t('snippets.count', { count: snippets.length })}</span>
           <span className="snippets-stats-sep">|</span>
-          <span>{enabledCount} 个启用</span>
+          <span>{t('snippets.enabledCount', { count: enabledCount })}</span>
           <span className="snippets-stats-sep">|</span>
           <span>~{totalTokens.toLocaleString()} tokens</span>
         </div>
 
         <div className="snippets-actions">
           <button className="snippets-btn snippets-btn-primary" onClick={handleCreate}>
-            + 新建片段
+            {t('snippets.create')}
           </button>
           <button className="snippets-btn" onClick={requestList} disabled={loading}>
-            {loading ? '...' : '刷新'}
+            {loading ? '...' : t('snippets.refresh')}
           </button>
         </div>
 
         {snippets.length === 0 ? (
           <div className="snippets-empty">
-            <p>暂无提示词片段</p>
+            <p>{t('snippets.empty')}</p>
             <p className="snippets-empty-hint">
-              点击"新建片段"添加你的第一个提示词片段。
-              片段将被注入到系统提示词中，影响 AI 的行为方式。
+              {t('snippets.emptyHint')}
             </p>
           </div>
         ) : (
@@ -200,7 +199,7 @@ export function PromptSnippetsPanel({ onClose, onSendMessage, addMessageHandler 
                     <button
                       className={`snippet-toggle ${snippet.enabled ? 'on' : 'off'}`}
                       onClick={() => handleToggle(snippet.id)}
-                      title={snippet.enabled ? '点击禁用' : '点击启用'}
+                      title={snippet.enabled ? t('snippets.disable') : t('snippets.enable')}
                     >
                       {snippet.enabled ? '●' : '○'}
                     </button>
@@ -270,7 +269,7 @@ export function PromptSnippetsPanel({ onClose, onSendMessage, addMessageHandler 
             className="snippet-input"
             value={formDescription}
             onChange={(e) => setFormDescription(e.target.value)}
-            placeholder="简要描述这个片段的作用"
+            placeholder={t('snippets.descPlaceholder')}
           />
         </div>
 

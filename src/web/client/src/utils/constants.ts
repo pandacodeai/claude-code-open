@@ -1,4 +1,5 @@
 import type { SlashCommand } from '../types';
+import { getTranslation, getInitialLocale } from '../i18n';
 
 // 动态 skill 命令（由后端推送，运行时填充）
 let _dynamicSkillCommands: SlashCommand[] = [];
@@ -101,16 +102,17 @@ export const TOOL_ICONS: Record<string, string> = {
 
 // 格式化日期
 export function formatDate(timestamp: number | undefined | null): string {
+  const t = getTranslation;
   // 处理无效输入
   if (timestamp === undefined || timestamp === null || isNaN(timestamp)) {
-    return '未知时间';
+    return t('time.unknown');
   }
 
   const date = new Date(timestamp);
 
   // 检查是否是有效日期
   if (isNaN(date.getTime())) {
-    return '未知时间';
+    return t('time.unknown');
   }
 
   const now = new Date();
@@ -119,10 +121,11 @@ export function formatDate(timestamp: number | undefined | null): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return '刚刚';
-  if (diffMins < 60) return `${diffMins}分钟前`;
-  if (diffHours < 24) return `${diffHours}小时前`;
-  if (diffDays < 7) return `${diffDays}天前`;
+  if (diffMins < 1) return t('time.justNow');
+  if (diffMins < 60) return t('time.minutesAgo', { count: diffMins });
+  if (diffHours < 24) return t('time.hoursAgo', { count: diffHours });
+  if (diffDays < 7) return t('time.daysAgo', { count: diffDays });
 
-  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+  const dateFmtLocale = getInitialLocale() === 'zh' ? 'zh-CN' : 'en-US';
+  return date.toLocaleDateString(dateFmtLocale, { month: 'short', day: 'numeric' });
 }

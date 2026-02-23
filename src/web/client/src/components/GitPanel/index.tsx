@@ -284,7 +284,7 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
           >
             {isReviewing ? '⚡' : '🔍'} {t('git.smartReview')}
           </button>
-          <button className="git-panel-close" onClick={onClose} title="Close (Ctrl+Shift+G)">
+          <button className="git-panel-close" onClick={onClose} title={t('git.closeShortcut')}>
             ✕
           </button>
         </div>

@@ -673,6 +673,7 @@ function AddMarketplace({
  * 插件管理主面板
  */
 export function PluginsPanel({ onClose, onSendMessage, addMessageHandler }: PluginsPanelProps) {
+  const { t } = useLanguage();
   const [currentTab, setCurrentTab] = useState<TabId>('discover');
   const [viewMode, setViewMode] = useState<ViewMode>('tabs');
 
@@ -992,7 +993,7 @@ export function PluginsPanel({ onClose, onSendMessage, addMessageHandler }: Plug
       <div className="plugins-panel">
         <div className="plugins-panel-header">
           <h3>/plugins</h3>
-          <span className="plugins-panel-subtitle">Loading...</span>
+          <span className="plugins-panel-subtitle">{t('common.loading')}</span>
         </div>
       </div>
     );

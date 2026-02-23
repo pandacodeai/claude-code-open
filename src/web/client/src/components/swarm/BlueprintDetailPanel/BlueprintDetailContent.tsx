@@ -132,6 +132,7 @@ export const BlueprintDetailContent: React.FC<BlueprintDetailContentProps> = ({
   onAddChatTab,
   onNavigateToChat,
 }) => {
+  const { t } = useLanguage();
   // 目录树
   const [fileTree, setFileTree] = useState<FileTreeNode | null>(null);
   const [loadingTree, setLoadingTree] = useState(true);
@@ -1433,7 +1434,7 @@ export const BlueprintDetailContent: React.FC<BlueprintDetailContentProps> = ({
 
       // 检查是否有未保存的更改
       if (hasUnsavedChanges) {
-        const confirmed = window.confirm('有未保存的更改，确定要切换文件吗？');
+        const confirmed = window.confirm(t('snippets.unsavedConfirm'));
         if (!confirmed) return;
       }
 
@@ -1573,7 +1574,7 @@ export const BlueprintDetailContent: React.FC<BlueprintDetailContentProps> = ({
   const handleSelectNode = (path: string, isFile: boolean) => {
     // 检查是否有未保存的更改
     if (hasUnsavedChanges) {
-      const confirmed = window.confirm('有未保存的更改，确定要切换文件吗？');
+      const confirmed = window.confirm(t('snippets.unsavedConfirm'));
       if (!confirmed) return;
     }
 
@@ -3449,7 +3450,7 @@ export const BlueprintDetailContent: React.FC<BlueprintDetailContentProps> = ({
           <div className={styles.codeInfo}>
             <span className={styles.codeLanguage}>{language}</span>
             <span className={styles.codeSize}>{formatFileSize(fileContent.size)}</span>
-            {hasUnsavedChanges && <span className={styles.unsavedBadge}>未保存</span>}
+            {hasUnsavedChanges && <span className={styles.unsavedBadge}>{t('blueprint.unsaved')}</span>}
           </div>
           <div className={styles.codeActions}>
             {/* AI 增强功能按钮组 */}
@@ -3458,9 +3459,9 @@ export const BlueprintDetailContent: React.FC<BlueprintDetailContentProps> = ({
                 className={`${styles.codeBtn} ${styles.aiBtn} ${tourState.active ? styles.active : ''}`}
                 onClick={tourState.active ? stopTour : startCodeTour}
                 disabled={tourState.loading}
-                title="AI 代码导游 - 逐步讲解代码"
+                title={t('blueprint.codeTourTitle')}
               >
-                {tourState.loading ? '⏳' : tourState.active ? '⏹️ 停止导游' : '🎯 代码导游'}
+                {tourState.loading ? '⏳' : tourState.active ? `⏹️ ${t('blueprint.codeTourStop')}` : `🎯 ${t('blueprint.codeTour')}`}
               </button>
               <button
                 className={`${styles.codeBtn} ${styles.aiBtn} ${heatmapEnabled ? styles.active : ''}`}
@@ -3473,9 +3474,9 @@ export const BlueprintDetailContent: React.FC<BlueprintDetailContentProps> = ({
                   }
                 }}
                 disabled={heatmapLoading}
-                title="代码热力图 - 显示代码复杂度"
+                title={t('blueprint.heatmapTitle')}
               >
-                {heatmapLoading ? '⏳' : heatmapEnabled ? '🔥 关闭热力图' : '🌡️ 热力图'}
+                {heatmapLoading ? '⏳' : heatmapEnabled ? `🔥 ${t('blueprint.heatmapOff')}` : `🌡️ ${t('blueprint.heatmap')}`}
               </button>
               <button
                 className={`${styles.codeBtn} ${styles.aiBtn} ${refactorEnabled ? styles.active : ''}`}
@@ -3488,9 +3489,9 @@ export const BlueprintDetailContent: React.FC<BlueprintDetailContentProps> = ({
                   }
                 }}
                 disabled={refactorLoading}
-                title="重构建议 - 检测可优化的代码"
+                title={t('blueprint.refactorTitle')}
               >
-                {refactorLoading ? '⏳' : refactorEnabled ? '✨ 关闭建议' : '🔧 重构建议'}
+                {refactorLoading ? '⏳' : refactorEnabled ? `✨ ${t('blueprint.refactorOff')}` : `🔧 ${t('blueprint.refactor')}`}
               </button>
               <button
                 className={`${styles.codeBtn} ${styles.aiBtn} ${bubblesEnabled ? styles.active : ''}`}
@@ -3503,9 +3504,9 @@ export const BlueprintDetailContent: React.FC<BlueprintDetailContentProps> = ({
                   }
                 }}
                 disabled={bubblesLoading}
-                title="AI 气泡 - 显示代码解释气泡"
+                title={t('blueprint.bubblesTitle')}
               >
-                {bubblesLoading ? '⏳' : bubblesEnabled ? '💬 关闭气泡' : '💡 AI 气泡'}
+                {bubblesLoading ? '⏳' : bubblesEnabled ? `💬 ${t('blueprint.bubblesOff')}` : `💡 ${t('blueprint.bubbles')}`}
               </button>
               {/* 语法详情面板开关 */}
               <button
