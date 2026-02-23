@@ -173,7 +173,7 @@ function ArtifactDetailOverlay({
             </span>
             <span className="artifacts-overlay-filepath">{artifact.filePath}</span>
           </div>
-          <button className="artifacts-overlay-close" onClick={onClose} title="Close (Esc)">
+          <button className="artifacts-overlay-close" onClick={onClose} title={t('artifacts.close')}>
             &#215;
           </button>
         </div>
@@ -315,7 +315,7 @@ function ScheduleDetailOverlay({
             </span>
             <span className="artifacts-overlay-filepath">{artifact.taskName}</span>
           </div>
-          <button className="artifacts-overlay-close" onClick={onClose} title="Close (Esc)">
+          <button className="artifacts-overlay-close" onClick={onClose} title={t('artifacts.close')}>
             &#215;
           </button>
         </div>
@@ -427,7 +427,7 @@ export function ArtifactsPanel({
             <span className="artifacts-panel-badge">{totalCount}</span>
           )}
         </div>
-        <button className="artifacts-panel-close" onClick={onClose} title="Close panel">
+        <button className="artifacts-panel-close" onClick={onClose} title={t('artifacts.closePanel')}>
           &#215;
         </button>
       </div>
