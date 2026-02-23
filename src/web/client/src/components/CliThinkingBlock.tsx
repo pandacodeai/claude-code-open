@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CliSpinner } from './common/CliSpinner';
+import { useLanguage } from '../i18n';
 import './CliThinkingBlock.css';
 
 interface CliThinkingBlockProps {
@@ -19,6 +20,7 @@ interface CliThinkingBlockProps {
  * - 使用 dimColor 和 italic 样式
  */
 export function CliThinkingBlock({ content, isThinking = false }: CliThinkingBlockProps) {
+  const { t } = useLanguage();
   // 默认折叠
   const [expanded, setExpanded] = useState(false);
 
@@ -49,14 +51,14 @@ export function CliThinkingBlock({ content, isThinking = false }: CliThinkingBlo
           )}
         </span>
         <span className="cli-thinking-label">
-          {isThinking ? 'Thinking…' : 'Thinking'}
+          {isThinking ? t('thinking.active') : t('thinking.done')}
         </span>
         {hasContent && (
           <span className="cli-thinking-hint">
             {expanded ? (
               <span className="cli-thinking-collapse-hint">▼</span>
             ) : (
-              <span className="cli-thinking-expand-hint">(click to expand)</span>
+              <span className="cli-thinking-expand-hint">{t('thinking.expandHint')}</span>
             )}
           </span>
         )}

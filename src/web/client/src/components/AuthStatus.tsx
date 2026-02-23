@@ -88,7 +88,7 @@ export function AuthStatus({ onLoginClick, refreshKey }: AuthStatusProps) {
               {authInfo.email || authInfo.accountType || 'User'}
             </div>
             <div className="user-type">
-              {authInfo.accountType === 'claude.ai' ? 'Claude.ai' : 'Console'}
+              {authInfo.accountType === 'claude.ai' ? t('auth.claudeAi') : t('auth.console')}
             </div>
           </div>
         </div>

@@ -15,6 +15,7 @@ function safeTranslate(key: string): string {
     'error.unknown': 'An unexpected error occurred',
     'error.retry': 'Retry',
     'error.reload': 'Reload Page',
+    'error.sessionPreserved': 'Your session data is preserved. Backend is still running.',
   };
   try {
     // 动态引入避免模块级依赖 — 如果 i18n 模块已加载则使用
@@ -133,7 +134,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </button>
           </div>
           <p style={{ marginTop: '16px', color: '#64748b', fontSize: '12px' }}>
-            Your session data is preserved. Backend is still running.
+            {safeTranslate('error.sessionPreserved')}
           </p>
         </div>
       );

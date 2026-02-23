@@ -11,6 +11,7 @@ interface CompactMessageProps {
 }
 
 export function CompactMessage({ message, onOpenFile, isStreaming = false }: CompactMessageProps) {
+  const { t } = useLanguage();
   const { role, content } = message;
   const contentArray = Array.isArray(content) ? content : [];
 
@@ -30,7 +31,7 @@ export function CompactMessage({ message, onOpenFile, isStreaming = false }: Com
           <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
             <path d="M2 2h12v12H2V2zm1 1v10h10V3H3zm2 2h6v1H5V5zm0 2h6v1H5V7zm0 2h4v1H5V9z"/>
           </svg>
-          <span>Blueprint: {item.name} ({item.moduleCount} modules)</span>
+          <span>{t('compact.blueprint', { name: item.name, count: item.moduleCount })}</span>
         </div>
       );
     }
@@ -40,7 +41,7 @@ export function CompactMessage({ message, onOpenFile, isStreaming = false }: Com
           <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
             <path d="M2 2h12v12H2V2zm1 1v10h10V3H3zm2 2h6v1H5V5zm0 2h6v1H5V7z"/>
           </svg>
-          <span>Design: {item.projectName} ({item.style})</span>
+          <span>{t('compact.design', { name: item.projectName, style: item.style })}</span>
         </div>
       );
     }
@@ -50,7 +51,7 @@ export function CompactMessage({ message, onOpenFile, isStreaming = false }: Com
           <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
             <path d="M8 1L1 8l7 7 7-7-7-7zm0 2.414L12.586 8 8 12.586 3.414 8 8 3.414z"/>
           </svg>
-          <span>Impact Analysis ({item.data.risk.overallLevel} risk)</span>
+          <span>{t('compact.impact', { level: item.data.risk.overallLevel })}</span>
         </div>
       );
     }
@@ -60,7 +61,7 @@ export function CompactMessage({ message, onOpenFile, isStreaming = false }: Com
           <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
             <path d="M8 2a6 6 0 100 12A6 6 0 008 2zM3 8a5 5 0 1110 0A5 5 0 013 8z"/>
           </svg>
-          <span>Progress: {item.data.phase} ({item.data.percentage}%)</span>
+          <span>{t('compact.progress', { phase: item.data.phase, percent: item.data.percentage })}</span>
         </div>
       );
     }
@@ -70,7 +71,7 @@ export function CompactMessage({ message, onOpenFile, isStreaming = false }: Com
           <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
             <path d="M8 1L1 8l7 7 7-7-7-7zm0 2.414L12.586 8 8 12.586 3.414 8 8 3.414z"/>
           </svg>
-          <span>Regression: {item.data.passed ? 'Passed' : 'Failed'}</span>
+          <span>{item.data.passed ? t('compact.regressionPassed') : t('compact.regressionFailed')}</span>
         </div>
       );
     }
@@ -80,7 +81,7 @@ export function CompactMessage({ message, onOpenFile, isStreaming = false }: Com
           <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
             <path d="M8 2a6 6 0 100 12A6 6 0 008 2zM3 8a5 5 0 1110 0A5 5 0 013 8z"/>
           </svg>
-          <span>Review: Score {item.data.score}</span>
+          <span>{t('compact.review', { score: item.data.score })}</span>
         </div>
       );
     }
@@ -90,7 +91,7 @@ export function CompactMessage({ message, onOpenFile, isStreaming = false }: Com
           <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
             <path d="M2 2h12v12H2V2zm1 1v10h10V3H3zm2 7l2-3 2 2 3-4v8H5v-3z"/>
           </svg>
-          <span>{item.fileName || 'Image'}</span>
+          <span>{item.fileName || t('compact.image')}</span>
         </div>
       );
     }

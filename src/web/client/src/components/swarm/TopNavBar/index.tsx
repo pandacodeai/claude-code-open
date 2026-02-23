@@ -334,7 +334,7 @@ export default function TopNavBar({
               <button
                 className={`${styles.viewButton} ${gitPanelActive ? styles.active : ''}`}
                 onClick={onToggleGitPanel}
-                title="Git (Ctrl+Shift+G)"
+                title={t('input.git')}
               >
                 <GitBranchIcon />
               </button>
@@ -342,14 +342,14 @@ export default function TopNavBar({
             <button
               className={`${styles.viewButton} ${!codeViewActive ? styles.active : ''}`}
               onClick={() => codeViewActive && onToggleCodeView?.()}
-              title="Conversation View"
+              title={t('nav.conversationView')}
             >
               <ConversationViewIcon />
             </button>
             <button
               className={`${styles.viewButton} ${codeViewActive ? styles.active : ''}`}
               onClick={() => !codeViewActive && onToggleCodeView?.()}
-              title="Code View"
+              title={t('nav.codeView')}
             >
               <CodeViewIcon />
             </button>
