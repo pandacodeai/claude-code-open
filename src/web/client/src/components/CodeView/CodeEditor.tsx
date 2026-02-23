@@ -13,6 +13,7 @@ import { useCodeReview } from '../../hooks/useCodeReview';
 import { useTestGenerator } from '../../hooks/useTestGenerator';
 import { useCodeConversation } from '../../hooks/useCodeConversation';
 import { useSmartDiff } from '../../hooks/useSmartDiff';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { useDeadCode } from '../../hooks/useDeadCode';
 import { useTimeMachine } from '../../hooks/useTimeMachine';
 import { usePatternDetector } from '../../hooks/usePatternDetector';
@@ -107,6 +108,7 @@ const CloseIcon: React.FC = () => (
  */
 export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
   ({ projectPath, onSelectionChange, onActiveFileChange, onCursorLineChange }, ref) => {
+    const { t } = useLanguage();
     const [tabs, setTabs] = useState<EditorTab[]>([]);
     const [activeTabIndex, setActiveTabIndex] = useState<number>(-1);
     const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -663,8 +665,8 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
       if (!currentTab) {
         return (
           <div className={styles.emptyState}>
-            <p className={styles.emptyText}>No file open</p>
-            <p className={styles.emptyHint}>Select a file from the tree to start editing</p>
+            <p className={styles.emptyText}>{t('codeEditor.noFileOpen')}</p>
+            <p className={styles.emptyHint}>{t('codeEditor.selectFileHint')}</p>
           </div>
         );
       }
@@ -1050,9 +1052,9 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
                   className={`${styles.aiBtn} ${tourState.active ? styles.active : ''}`}
                   onClick={() => tourState.active ? stopTour() : startTour()}
                   disabled={tourState.loading}
-                  title="代码导游"
+                  title={t('codeEditor.tourTitle')}
                 >
-                  🚀 导游 {tourState.loading && '⏳'}
+                  🚀 {t('codeEditor.tour')} {tourState.loading && '⏳'}
                 </button>
               )}
               {visibleButtons.has('heatmap') && (
@@ -1060,9 +1062,9 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
                   className={`${styles.aiBtn} ${heatmap.enabled ? styles.active : ''}`}
                   onClick={heatmap.toggle}
                   disabled={heatmap.loading}
-                  title="代码复杂度热力图"
+                  title={t('codeEditor.heatmapTitle')}
                 >
-                  🔥 热力图 {heatmap.loading && '⏳'}
+                  🔥 {t('codeEditor.heatmap')} {heatmap.loading && '⏳'}
                 </button>
               )}
               {visibleButtons.has('refactor') && (
@@ -1070,9 +1072,9 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
                   className={`${styles.aiBtn} ${refactor.enabled ? styles.active : ''}`}
                   onClick={refactor.toggle}
                   disabled={refactor.loading}
-                  title="AI 重构建议"
+                  title={t('codeEditor.refactorTitle')}
                 >
-                  ✨ 重构 {refactor.loading && '⏳'}
+                  ✨ {t('codeEditor.refactor')} {refactor.loading && '⏳'}
                 </button>
               )}
               {visibleButtons.has('bubbles') && (
@@ -1080,9 +1082,9 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
                   className={`${styles.aiBtn} ${bubbles.enabled ? styles.active : ''}`}
                   onClick={bubbles.toggle}
                   disabled={bubbles.loading}
-                  title="AI 代码气泡"
+                  title={t('codeEditor.bubblesTitle')}
                 >
-                  💬 气泡 {bubbles.loading && '⏳'}
+                  💬 {t('codeEditor.bubbles')} {bubbles.loading && '⏳'}
                 </button>
               )}
               {visibleButtons.has('review') && (
@@ -1090,9 +1092,9 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
                   className={`${styles.aiBtn} ${codeReview.enabled ? styles.active : ''}`}
                   onClick={codeReview.toggle}
                   disabled={codeReview.loading}
-                  title="AI 代码审查"
+                  title={t('codeEditor.reviewTitle')}
                 >
-                  🎯 审查 {codeReview.loading && '⏳'}
+                  🎯 {t('codeEditor.review')} {codeReview.loading && '⏳'}
                 </button>
               )}
               {visibleButtons.has('deadcode') && (
@@ -1100,9 +1102,9 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
                   className={`${styles.aiBtn} ${deadCode.enabled ? styles.active : ''}`}
                   onClick={deadCode.toggle}
                   disabled={deadCode.loading}
-                  title={`死代码检测${deadCode.items.length > 0 ? ` (${deadCode.items.length})` : ''}`}
+                  title={deadCode.items.length > 0 ? t('codeEditor.deadCodeTitleCount', { count: deadCode.items.length }) : t('codeEditor.deadCodeTitle')}
                 >
-                  💀 死代码 {deadCode.loading && '⏳'}
+                  💀 {t('codeEditor.deadCode')} {deadCode.loading && '⏳'}
                 </button>
               )}
               {visibleButtons.has('pattern') && (
@@ -1110,18 +1112,18 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
                   className={`${styles.aiBtn} ${pattern.enabled ? styles.active : ''}`}
                   onClick={pattern.toggle}
                   disabled={pattern.loading}
-                  title={`模式检测${pattern.patterns.length > 0 ? ` (${pattern.patterns.length})` : ''}`}
+                  title={pattern.patterns.length > 0 ? t('codeEditor.patternTitleCount', { count: pattern.patterns.length }) : t('codeEditor.patternTitle')}
                 >
-                  🔍 模式 {pattern.loading && '⏳'}
+                  🔍 {t('codeEditor.pattern')} {pattern.loading && '⏳'}
                 </button>
               )}
               {visibleButtons.has('autocomplete') && (
                 <button
                   className={`${styles.aiBtn} ${autoCompleteEnabled ? styles.active : ''}`}
                   onClick={() => setAutoCompleteEnabled(!autoCompleteEnabled)}
-                  title={`AI 代码补全（本地 ${autoComplete.stats.localItems} 项 + ${autoComplete.stats.snippetItems} 片段）`}
+                  title={t('codeEditor.autocompleteTitle', { local: autoComplete.stats.localItems, snippets: autoComplete.stats.snippetItems })}
                 >
-                  ⚡ 补全
+                  ⚡ {t('codeEditor.autocomplete')}
                 </button>
               )}
               {visibleButtons.has('intent') && (
@@ -1139,34 +1141,34 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
                         const line = pos ? editor?.getModel()?.getLineContent(pos.lineNumber)?.trim() : '';
                         const isComment = line && (/^(\/\/|#|\/\*|\*|--|<!--)/).test(line);
                         if (!isComment) {
-                          alert('请先选中代码，或将光标放在注释行上');
+                          alert(t('codeEditor.intentAlert'));
                           return;
                         }
                       }
                       intentToCode.openIntent();
                     }
                   }}
-                  title="意图编程：选中代码后改写，或在注释行生成代码"
+                  title={t('codeEditor.intentTitle')}
                 >
-                  ✏️ 意图
+                  ✏️ {t('codeEditor.intent')}
                 </button>
               )}
               {visibleButtons.has('test') && (
                 <button
                   className={styles.aiBtn}
                   onClick={testGenerator.openGenerator}
-                  title="测试生成：为函数生成单元测试"
+                  title={t('codeEditor.testTitle')}
                 >
-                  🧪 测试
+                  🧪 {t('codeEditor.test')}
                 </button>
               )}
               {visibleButtons.has('conversation') && (
                 <button
                   className={`${styles.aiBtn} ${conversation.state.visible ? styles.active : ''}`}
                   onClick={() => conversation.state.visible ? conversation.close() : conversation.open()}
-                  title="代码对话：与 AI 讨论代码"
+                  title={t('codeEditor.conversationTitle')}
                 >
-                  💬 对话
+                  💬 {t('codeEditor.conversation')}
                 </button>
               )}
               {visibleButtons.has('diff') && (
@@ -1174,45 +1176,45 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
                   className={styles.aiBtn}
                   onClick={smartDiff.analyze}
                   disabled={smartDiff.state.loading || !currentTab?.modified}
-                  title={currentTab?.modified ? "语义 Diff 分析：分析代码改动的影响" : "语义 Diff 分析：需要先修改文件"}
+                  title={currentTab?.modified ? t('codeEditor.diffTitle') : t('codeEditor.diffTitleNoChange')}
                 >
-                  🔍 Diff {smartDiff.state.loading && '⏳'}
+                  🔍 {t('codeEditor.diff')} {smartDiff.state.loading && '⏳'}
                 </button>
               )}
               {visibleButtons.has('beginner') && (
                 <button
                   className={`${styles.aiBtn} ${beginnerMode ? styles.active : ''}`}
                   onClick={() => setBeginnerMode(!beginnerMode)}
-                  title="新手模式（AI 悬浮提示）"
+                  title={t('codeEditor.beginnerTitle')}
                 >
-                  🎓 新手模式
+                  🎓 {t('codeEditor.beginner')}
                 </button>
               )}
               {visibleButtons.has('minimap') && (
                 <button
                   className={`${styles.aiBtn} ${showMinimap ? styles.active : ''}`}
                   onClick={() => setShowMinimap(!showMinimap)}
-                  title="代码小地图"
+                  title={t('codeEditor.minimapTitle')}
                 >
-                  🗺️ 小地图
+                  🗺️ {t('codeEditor.minimap')}
                 </button>
               )}
               {visibleButtons.has('timemachine') && (
                 <button
                   className={styles.aiBtn}
                   onClick={timeMachine.open}
-                  title="代码时光机：查看代码演变历史"
+                  title={t('codeEditor.timeMachineTitle')}
                 >
-                  ⏰ 时光机
+                  ⏰ {t('codeEditor.timeMachine')}
                 </button>
               )}
               {visibleButtons.has('apidoc') && (
                 <button
                   className={`${styles.aiBtn} ${apiDocEnabled ? styles.active : ''}`}
                   onClick={() => setApiDocEnabled(!apiDocEnabled)}
-                  title="API 文档叠加：悬停显示第三方 API 文档"
+                  title={t('codeEditor.apiDocTitle')}
                 >
-                  📚 API
+                  📚 {t('codeEditor.apiDoc')}
                 </button>
               )}
             </div>
@@ -1223,7 +1225,7 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
               ref={toolbarBtnRef}
               className={`${styles.aiBtn} ${showToolbarMenu ? styles.active : ''}`}
               onClick={() => showToolbarMenu ? setShowToolbarMenu(false) : openToolbarMenu()}
-              title="配置工具栏按钮"
+              title={t('codeEditor.configureToolbar')}
             >
               ⋯
             </button>
@@ -1641,24 +1643,24 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
               right: toolbarMenuPos.right,
             }}
           >
-            <div className={styles.toolbarMenuTitle}>工具栏按钮</div>
+            <div className={styles.toolbarMenuTitle}>{t('codeEditor.toolbarButtons')}</div>
             {[
-              { key: 'autocomplete', label: '⚡ 补全' },
-              { key: 'review', label: '🎯 审查' },
-              { key: 'conversation', label: '💬 对话' },
-              { key: 'intent', label: '✏️ 意图' },
-              { key: 'test', label: '🧪 测试' },
-              { key: 'diff', label: '🔍 Diff' },
-              { key: 'tour', label: '🚀 导游' },
-              { key: 'heatmap', label: '🔥 热力图' },
-              { key: 'refactor', label: '✨ 重构' },
-              { key: 'bubbles', label: '💬 气泡' },
-              { key: 'deadcode', label: '💀 死代码' },
-              { key: 'pattern', label: '🔍 模式' },
-              { key: 'beginner', label: '🎓 新手模式' },
-              { key: 'minimap', label: '🗺️ 小地图' },
-              { key: 'timemachine', label: '⏰ 时光机' },
-              { key: 'apidoc', label: '📚 API' },
+              { key: 'autocomplete', label: `⚡ ${t('codeEditor.autocomplete')}` },
+              { key: 'review', label: `🎯 ${t('codeEditor.review')}` },
+              { key: 'conversation', label: `💬 ${t('codeEditor.conversation')}` },
+              { key: 'intent', label: `✏️ ${t('codeEditor.intent')}` },
+              { key: 'test', label: `🧪 ${t('codeEditor.test')}` },
+              { key: 'diff', label: `🔍 ${t('codeEditor.diff')}` },
+              { key: 'tour', label: `🚀 ${t('codeEditor.tour')}` },
+              { key: 'heatmap', label: `🔥 ${t('codeEditor.heatmap')}` },
+              { key: 'refactor', label: `✨ ${t('codeEditor.refactor')}` },
+              { key: 'bubbles', label: `💬 ${t('codeEditor.bubbles')}` },
+              { key: 'deadcode', label: `💀 ${t('codeEditor.deadCode')}` },
+              { key: 'pattern', label: `🔍 ${t('codeEditor.pattern')}` },
+              { key: 'beginner', label: `🎓 ${t('codeEditor.beginner')}` },
+              { key: 'minimap', label: `🗺️ ${t('codeEditor.minimap')}` },
+              { key: 'timemachine', label: `⏰ ${t('codeEditor.timeMachine')}` },
+              { key: 'apidoc', label: `📚 ${t('codeEditor.apiDoc')}` },
             ].map(item => (
               <label key={item.key} className={styles.toolbarMenuItem}>
                 <input
@@ -1677,7 +1679,7 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
                 localStorage.setItem(TOOLBAR_STORAGE_KEY, JSON.stringify([...DEFAULT_VISIBLE_BUTTONS]));
               }}
             >
-              恢复默认
+              {t('codeEditor.restoreDefault')}
             </button>
           </div>,
           document.body,
