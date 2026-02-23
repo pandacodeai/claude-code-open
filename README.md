@@ -10,6 +10,31 @@
 
 [Visit Website](https://www.chatbi.site) | [Live Demo](http://voicegpt.site:3456/) | [中文文档](README.zh-CN.md) | [Discord](https://discord.gg/bNyJKk6PVZ)
 
+<div align="center">
+
+### Demo
+
+<a href="http://voicegpt.site:3456/">
+<img src="demo-screenshots/01-main.png" width="720" alt="Claude Code Open - Web IDE Interface">
+</a>
+
+**Web UI IDE** &bull; **Blueprint Multi-Agent** &bull; **37+ Tools** &bull; **Self-Evolution**
+
+<table>
+<tr>
+<td><img src="demo-screenshots/02-blueprint.png" width="400" alt="Blueprint System"></td>
+<td><img src="demo-screenshots/05-typing.png" width="400" alt="Real-time AI Streaming"></td>
+</tr>
+<tr>
+<td align="center"><b>Blueprint Multi-Agent System</b></td>
+<td align="center"><b>Real-time AI Streaming</b></td>
+</tr>
+</table>
+
+> [Watch Promo Video](demo-screenshots/promo-video.mp4) &bull; [Try Live Demo](http://voicegpt.site:3456/) &bull; [Join Discord](https://discord.gg/bNyJKk6PVZ)
+
+</div>
+
 A reverse-engineered open-source reimplementation based on `@anthropic-ai/claude-code`.
 
 **For educational and research purposes only.**

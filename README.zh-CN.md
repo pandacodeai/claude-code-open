@@ -10,6 +10,31 @@
 
 [访问网站](https://www.chatbi.site) | [在线体验](http://voicegpt.site:3456/) | [English README](README.md) | [Discord](https://discord.gg/bNyJKk6PVZ)
 
+<div align="center">
+
+### 演示
+
+<a href="http://voicegpt.site:3456/">
+<img src="demo-screenshots/01-main.png" width="720" alt="Claude Code Open - Web IDE 界面">
+</a>
+
+**Web UI IDE** &bull; **蓝图多智能体** &bull; **37+ 工具** &bull; **自我进化**
+
+<table>
+<tr>
+<td><img src="demo-screenshots/02-blueprint.png" width="400" alt="蓝图系统"></td>
+<td><img src="demo-screenshots/05-typing.png" width="400" alt="实时 AI 流式响应"></td>
+</tr>
+<tr>
+<td align="center"><b>蓝图多智能体系统</b></td>
+<td align="center"><b>实时 AI 流式响应</b></td>
+</tr>
+</table>
+
+> [观看宣传视频](demo-screenshots/promo-video.mp4) &bull; [在线体验](http://voicegpt.site:3456/) &bull; [加入 Discord](https://discord.gg/bNyJKk6PVZ)
+
+</div>
+
 基于 `@anthropic-ai/claude-code` 的开源逆向重新实现。
 
 **仅用于教育和研究目的。**
