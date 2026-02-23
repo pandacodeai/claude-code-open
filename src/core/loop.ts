@@ -70,6 +70,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import * as os from 'os';
+import { persistLargeOutputSync } from '../tools/output-persistence.js';
 import { setParentModelContext } from '../tools/agent.js';
 import { configManager } from '../config/index.js';
 import { accountUsageManager } from '../ratelimit/index.js';
@@ -402,32 +403,58 @@ function truncateOutput(content: string, maxSize: number): { preview: string; ha
 }
 
 /**
- * 使用持久化标签包装大型输出
- * 生成带预览的持久化格式
+ * 处理超大输出：保存到文件 + 返回头尾预览 + 提示用 offset/limit 读取
+ *
+ * 对齐官方实现（aO6 函数）：
+ * - 超大 tool result 保存到 ~/.claude/tasks/ 文件
+ * - 返回文件路径和格式提示，模型可用 Read 工具的 offset/limit 分段读取
+ * - 不丢失信息，只是改变了访问方式
+ *
  * @param content 输出内容
- * @returns 包装后的内容
+ * @param toolName 工具名称（用于文件命名）
+ * @returns 处理后的内容
  */
-function wrapPersistedOutput(content: string): string {
+function wrapPersistedOutput(content: string, toolName: string = 'unknown'): string {
   // 如果输出未超过阈值，直接返回
   if (content.length <= OUTPUT_THRESHOLD) {
     return content;
   }
 
-  // 生成预览
-  const { preview, hasMore } = truncateOutput(content, PREVIEW_SIZE);
+  // 超大输出：保存到文件，返回路径 + 头尾预览
+  const result = persistLargeOutputSync(content, {
+    toolName,
+    maxLength: OUTPUT_THRESHOLD,
+    keepHeadTail: true,
+    headChars: 1500,
+    tailChars: 1500,
+  });
 
-  // 格式化持久化输出
-  let result = `${PERSISTED_OUTPUT_START}\n`;
-  result += `Preview (first ${PREVIEW_SIZE} bytes):\n`;
-  result += preview;
-  if (hasMore) {
-    result += '\n...\n';
-  } else {
-    result += '\n';
+  if (result.persisted && result.filePath) {
+    // 判断内容格式
+    let format = 'Plain text';
+    const trimmed = content.trimStart();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      format = trimmed.startsWith('[') ? 'JSON array' : 'JSON';
+    }
+
+    return `Error: result (${content.length} characters) exceeds maximum allowed size. Output has been saved to ${result.filePath}.\n` +
+      `Format: ${format}\n` +
+      `Use the Read tool with offset and limit parameters to read specific portions of the file.\n\n` +
+      `Preview (first 1500 + last 1500 characters):\n${result.content}`;
   }
-  result += PERSISTED_OUTPUT_END;
 
-  return result;
+  // 持久化失败时降级到标签包装
+  const { preview, hasMore } = truncateOutput(content, PREVIEW_SIZE);
+  let wrapped = `${PERSISTED_OUTPUT_START}\n`;
+  wrapped += `Preview (first ${PREVIEW_SIZE} bytes):\n`;
+  wrapped += preview;
+  if (hasMore) {
+    wrapped += '\n...\n';
+  } else {
+    wrapped += '\n';
+  }
+  wrapped += PERSISTED_OUTPUT_END;
+  return wrapped;
 }
 
 /**
@@ -450,7 +477,7 @@ function formatToolResult(
   }
 
   // 统一应用持久化处理（根据大小自动决定）
-  content = wrapPersistedOutput(content);
+  content = wrapPersistedOutput(content, toolName);
 
   return content;
 }
@@ -1473,118 +1500,151 @@ async function autoCompact(
   return { wasCompacted: false, messages };
 }
 
+// ============================================================================
+// 软裁剪常量（借鉴 moltbot context-pruning）
+// ============================================================================
+
+/** 软裁剪触发阈值：tool result 超过此字符数时进行头尾截断 */
+const SOFT_TRIM_CHARS = 4000;
+
+/** 软裁剪保留头部字符数 */
+const SOFT_TRIM_HEAD = 1500;
+
+/** 软裁剪保留尾部字符数 */
+const SOFT_TRIM_TAIL = 1500;
+
 /**
- * 清理消息历史中的旧持久化输出（完整版，对齐官方 Vd 函数）
+ * 清理消息历史中的旧工具输出（两阶段裁剪）
  *
- * 实现三个层次的控制：
- * 1. 环境变量控制：DISABLE_MICROCOMPACT=1 完全禁用
- * 2. Token 阈值控制：只在消息 > 40K tokens 时清理
- * 3. 最小节省控制：只在能节省 > 20K tokens 时清理
+ * 借鉴 moltbot 的 context-pruning 和官方的 Vd 函数，实现两阶段清理：
  *
- * 只清理白名单中的工具结果，保护其他工具（如 NotebookEdit）
+ * 阶段 1 - 软裁剪（新增）：
+ *   对旧的大 tool result（>4000 字符）保留头尾各 1500 字符，中间截掉。
+ *   覆盖所有 COMPACTABLE_TOOLS 的输出，不限于有 <persisted-output> 标签的。
+ *
+ * 阶段 2 - 硬清理（原有）：
+ *   对有 <persisted-output> 标签或已保存到文件的超大结果，
+ *   直接替换为 '[Old tool result content cleared]'。
+ *
+ * 两阶段共享的控制逻辑：
+ * - 环境变量 DISABLE_MICROCOMPACT=1 完全禁用
+ * - 总 token > MICROCOMPACT_THRESHOLD (40K) 才触发
+ * - 节省 token > MIN_SAVINGS_THRESHOLD (20K) 才执行
+ * - 最近 KEEP_RECENT_COUNT (3) 个结果不清理
+ * - 只清理白名单工具（COMPACTABLE_TOOLS）
  *
  * @param messages 消息列表
- * @param keepRecent 保留最近的数量（默认 3，对齐 Ly5）
+ * @param keepRecent 保留最近的数量（默认 3）
  * @returns 清理后的消息列表
  */
 function cleanOldPersistedOutputs(messages: Message[], keepRecent: number = KEEP_RECENT_COUNT): Message[] {
-  // 阶段1：检查环境变量 - 如果禁用则直接返回
+  // 检查环境变量 - 如果禁用则直接返回
   if (isEnvTrue(process.env.DISABLE_MICROCOMPACT)) {
     return messages;
   }
 
-  // 收集所有可清理工具的持久化输出及其 token 数
-  const persistedOutputs: {
-    index: number;
+  // 收集所有可清理工具的 tool_result 信息
+  interface CleanableResult {
+    msgIndex: number;
+    blockIndex: number;
     toolName: string;
     toolUseId: string;
+    contentLength: number;
     tokens: number;
-  }[] = [];
+    hasPersisted: boolean; // 有 <persisted-output> 标签或 "Output has been saved to"
+  }
 
-  // 找到所有包含持久化输出的消息，并记录工具名称和 token 数
+  const cleanableResults: CleanableResult[] = [];
+
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
-    if (msg.role === 'user' && Array.isArray(msg.content)) {
-      for (const block of msg.content) {
-        if (
-          typeof block === 'object' &&
-          'type' in block &&
-          block.type === 'tool_result' &&
-          typeof block.content === 'string' &&
-          block.content.includes(PERSISTED_OUTPUT_START) &&
-          'tool_use_id' in block
-        ) {
-          const toolName = findToolNameForResult(messages, block.tool_use_id as string);
+    if (msg.role !== 'user' || !Array.isArray(msg.content)) continue;
 
-          // 官方策略：只跟踪可清理工具的结果
-          if (COMPACTABLE_TOOLS.has(toolName)) {
-            persistedOutputs.push({
-              index: i,
-              toolName,
-              toolUseId: block.tool_use_id as string,
-              tokens: estimateTokens(block.content)
-            });
-            break; // 一个消息只记录一次
-          }
+    for (let j = 0; j < msg.content.length; j++) {
+      const block = msg.content[j];
+      if (
+        typeof block === 'object' &&
+        'type' in block &&
+        block.type === 'tool_result' &&
+        typeof block.content === 'string' &&
+        'tool_use_id' in block
+      ) {
+        const content = block.content as string;
+        const toolName = findToolNameForResult(messages, block.tool_use_id as string);
+
+        if (COMPACTABLE_TOOLS.has(toolName) && content.length > SOFT_TRIM_CHARS) {
+          cleanableResults.push({
+            msgIndex: i,
+            blockIndex: j,
+            toolName,
+            toolUseId: block.tool_use_id as string,
+            contentLength: content.length,
+            tokens: estimateTokens(content),
+            hasPersisted: content.includes(PERSISTED_OUTPUT_START) || content.includes('Output has been saved to'),
+          });
         }
       }
     }
   }
 
   // 如果没有足够的可清理输出，直接返回
-  if (persistedOutputs.length <= keepRecent) {
+  if (cleanableResults.length <= keepRecent) {
     return messages;
   }
 
-  // 阶段2：计算当前消息的总 token 数
+  // 计算当前消息的总 token 数
   const totalTokens = calculateTotalTokens(messages);
 
-  // 阶段3：计算清理能节省多少 tokens
   // 保留最近的 N 个，清理其余的
-  const toClean = persistedOutputs.slice(0, -keepRecent);
+  const toClean = cleanableResults.slice(0, -keepRecent);
   const totalSavings = toClean.reduce((sum, item) => sum + item.tokens, 0);
 
-  // 阶段4：智能触发判断
-  // 只有当满足以下两个条件时才清理：
-  // 1. 总 token 数超过 MICROCOMPACT_THRESHOLD (40K)
-  // 2. 能节省的 token 数超过 MIN_SAVINGS_THRESHOLD (20K)
+  // 智能触发判断
   if (totalTokens <= MICROCOMPACT_THRESHOLD || totalSavings < MIN_SAVINGS_THRESHOLD) {
     return messages;
   }
 
-  // 执行清理
-  const indicesToClean = toClean.map(x => x.index);
+  // 构建要清理的位置索引 Set
+  const cleanTargets = new Map<string, CleanableResult>(); // key: "msgIndex:blockIndex"
+  for (const item of toClean) {
+    cleanTargets.set(`${item.msgIndex}:${item.blockIndex}`, item);
+  }
 
-  return messages.map((msg, index) => {
-    if (!indicesToClean.includes(index)) {
-      return msg;
-    }
+  return messages.map((msg, msgIndex) => {
+    if (msg.role !== 'user' || !Array.isArray(msg.content)) return msg;
 
-    // 清理这条消息中的持久化标签
-    if (msg.role === 'user' && Array.isArray(msg.content)) {
-      return {
-        ...msg,
-        content: msg.content.map((block) => {
-          if (
-            typeof block === 'object' &&
-            'type' in block &&
-            block.type === 'tool_result' &&
-            typeof block.content === 'string'
-          ) {
-            // 移除持久化标签，替换为简单的清理提示
-            let content = block.content;
-            if (content.includes(PERSISTED_OUTPUT_START)) {
-              // 官方实现：直接替换为固定的清理消息
-              content = '[Old tool result content cleared]';
-            }
-            return { ...block, content };
-          }
-          return block;
-        }),
-      };
-    }
+    let modified = false;
+    const newContent = msg.content.map((block, blockIndex) => {
+      const target = cleanTargets.get(`${msgIndex}:${blockIndex}`);
+      if (!target) return block;
 
-    return msg;
+      if (
+        typeof block === 'object' &&
+        'type' in block &&
+        block.type === 'tool_result' &&
+        typeof block.content === 'string'
+      ) {
+        const content = block.content as string;
+        let newContentStr: string;
+
+        if (target.hasPersisted) {
+          // 阶段 2（硬清理）：已保存到文件或有持久化标签的，直接清除
+          newContentStr = '[Old tool result content cleared]';
+        } else {
+          // 阶段 1（软裁剪）：保留头尾，截掉中间
+          const head = content.substring(0, SOFT_TRIM_HEAD);
+          const tail = content.substring(content.length - SOFT_TRIM_TAIL);
+          const omitted = content.length - SOFT_TRIM_HEAD - SOFT_TRIM_TAIL;
+          newContentStr = `${head}\n\n... [${omitted} characters trimmed from old tool result] ...\n\n${tail}`;
+        }
+
+        modified = true;
+        return { ...block, content: newContentStr };
+      }
+      return block;
+    });
+
+    return modified ? { ...msg, content: newContent } : msg;
   });
 }
 

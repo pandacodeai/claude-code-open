@@ -180,6 +180,28 @@ const SMART_QUOTE_MAP: Record<string, string> = {
 };
 
 /**
+ * LLM 输出的畸形 XML token 映射表
+ * 对应官方 cli.js 中的 pS9 / dS9 函数
+ *
+ * 模型有时会输出缩写的 XML token（因内部 tokenizer 的关系），
+ * 导致 old_string 中包含 <fnr> 而文件中实际是 <function_results> 等。
+ * 这个映射表将缩写 token 还原为完整形式。
+ */
+const TOKEN_TAG_MAP: Record<string, string> = {
+  '<fnr>': '<function_results>',
+  '<n>': '<name>',
+  '</n>': '</name>',
+  '<o>': '<output>',
+  '</o>': '</output>',
+  '<e>': '<error>',
+  '</e>': '</error>',
+  '<s>': '<system>',
+  '</s>': '</system>',
+  '<r>': '<result>',
+  '</r>': '</result>',
+};
+
+/**
  * 将智能引号转换为普通引号
  * 对应官方 cli.js 中的 cY2 函数
  */
@@ -189,6 +211,25 @@ function normalizeQuotes(str: string): string {
     result = result.replaceAll(smart, normal);
   }
   return result;
+}
+
+/**
+ * 标准化 LLM 输出中的畸形 XML token
+ * 对应官方 cli.js 中的 dS9 函数
+ *
+ * @returns 标准化后的字符串和应用的替换列表
+ */
+function normalizeTokenTags(str: string): { result: string; appliedReplacements: Array<{ from: string; to: string }> } {
+  let result = str;
+  const appliedReplacements: Array<{ from: string; to: string }> = [];
+  for (const [abbrev, full] of Object.entries(TOKEN_TAG_MAP)) {
+    const before = result;
+    result = result.replaceAll(abbrev, full);
+    if (before !== result) {
+      appliedReplacements.push({ from: abbrev, to: full });
+    }
+  }
+  return { result, appliedReplacements };
 }
 
 /**
@@ -281,14 +322,16 @@ function hasLineNumberPrefixes(str: string): boolean {
 
 /**
  * 智能查找并匹配字符串
- * 支持：
- * 1. 直接匹配
- * 2. 智能引号匹配
- * 3. 行号前缀处理
+ * 对应官方 cli.js 中的 sn7 + m2A 函数
+ *
+ * 渐进式匹配策略：
+ * 1. 直接匹配（含智能引号标准化）
+ * 2. 行号前缀处理
+ * 3. XML token 标准化（dS9）
  * 4. 尾部换行处理
  */
 function smartFindString(fileContents: string, searchString: string): string | null {
-  // 1. 直接匹配
+  // 1. 直接匹配（findMatchingString 内部已含智能引号标准化）
   let match = findMatchingString(fileContents, searchString);
   if (match) return match;
 
@@ -299,7 +342,15 @@ function smartFindString(fileContents: string, searchString: string): string | n
     if (match) return match;
   }
 
-  // 3. 处理尾部换行
+  // 3. XML token 标准化（对应官方 dS9/sn7）
+  // 模型有时输出缩写 token（如 <fnr> 代替 <function_results>）
+  const { result: normalizedSearch, appliedReplacements } = normalizeTokenTags(searchString);
+  if (appliedReplacements.length > 0) {
+    match = findMatchingString(fileContents, normalizedSearch);
+    if (match) return match;
+  }
+
+  // 4. 处理尾部换行
   // 如果搜索字符串不以换行结尾，但文件中该位置后面有换行
   if (!searchString.endsWith('\n') && fileContents.includes(searchString + '\n')) {
     return searchString;
@@ -1428,8 +1479,23 @@ Usage:
       // 7. 备份原始内容
       this.fileBackup.backup(file_path, originalContent);
 
-      // 8. 确定编辑操作列表
-      const edits: BatchEdit[] = batch_edits || [{ old_string: old_string!, new_string: new_string!, replace_all }];
+      // 8. 确定编辑操作列表，并做 token 标准化预处理（对齐官方 sn7）
+      const rawEdits: BatchEdit[] = batch_edits || [{ old_string: old_string!, new_string: new_string!, replace_all }];
+      const edits = rawEdits.map(edit => {
+        // 如果 old_string 精确匹配文件内容，无需标准化
+        if (originalContent.includes(edit.old_string)) return edit;
+        // 尝试 token 标准化
+        const { result: normalized, appliedReplacements } = normalizeTokenTags(edit.old_string);
+        if (appliedReplacements.length > 0 && originalContent.includes(normalized)) {
+          // 对 new_string 也应用同样的替换（对齐官方 sn7）
+          let newStr = edit.new_string;
+          for (const { from, to } of appliedReplacements) {
+            newStr = newStr.replaceAll(from, to);
+          }
+          return { ...edit, old_string: normalized, new_string: newStr };
+        }
+        return edit;
+      });
 
       // 9. 验证并执行所有编辑操作
       let currentContent = originalContent;
