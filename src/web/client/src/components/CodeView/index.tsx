@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FileTree } from './FileTree';
 import { CodeEditor, CodeEditorRef } from './CodeEditor';
 import { CompactChatPanel } from './CompactChatPanel';
+import { SearchPanel } from './SearchPanel';
 import { useOutlineSymbols } from '../../hooks/useOutlineSymbols';
 import type { ChatMessage } from '../../types';
 import styles from './CodeView.module.css';
@@ -45,6 +46,9 @@ export const CodeView: React.FC<CodeViewProps> = ({
   const [chatPanelWidth, setChatPanelWidth] = useState(360);
   const [isChatPanelCollapsed, setIsChatPanelCollapsed] = useState(false);
   const [currentFile, setCurrentFile] = useState<string | undefined>(undefined);
+  
+  // 左侧面板切换状态
+  const [activePanel, setActivePanel] = useState<'explorer' | 'search'>('explorer');
 
   // Refs
   const codeEditorRef = useRef<CodeEditorRef>(null);
@@ -162,9 +166,16 @@ export const CodeView: React.FC<CodeViewProps> = ({
     };
   }, [isResizingChatPanel]);
 
-  // Ctrl+L 快捷键
+  // 全局快捷键
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Shift+F: 切换到搜索面板
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
+        e.preventDefault();
+        setActivePanel('search');
+        return;
+      }
+      
       // Ctrl+L (Windows/Linux) 或 Cmd+L (macOS)
       if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
         e.preventDefault();
@@ -217,15 +228,78 @@ export const CodeView: React.FC<CodeViewProps> = ({
         className={styles.fileTreePanel}
         style={{ width: `${fileTreeWidth}px` }}
       >
-        <FileTree
-          projectPath={projectPath}
-          projectName={projectPath.split(/[\\/]/).pop() || 'Project'}
-          currentFile={currentFile}
-          onFileSelect={handleFileSelect}
-          outlineSymbols={outlineSymbols}
-          cursorLine={cursorLine}
-          onSymbolClick={handleSymbolClick}
-        />
+        {/* Panel Header: 项目名 + 切换按钮 */}
+        <div className={styles.panelHeader}>
+          <div className={styles.projectName}>
+            {projectPath.split(/[\\/]/).pop() || 'Project'}
+          </div>
+          <div className={styles.panelSwitcher}>
+            {/* 文件浏览器按钮 */}
+            <button
+              className={`${styles.panelButton} ${activePanel === 'explorer' ? styles.active : ''}`}
+              onClick={() => setActivePanel('explorer')}
+              title="文件浏览器"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M1 3.5C1 2.67157 1.67157 2 2.5 2H5.5L6.5 3.5H13.5C14.3284 3.5 15 4.17157 15 5V12.5C15 13.3284 14.3284 14 13.5 14H2.5C1.67157 14 1 13.3284 1 12.5V3.5Z"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  fill="none"
+                />
+              </svg>
+            </button>
+            {/* 搜索按钮 */}
+            <button
+              className={`${styles.panelButton} ${activePanel === 'search' ? styles.active : ''}`}
+              onClick={() => setActivePanel('search')}
+              title="搜索 (Ctrl+Shift+F)"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <circle
+                  cx="7"
+                  cy="7"
+                  r="5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  fill="none"
+                />
+                <path
+                  d="M11 11L14.5 14.5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Panel Content: 条件渲染 FileTree 或 SearchPanel */}
+        <div className={styles.panelContent}>
+          {activePanel === 'explorer' ? (
+            <FileTree
+              projectPath={projectPath}
+              projectName={projectPath.split(/[\\/]/).pop() || 'Project'}
+              currentFile={currentFile}
+              onFileSelect={handleFileSelect}
+              outlineSymbols={outlineSymbols}
+              cursorLine={cursorLine}
+              onSymbolClick={handleSymbolClick}
+            />
+          ) : (
+            <SearchPanel
+              projectPath={projectPath}
+              onFileSelect={handleFileSelect}
+              onGoToLine={(line) => {
+                // 先等待文件打开，再跳转到行
+                setTimeout(() => {
+                  codeEditorRef.current?.goToLine(line);
+                }, 100);
+              }}
+            />
+          )}
+        </div>
       </div>
 
       {/* FileTree 分割线 + 拖拽手柄 */}
