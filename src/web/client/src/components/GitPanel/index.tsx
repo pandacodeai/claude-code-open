@@ -10,6 +10,7 @@ import { LogView } from './LogView';
 import { BranchesView } from './BranchesView';
 import { StashView } from './StashView';
 import { TagsView } from './TagsView';
+import { RemotesView, GitRemote } from './RemotesView';
 import { DiffView } from './DiffView';
 import { MarkdownContent } from '../MarkdownContent';
 import './GitPanel.css';
@@ -61,7 +62,10 @@ export interface GitDiff {
   content: string;
 }
 
-type TabType = 'status' | 'log' | 'branches' | 'stash' | 'tags';
+// 导出 GitRemote 接口供外部使用
+export type { GitRemote };
+
+type TabType = 'status' | 'log' | 'branches' | 'stash' | 'tags' | 'remotes';
 
 interface GitPanelProps {
   isOpen: boolean;
@@ -81,6 +85,7 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
   const [branches, setBranches] = useState<GitBranch[]>([]);
   const [stashes, setStashes] = useState<GitStash[]>([]);
   const [tags, setTags] = useState<GitTag[]>([]);
+  const [remotes, setRemotes] = useState<GitRemote[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -139,6 +144,12 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
         case 'git:tags_response':
           if (msg.payload?.success) {
             setTags(msg.payload.data || []);
+          }
+          break;
+
+        case 'git:remotes_response':
+          if (msg.payload?.success) {
+            setRemotes(msg.payload.data || []);
           }
           break;
 
@@ -228,6 +239,11 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
       type: 'git:get_tags',
       payload: { projectPath },
     });
+
+    send({
+      type: 'git:get_remotes',
+      payload: { projectPath },
+    });
   }, [projectPath, send]);
 
   // 切换标签页时请求相应数据
@@ -247,6 +263,11 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
     } else if (activeTab === 'tags') {
       send({
         type: 'git:get_tags',
+        payload: { projectPath },
+      });
+    } else if (activeTab === 'remotes') {
+      send({
+        type: 'git:get_remotes',
         payload: { projectPath },
       });
     }
@@ -347,6 +368,12 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
         >
           {t('git.tab.tags')}
         </button>
+        <button
+          className={`git-tab ${activeTab === 'remotes' ? 'active' : ''}`}
+          onClick={() => setActiveTab('remotes')}
+        >
+          {t('git.tab.remotes')}
+        </button>
       </div>
 
       {/* 内容区 */}
@@ -412,6 +439,16 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
               <div className="git-tab-content">
                 <TagsView
                   tags={tags}
+                  send={send}
+                  projectPath={projectPath}
+                />
+              </div>
+            )}
+
+            {activeTab === 'remotes' && (
+              <div className="git-tab-content">
+                <RemotesView
+                  remotes={remotes}
                   send={send}
                   projectPath={projectPath}
                 />
