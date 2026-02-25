@@ -395,3 +395,28 @@ export interface GitMergeStatus {
   currentBranch: string;
   targetBranch?: string;
 }
+
+/**
+ * Git File History Commit
+ * 用于 FileHistoryView 组件显示文件修改历史
+ */
+export interface GitFileHistoryCommit {
+  hash: string;
+  shortHash: string;
+  author: string;
+  date: string;
+  message: string;
+  diff?: string;
+}
+
+/**
+ * Git Blame Line
+ * 用于 BlameView 组件显示文件的每行追溯信息
+ */
+export interface GitBlameLine {
+  lineNumber: number;
+  commit: string;
+  author: string;
+  date: string;
+  content: string;
+}

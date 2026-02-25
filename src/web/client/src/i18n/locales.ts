@@ -796,6 +796,8 @@ const en: Translations = {
   'git.commitHash': 'Commit hash',
   'git.fullDate': 'Full date',
   'git.viewCommitDetails': 'View commit details',
+  'git.autoFetch': 'Auto Fetch',
+  'git.autoFetchTooltip': 'Automatically fetch remote updates at regular intervals',
 
   // InputArea
   'input.voiceStart': 'Start voice recognition',
@@ -1872,6 +1874,8 @@ const zh: Translations = {
   'git.commitHash': '提交哈希',
   'git.fullDate': '完整日期',
   'git.viewCommitDetails': '查看提交详情',
+  'git.autoFetch': '自动拉取',
+  'git.autoFetchTooltip': '定时自动拉取远程更新',
   // InputArea
   'input.voiceStart': '开启语音识别',
   'input.voiceListening': '正在监听（点击关闭）',
