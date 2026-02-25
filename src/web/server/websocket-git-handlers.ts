@@ -89,6 +89,50 @@ export async function handleGitGetStashes(
   });
 }
 
+/**
+ * 获取 commit 详情（含文件列表）
+ */
+export async function handleGitGetCommitDetail(
+  client: ClientConnection,
+  hash: string,
+  conversationManager: ConversationManager
+): Promise<void> {
+  const git = getGitManager(client);
+  const detail = git.getCommitDetail(hash);
+  const files = git.getCommitFiles(hash);
+
+  sendMessage(client.ws, {
+    type: 'git:commit_detail_response',
+    payload: {
+      success: detail.success && files.success,
+      data: detail.success ? {
+        ...detail.data,
+        files: files.data?.files || [],
+      } : undefined,
+      error: detail.error || files.error,
+    },
+  });
+}
+
+export async function handleGitGetCommitFileDiff(
+  client: ClientConnection,
+  hash: string,
+  file: string,
+  conversationManager: ConversationManager
+): Promise<void> {
+  const git = getGitManager(client);
+  const result = git.getCommitFileDiff(hash, file);
+
+  sendMessage(client.ws, {
+    type: 'git:diff_response',
+    payload: {
+      success: result.success,
+      data: result.success ? result.data : undefined,
+      error: result.error,
+    },
+  });
+}
+
 export async function handleGitStage(
   client: ClientConnection,
   files: string[],

@@ -4,13 +4,14 @@
  * 新增：搜索/过滤、Revert、Cherry-pick 功能
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '../../i18n';
 import { GitCommit } from './index';
 
 interface LogViewProps {
   commits: GitCommit[];
   send: (msg: any) => void;
+  addMessageHandler: (handler: (msg: any) => void) => () => void;
   projectPath?: string;
 }
 
@@ -32,10 +33,17 @@ function formatRelativeTime(dateStr: string): string {
   return date.toLocaleDateString();
 }
 
-export function LogView({ commits, send, projectPath }: LogViewProps) {
+interface CommitFile {
+  status: string;
+  file: string;
+}
+
+export function LogView({ commits, send, addMessageHandler, projectPath }: LogViewProps) {
   const { t } = useLanguage();
   const [expandedHash, setExpandedHash] = useState<string | null>(null);
   const [explainingHash, setExplainingHash] = useState<string | null>(null);
+  const [commitFiles, setCommitFiles] = useState<Record<string, CommitFile[]>>({});
+  const [loadingFiles, setLoadingFiles] = useState<string | null>(null);
   
   // 搜索/过滤状态
   const [query, setQuery] = useState('');
@@ -43,14 +51,29 @@ export function LogView({ commits, send, projectPath }: LogViewProps) {
   const [since, setSince] = useState('');
   const [until, setUntil] = useState('');
 
+  // 监听 commit_detail_response
+  useEffect(() => {
+    const unsub = addMessageHandler((msg: any) => {
+      if (msg?.type === 'git:commit_detail_response' && msg.payload?.success && msg.payload.data) {
+        const { hash, files } = msg.payload.data;
+        if (hash && files) {
+          setCommitFiles(prev => ({ ...prev, [hash]: files }));
+          setLoadingFiles(null);
+        }
+      }
+    });
+    return () => unsub();
+  }, [addMessageHandler]);
+
   // 切换 commit 展开/折叠
   const toggleCommit = (hash: string) => {
     if (expandedHash === hash) {
       setExpandedHash(null);
     } else {
       setExpandedHash(hash);
-      // 发送请求获取 commit 详情
-      if (projectPath) {
+      // 请求文件列表（如果还没缓存）
+      if (projectPath && !commitFiles[hash]) {
+        setLoadingFiles(hash);
         send({
           type: 'git:get_commit_detail',
           payload: { projectPath, hash },
@@ -228,37 +251,85 @@ export function LogView({ commits, send, projectPath }: LogViewProps) {
               </span>
             </div>
 
-            {/* 展开后显示操作按钮 */}
+            {/* 展开后显示文件列表和操作按钮 */}
             {isExpanded && (
-              <div className="git-commit-actions">
-                <button
-                  className="git-explain-button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleExplainCommit(commit.hash);
-                  }}
-                  disabled={isExplaining}
-                >
-                  {isExplaining ? t('git.explaining') : t('git.explainCommit')}
-                </button>
-                <button
-                  className="git-revert-button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRevertCommit(commit.hash, commit.shortHash);
-                  }}
-                >
-                  {t('git.revert')}
-                </button>
-                <button
-                  className="git-cherry-pick-button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCherryPick(commit.hash, commit.shortHash);
-                  }}
-                >
-                  {t('git.cherryPick')}
-                </button>
+              <div className="git-commit-detail">
+                {/* 文件列表 */}
+                <div className="git-commit-files">
+                  {loadingFiles === commit.hash && (
+                    <div className="git-commit-files-loading">{t('common.loading')}</div>
+                  )}
+                  {commitFiles[commit.hash]?.map((f, idx) => (
+                    <div key={idx} className="git-commit-file-item">
+                      <span className={`git-file-status git-file-status--${f.status}`}>
+                        {f.status}
+                      </span>
+                      <span
+                        className="git-commit-file-name git-commit-file-name--clickable"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!projectPath) return;
+                          send({
+                            type: 'git:get_commit_file_diff',
+                            payload: { projectPath, hash: commit.hash, file: f.file },
+                          });
+                        }}
+                        title={`View diff: ${f.file}`}
+                      >
+                        {f.file}
+                      </span>
+                      <button
+                        className="git-commit-file-diff-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!projectPath) return;
+                          send({
+                            type: 'git:get_commit_file_diff',
+                            payload: { projectPath, hash: commit.hash, file: f.file },
+                          });
+                        }}
+                        title={t('git.viewDiff')}
+                      >
+                        Diff
+                      </button>
+                    </div>
+                  ))}
+                  {!loadingFiles && commitFiles[commit.hash]?.length === 0 && (
+                    <div className="git-commit-files-empty">{t('git.noChanges')}</div>
+                  )}
+                </div>
+
+                {/* 操作按钮 */}
+                <div className="git-commit-actions">
+                  <button
+                    className="git-explain-button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleExplainCommit(commit.hash);
+                    }}
+                    disabled={isExplaining}
+                  >
+                    {isExplaining ? t('git.explaining') : t('git.explainCommit')}
+                  </button>
+                  <button
+                    className="git-revert-button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRevertCommit(commit.hash, commit.shortHash);
+                    }}
+                  >
+                    {t('git.revert')}
+                  </button>
+                  <button
+                    className="git-cherry-pick-button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCherryPick(commit.hash, commit.shortHash);
+                    }}
+                  >
+                    {t('git.cherryPick')}
+                  </button>
+                </div>
               </div>
             )}
           </div>

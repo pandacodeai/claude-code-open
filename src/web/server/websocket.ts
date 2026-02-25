@@ -50,6 +50,8 @@ import {
   handleGitStashDrop,
   handleGitStashApply,
   handleGitGetDiff,
+  handleGitGetCommitDetail,
+  handleGitGetCommitFileDiff,
   handleGitSmartCommit,
   handleGitSmartReview,
   handleGitExplainCommit,
@@ -1611,6 +1613,14 @@ async function handleClientMessage(
 
     case 'git:smart_review':
       await handleGitSmartReview(client, conversationManager);
+      break;
+
+    case 'git:get_commit_detail':
+      await handleGitGetCommitDetail(client, message.payload.hash, conversationManager);
+      break;
+
+    case 'git:get_commit_file_diff':
+      await handleGitGetCommitFileDiff(client, message.payload.hash, message.payload.file, conversationManager);
       break;
 
     case 'git:explain_commit':

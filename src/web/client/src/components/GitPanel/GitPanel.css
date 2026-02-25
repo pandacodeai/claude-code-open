@@ -62,6 +62,21 @@
   gap: 8px;
 }
 
+/* 工具栏 */
+.git-panel-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.git-toolbar-spacer {
+  flex: 1;
+}
+
 .git-ai-button {
   padding: 6px 12px;
   background: var(--bg-tertiary);
@@ -306,10 +321,102 @@
   opacity: 0.8;
 }
 
+/* Commit 展开详情 */
+.git-commit-detail {
+  margin-top: 8px;
+}
+
+.git-commit-files {
+  margin-bottom: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+.git-commit-files-loading,
+.git-commit-files-empty {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.git-commit-file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.git-commit-file-item:last-child {
+  border-bottom: none;
+}
+
+.git-commit-file-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.git-file-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.git-file-status--M { background: rgba(234, 179, 8, 0.2); color: #eab308; }
+.git-file-status--A { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+.git-file-status--D { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.git-file-status--R { background: rgba(99, 102, 241, 0.2); color: #6366f1; }
+.git-file-status--C { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+
+.git-commit-file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.git-commit-file-name--clickable {
+  cursor: pointer;
+}
+
+.git-commit-file-name--clickable:hover {
+  color: var(--accent-primary);
+  text-decoration: underline;
+}
+
+.git-commit-file-diff-btn {
+  padding: 2px 8px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 3px;
+  color: var(--accent-primary);
+  font-size: 10px;
+  font-weight: 600;
+  font-family: 'Consolas', 'Monaco', monospace;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.git-commit-file-diff-btn:hover {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
 .git-commit-actions {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-color);
+  padding-top: 8px;
   display: flex;
   gap: 8px;
 }
@@ -624,10 +731,14 @@
   border: 1px solid var(--border-color);
 }
 
+.git-status-branch-row {
+  margin-bottom: 10px;
+}
+
 .git-status-branch {
   font-size: 14px;
   color: var(--text-primary);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .git-status-branch strong {
@@ -647,6 +758,67 @@
 
 .git-status-behind {
   color: #f59e0b;
+}
+
+/* Push / Pull / Fetch 同步按钮组 */
+.git-sync-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.git-sync-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.git-sync-btn:hover {
+  background: var(--bg-secondary);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  transform: translateY(-1px);
+}
+
+.git-sync-btn--highlight {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.git-sync-btn--highlight:hover {
+  background: var(--accent-primary);
+  color: white;
+}
+
+.git-sync-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--accent-primary);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 9px;
+}
+
+/* 批量操作按钮区域 */
+.git-status-actions {
+  display: flex;
+  gap: 6px;
 }
 
 .git-status-empty {
@@ -780,6 +952,20 @@
   border-color: var(--accent-primary);
 }
 
+.git-action-button--diff {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: var(--accent-primary);
+  font-weight: 600;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.git-action-button--diff:hover {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
 .git-action-button--stage:hover {
   background: #10b981;
   border-color: #10b981;
@@ -791,39 +977,37 @@
 }
 
 /* ============================================
-   DiffView - Diff 视图
+   DiffView - Diff 视图（table 布局）
    ============================================ */
 
 .git-diff-view {
-  position: fixed;
-  top: 0;
-  right: 500px;
-  width: 600px;
-  height: 100vh;
-  background: var(--bg-primary);
-  border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  z-index: 999;
-  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 .git-diff-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-secondary);
   flex-shrink: 0;
+  gap: 12px;
 }
 
 .git-diff-file-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
   font-family: 'Consolas', 'Monaco', monospace;
-  word-break: break-all;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .git-diff-close {
@@ -835,6 +1019,7 @@
   cursor: pointer;
   transition: all 0.2s;
   border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .git-diff-close:hover {
@@ -844,64 +1029,81 @@
 
 .git-diff-content {
   flex: 1;
-  overflow-y: auto;
+  overflow: auto;
   background: var(--bg-primary);
 }
 
-.git-diff-lines {
+/* ---- Diff Table 共用 ---- */
+.diff-table {
+  border-collapse: collapse;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.6;
+  width: max-content;
+  min-width: 100%;
 }
 
-.git-diff-line {
-  display: flex;
-  align-items: flex-start;
-  padding: 2px 12px;
-  white-space: pre-wrap;
-  word-break: break-all;
+.diff-table code {
+  font-family: inherit;
+  white-space: pre;
 }
 
-.git-diff-line--added {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-}
+/* 行号列 */
+.diff-col-ln { width: 52px; }
+.diff-col-code { width: auto; }
+.diff-col-divider { width: 1px; }
 
-.git-diff-line--removed {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-}
-
-.git-diff-line--context {
-  color: var(--text-primary);
-}
-
-.git-diff-line--header {
-  color: var(--text-muted);
-  font-weight: 600;
-  background: var(--bg-secondary);
-}
-
-.git-diff-line--hunk {
-  color: var(--accent-primary);
-  font-weight: 600;
-  background: var(--bg-tertiary);
-}
-
-.git-diff-line-number {
-  display: inline-block;
-  width: 40px;
+/* 行号单元格 */
+.diff-td-ln {
   text-align: right;
-  margin-right: 12px;
-  color: var(--text-muted);
-  opacity: 0.6;
+  padding: 0 8px 0 4px;
+  color: rgba(160, 160, 180, 0.7);
+  font-size: 12px;
   user-select: none;
-  flex-shrink: 0;
+  vertical-align: top;
+  white-space: nowrap;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
 }
 
-.git-diff-line-content {
-  flex: 1;
+/* 代码内容单元格 */
+.diff-td-code {
+  padding: 0 12px;
+  vertical-align: top;
+  white-space: pre;
 }
+
+/* 分栏中间分割线 */
+.diff-td-divider {
+  padding: 0;
+  background: var(--border-color);
+  width: 1px;
+}
+
+/* ---- 行类型着色 ---- */
+.diff-tr--added .diff-td-code { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+.diff-tr--added .diff-td-ln   { background: rgba(16, 185, 129, 0.08); color: rgba(16, 185, 129, 0.6); }
+
+.diff-tr--removed .diff-td-code { background: rgba(239, 68, 68, 0.12); color: #ef4444; }
+.diff-tr--removed .diff-td-ln   { background: rgba(239, 68, 68, 0.08); color: rgba(239, 68, 68, 0.6); }
+
+.diff-tr--context .diff-td-code { color: var(--text-primary); }
+
+.diff-tr--header .diff-td-code { color: var(--text-muted); font-weight: 600; background: var(--bg-secondary); }
+.diff-tr--header .diff-td-ln   { background: var(--bg-secondary); }
+
+.diff-tr--hunk .diff-td-code { color: var(--accent-primary); font-weight: 600; background: rgba(99, 102, 241, 0.06); }
+.diff-tr--hunk .diff-td-ln   { background: rgba(99, 102, 241, 0.06); }
+
+/* ---- Split 模式单元格着色 ---- */
+.diff-td--added  { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+.diff-td--removed { background: rgba(239, 68, 68, 0.12); color: #ef4444; }
+.diff-td--context { color: var(--text-primary); }
+.diff-td--empty  { background: var(--bg-secondary); }
+
+.diff-td-ln.diff-td--added   { background: rgba(16, 185, 129, 0.08); color: rgba(16, 185, 129, 0.6); }
+.diff-td-ln.diff-td--removed { background: rgba(239, 68, 68, 0.08); color: rgba(239, 68, 68, 0.6); }
+.diff-td-ln.diff-td--empty   { background: var(--bg-secondary); }
 
 /* ============================================
    输入对话框（用于 Stash Save、Commit 等）
@@ -1764,35 +1966,6 @@ pre.git-ai-result-content {
 
 .git-diff-mode-btn + .git-diff-mode-btn {
   border-left: 1px solid var(--border-color);
-}
-
-/* ============================================
-   Diff View Split Mode
-   ============================================ */
-
-.git-diff-split-container {
-  display: flex;
-  height: 100%;
-  width: 100%;
-}
-
-.git-diff-split-pane {
-  flex: 1;
-  overflow-y: auto;
-  min-width: 0;
-}
-
-.git-diff-split-pane + .git-diff-split-pane {
-  border-left: 2px solid var(--border-color);
-}
-
-.git-diff-line--empty {
-  background: var(--bg-tertiary);
-  opacity: 0.3;
-}
-
-.git-diff-line--empty .git-diff-line-content {
-  visibility: hidden;
 }
 
 /* ============================================

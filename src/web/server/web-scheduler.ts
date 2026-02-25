@@ -22,8 +22,8 @@ const MAX_TIMER_DELAY_MS = 60_000;
 // 热加载轮询间隔（检查外部 ScheduleTask 工具创建的新任务）
 const RELOAD_POLL_INTERVAL_MS = 5_000;
 
-// 卡住任务超时：2 小时自动清除 runningAtMs 标记
-const STUCK_RUN_MS = 2 * 60 * 60 * 1000;
+// 卡住任务超时：10 分钟自动清除 runningAtMs 标记（任务默认超时 5 分钟）
+const STUCK_RUN_MS = 10 * 60 * 1000;
 
 // 错误指数退避时间表（毫秒）
 const ERROR_BACKOFF_SCHEDULE_MS = [
@@ -134,6 +134,9 @@ export class WebScheduler {
       console.log(`[WebScheduler] Delivering pending alarm "${task.name}" to session ${sessionId}`);
       this.executeInSession(task, sessionId).catch(err => {
         console.error(`[WebScheduler] Failed to deliver pending alarm "${task.name}":`, err);
+        // 失败时清除 runningAtMs，让下次 timer 能重新调度
+        this.store.updateTask(task.id, { runningAtMs: undefined });
+        this.store.reload(); // 刷新内存中的数据
       });
     }
   }
@@ -213,6 +216,9 @@ export class WebScheduler {
           console.log(`[WebScheduler] Session ${sessionId} gone, executing pending alarm "${task.name}" in new session`);
           this.executeInNewSession(task).catch(err => {
             console.error(`[WebScheduler] Failed to execute orphaned alarm "${task.name}":`, err);
+            // 失败时清除 runningAtMs，让下次 timer 能重新调度
+            this.store.updateTask(task.id, { runningAtMs: undefined });
+            this.store.reload(); // 刷新内存中的数据
           });
         }
       }

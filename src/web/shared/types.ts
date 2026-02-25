@@ -219,6 +219,8 @@ export type ClientMessage =
   | { type: 'git:smart_commit' }
   | { type: 'git:smart_review' }
   | { type: 'git:explain_commit'; payload: { hash: string } }
+  | { type: 'git:get_commit_detail'; payload: { hash: string } }
+  | { type: 'git:get_commit_file_diff'; payload: { projectPath?: string; hash: string; file: string } }
   // Git Enhanced Features
   | { type: 'git:merge'; payload: { branch: string; strategy?: GitMergeStrategy } }
   | { type: 'git:rebase'; payload: { branch: string; onto?: string } }
@@ -332,6 +334,7 @@ export type ServerMessage =
   | { type: 'git:smart_commit_response'; payload: GitSmartCommitResponsePayload }
   | { type: 'git:smart_review_response'; payload: GitSmartReviewResponsePayload }
   | { type: 'git:explain_commit_response'; payload: GitExplainCommitResponsePayload }
+  | { type: 'git:commit_detail_response'; payload: { success: boolean; data?: { hash: string; shortHash: string; author: string; date: string; message: string; diff: string; files: { status: string; file: string }[] }; error?: string } }
   // Git Enhanced Features Responses
   | { type: 'git:tags_response'; payload: { success: boolean; data?: GitTag[]; error?: string } }
   | { type: 'git:remotes_response'; payload: { success: boolean; data?: GitRemote[]; error?: string } }

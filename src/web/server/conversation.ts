@@ -1512,16 +1512,18 @@ export class ConversationManager {
             }
           }
 
-          for (const toolUse of toolUseBlocks) {
-            if (state.cancelled) break;
-            if (skipToolIds.has(toolUse.id)) continue;
+          // 并行执行所有工具（对齐官方实现：Promise.all + map）
+          const pendingToolUses = toolUseBlocks.filter(t => !skipToolIds.has(t.id));
 
-            // 用 Promise.race 包裹，使 cancel 时 AbortController.abort() 能立即打断阻塞的工具执行
+          const results = await Promise.all(pendingToolUses.map(async (toolUse) => {
+            if (state.cancelled) {
+              return { toolUse, result: { success: false, error: 'Operation cancelled by user' } as Awaited<ReturnType<typeof this.executeToolWithCancellation>> };
+            }
             const result = await this.executeToolWithCancellation(toolUse, state, callbacks);
+            return { toolUse, result };
+          }));
 
-            // 取消后不再处理后续结果
-            if (state.cancelled) break;
-
+          for (const { toolUse, result } of results) {
             // 使用格式化函数处理工具结果（与 CLI 完全一致）
             const formattedContent = formatToolResult(toolUse.name, result);
 
@@ -2451,12 +2453,16 @@ export class ConversationManager {
         const input = toolUse.input as any;
         try {
           const blueprintId = `bp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          const hasModules = Array.isArray(input.modules) && input.modules.length > 0;
+          const isCodebase = hasModules || (Array.isArray(input.businessProcesses) && input.businessProcesses.length > 0);
+
           const blueprint: Blueprint = {
             id: blueprintId,
             name: input.name,
             description: input.description,
             projectPath: state.session.cwd,
             status: 'confirmed',
+            source: isCodebase ? 'codebase' : 'requirement',
             requirements: input.requirements || [],
             techStack: input.techStack || {},
             constraints: input.constraints || [],
@@ -2465,6 +2471,49 @@ export class ConversationManager {
             updatedAt: new Date(),
             confirmedAt: new Date(),
           };
+
+          // 全景蓝图字段
+          if (input.modules) {
+            blueprint.modules = input.modules.map((m: any, i: number) => ({
+              id: m.id || `mod-${i + 1}`,
+              name: m.name,
+              type: m.type || 'other',
+              description: m.description || '',
+              rootPath: m.rootPath || '',
+              responsibilities: m.responsibilities || [],
+              dependencies: m.dependencies || [],
+              source: 'existing' as const,
+              interfaces: [],
+              techStack: [],
+            }));
+          }
+          if (input.businessProcesses) {
+            blueprint.businessProcesses = input.businessProcesses.map((p: any, i: number) => ({
+              id: p.id || `bp-${i + 1}`,
+              name: p.name,
+              description: p.description || '',
+              type: 'as-is' as const,
+              steps: (p.steps || []).map((s: string, si: number) => ({
+                id: `${p.id || `bp-${i + 1}`}-step-${si + 1}`,
+                order: si + 1,
+                name: s,
+                description: s,
+                actor: 'system',
+              })),
+              actors: ['system'],
+              inputs: [],
+              outputs: [],
+            }));
+          }
+          if (input.nfrs) {
+            blueprint.nfrs = input.nfrs.map((n: any, i: number) => ({
+              id: `nfr-${i + 1}`,
+              category: n.category || 'other',
+              name: n.name,
+              description: n.description || '',
+              priority: 'should' as const,
+            }));
+          }
 
           blueprintStore.save(blueprint);
 
@@ -2476,7 +2525,14 @@ export class ConversationManager {
             }));
           }
 
-          const output = `蓝图已生成并保存。\n蓝图ID: ${blueprint.id}\n项目名: ${blueprint.name}\n需求数: ${blueprint.requirements?.length || 0}\n\n现在可以调用 StartLeadAgent 启动执行。`;
+          const moduleCount = blueprint.modules?.length || 0;
+          const processCount = blueprint.businessProcesses?.length || 0;
+          const nfrCount = blueprint.nfrs?.length || 0;
+          const reqCount = blueprint.requirements?.length || 0;
+          const stats = isCodebase
+            ? `模块: ${moduleCount}, 流程: ${processCount}, NFR: ${nfrCount}`
+            : `需求数: ${reqCount}`;
+          const output = `蓝图已生成并保存。\n蓝图ID: ${blueprint.id}\n项目名: ${blueprint.name}\n类型: ${isCodebase ? '全景蓝图' : '需求蓝图'}\n${stats}\n\n现在可以调用 StartLeadAgent 启动执行。`;
           callbacks.onToolResult?.(toolUse.id, true, output);
           return { success: true, output };
         } catch (error) {
@@ -2488,12 +2544,14 @@ export class ConversationManager {
       }
 
       // v11.0: StartLeadAgent 不再拦截，走正常 tool.execute() 路径
-      // 执行前动态绑定当前会话的 WebSocket，用于前端导航通知
+      // 执行前动态绑定当前会话的 WebSocket 和工作目录，确保蜂群在正确的项目路径下执行
       if (toolUse.name === 'StartLeadAgent') {
         const currentCtx = StartLeadAgentTool.getContext();
         if (currentCtx) {
           StartLeadAgentTool.setContext({
             ...currentCtx,
+            // 动态返回当前会话的工作目录（跟随项目选择器），而非 ConversationManager 构造时的固定 cwd
+            getWorkingDirectory: () => state.session.cwd,
             navigateToSwarm: (blueprintId: string, executionId: string) => {
               if (state.ws && state.ws.readyState === 1) {
                 state.ws.send(JSON.stringify({

@@ -97,8 +97,8 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
     maxRetries: 3,
     requestTimeout: 300000,
     apiProvider: 'anthropic',
-    apiBaseUrl: 'http://13.113.224.168:8082',
-    apiKey: 'my-secret',
+    apiBaseUrl: '',
+    apiKey: '',
     customModelName: '',
     authPriority: 'auto',
   });
@@ -134,9 +134,9 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
         setConfig(prev => ({
           ...prev,
           ...data.data,
-          // 服务器返回空值时保留前端默认值
-          apiBaseUrl: data.data.apiBaseUrl || prev.apiBaseUrl,
-          apiKey: data.data.apiKey || prev.apiKey,
+          // 服务器返回什么就用什么，不回退到默认值（否则用户无法清空）
+          apiBaseUrl: data.data.apiBaseUrl || '',
+          apiKey: data.data.apiKey || '',
         }));
       }
     } catch (err) {

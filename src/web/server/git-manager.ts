@@ -436,7 +436,8 @@ export class GitManager {
    */
   push(): GitResult {
     try {
-      this.execGit('push');
+      // 使用 origin HEAD 避免本地分支名和远程跟踪分支名不匹配的问题
+      this.execGit('push origin HEAD');
 
       return {
         success: true,
@@ -681,6 +682,49 @@ export class GitManager {
         success: false,
         error: error.message || String(error),
       };
+    }
+  }
+
+  /**
+   * 获取 commit 涉及的文件列表（带状态）
+   */
+  getCommitFiles(hash: string): GitResult<{ files: { status: string; file: string }[] }> {
+    try {
+      if (!hash || !hash.trim()) {
+        return { success: false, error: 'commit hash 不能为空' };
+      }
+      const output = this.execGit(`diff-tree --no-commit-id --name-status -r "${hash}"`);
+      const files = output.split('\n').filter(Boolean).map(line => {
+        const parts = line.split('\t');
+        return { status: parts[0] || '?', file: parts.slice(1).join('\t') };
+      });
+      return { success: true, data: { files } };
+    } catch (error: any) {
+      return { success: false, error: error.message || String(error) };
+    }
+  }
+
+  /**
+   * 获取某个 commit 中特定文件的 diff
+   */
+  getCommitFileDiff(hash: string, file: string): GitResult<{ content: string; file: string }> {
+    try {
+      if (!hash || !hash.trim()) {
+        return { success: false, error: 'commit hash 不能为空' };
+      }
+      if (!file || !file.trim()) {
+        return { success: false, error: '文件路径不能为空' };
+      }
+      const output = this.execGit(`diff "${hash}~1" "${hash}" -- "${file}"`);
+      return { success: true, data: { content: output, file } };
+    } catch (error: any) {
+      // 对于首次 commit（没有 parent），使用 diff-tree
+      try {
+        const output = this.execGit(`show "${hash}" -- "${file}"`);
+        return { success: true, data: { content: output, file } };
+      } catch {
+        return { success: false, error: error.message || String(error) };
+      }
     }
   }
 

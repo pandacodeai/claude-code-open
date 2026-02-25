@@ -354,41 +354,44 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
           )}
         </div>
         <div className="git-panel-header-actions">
-          {/* 自动 Fetch 开关 */}
-          <div className="git-auto-fetch-toggle" title={t('git.autoFetchTooltip')}>
-            <label className="git-toggle-label">
-              <input
-                type="checkbox"
-                checked={autoFetchEnabled}
-                onChange={(e) => setAutoFetchEnabled(e.target.checked)}
-                className="git-toggle-checkbox"
-              />
-              <span className="git-toggle-slider"></span>
-            </label>
-            <span className="git-toggle-text">
-              {t('git.autoFetch')} ({autoFetchInterval}min)
-            </span>
-          </div>
-          {/* AI 增强按钮组 */}
-          <button
-            className="git-ai-button"
-            onClick={handleSmartCommit}
-            disabled={isGeneratingCommit || !(gitStatus?.staged.length || gitStatus?.unstaged.length || gitStatus?.untracked.length)}
-            title={t('git.smartCommit')}
-          >
-            {isGeneratingCommit ? '⚡' : '🤖'} {t('git.smartCommit')}
-          </button>
-          <button
-            className="git-ai-button"
-            onClick={handleSmartReview}
-            disabled={isReviewing}
-            title={t('git.smartReview')}
-          >
-            {isReviewing ? '⚡' : '🔍'} {t('git.smartReview')}
-          </button>
           <button className="git-panel-close" onClick={onClose} title={t('git.closeShortcut')}>
             ✕
           </button>
+        </div>
+      </div>
+
+      {/* 工具栏：AI 按钮 + 自动 Fetch */}
+      <div className="git-panel-toolbar">
+        <button
+          className="git-ai-button"
+          onClick={handleSmartCommit}
+          disabled={isGeneratingCommit || !(gitStatus?.staged.length || gitStatus?.unstaged.length || gitStatus?.untracked.length)}
+          title={t('git.smartCommit')}
+        >
+          {isGeneratingCommit ? '⚡' : '🤖'} {t('git.smartCommit')}
+        </button>
+        <button
+          className="git-ai-button"
+          onClick={handleSmartReview}
+          disabled={isReviewing}
+          title={t('git.smartReview')}
+        >
+          {isReviewing ? '⚡' : '🔍'} {t('git.smartReview')}
+        </button>
+        <div className="git-toolbar-spacer" />
+        <div className="git-auto-fetch-toggle" title={t('git.autoFetchTooltip')}>
+          <label className="git-toggle-label">
+            <input
+              type="checkbox"
+              checked={autoFetchEnabled}
+              onChange={(e) => setAutoFetchEnabled(e.target.checked)}
+              className="git-toggle-checkbox"
+            />
+            <span className="git-toggle-slider"></span>
+          </label>
+          <span className="git-toggle-text">
+            {t('git.autoFetch')}
+          </span>
         </div>
       </div>
 
@@ -465,6 +468,7 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
                 <LogView
                   commits={commits}
                   send={send}
+                  addMessageHandler={addMessageHandler}
                   projectPath={projectPath}
                 />
               </div>

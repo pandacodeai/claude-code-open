@@ -16,8 +16,8 @@ import { isSessionActive, writeAlarm, type AlarmSignal } from './alarm.js';
 // 最大 timer 延迟，防止时钟漂移
 const MAX_TIMER_DELAY_MS = 60_000;
 
-// 卡住任务超时：2 小时自动清除 runningAtMs 标记
-const STUCK_RUN_MS = 2 * 60 * 60 * 1000;
+// 卡住任务超时：10 分钟自动清除 runningAtMs 标记（任务默认超时 5 分钟）
+const STUCK_RUN_MS = 10 * 60 * 1000;
 
 /**
  * 错误指数退避时间表（毫秒）

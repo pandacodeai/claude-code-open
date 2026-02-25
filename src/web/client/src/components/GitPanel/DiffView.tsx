@@ -1,6 +1,7 @@
 /**
  * DiffView - Git Diff 视图组件
- * 渲染彩色的 diff 内容，显示文件修改详情
+ * 使用 <table> 布局渲染，参考 GitHub diff 实现
+ * 支持 unified（统一视图）和 split（分栏视图）两种模式
  */
 
 import { useMemo, useState } from 'react';
@@ -14,123 +15,104 @@ interface DiffViewProps {
 
 type DiffMode = 'unified' | 'split';
 
-/**
- * Diff 行类型
- */
 type DiffLineType = 'added' | 'removed' | 'context' | 'header' | 'hunk';
 
 interface DiffLine {
   type: DiffLineType;
   content: string;
-  lineNumber?: number;
-  oldLineNumber?: number;
-  newLineNumber?: number;
+  oldLn?: number;
+  newLn?: number;
 }
 
-interface ParsedDiff {
-  unifiedLines: DiffLine[];
-  leftLines: DiffLine[];
-  rightLines: DiffLine[];
+interface SplitRow {
+  type: 'pair' | 'header' | 'hunk';
+  left?: { type: DiffLineType; content: string; ln?: number };
+  right?: { type: DiffLineType; content: string; ln?: number };
+  content?: string;
 }
 
-/**
- * 解析 diff 文本为行数组
- */
-function parseDiff(diffText: string): ParsedDiff {
-  const lines = diffText.split('\n');
-  const unifiedLines: DiffLine[] = [];
-  const leftLines: DiffLine[] = [];
-  const rightLines: DiffLine[] = [];
-  
-  let oldLineNumber = 0;
-  let newLineNumber = 0;
+function parseDiff(diffText: string) {
+  const rawLines = diffText.split('\n');
+  const lines: DiffLine[] = [];
 
-  for (const line of lines) {
-    if (!line) {
-      const unifiedLine = { type: 'context' as DiffLineType, content: '', lineNumber: newLineNumber };
-      unifiedLines.push(unifiedLine);
-      
-      leftLines.push({ type: 'context', content: '', oldLineNumber });
-      rightLines.push({ type: 'context', content: '', newLineNumber });
+  let oldLn = 0;
+  let newLn = 0;
+
+  for (const line of rawLines) {
+    if (line.startsWith('diff --git') || line.startsWith('index ') || line.startsWith('+++') || line.startsWith('---')) {
+      lines.push({ type: 'header', content: line });
       continue;
     }
-
-    // Diff 头部（diff --git, index, +++, ---）
-    if (
-      line.startsWith('diff --git') ||
-      line.startsWith('index ') ||
-      line.startsWith('+++') ||
-      line.startsWith('---')
-    ) {
-      const headerLine = { type: 'header' as DiffLineType, content: line };
-      unifiedLines.push(headerLine);
-      leftLines.push({ type: 'header', content: line });
-      rightLines.push({ type: 'header', content: line });
-      continue;
-    }
-
-    // Hunk 头部（@@ -1,5 +1,7 @@）
     if (line.startsWith('@@')) {
-      const match = line.match(/@@ -(\d+),?\d* \+(\d+),?\d* @@/);
-      if (match) {
-        oldLineNumber = parseInt(match[1], 10);
-        newLineNumber = parseInt(match[2], 10);
-      }
-      
-      const hunkLine = { type: 'hunk' as DiffLineType, content: line };
-      unifiedLines.push(hunkLine);
-      leftLines.push({ type: 'hunk', content: line });
-      rightLines.push({ type: 'hunk', content: line });
+      const m = line.match(/@@ -(\d+),?\d* \+(\d+),?\d* @@/);
+      if (m) { oldLn = parseInt(m[1], 10); newLn = parseInt(m[2], 10); }
+      lines.push({ type: 'hunk', content: line });
       continue;
     }
-
-    // 新增行
     if (line.startsWith('+')) {
-      unifiedLines.push({ type: 'added', content: line, lineNumber: newLineNumber });
-      
-      leftLines.push({ type: 'context', content: '', oldLineNumber: undefined });
-      rightLines.push({ type: 'added', content: line, newLineNumber: newLineNumber });
-      newLineNumber++;
+      lines.push({ type: 'added', content: line, newLn });
+      newLn++;
       continue;
     }
-
-    // 删除行
     if (line.startsWith('-')) {
-      unifiedLines.push({ type: 'removed', content: line });
-      
-      leftLines.push({ type: 'removed', content: line, oldLineNumber });
-      rightLines.push({ type: 'context', content: '', newLineNumber: undefined });
-      oldLineNumber++;
+      lines.push({ type: 'removed', content: line, oldLn });
+      oldLn++;
       continue;
     }
-
-    // 上下文行
-    unifiedLines.push({ type: 'context', content: line, lineNumber: newLineNumber });
-    leftLines.push({ type: 'context', content: line, oldLineNumber });
-    rightLines.push({ type: 'context', content: line, newLineNumber });
-    oldLineNumber++;
-    newLineNumber++;
+    lines.push({ type: 'context', content: line, oldLn, newLn });
+    if (line !== '' || rawLines.indexOf(line) < rawLines.length - 1) {
+      oldLn++;
+      newLn++;
+    }
   }
 
-  return { unifiedLines, leftLines, rightLines };
+  // Build split rows
+  const splitRows: SplitRow[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const cur = lines[i];
+    if (cur.type === 'header') { splitRows.push({ type: 'header', content: cur.content }); i++; continue; }
+    if (cur.type === 'hunk') { splitRows.push({ type: 'hunk', content: cur.content }); i++; continue; }
+    if (cur.type === 'context') {
+      splitRows.push({ type: 'pair', left: { type: 'context', content: cur.content, ln: cur.oldLn }, right: { type: 'context', content: cur.content, ln: cur.newLn } });
+      i++; continue;
+    }
+    if (cur.type === 'removed') {
+      const rm: DiffLine[] = [];
+      while (i < lines.length && lines[i].type === 'removed') { rm.push(lines[i]); i++; }
+      const ad: DiffLine[] = [];
+      while (i < lines.length && lines[i].type === 'added') { ad.push(lines[i]); i++; }
+      const max = Math.max(rm.length, ad.length);
+      for (let j = 0; j < max; j++) {
+        splitRows.push({
+          type: 'pair',
+          left: rm[j] ? { type: 'removed', content: rm[j].content, ln: rm[j].oldLn } : undefined,
+          right: ad[j] ? { type: 'added', content: ad[j].content, ln: ad[j].newLn } : undefined,
+        });
+      }
+      continue;
+    }
+    if (cur.type === 'added') {
+      splitRows.push({ type: 'pair', left: undefined, right: { type: 'added', content: cur.content, ln: cur.newLn } });
+      i++; continue;
+    }
+    i++;
+  }
+
+  return { lines, splitRows };
 }
 
 export function DiffView({ diff, fileName, onClose }: DiffViewProps) {
   const { t } = useLanguage();
   const [mode, setMode] = useState<DiffMode>('unified');
+  const parsed = useMemo(() => parseDiff(diff), [diff]);
 
-  // 解析 diff
-  const parsedDiff = useMemo(() => parseDiff(diff), [diff]);
-
-  // 如果 diff 为空
   if (!diff || diff.trim().length === 0) {
     return (
       <div className="git-diff-view">
         <div className="git-diff-header">
           <span className="git-diff-file-name">{fileName || t('git.diff')}</span>
-          <button className="git-diff-close" onClick={onClose} title={t('common.close')}>
-            ✕
-          </button>
+          <button className="git-diff-close" onClick={onClose} title={t('common.close')}>✕</button>
         </div>
         <div className="git-diff-content">
           <div className="git-empty-state">{t('git.noChanges')}</div>
@@ -141,108 +123,95 @@ export function DiffView({ diff, fileName, onClose }: DiffViewProps) {
 
   return (
     <div className="git-diff-view">
-      {/* 头部 */}
       <div className="git-diff-header">
         <span className="git-diff-file-name">{fileName || t('git.diff')}</span>
-        
-        {/* 模式切换按钮 */}
         <div className="git-diff-mode-switcher">
-          <button
-            className={`git-diff-mode-btn ${mode === 'unified' ? 'active' : ''}`}
-            onClick={() => setMode('unified')}
-            title={t('git.unified')}
-          >
+          <button className={`git-diff-mode-btn ${mode === 'unified' ? 'active' : ''}`} onClick={() => setMode('unified')}>
             {t('git.unified')}
           </button>
-          <button
-            className={`git-diff-mode-btn ${mode === 'split' ? 'active' : ''}`}
-            onClick={() => setMode('split')}
-            title={t('git.split')}
-          >
+          <button className={`git-diff-mode-btn ${mode === 'split' ? 'active' : ''}`} onClick={() => setMode('split')}>
             {t('git.split')}
           </button>
         </div>
-        
-        <button className="git-diff-close" onClick={onClose} title={t('common.close')}>
-          ✕
-        </button>
+        <button className="git-diff-close" onClick={onClose} title={t('common.close')}>✕</button>
       </div>
-
-      {/* Diff 内容 */}
       <div className="git-diff-content">
-        {mode === 'unified' ? (
-          <div className="git-diff-lines">
-            {parsedDiff.unifiedLines.map((line, index) => {
-              // 根据行类型选择 CSS 类名
-              let className = 'git-diff-line';
-              if (line.type === 'added') className += ' git-diff-line--added';
-              else if (line.type === 'removed') className += ' git-diff-line--removed';
-              else if (line.type === 'header') className += ' git-diff-line--header';
-              else if (line.type === 'hunk') className += ' git-diff-line--hunk';
-              else className += ' git-diff-line--context';
-
-              return (
-                <div key={index} className={className}>
-                  {line.lineNumber !== undefined && (
-                    <span className="git-diff-line-number">{line.lineNumber}</span>
-                  )}
-                  <span className="git-diff-line-content">{line.content}</span>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="git-diff-split-container">
-            {/* 左侧（旧代码） */}
-            <div className="git-diff-split-pane">
-              {parsedDiff.leftLines.map((line, index) => {
-                let className = 'git-diff-line';
-                if (line.type === 'added') className += ' git-diff-line--empty';
-                else if (line.type === 'removed') className += ' git-diff-line--removed';
-                else if (line.type === 'header') className += ' git-diff-line--header';
-                else if (line.type === 'hunk') className += ' git-diff-line--hunk';
-                else className += ' git-diff-line--context';
-
-                return (
-                  <div key={index} className={className}>
-                    {line.oldLineNumber !== undefined && (
-                      <span className="git-diff-line-number">{line.oldLineNumber}</span>
-                    )}
-                    {line.oldLineNumber === undefined && line.type !== 'header' && line.type !== 'hunk' && (
-                      <span className="git-diff-line-number"></span>
-                    )}
-                    <span className="git-diff-line-content">{line.content}</span>
-                  </div>
-                );
-              })}
-            </div>
-            
-            {/* 右侧（新代码） */}
-            <div className="git-diff-split-pane">
-              {parsedDiff.rightLines.map((line, index) => {
-                let className = 'git-diff-line';
-                if (line.type === 'added') className += ' git-diff-line--added';
-                else if (line.type === 'removed') className += ' git-diff-line--empty';
-                else if (line.type === 'header') className += ' git-diff-line--header';
-                else if (line.type === 'hunk') className += ' git-diff-line--hunk';
-                else className += ' git-diff-line--context';
-
-                return (
-                  <div key={index} className={className}>
-                    {line.newLineNumber !== undefined && (
-                      <span className="git-diff-line-number">{line.newLineNumber}</span>
-                    )}
-                    {line.newLineNumber === undefined && line.type !== 'header' && line.type !== 'hunk' && (
-                      <span className="git-diff-line-number"></span>
-                    )}
-                    <span className="git-diff-line-content">{line.content}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {mode === 'unified' ? <UnifiedView lines={parsed.lines} /> : <SplitView rows={parsed.splitRows} />}
       </div>
     </div>
+  );
+}
+
+function UnifiedView({ lines }: { lines: DiffLine[] }) {
+  return (
+    <table className="diff-table diff-table--unified">
+      <colgroup>
+        <col className="diff-col-ln" />
+        <col className="diff-col-ln" />
+        <col className="diff-col-code" />
+      </colgroup>
+      <tbody>
+        {lines.map((line, i) => {
+          const cls = `diff-tr diff-tr--${line.type}`;
+          if (line.type === 'header' || line.type === 'hunk') {
+            return (
+              <tr key={i} className={cls}>
+                <td className="diff-td-ln"></td>
+                <td className="diff-td-ln"></td>
+                <td className="diff-td-code"><code>{line.content}</code></td>
+              </tr>
+            );
+          }
+          return (
+            <tr key={i} className={cls}>
+              <td className="diff-td-ln">{line.oldLn ?? ''}</td>
+              <td className="diff-td-ln">{line.newLn ?? ''}</td>
+              <td className="diff-td-code"><code>{line.content}</code></td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+function SplitView({ rows }: { rows: SplitRow[] }) {
+  return (
+    <table className="diff-table diff-table--split">
+      <colgroup>
+        <col className="diff-col-ln" />
+        <col className="diff-col-code" />
+        <col className="diff-col-divider" />
+        <col className="diff-col-ln" />
+        <col className="diff-col-code" />
+      </colgroup>
+      <tbody>
+        {rows.map((row, i) => {
+          if (row.type === 'header' || row.type === 'hunk') {
+            const cls = `diff-tr diff-tr--${row.type}`;
+            return (
+              <tr key={i} className={cls}>
+                <td className="diff-td-ln"></td>
+                <td colSpan={3} className="diff-td-code"><code>{row.content}</code></td>
+                <td className="diff-td-ln"></td>
+              </tr>
+            );
+          }
+
+          const lt = row.left?.type ?? 'empty';
+          const rt = row.right?.type ?? 'empty';
+
+          return (
+            <tr key={i} className="diff-tr">
+              <td className={`diff-td-ln diff-td--${lt}`}>{row.left?.ln ?? ''}</td>
+              <td className={`diff-td-code diff-td--${lt}`}><code>{row.left?.content ?? ''}</code></td>
+              <td className="diff-td-divider"></td>
+              <td className={`diff-td-ln diff-td--${rt}`}>{row.right?.ln ?? ''}</td>
+              <td className={`diff-td-code diff-td--${rt}`}><code>{row.right?.content ?? ''}</code></td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }

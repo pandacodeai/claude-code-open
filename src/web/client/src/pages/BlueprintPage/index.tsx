@@ -61,6 +61,10 @@ export default function BlueprintPage({ initialBlueprintId, onNavigateToSwarm }:
     message: string;
   } | null>(null);
 
+  // 删除确认状态
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // ============================================================================
   // 数据加载
   // ============================================================================
@@ -224,6 +228,32 @@ export default function BlueprintPage({ initialBlueprintId, onNavigateToSwarm }:
   };
 
   /**
+   * 处理删除蓝图
+   */
+  const handleDeleteBlueprint = async (id: string) => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/blueprint/blueprints/${id}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (result.success) {
+        setDeleteConfirmId(null);
+        if (selectedId === id) {
+          setSelectedId(null);
+        }
+        loadBlueprints();
+      } else {
+        alert(result.error || '删除失败');
+      }
+    } catch (err) {
+      alert(`删除失败: ${err instanceof Error ? err.message : '未知错误'}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  /**
    * 蓝图删除后的回调
    */
   const handleBlueprintDeleted = () => {
@@ -266,6 +296,10 @@ export default function BlueprintPage({ initialBlueprintId, onNavigateToSwarm }:
   const canCreateBlueprint = useMemo(() => {
     return currentBlueprint === null;
   }, [currentBlueprint]);
+
+  /**
+   * 是否已有项目全景蓝图
+   */
 
 
 
@@ -341,9 +375,7 @@ export default function BlueprintPage({ initialBlueprintId, onNavigateToSwarm }:
             </div>
             <h2 className={styles.emptyTitle}>还没有蓝图</h2>
             <p className={styles.emptyDescription}>
-              请在聊天 Tab 中选择一个项目文件夹，
-              <br />
-              然后点击「生成项目蓝图」按钮
+              切换到聊天 Tab，告诉 AI "帮我分析代码库生成项目蓝图" 即可自动生成
             </p>
           </div>
         )}
@@ -353,13 +385,15 @@ export default function BlueprintPage({ initialBlueprintId, onNavigateToSwarm }:
           <div className={styles.blueprintList}>
             <div className={styles.listHeader}>
               <h2 className={styles.listTitle}>📋 蓝图列表</h2>
-              <button 
-                className={styles.refreshButton} 
-                onClick={handleRefresh}
-                title="刷新"
-              >
-                🔄
-              </button>
+              <div className={styles.listActions}>
+                <button 
+                  className={styles.refreshButton} 
+                  onClick={handleRefresh}
+                  title="刷新"
+                >
+                  🔄
+                </button>
+              </div>
             </div>
 
             <div className={styles.scrollArea}>
@@ -375,7 +409,22 @@ export default function BlueprintPage({ initialBlueprintId, onNavigateToSwarm }:
                     >
                       <div className={styles.cardHeader}>
                         <h3 className={styles.cardTitle}>{blueprint.name}</h3>
-                        <span className={styles.codebaseBadge}>已同步</span>
+                        <div className={styles.cardHeaderActions}>
+                          <span className={styles.codebaseBadge}>已同步</span>
+                          <button
+                            className={styles.deleteButton}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteConfirmId(blueprint.id);
+                            }}
+                            title="删除蓝图"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                       <p className={styles.cardDescription}>
                         {blueprint.description || '暂无描述'}
@@ -415,9 +464,26 @@ export default function BlueprintPage({ initialBlueprintId, onNavigateToSwarm }:
                       >
                         <div className={styles.cardHeader}>
                           <h3 className={styles.cardTitle}>{blueprint.name}</h3>
-                          <span className={`${styles.cardStatus} ${styles[blueprint.status]}`}>
-                            {blueprint.status}
-                          </span>
+                          <div className={styles.cardHeaderActions}>
+                            <span className={`${styles.cardStatus} ${styles[blueprint.status]}`}>
+                              {blueprint.status}
+                            </span>
+                            {blueprint.status !== 'executing' && (
+                              <button
+                                className={styles.deleteButton}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteConfirmId(blueprint.id);
+                                }}
+                                title="删除蓝图"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="3 6 5 6 21 6" />
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <p className={styles.cardDescription}>
                           {blueprint.description || '暂无描述'}
@@ -458,6 +524,34 @@ export default function BlueprintPage({ initialBlueprintId, onNavigateToSwarm }:
           onDeleted={handleBlueprintDeleted}
           onRefresh={loadBlueprints}
         />
+      )}
+
+      {/* 删除确认对话框 */}
+      {deleteConfirmId && (
+        <div className={styles.deleteOverlay} onClick={() => setDeleteConfirmId(null)}>
+          <div className={styles.deleteDialog} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.deleteDialogTitle}>确认删除</h3>
+            <p className={styles.deleteDialogText}>
+              确定要删除这个蓝图吗？此操作不可撤销。
+            </p>
+            <div className={styles.deleteDialogActions}>
+              <button
+                className={styles.deleteDialogCancel}
+                onClick={() => setDeleteConfirmId(null)}
+                disabled={isDeleting}
+              >
+                取消
+              </button>
+              <button
+                className={styles.deleteDialogConfirm}
+                onClick={() => handleDeleteBlueprint(deleteConfirmId)}
+                disabled={isDeleting}
+              >
+                {isDeleting ? '删除中...' : '删除'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
