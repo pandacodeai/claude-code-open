@@ -6,7 +6,7 @@ import type { Express, Request, Response } from 'express';
 import type { ConversationManager } from '../conversation.js';
 import { toolRegistry } from '../../../tools/index.js';
 import { apiManager } from '../api-manager.js';
-import { authManager } from '../auth-manager.js';
+import { webAuth } from '../web-auth.js';
 import { CheckpointManager } from '../checkpoint-manager.js';
 import blueprintApiRouter from './blueprint-api.js';
 import agentApiRouter from './agent-api.js';
@@ -1123,10 +1123,10 @@ export function setupApiRoutes(app: Express, conversationManager: ConversationMa
         return;
       }
 
-      const success = authManager.setApiKey(apiKey);
+      const success = webAuth.setApiKey(apiKey);
 
       if (success) {
-        const status = authManager.getAuthStatus();
+        const status = webAuth.getStatus();
         res.json({
           success: true,
           message: 'API密钥已设置',
@@ -1151,8 +1151,8 @@ export function setupApiRoutes(app: Express, conversationManager: ConversationMa
   // 清除认证（登出）
   app.delete('/api/auth', (req: Request, res: Response) => {
     try {
-      authManager.clearAuth();
-      const status = authManager.getAuthStatus();
+      webAuth.clearAll();
+      const status = webAuth.getStatus();
 
       res.json({
         success: true,
@@ -1182,7 +1182,7 @@ export function setupApiRoutes(app: Express, conversationManager: ConversationMa
         return;
       }
 
-      const valid = await authManager.validateApiKey(apiKey);
+      const valid = await webAuth.validateApiKey(apiKey);
 
       res.json({
         valid,

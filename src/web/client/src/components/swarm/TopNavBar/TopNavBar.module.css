@@ -326,6 +326,26 @@
   transform: scale(1.05);
 }
 
+/* 会话搜索按钮 */
+.searchButton {
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.searchButton:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
 /* 设置按钮 */
 .settingsButton {
   padding: 6px 10px;

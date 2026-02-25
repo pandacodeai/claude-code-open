@@ -1,114 +1,83 @@
-# 定时任务管理 UI 实现计划
+# ErrorWatcher 重构：通知主 Agent 而非创建独立修复会话
 
-## 目标
-为 Web UI 添加一个独立的"定时任务"管理页面，让用户可以集中查看、管理所有定时任务及其执行历史。
+## 问题
 
-## 现状分析
-- **后端**：TaskStore（daemon/store.ts）+ WebScheduler（web-scheduler.ts）已完整
-- **后端 API**：**完全缺失** — 没有任何 `/api/schedule/*` 路由
-- **前端**：只有 `useScheduleArtifacts` hook 在对话消息中提取 ScheduleTask 工具调用的产物展示，没有独立管理页面
-- **导航**：Root.tsx 当前支持 `chat | swarm | blueprint` 三个页面
+当前 ErrorWatcher 检测到源码错误后，创建一个**独立修复会话**（`repairSessionCreator`）。这不够 agentic：
+1. 独立会话没有用户当前对话上下文
+2. 用户可能不会注意到新出现的修复会话
+3. 修复会话可能与用户正在做的事冲突
+4. 额外的 ScheduleTask error-log-watcher 是冗余的（读文件轮询方式）
 
-## 实现方案
+## 方案
 
-### 1. 后端 API — `src/web/server/routes/schedule-api.ts`（新建）
+ErrorWatcher 检测到源码错误 → **向当前活跃会话发送一条消息** → 主 Agent 自己决定是否修复。
 
-Express Router，挂载到 `/api/schedule`：
+### 改动清单
 
-| 路由 | 方法 | 功能 |
-|------|------|------|
-| `/api/schedule/tasks` | GET | 列出所有任务（从 TaskStore 读取） |
-| `/api/schedule/tasks/:id` | GET | 获取单个任务详情 |
-| `/api/schedule/tasks/:id` | DELETE | 取消（删除）任务 |
-| `/api/schedule/tasks/:id/toggle` | POST | 启用/禁用任务 |
-| `/api/schedule/tasks/:id/history` | GET | 获取任务执行历史（从 run-log 读取）|
+#### 1. `src/utils/error-watcher.ts` — 简化回调类型
 
-TaskStore 实例直接 `new TaskStore()` 即可（它读同一份 daemon-tasks.json）。执行日志通过 `readRunLogEntries()` 读取。
+- `RepairSessionCreator` → `ErrorNotifier`
+- 新类型签名：`(pattern: ErrorPattern, sourceContext: string) => Promise<void>`
+- `setRepairSessionCreator` → `setErrorNotifier`
+- `triggerRepair()` 内：调 `this.errorNotifier(pattern, sourceContext)` 即可，不再关心 sessionId
 
-### 2. 路由注册 — `src/web/server/index.ts`（修改）
+#### 2. `src/web/server/conversation.ts` — 新增 `notifyActiveSession` 方法
 
-在现有路由注册区域添加：
 ```typescript
-const scheduleRouter = await import('./routes/schedule-api.js');
-app.use('/api/schedule', scheduleRouter.default);
+/**
+ * 向当前活跃会话注入错误通知，让主 Agent 感知并自行修复
+ * "活跃" = 有 ws 连接且非 auto-repair tag 的会话，优先选最近有消息的
+ */
+async notifyActiveSession(errorMessage: string): Promise<boolean> {
+  // 1. 遍历 sessions，找有 ws 连接的、非 processing 的会话
+  // 2. 如果正在 processing，排队等完成后再发（或直接利用 chat() 的插话机制）
+  // 3. 调 chat(sessionId, errorMessage, ...) 发送
+  // 4. 返回是否成功发送
+}
 ```
 
-### 3. 前端页面 — `src/web/client/src/pages/SchedulePage/index.tsx`（新建）
+#### 3. `src/web/server/index.ts` — 简化 ErrorWatcher 注入
 
-页面布局（参考 BlueprintPage 的模式）：
+删除 `buildRepairPrompt`、`buildRepairCallbacks` 两个大函数（约 150 行）。
 
-```
-┌─────────────────────────────────────────────────┐
-│  SchedulePage                                    │
-│  ┌──────────────────┬──────────────────────────┐│
-│  │  任务列表（左侧）  │  任务详情/历史（右侧）    ││
-│  │                  │                          ││
-│  │  [once] 任务A    │  名称: 任务A              ││
-│  │  [interval] 任务B│  类型: interval           ││
-│  │  [watch] 任务C   │  状态: enabled ✅         ││
-│  │                  │  下次执行: 2min 30s       ││
-│  │                  │  Prompt: ...              ││
-│  │                  │  ────────────────          ││
-│  │                  │  执行历史                  ││
-│  │                  │  #1 成功 3s               ││
-│  │                  │  #2 失败 timeout          ││
-│  └──────────────────┴──────────────────────────┘│
-└─────────────────────────────────────────────────┘
+替换为：
+```typescript
+errorWatcher.setErrorNotifier(async (pattern, sourceContext) => {
+  const message = buildErrorNotification(pattern, sourceContext);
+  const sent = await conversationManager.notifyActiveSession(message);
+  if (!sent) {
+    console.log('[ErrorWatcher] No active session to notify');
+  }
+});
 ```
 
-关键交互：
-- 任务列表：类型标签 + 名称 + 状态指示器（启用/禁用/正在执行）
-- 倒计时：对 `nextRunAtMs` 做实时倒计时显示（`setInterval` 每秒更新）
-- 操作按钮：启用/禁用切换、删除
-- 详情面板：显示任务完整信息 + 执行历史列表
-- 空状态：无任务时显示引导文字
-
-### 4. 页面样式 — `src/web/client/src/pages/SchedulePage/SchedulePage.module.css`（新建）
-
-遵循项目现有的 CSS Module + CSS 变量风格（参考 BlueprintPage.module.css）。
-
-### 5. 路由集成 — 修改 `Root.tsx` 和 `TopNavBar`
-
-- `Root.tsx`：Page 类型扩展为 `'chat' | 'swarm' | 'blueprint' | 'schedule'`，添加 SchedulePage 挂载
-- `TopNavBar/index.tsx`：props 类型扩展，添加 Schedule Tab（时钟图标）
-- `TopNavBar/TopNavBar.module.css`：无需修改（Tab 样式已通用化）
-
-### 6. i18n — 修改 `src/web/client/src/i18n/locales.ts`
-
-添加 en/zh 翻译键：
+`buildErrorNotification` 是简短的通知消息（不是"修复任务"）：
 ```
-nav.schedule: 'Schedule' / '定时任务'
-schedule.title: 'Scheduled Tasks' / '定时任务'
-schedule.empty: 'No scheduled tasks' / '暂无定时任务'
-schedule.type.once: 'Once' / '一次性'
-schedule.type.interval: 'Interval' / '周期性'  
-schedule.type.watch: 'Watch' / '文件监控'
-schedule.status.enabled: 'Enabled' / '已启用'
-schedule.status.disabled: 'Disabled' / '已禁用'
-schedule.status.running: 'Running' / '执行中'
-schedule.nextRun: 'Next run' / '下次执行'
-schedule.lastRun: 'Last run' / '上次执行'
-schedule.history: 'Execution History' / '执行历史'
-schedule.delete: 'Delete' / '删除'
-schedule.toggle: 'Toggle' / '切换'
-schedule.prompt: 'Prompt' / '提示词'
-schedule.runCount: 'Run count' / '执行次数'
-schedule.consecutiveErrors: 'Consecutive errors' / '连续错误'
-schedule.noHistory: 'No execution history' / '暂无执行记录'
-schedule.detail: 'Task Detail' / '任务详情'
-schedule.confirmDelete: 'Confirm delete?' / '确认删除？'
+<system-reminder>
+[ErrorWatcher] 检测到源码错误反复发生：
+- 模块: XXX
+- 错误: XXX  
+- 位置: src/xxx.ts:123
+- 5分钟内重复 5 次
+
+请检查是否需要修复。源码上下文：
+（上下文代码片段）
+</system-reminder>
 ```
 
-## 文件变更清单
+注意：用 `<system-reminder>` 标签包裹，让 Agent 知道这是系统级通知。
 
-| 文件 | 操作 | 说明 |
-|------|------|------|
-| `src/web/server/routes/schedule-api.ts` | 新建 | 后端 REST API |
-| `src/web/server/index.ts` | 修改 | 注册 schedule 路由 |
-| `src/web/client/src/pages/SchedulePage/index.tsx` | 新建 | 前端页面组件 |
-| `src/web/client/src/pages/SchedulePage/SchedulePage.module.css` | 新建 | 页面样式 |
-| `src/web/client/src/Root.tsx` | 修改 | 添加页面路由 |
-| `src/web/client/src/components/swarm/TopNavBar/index.tsx` | 修改 | 添加导航 Tab |
-| `src/web/client/src/i18n/locales.ts` | 修改 | 添加 i18n 键 |
+#### 4. 删除 error-log-watcher 定时任务
 
-共 **4 个新文件 + 4 个修改文件**。
+如果任务数据在 `daemon-tasks.json` 中，启动时检查并跳过即可。UI 上已经标记为"已禁用"，可以让用户手动删除，或代码中加一个清理逻辑。
+
+### 不改的部分
+
+- ErrorWatcher 的指纹提取、分类、聚合、阈值检测逻辑**保留不变**——这些纯本地逻辑很好
+- `writeToNotebook` **保留**——写 notebook 仍然有价值
+- `appendRepairLog` **保留**——审计日志有用
+
+### 风险
+
+- 如果没有活跃会话（用户关了浏览器），错误就只写日志，不会被修复。这是 OK 的——没有用户在线就不应该自动改代码。
+- Agent 可能忽略通知或处理不当。这也 OK——Agent 有上下文，比独立修复会话更靠谱。

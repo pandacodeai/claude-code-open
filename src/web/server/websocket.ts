@@ -10,7 +10,7 @@ import { isSlashCommand, executeSlashCommand } from './slash-commands.js';
 import { initializeSkills, getAllSkills, findSkill } from '../../tools/skill.js';
 import { runWithCwd } from '../../core/cwd-context.js';
 import { apiManager } from './api-manager.js';
-import { authManager } from './auth-manager.js';
+import { webAuth } from './web-auth.js';
 import { oauthManager } from './oauth-manager.js';
 import { CheckpointManager } from './checkpoint-manager.js';
 import type { ClientMessage, ServerMessage, Attachment, AgentDebugPayload } from '../shared/types.js';
@@ -53,6 +53,33 @@ import {
   handleGitSmartCommit,
   handleGitSmartReview,
   handleGitExplainCommit,
+  handleGitMerge,
+  handleGitRebase,
+  handleGitMergeAbort,
+  handleGitRebaseContinue,
+  handleGitRebaseAbort,
+  handleGitReset,
+  handleGitDiscardFile,
+  handleGitStageAll,
+  handleGitUnstageAll,
+  handleGitDiscardAll,
+  handleGitAmendCommit,
+  handleGitRevertCommit,
+  handleGitCherryPick,
+  handleGitGetTags,
+  handleGitCreateTag,
+  handleGitDeleteTag,
+  handleGitPushTags,
+  handleGitGetRemotes,
+  handleGitAddRemote,
+  handleGitRemoveRemote,
+  handleGitFetch,
+  handleGitSearchCommits,
+  handleGitGetFileHistory,
+  handleGitGetBlame,
+  handleGitCompareBranches,
+  handleGitGetMergeStatus,
+  handleGitGetConflicts,
 } from './websocket-git-handlers.js';
 
 // ============================================================================
@@ -88,108 +115,6 @@ function getToolCategory(toolName: string): string {
   return 'other';
 }
 
-// ============================================================================
-// 旧蓝图系统已被移除，以下是类型占位符和空函数
-// 新架构使用 SmartPlanner，蜂群相关功能将在 /api/blueprint/planning 中实现
-// ============================================================================
-
-// 类型占位符（用于保持代码兼容性）
-interface WorkerAgent {
-  id: string;
-  taskId?: string;
-  status: string;
-  queenId?: string;
-  tddCycle?: any;
-  history?: any[];
-}
-
-interface QueenAgent {
-  id: string;
-  blueprintId: string;
-  taskTreeId: string;
-  status: string;
-}
-
-interface TimelineEvent {
-  id: string;
-  type: string;
-  timestamp: Date;
-  message: string;
-  description?: string;
-  data?: any;
-}
-
-interface TaskNode {
-  id: string;
-  name: string;
-  description: string;
-  status: string;
-  dependencies: string[];
-  children?: TaskNode[];
-  agentId?: string;
-  codeArtifacts?: any[];
-  createdAt?: Date;
-  startedAt?: Date;
-  completedAt?: Date;
-}
-
-// 空的事件发射器占位符
-const createEmptyEventEmitter = () => ({
-  on: (_event: string, _handler: (...args: any[]) => void) => {},
-  emit: (_event: string, ..._args: any[]) => {},
-  off: (_event: string, _handler: (...args: any[]) => void) => {},
-});
-
-// 空的管理器占位符（旧蓝图系统已移除）
-const agentCoordinator = {
-  ...createEmptyEventEmitter(),
-  getQueen: (): QueenAgent | null => null,
-  getWorkers: (): WorkerAgent[] => [],
-  getWorker: (_id: string): WorkerAgent | null => null,
-  getTimeline: (): TimelineEvent[] => [],
-  startMainLoop: () => {},
-  stopMainLoop: () => {},
-  workerFailTask: (_workerId: string, _reason: string) => {},
-};
-
-const blueprintManager = {
-  ...createEmptyEventEmitter(),
-  // 使用真正的 blueprintStore 获取蓝图
-  getBlueprint: (id: string): any => blueprintStore.get(id),
-  saveBlueprint: (blueprint: any) => blueprintStore.save(blueprint),
-};
-
-const taskTreeManager = {
-  ...createEmptyEventEmitter(),
-  getTaskTree: (_id: string): any => null,
-  findTask: (_root: any, _taskId: string): TaskNode | null => null,
-  generateFromBlueprint: (_blueprint: any): any => null,
-  markAllTasksAsPassed: (_taskTree: any) => {},
-};
-
-// 持续开发编排器占位符（旧系统已移除）
-interface ContinuousDevOrchestrator {
-  on: (event: string, handler: (...args: any[]) => void) => void;
-  getState: () => { phase: string; message?: string };
-  getProgress: () => any;
-  pause: () => void;
-  resume: () => void;
-  processRequirement: (requirement: string) => Promise<{ success: boolean; error?: string }>;
-  approveAndExecute: () => Promise<void>;
-}
-
-const createContinuousDevOrchestrator = (_config: any): ContinuousDevOrchestrator => ({
-  on: () => {},
-  getState: () => ({ phase: 'idle', message: '持续开发功能已迁移到新架构' }),
-  getProgress: () => ({ percentage: 0 }),
-  pause: () => {},
-  resume: () => {},
-  processRequirement: async () => ({ success: false, error: '功能已迁移到新的 SmartPlanner 架构' }),
-  approveAndExecute: async () => {},
-});
-
-// 持续开发编排器实例管理：sessionId -> Orchestrator
-const orchestrators = new Map<string, ContinuousDevOrchestrator>();
 
 // v4.9: E2E Agent 注册已迁移到共享模块 e2e-agent-registry.ts
 // 通过 registerE2EAgent/unregisterE2EAgent/getE2EAgent 访问
@@ -352,271 +277,6 @@ export function setupWebSocket(
     });
   };
 
-  // ============================================================================
-  // 监听 AgentCoordinator 事件
-  // ============================================================================
-
-  // Queen 初始化
-  agentCoordinator.on('queen:initialized', (queen: QueenAgent) => {
-    console.log(`[Swarm] Queen initialized: ${queen.id} for blueprint ${queen.blueprintId}`);
-
-    const blueprint = blueprintManager.getBlueprint(queen.blueprintId);
-    const taskTree = taskTreeManager.getTaskTree(queen.taskTreeId);
-
-    broadcastToSubscribers(queen.blueprintId, {
-      type: 'swarm:state',
-      payload: {
-        blueprint: blueprint ? serializeBlueprint(blueprint) : null,
-        taskTree: taskTree ? serializeTaskTree(taskTree) : null,
-        queen: serializeQueen(queen),
-        workers: [],
-        timeline: agentCoordinator.getTimeline().map(serializeTimelineEvent),
-        stats: taskTree?.stats || null,
-      },
-    });
-  });
-
-  // Worker 创建
-  agentCoordinator.on('worker:created', (worker: WorkerAgent) => {
-    console.log(`[Swarm] Worker created: ${worker.id}`);
-
-    const queen = agentCoordinator.getQueen();
-    if (!queen) return;
-
-    broadcastToSubscribers(queen.blueprintId, {
-      type: 'swarm:worker_update',
-      payload: {
-        workerId: worker.id,
-        updates: serializeWorker(worker),
-      },
-    });
-  });
-
-  // Worker 状态更新（TDD 各阶段状态变化）
-  agentCoordinator.on('worker:status-updated', ({ worker }: { worker: WorkerAgent }) => {
-    const queen = agentCoordinator.getQueen();
-    if (!queen) return;
-
-    broadcastToSubscribers(queen.blueprintId, {
-      type: 'swarm:worker_update',
-      payload: {
-        workerId: worker.id,
-        updates: serializeWorker(worker),
-      },
-    });
-  });
-
-  // Worker 任务完成
-  agentCoordinator.on('worker:task-completed', ({ workerId, taskId }: { workerId: string; taskId: string }) => {
-    console.log(`[Swarm] Worker ${workerId} completed task ${taskId}`);
-
-    const queen = agentCoordinator.getQueen();
-    if (!queen) return;
-
-    const worker = agentCoordinator.getWorker(workerId);
-    if (!worker) return;
-
-    // 发送 Worker 更新
-    broadcastToSubscribers(queen.blueprintId, {
-      type: 'swarm:worker_update',
-      payload: {
-        workerId: worker.id,
-        updates: serializeWorker(worker),
-      },
-    });
-
-    // 发送任务更新
-    const taskTree = taskTreeManager.getTaskTree(queen.taskTreeId);
-    if (taskTree) {
-      const task = taskTreeManager.findTask(taskTree.root, taskId);
-      if (task) {
-        // 发送通用任务更新
-        broadcastToSubscribers(queen.blueprintId, {
-          type: 'swarm:task_update',
-          payload: {
-            taskId: task.id,
-            updates: serializeTaskNode(task),
-          },
-        });
-
-        // 发送任务完成通知
-        broadcastToSubscribers(queen.blueprintId, {
-          type: 'swarm:task_completed',
-          payload: {
-            taskId: task.id,
-            taskTitle: task.name,
-            workerId: workerId,
-            status: 'passed' as const,
-            result: task.description,
-            timestamp: new Date().toISOString(),
-          },
-        });
-      }
-    }
-  });
-
-  // Worker 任务失败
-  agentCoordinator.on('worker:task-failed', ({ workerId, taskId, error }: { workerId: string; taskId: string; error: string }) => {
-    console.log(`[Swarm] Worker ${workerId} failed task ${taskId}: ${error}`);
-
-    const queen = agentCoordinator.getQueen();
-    if (!queen) return;
-
-    const worker = agentCoordinator.getWorker(workerId);
-    if (!worker) return;
-
-    // 发送 Worker 更新
-    broadcastToSubscribers(queen.blueprintId, {
-      type: 'swarm:worker_update',
-      payload: {
-        workerId: worker.id,
-        updates: serializeWorker(worker),
-      },
-    });
-
-    // 发送任务更新
-    const taskTree = taskTreeManager.getTaskTree(queen.taskTreeId);
-    if (taskTree) {
-      const task = taskTreeManager.findTask(taskTree.root, taskId);
-      if (task) {
-        // 发送通用任务更新
-        broadcastToSubscribers(queen.blueprintId, {
-          type: 'swarm:task_update',
-          payload: {
-            taskId: task.id,
-            updates: serializeTaskNode(task),
-          },
-        });
-
-        // 发送任务失败通知
-        broadcastToSubscribers(queen.blueprintId, {
-          type: 'swarm:task_completed',
-          payload: {
-            taskId: task.id,
-            taskTitle: task.name,
-            workerId: workerId,
-            status: 'failed' as const,
-            error: error,
-            timestamp: new Date().toISOString(),
-          },
-        });
-      }
-    }
-  });
-
-  // 时间线事件
-  agentCoordinator.on('timeline:event', (event: TimelineEvent) => {
-    const queen = agentCoordinator.getQueen();
-    if (!queen) return;
-
-    broadcastToSubscribers(queen.blueprintId, {
-      type: 'swarm:timeline_event',
-      payload: serializeTimelineEvent(event),
-    });
-  });
-
-  // ============================================================================
-  // 监听 TaskTreeManager 事件 - 任务状态实时更新
-  // ============================================================================
-
-  // 任务状态变更 - 这是关键！确保中间状态（coding、testing等）也能实时推送到前端
-  taskTreeManager.on('task:status-changed', (data: {
-    treeId: string;
-    taskId: string;
-    previousStatus: string;
-    newStatus: string;
-    task: TaskNode;
-  }) => {
-    console.log(`[Swarm] Task status changed: ${data.taskId} ${data.previousStatus} -> ${data.newStatus}`);
-
-    const queen = agentCoordinator.getQueen();
-    if (!queen || queen.taskTreeId !== data.treeId) return;
-
-    // 发送任务更新
-    broadcastToSubscribers(queen.blueprintId, {
-      type: 'swarm:task_update',
-      payload: {
-        taskId: data.taskId,
-        updates: serializeTaskNode(data.task),
-      },
-    });
-
-    // 同时更新统计信息
-    const taskTree = taskTreeManager.getTaskTree(data.treeId);
-    if (taskTree) {
-      broadcastToSubscribers(queen.blueprintId, {
-        type: 'swarm:stats_update',
-        payload: {
-          stats: {
-            totalTasks: taskTree.stats.totalTasks,
-            pendingTasks: taskTree.stats.pendingTasks,
-            runningTasks: taskTree.stats.runningTasks,
-            passedTasks: taskTree.stats.passedTasks,
-            failedTasks: taskTree.stats.failedTasks,
-            blockedTasks: taskTree.stats.blockedTasks || 0,
-            progressPercentage: taskTree.stats.progressPercentage,
-          },
-        },
-      });
-    }
-  });
-
-  // 执行完成
-  agentCoordinator.on('execution:completed', () => {
-    console.log('[Swarm] Execution completed');
-
-    const queen = agentCoordinator.getQueen();
-    if (!queen) return;
-
-    const taskTree = taskTreeManager.getTaskTree(queen.taskTreeId);
-
-    broadcastToSubscribers(queen.blueprintId, {
-      type: 'swarm:completed',
-      payload: {
-        blueprintId: queen.blueprintId,
-        stats: taskTree?.stats || {
-          totalTasks: 0,
-          pendingTasks: 0,
-          runningTasks: 0,
-          passedTasks: 0,
-          failedTasks: 0,
-          blockedTasks: 0,
-          progressPercentage: 0,
-        },
-        completedAt: new Date().toISOString(),
-      },
-    });
-  });
-
-  // Queen 错误
-  agentCoordinator.on('queen:error', ({ error }: { error: any }) => {
-    console.error('[Swarm] Queen error:', error);
-
-    const queen = agentCoordinator.getQueen();
-    if (!queen) return;
-
-    // 更新蓝图状态为失败
-    const blueprint = blueprintManager.getBlueprint(queen.blueprintId);
-    if (blueprint) {
-      blueprint.status = 'failed';
-      blueprintManager.saveBlueprint(blueprint);
-      console.log(`[Swarm] Blueprint ${queen.blueprintId} status updated to 'failed'`);
-    }
-
-    broadcastToSubscribers(queen.blueprintId, {
-      type: 'swarm:error',
-      payload: {
-        blueprintId: queen.blueprintId,
-        error: error instanceof Error ? error.message : String(error),
-        timestamp: new Date().toISOString(),
-      },
-    });
-  });
-
-  // ============================================================================
-  // 监听 BlueprintManager 事件
-  // ============================================================================
-
   // 广播给所有客户端
   const broadcastToAllClients = (message: any) => {
     const messageStr = JSON.stringify(message);
@@ -626,147 +286,6 @@ export function setupWebSocket(
       }
     });
   };
-
-  // 蓝图创建
-  blueprintManager.on('blueprint:created', (blueprint) => {
-    console.log(`[Blueprint] Created: ${blueprint.id}`);
-    broadcastToAllClients({
-      type: 'blueprint:created',
-      payload: {
-        blueprint: serializeBlueprint(blueprint),
-        timestamp: new Date().toISOString(),
-      },
-    });
-  });
-
-  // 蓝图更新
-  blueprintManager.on('blueprint:updated', (blueprint) => {
-    console.log(`[Blueprint] Updated: ${blueprint.id}`);
-    broadcastToSubscribers(blueprint.id, {
-      type: 'blueprint:updated',
-      payload: {
-        blueprintId: blueprint.id,
-        blueprint: serializeBlueprint(blueprint),
-        timestamp: new Date().toISOString(),
-      },
-    });
-  });
-
-  // 蓝图提交审核
-  blueprintManager.on('blueprint:submitted', (blueprint) => {
-    console.log(`[Blueprint] Submitted for review: ${blueprint.id}`);
-    broadcastToSubscribers(blueprint.id, {
-      type: 'blueprint:status_changed',
-      payload: {
-        blueprintId: blueprint.id,
-        oldStatus: 'draft',
-        newStatus: 'review',
-        timestamp: new Date().toISOString(),
-      },
-    });
-  });
-
-  // 蓝图批准
-  blueprintManager.on('blueprint:approved', (blueprint) => {
-    console.log(`[Blueprint] Approved: ${blueprint.id}`);
-    broadcastToSubscribers(blueprint.id, {
-      type: 'blueprint:status_changed',
-      payload: {
-        blueprintId: blueprint.id,
-        oldStatus: 'review',
-        newStatus: 'approved',
-        approvedBy: blueprint.approvedBy,
-        timestamp: new Date().toISOString(),
-      },
-    });
-  });
-
-  // 蓝图拒绝
-  blueprintManager.on('blueprint:rejected', (blueprint, reason) => {
-    console.log(`[Blueprint] Rejected: ${blueprint.id}, reason: ${reason}`);
-    broadcastToSubscribers(blueprint.id, {
-      type: 'blueprint:rejected',
-      payload: {
-        blueprintId: blueprint.id,
-        reason: reason || 'No reason provided',
-        timestamp: new Date().toISOString(),
-      },
-    });
-  });
-
-  // 蓝图开始执行
-  blueprintManager.on('blueprint:execution-started', (blueprint) => {
-    console.log(`[Blueprint] Execution started: ${blueprint.id}`);
-    broadcastToSubscribers(blueprint.id, {
-      type: 'blueprint:execution_started',
-      payload: {
-        blueprintId: blueprint.id,
-        taskTreeId: blueprint.taskTreeId,
-        timestamp: new Date().toISOString(),
-      },
-    });
-  });
-
-  // 蓝图暂停
-  blueprintManager.on('blueprint:paused', (blueprint) => {
-    console.log(`[Blueprint] Paused: ${blueprint.id}`);
-    broadcastToSubscribers(blueprint.id, {
-      type: 'blueprint:paused',
-      payload: {
-        blueprintId: blueprint.id,
-        timestamp: new Date().toISOString(),
-      },
-    });
-  });
-
-  // 蓝图恢复
-  blueprintManager.on('blueprint:resumed', (blueprint) => {
-    console.log(`[Blueprint] Resumed: ${blueprint.id}`);
-    broadcastToSubscribers(blueprint.id, {
-      type: 'blueprint:resumed',
-      payload: {
-        blueprintId: blueprint.id,
-        timestamp: new Date().toISOString(),
-      },
-    });
-  });
-
-  // 蓝图完成
-  blueprintManager.on('blueprint:completed', (blueprint) => {
-    console.log(`[Blueprint] Completed: ${blueprint.id}`);
-    broadcastToSubscribers(blueprint.id, {
-      type: 'blueprint:completed',
-      payload: {
-        blueprintId: blueprint.id,
-        timestamp: new Date().toISOString(),
-      },
-    });
-  });
-
-  // 蓝图修改（执行期间）
-  blueprintManager.on('blueprint:modified', (blueprint, modifications) => {
-    console.log(`[Blueprint] Modified during execution: ${blueprint.id}`);
-    broadcastToSubscribers(blueprint.id, {
-      type: 'blueprint:modified',
-      payload: {
-        blueprintId: blueprint.id,
-        modifications,
-        timestamp: new Date().toISOString(),
-      },
-    });
-  });
-
-  // 蓝图删除
-  blueprintManager.on('blueprint:deleted', (blueprintId) => {
-    console.log(`[Blueprint] Deleted: ${blueprintId}`);
-    broadcastToAllClients({
-      type: 'blueprint:deleted',
-      payload: {
-        blueprintId,
-        timestamp: new Date().toISOString(),
-      },
-    });
-  });
 
   // ============================================================================
   // 监听 RealtimeCoordinator 执行事件 (v2.0 新架构)
@@ -868,7 +387,7 @@ export function setupWebSocket(
       broadcastToSubscribers(data.blueprintId, {
         type: 'swarm:state',
         payload: {
-          blueprint: blueprintManager.getBlueprint(data.blueprintId),
+          blueprint: blueprintStore.get(data.blueprintId),
           workers: [],
           stats: {
             totalTasks: data.event.data.totalTasks || 0,
@@ -1988,11 +1507,33 @@ async function handleClientMessage(
       break;
 
     case 'rewind_preview':
-      await handleRewindPreview(client, message.payload, conversationManager);
+      try {
+        const preview = conversationManager.getRewindPreview(
+          client.sessionId,
+          message.payload.messageId,
+          message.payload.option
+        );
+        sendMessage(client.ws, { type: 'rewind_preview', payload: { success: true, preview } });
+      } catch (err: any) {
+        sendMessage(client.ws, { type: 'error', payload: { message: `Rewind preview 失败: ${err.message}` } });
+      }
       break;
 
     case 'rewind_execute':
-      await handleRewindExecute(client, message.payload, conversationManager);
+      try {
+        const result = await conversationManager.rewind(
+          client.sessionId,
+          message.payload.messageId,
+          message.payload.option
+        );
+        const updatedMessages = conversationManager.getHistory(client.sessionId);
+        sendMessage(client.ws, {
+          type: 'rewind_success',
+          payload: { success: result.success, result, messages: updatedMessages },
+        });
+      } catch (err: any) {
+        sendMessage(client.ws, { type: 'error', payload: { message: `Rewind 执行失败: ${err.message}` } });
+      }
       break;
 
     // Git 操作
@@ -2074,6 +1615,115 @@ async function handleClientMessage(
 
     case 'git:explain_commit':
       await handleGitExplainCommit(client, message.payload.hash, conversationManager);
+      break;
+
+    // Git Enhanced Features
+    case 'git:merge':
+      await handleGitMerge(client, message.payload.branch, message.payload.strategy, conversationManager);
+      break;
+
+    case 'git:rebase':
+      await handleGitRebase(client, message.payload.branch, message.payload.onto, conversationManager);
+      break;
+
+    case 'git:merge_abort':
+      await handleGitMergeAbort(client, conversationManager);
+      break;
+
+    case 'git:rebase_continue':
+      await handleGitRebaseContinue(client, conversationManager);
+      break;
+
+    case 'git:rebase_abort':
+      await handleGitRebaseAbort(client, conversationManager);
+      break;
+
+    case 'git:reset':
+      await handleGitReset(client, message.payload.commit, message.payload.mode, conversationManager);
+      break;
+
+    case 'git:discard_file':
+      await handleGitDiscardFile(client, message.payload.file, conversationManager);
+      break;
+
+    case 'git:stage_all':
+      await handleGitStageAll(client, conversationManager);
+      break;
+
+    case 'git:unstage_all':
+      await handleGitUnstageAll(client, conversationManager);
+      break;
+
+    case 'git:discard_all':
+      await handleGitDiscardAll(client, conversationManager);
+      break;
+
+    case 'git:amend_commit':
+      await handleGitAmendCommit(client, message.payload.message, conversationManager);
+      break;
+
+    case 'git:revert_commit':
+      await handleGitRevertCommit(client, message.payload.hash, conversationManager);
+      break;
+
+    case 'git:cherry_pick':
+      await handleGitCherryPick(client, message.payload.hash, conversationManager);
+      break;
+
+    case 'git:get_tags':
+      await handleGitGetTags(client, conversationManager);
+      break;
+
+    case 'git:create_tag':
+      await handleGitCreateTag(client, message.payload.name, message.payload.message, message.payload.type, conversationManager);
+      break;
+
+    case 'git:delete_tag':
+      await handleGitDeleteTag(client, message.payload.name, conversationManager);
+      break;
+
+    case 'git:push_tags':
+      await handleGitPushTags(client, conversationManager);
+      break;
+
+    case 'git:get_remotes':
+      await handleGitGetRemotes(client, conversationManager);
+      break;
+
+    case 'git:add_remote':
+      await handleGitAddRemote(client, message.payload.name, message.payload.url, conversationManager);
+      break;
+
+    case 'git:remove_remote':
+      await handleGitRemoveRemote(client, message.payload.name, conversationManager);
+      break;
+
+    case 'git:fetch':
+      await handleGitFetch(client, message.payload?.remote, conversationManager);
+      break;
+
+    case 'git:search_commits':
+      await handleGitSearchCommits(client, message.payload, conversationManager);
+      break;
+
+    case 'git:get_file_history':
+      await handleGitGetFileHistory(client, message.payload.file, message.payload.limit, conversationManager);
+      break;
+
+    case 'git:get_blame':
+      await handleGitGetBlame(client, message.payload.file, conversationManager);
+      break;
+
+    case 'git:compare_branches':
+      await handleGitCompareBranches(client, message.payload.base, message.payload.target, conversationManager);
+      break;
+
+    case 'git:get_merge_status':
+      await handleGitGetMergeStatus(client, conversationManager);
+      break;
+
+    case 'git:get_conflicts':
+      await handleGitGetConflicts(client, message.payload.file, conversationManager);
       break;
 
     case 'session_export':
@@ -2279,28 +1929,8 @@ async function handleClientMessage(
       await handleSwarmUnsubscribe(client, message.payload.blueprintId, swarmSubscriptions);
       break;
 
-    case 'swarm:pause':
-      await handleSwarmPause(client, message.payload.blueprintId, swarmSubscriptions);
-      break;
-
-    case 'swarm:resume':
-      await handleSwarmResume(client, message.payload.blueprintId, swarmSubscriptions);
-      break;
-
     case 'swarm:stop':
       await handleSwarmStop(client, message.payload.blueprintId, swarmSubscriptions);
-      break;
-
-    case 'worker:pause':
-      await handleWorkerPause(client, (message.payload as any).workerId, swarmSubscriptions);
-      break;
-
-    case 'worker:resume':
-      await handleWorkerResume(client, (message.payload as any).workerId, swarmSubscriptions);
-      break;
-
-    case 'worker:terminate':
-      await handleWorkerTerminate(client, (message.payload as any).workerId, swarmSubscriptions);
       break;
 
     // v2.1: 任务重试
@@ -2354,31 +1984,6 @@ async function handleClientMessage(
 
     case 'swarm:debug_agent_list':
       await handleSwarmDebugAgentList(client, message.payload as any);
-      break;
-
-    // ========== 持续开发相关消息 ==========
-    case 'continuous_dev:start':
-      await handleContinuousDevStart(client, message.payload as any, conversationManager);
-      break;
-
-    case 'continuous_dev:status':
-      await handleContinuousDevStatus(client);
-      break;
-
-    case 'continuous_dev:pause':
-      await handleContinuousDevPause(client);
-      break;
-
-    case 'continuous_dev:resume':
-      await handleContinuousDevResume(client);
-      break;
-
-    case 'continuous_dev:rollback':
-      await handleContinuousDevRollback(client, message.payload as any);
-      break;
-
-    case 'continuous_dev:approve':
-      await handleContinuousDevApprove(client);
       break;
 
     // ========== 终端消息 ==========
@@ -5097,7 +4702,7 @@ async function handleAuthStatus(
   const { ws } = client;
 
   try {
-    const status = authManager.getAuthStatus();
+    const status = webAuth.getStatus();
 
     sendMessage(ws, {
       type: 'auth_status_response',
@@ -5139,7 +4744,7 @@ async function handleAuthSetKey(
       return;
     }
 
-    const success = authManager.setApiKey(apiKey);
+    const success = webAuth.setApiKey(apiKey);
 
     if (success) {
       sendMessage(ws, {
@@ -5151,7 +4756,7 @@ async function handleAuthSetKey(
       });
 
       // 同时发送更新后的状态
-      const status = authManager.getAuthStatus();
+      const status = webAuth.getStatus();
       sendMessage(ws, {
         type: 'auth_status_response',
         payload: {
@@ -5187,7 +4792,7 @@ async function handleAuthClear(
   const { ws } = client;
 
   try {
-    authManager.clearAuth();
+    webAuth.clearAll();
 
     sendMessage(ws, {
       type: 'auth_cleared',
@@ -5197,7 +4802,7 @@ async function handleAuthClear(
     });
 
     // 同时发送更新后的状态
-    const status = authManager.getAuthStatus();
+    const status = webAuth.getStatus();
     sendMessage(ws, {
       type: 'auth_status_response',
       payload: {
@@ -5238,7 +4843,7 @@ async function handleAuthValidate(
       return;
     }
 
-    const valid = await authManager.validateApiKey(apiKey);
+    const valid = await webAuth.validateApiKey(apiKey);
 
     sendMessage(ws, {
       type: 'auth_validated',
@@ -5588,7 +5193,7 @@ async function handleSwarmSubscribe(
     console.log(`[Swarm] 客户端 ${clientId} 订阅 blueprint ${blueprintId}`);
 
     // 发送当前状态
-    let blueprint = blueprintManager.getBlueprint(blueprintId);
+    let blueprint = blueprintStore.get(blueprintId);
     if (!blueprint) {
       // v12.1: TaskPlan 模式的 tp- 临时蓝图不存入 BlueprintStore，
       // 但 executionManager 中有活跃 session，从 session 构造最小蓝图对象
@@ -5617,10 +5222,8 @@ async function handleSwarmSubscribe(
       }
     }
 
-    // v2.0: 不再使用任务树和蜂王，改用 ExecutionPlan 和自治 Worker
-    // 获取当前活跃的 Workers（如果有）
-    const workers = agentCoordinator.getWorkers?.() || [];
-    const activeWorkers = workers.filter((w: any) => w.blueprintId === blueprintId);
+    // v2.0: Worker 由 LeadAgent 通过 DispatchWorker 管理
+    const activeWorkers: any[] = [];
 
     // v2.0: 获取执行计划和实时状态
     let executionPlanData = null;
@@ -5768,7 +5371,7 @@ async function handleSwarmSubscribe(
         // v2.0: 蜂王已废弃，Worker 自治
         queen: null,
         // v2.0: 自治 Worker 列表
-        workers: activeWorkers.map(serializeWorker),
+        workers: activeWorkers,
         // v2.0: 统计数据
         stats: statsData,
         // v2.0 核心字段：执行计划（现在包含实时状态）
@@ -5877,245 +5480,6 @@ function mapBlueprintStatus(status: string): 'pending' | 'running' | 'paused' | 
   }
 }
 
-/**
- * 序列化 TaskTree
- */
-function serializeTaskTree(taskTree: any): any {
-  return {
-    id: taskTree.id,
-    blueprintId: taskTree.blueprintId,
-    root: serializeTaskNode(taskTree.root),
-    stats: taskTree.stats,
-    createdAt: taskTree.createdAt?.toISOString() || new Date().toISOString(),
-    updatedAt: (taskTree.completedAt || taskTree.startedAt || taskTree.createdAt)?.toISOString() || new Date().toISOString(),
-  };
-}
-
-/**
- * 序列化 TaskNode
- */
-function serializeTaskNode(task: TaskNode): any {
-  const createdAt = task.createdAt instanceof Date
-    ? task.createdAt.toISOString()
-    : (task.createdAt || new Date().toISOString());
-  const updatedAt = task.completedAt instanceof Date
-    ? task.completedAt.toISOString()
-    : (task.startedAt instanceof Date ? task.startedAt.toISOString() : createdAt);
-
-  return {
-    id: task.id,
-    title: task.name,
-    description: task.description,
-    status: mapTaskStatus(task.status),
-    assignedTo: task.agentId || null,
-    dependencies: task.dependencies,
-    children: (task.children || []).map(serializeTaskNode),
-    result: (task.codeArtifacts?.length || 0) > 0 ? 'Code artifacts generated' : undefined,
-    error: task.status === 'test_failed' || task.status === 'rejected' ? 'Task failed' : undefined,
-    createdAt,
-    updatedAt,
-  };
-}
-
-/**
- * 映射任务状态
- */
-function mapTaskStatus(status: string): 'pending' | 'running' | 'passed' | 'failed' | 'blocked' {
-  switch (status) {
-    case 'pending':
-      return 'pending';
-    // 运行中的状态
-    case 'running':
-    case 'test_writing':
-    case 'coding':
-    case 'testing':
-    case 'implementing':
-    case 'review':
-      return 'running';
-    // 成功状态
-    case 'passed':
-    case 'approved':
-      return 'passed';
-    // 失败状态
-    case 'failed':
-    case 'test_failed':
-    case 'rejected':
-    case 'cancelled':
-      return 'failed';
-    case 'blocked':
-      return 'blocked';
-    default:
-      console.warn(`[WebSocket] Unknown task status: ${status}, defaulting to 'pending'`);
-      return 'pending';
-  }
-}
-
-/**
- * 序列化 Queen
- */
-function serializeQueen(queen: QueenAgent): any {
-  return {
-    id: queen.id,
-    blueprintId: queen.blueprintId,
-    status: mapQueenStatus(queen.status),
-    currentAction: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-}
-
-/**
- * 映射 Queen 状态
- */
-function mapQueenStatus(status: string): 'idle' | 'planning' | 'coordinating' | 'monitoring' {
-  switch (status) {
-    case 'idle':
-      return 'idle';
-    case 'coordinating':
-      return 'coordinating';
-    case 'paused':
-      return 'idle';
-    default:
-      return 'monitoring';
-  }
-}
-
-/**
- * 序列化 Worker
- */
-function serializeWorker(worker: WorkerAgent): any {
-  // 获取任务信息
-  const queen = agentCoordinator.getQueen();
-  let taskTitle = null;
-  if (queen && worker.taskId) {
-    const taskTree = taskTreeManager.getTaskTree(queen.taskTreeId);
-    if (taskTree) {
-      const task = taskTreeManager.findTask(taskTree.root, worker.taskId);
-      if (task) {
-        taskTitle = task.name;
-      }
-    }
-  }
-
-  // 计算进度
-  const progress = calculateWorkerProgress(worker);
-
-  // 序列化 TDD 循环状态
-  const tddCycle = worker.tddCycle ? {
-    phase: mapTDDPhase(worker.tddCycle.phase),
-    iteration: worker.tddCycle.iteration,
-    testWritten: worker.tddCycle.testWritten,
-    codeWritten: worker.tddCycle.codeWritten,
-    testPassed: worker.tddCycle.testPassed,
-  } : null;
-
-  return {
-    id: worker.id,
-    blueprintId: queen?.blueprintId || '',
-    name: `Worker ${worker.id.substring(0, 8)}`,
-    status: mapWorkerStatus(worker.status),
-    // 添加详细状态，前端可以用来显示更精确的状态信息
-    detailedStatus: worker.status,
-    currentTaskId: worker.taskId || null,
-    currentTaskTitle: taskTitle,
-    progress,
-    tddCycle,
-    logs: worker.history.map(h => `[${h.type}] ${h.description}`),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-}
-
-/**
- * 映射 TDD 阶段到前端格式
- */
-function mapTDDPhase(phase: string): string {
-  // 统一映射 TDD 阶段名称
-  const phaseMap: Record<string, string> = {
-    'write_test': 'write_test',
-    'run_test_red': 'run_test_red',
-    'implement': 'write_code',      // 后端使用 implement，前端使用 write_code
-    'write_code': 'write_code',
-    'run_test_green': 'run_test_green',
-    'refactor': 'refactor',
-    'done': 'done',
-  };
-  return phaseMap[phase] || 'write_test';
-}
-
-/**
- * 映射 Worker 状态
- */
-function mapWorkerStatus(status: string): 'idle' | 'working' | 'paused' | 'completed' | 'failed' {
-  switch (status) {
-    case 'idle':
-      return 'idle';
-    case 'test_writing':
-    case 'coding':
-    case 'testing':
-    case 'implementing':
-      return 'working';
-    case 'waiting':
-      return 'paused';
-    case 'completed':
-      return 'completed';
-    case 'failed':
-      return 'failed';
-    default:
-      console.warn(`[WebSocket] Unknown worker status: ${status}, defaulting to 'idle'`);
-      return 'idle';
-  }
-}
-
-/**
- * 计算 Worker 进度
- */
-function calculateWorkerProgress(worker: WorkerAgent): number {
-  const cycle = worker.tddCycle;
-  if (!cycle) return 0;
-
-  // 基于 TDD 循环阶段计算进度
-  const phaseProgress: Record<string, number> = {
-    'write_test': 20,
-    'run_test_red': 40,
-    'implement': 60,
-    'run_test_green': 80,
-    'refactor': 90,
-    'done': 100,
-  };
-
-  return phaseProgress[cycle.phase] || 0;
-}
-
-/**
- * 序列化时间线事件
- */
-function serializeTimelineEvent(event: TimelineEvent): any {
-  return {
-    id: event.id,
-    timestamp: event.timestamp.toISOString(),
-    type: mapTimelineEventType(event.type),
-    actor: event.data?.workerId || event.data?.queenId || 'system',
-    message: event.description,
-    data: event.data,
-  };
-}
-
-/**
- * 映射时间线事件类型
- */
-function mapTimelineEventType(type: string): string {
-  const typeMap: Record<string, string> = {
-    'task_start': 'task_start',
-    'task_complete': 'task_complete',
-    'test_fail': 'task_fail',
-    'test_pass': 'task_complete',
-    'worker_created': 'worker_start',
-    'rollback': 'system',
-  };
-
-  return typeMap[type] || 'system';
-}
 
 // ============================================================================
 // 蜂群控制处理函数
@@ -6142,121 +5506,6 @@ function broadcastToBlueprint(
   });
 }
 
-/**
- * 处理蜂群暂停请求
- */
-async function handleSwarmPause(
-  client: ClientConnection,
-  blueprintId: string,
-  swarmSubscriptions: Map<string, Set<string>>
-): Promise<void> {
-  const { ws } = client;
-
-  try {
-    if (!blueprintId) {
-      sendMessage(ws, {
-        type: 'error',
-        payload: { message: '缺少 blueprintId' },
-      });
-      return;
-    }
-
-    // 停止协调器主循环（暂停）
-    agentCoordinator.stopMainLoop();
-
-    console.log(`[Swarm] 蜂群暂停: ${blueprintId}`);
-
-    // 发送暂停确认
-    sendMessage(ws, {
-      type: 'swarm:paused',
-      payload: {
-        blueprintId,
-        success: true,
-        timestamp: new Date().toISOString(),
-      },
-    });
-
-    // 广播给所有订阅者
-    const queen = agentCoordinator.getQueen();
-    if (queen && queen.blueprintId === blueprintId) {
-      sendMessage(ws, {
-        type: 'swarm:queen_update',
-        payload: {
-          queenId: queen.id,
-          updates: { status: 'idle' },
-        },
-      });
-    }
-  } catch (error) {
-    console.error('[Swarm] 暂停失败:', error);
-    sendMessage(ws, {
-      type: 'swarm:error',
-      payload: {
-        blueprintId,
-        error: error instanceof Error ? error.message : '暂停失败',
-        timestamp: new Date().toISOString(),
-      },
-    });
-  }
-}
-
-/**
- * 处理蜂群恢复请求
- */
-async function handleSwarmResume(
-  client: ClientConnection,
-  blueprintId: string,
-  swarmSubscriptions: Map<string, Set<string>>
-): Promise<void> {
-  const { ws } = client;
-
-  try {
-    if (!blueprintId) {
-      sendMessage(ws, {
-        type: 'error',
-        payload: { message: '缺少 blueprintId' },
-      });
-      return;
-    }
-
-    // 恢复协调器主循环
-    agentCoordinator.startMainLoop();
-
-    console.log(`[Swarm] 蜂群恢复: ${blueprintId}`);
-
-    // 发送恢复确认
-    sendMessage(ws, {
-      type: 'swarm:resumed',
-      payload: {
-        blueprintId,
-        success: true,
-        timestamp: new Date().toISOString(),
-      },
-    });
-
-    // 广播给所有订阅者
-    const queen = agentCoordinator.getQueen();
-    if (queen && queen.blueprintId === blueprintId) {
-      sendMessage(ws, {
-        type: 'swarm:queen_update',
-        payload: {
-          queenId: queen.id,
-          updates: { status: 'coordinating' },
-        },
-      });
-    }
-  } catch (error) {
-    console.error('[Swarm] 恢复失败:', error);
-    sendMessage(ws, {
-      type: 'swarm:error',
-      payload: {
-        blueprintId,
-        error: error instanceof Error ? error.message : '恢复失败',
-        timestamp: new Date().toISOString(),
-      },
-    });
-  }
-}
 
 /**
  * v9.4: 恢复 LeadAgent 执行（死任务恢复）
@@ -6347,8 +5596,11 @@ async function handleSwarmStop(
       return;
     }
 
-    // 停止协调器主循环
-    agentCoordinator.stopMainLoop();
+    // 通过 executionManager 取消当前执行（coordinator.cancel() → leadAgent.stop()）
+    const session = executionManager.getSessionByBlueprint(blueprintId);
+    if (session) {
+      executionManager.cancel(session.id);
+    }
 
     console.log(`[Swarm] 蜂群停止: ${blueprintId}`);
 
@@ -6374,190 +5626,6 @@ async function handleSwarmStop(
   }
 }
 
-/**
- * 处理 Worker 暂停请求
- */
-async function handleWorkerPause(
-  client: ClientConnection,
-  workerId: string,
-  swarmSubscriptions: Map<string, Set<string>>
-): Promise<void> {
-  const { ws } = client;
-
-  try {
-    if (!workerId) {
-      sendMessage(ws, {
-        type: 'error',
-        payload: { message: '缺少 workerId' },
-      });
-      return;
-    }
-
-    const worker = agentCoordinator.getWorker(workerId);
-    if (!worker) {
-      sendMessage(ws, {
-        type: 'error',
-        payload: { message: 'Worker 不存在' },
-      });
-      return;
-    }
-
-    // 注意：当前 AgentCoordinator 没有暂停单个 Worker 的方法
-    // 这里发送状态更新通知前端
-    console.log(`[Swarm] Worker 暂停: ${workerId}`);
-
-    sendMessage(ws, {
-      type: 'worker:paused',
-      payload: {
-        workerId,
-        success: true,
-        timestamp: new Date().toISOString(),
-      },
-    });
-
-    // 发送 Worker 状态更新
-    sendMessage(ws, {
-      type: 'swarm:worker_update',
-      payload: {
-        workerId,
-        updates: { status: 'paused' },
-      },
-    });
-  } catch (error) {
-    console.error('[Swarm] Worker 暂停失败:', error);
-    sendMessage(ws, {
-      type: 'error',
-      payload: {
-        message: error instanceof Error ? error.message : 'Worker 暂停失败',
-      },
-    });
-  }
-}
-
-/**
- * 处理 Worker 恢复请求
- */
-async function handleWorkerResume(
-  client: ClientConnection,
-  workerId: string,
-  swarmSubscriptions: Map<string, Set<string>>
-): Promise<void> {
-  const { ws } = client;
-
-  try {
-    if (!workerId) {
-      sendMessage(ws, {
-        type: 'error',
-        payload: { message: '缺少 workerId' },
-      });
-      return;
-    }
-
-    const worker = agentCoordinator.getWorker(workerId);
-    if (!worker) {
-      sendMessage(ws, {
-        type: 'error',
-        payload: { message: 'Worker 不存在' },
-      });
-      return;
-    }
-
-    console.log(`[Swarm] Worker 恢复: ${workerId}`);
-
-    sendMessage(ws, {
-      type: 'worker:resumed',
-      payload: {
-        workerId,
-        success: true,
-        timestamp: new Date().toISOString(),
-      },
-    });
-
-    // 发送 Worker 状态更新
-    sendMessage(ws, {
-      type: 'swarm:worker_update',
-      payload: {
-        workerId,
-        updates: { status: 'working' },
-      },
-    });
-  } catch (error) {
-    console.error('[Swarm] Worker 恢复失败:', error);
-    sendMessage(ws, {
-      type: 'error',
-      payload: {
-        message: error instanceof Error ? error.message : 'Worker 恢复失败',
-      },
-    });
-  }
-}
-
-/**
- * 处理 Worker 终止请求
- */
-async function handleWorkerTerminate(
-  client: ClientConnection,
-  workerId: string,
-  swarmSubscriptions: Map<string, Set<string>>
-): Promise<void> {
-  const { ws } = client;
-
-  try {
-    if (!workerId) {
-      sendMessage(ws, {
-        type: 'error',
-        payload: { message: '缺少 workerId' },
-      });
-      return;
-    }
-
-    const worker = agentCoordinator.getWorker(workerId);
-    if (!worker) {
-      sendMessage(ws, {
-        type: 'error',
-        payload: { message: 'Worker 不存在' },
-      });
-      return;
-    }
-
-    const queen = agentCoordinator.getQueen();
-
-    // 标记 Worker 任务失败
-    if (worker.taskId) {
-      agentCoordinator.workerFailTask(workerId, '用户终止');
-    }
-
-    console.log(`[Swarm] Worker 终止: ${workerId}`);
-
-    sendMessage(ws, {
-      type: 'worker:terminated',
-      payload: {
-        workerId,
-        success: true,
-        timestamp: new Date().toISOString(),
-      },
-    });
-
-    // 发送 Worker 移除通知
-    sendMessage(ws, {
-      type: 'worker:removed',
-      payload: {
-        workerId,
-        blueprintId: queen?.blueprintId || '',
-        reason: '用户终止',
-        timestamp: new Date().toISOString(),
-      },
-    });
-  } catch (error) {
-    console.error('[Swarm] Worker 终止失败:', error);
-    sendMessage(ws, {
-      type: 'error',
-      payload: {
-        message: error instanceof Error ? error.message : 'Worker 终止失败',
-      },
-    });
-  }
-}
 
 /**
  * v2.1: 处理任务重试请求
@@ -7172,309 +6240,3 @@ async function handleAskUserResponse(
   }
 }
 
-// ============================================================================
-// 持续开发流程处理
-// ============================================================================
-
-/**
- * 获取或创建编排器
- */
-function getOrchestrator(sessionId: string, cwd: string): ContinuousDevOrchestrator {
-  let orchestrator = orchestrators.get(sessionId);
-  if (!orchestrator) {
-    console.log(`[ContinuousDev] 为会话 ${sessionId} 创建新编排器`);
-    
-    // 创建新编排器
-    orchestrator = createContinuousDevOrchestrator({
-      projectRoot: cwd,
-      phases: {
-        codebaseAnalysis: true,
-        impactAnalysis: true,
-        regressionTesting: true,
-        cycleReset: true,
-      },
-      // 使用默认配置，但可以从环境或用户配置读取
-    });
-    
-    orchestrators.set(sessionId, orchestrator);
-    
-    // 设置事件监听器，转发给客户端
-    // 注意：这里需要拿到 client 实例，但 client 是在调用 handleContinuousDevStart 时传入的
-    // 为了简化，我们在 setupOrchestratorListeners 中处理
-  }
-  return orchestrator;
-}
-
-/**
- * 设置编排器事件监听
- */
-function setupOrchestratorListeners(orchestrator: ContinuousDevOrchestrator, client: ClientConnection) {
-  // 避免重复绑定：检查是否已经绑定过该客户端
-  // 这里简化处理：总是重新绑定（EventEmitter 会累积，实际应用应管理监听器引用）
-  // 更好的做法是每个 session 一个 orchestrator，事件绑定一次
-  
-  if ((orchestrator as any)._hasBoundListeners) return;
-  (orchestrator as any)._hasBoundListeners = true;
-  
-  const sendEvent = (type: string, data?: any) => {
-    if (client.ws.readyState === WebSocket.OPEN) {
-      sendMessage(client.ws, {
-        type: `continuous_dev:${type}` as any, // 动态类型，前端需对应处理
-        payload: data
-      });
-    }
-  };
-
-  // 阶段变更
-  orchestrator.on('phase_changed', (data) => {
-    sendEvent('phase_changed', data);
-    sendEvent('status_update', orchestrator.getState());
-  });
-
-  // 流程开始
-  orchestrator.on('flow_started', (data) => sendEvent('flow_started', data));
-  
-  // 阶段开始/完成
-  orchestrator.on('phase_started', (data) => sendEvent('phase_started', data));
-  orchestrator.on('phase_completed', (data) => sendEvent('phase_completed', data));
-  
-  // 需要审批
-  orchestrator.on('approval_required', (data) => sendEvent('approval_required', data));
-  
-  // 任务更新
-  orchestrator.on('task_completed', (data) => sendEvent('task_completed', data));
-  orchestrator.on('task_failed', (data) => sendEvent('task_failed', data));
-  
-  // 回归测试
-  orchestrator.on('regression_passed', (data) => sendEvent('regression_passed', data));
-  orchestrator.on('regression_failed', (data) => sendEvent('regression_failed', data));
-  
-  // 周期重置
-  orchestrator.on('cycle_reset', (data) => sendEvent('cycle_reset', data));
-  orchestrator.on('cycle_review_started', (data) => sendEvent('cycle_review_started', data));
-  orchestrator.on('cycle_review_completed', (data) => sendEvent('cycle_review_completed', data));
-  
-  // 错误和完成
-  orchestrator.on('flow_failed', (data) => sendEvent('flow_failed', data));
-  orchestrator.on('flow_stopped', () => sendEvent('flow_stopped'));
-  orchestrator.on('flow_paused', () => sendEvent('flow_paused'));
-  orchestrator.on('flow_resumed', () => sendEvent('flow_resumed'));
-}
-
-/**
- * 处理启动开发流程
- */
-async function handleContinuousDevStart(
-  client: ClientConnection,
-  payload: { requirement: string },
-  conversationManager: ConversationManager
-): Promise<void> {
-  const { sessionId } = client;
-  const session = conversationManager.getSessionManager().loadSessionById(sessionId);
-  
-  // 获取工作目录
-  // 注意：这里假设 ConversationManager 有方法获取 cwd，或者从 session Metadata 获取
-  // 实际项目中可能可以通过 conversationManager.getContext(sessionId).cwd 获取
-  // 这里暂时使用 process.cwd()，实际应从会话上下文获取
-  const cwd = process.cwd(); 
-
-  const orchestrator = getOrchestrator(sessionId, cwd);
-  setupOrchestratorListeners(orchestrator, client);
-  
-  // 检查是否空闲
-  const state = orchestrator.getState();
-  if (state.phase !== 'idle' && state.phase !== 'completed' && state.phase !== 'failed') {
-    sendMessage(client.ws, {
-      type: 'error',
-      payload: { message: `当前已有开发任务正在进行中 (状态: ${state.phase})，请先等待完成或取消。` }
-    });
-    return;
-  }
-
-  // 启动流程
-  // processRequirement 是异步的，但我们不 await 它，让它在后台运行
-  // 错误通过事件发送
-  orchestrator.processRequirement(payload.requirement)
-    .then(result => {
-      if (!result.success && !result.error?.includes('需要人工审批')) {
-        // 如果不是等待审批的"失败"（其实是暂停），则发送错误
-        // (processRequirement 内部已经 emit flow_failed)
-      }
-    })
-    .catch(error => {
-      console.error('[ContinuousDev] 流程异常:', error);
-      // 内部应该已经捕捉并 emit 事件
-    });
-    
-  // 立即发送响应
-  sendMessage(client.ws, {
-    type: 'continuous_dev:ack',
-    payload: { message: '开发流程已启动' }
-  });
-}
-
-/**
- * 处理获取状态
- */
-async function handleContinuousDevStatus(client: ClientConnection): Promise<void> {
-  const orchestrator = orchestrators.get(client.sessionId);
-  if (!orchestrator) {
-    sendMessage(client.ws, {
-      type: 'continuous_dev:status_update',
-      payload: { phase: 'idle', message: '无活跃流程' }
-    });
-    return;
-  }
-  
-  sendMessage(client.ws, {
-    type: 'continuous_dev:status_update',
-    payload: orchestrator.getState()
-  });
-  
-  // 同时发送进度
-  sendMessage(client.ws, {
-    type: 'continuous_dev:progress_update',
-    payload: orchestrator.getProgress()
-  });
-}
-
-/**
- * 处理暂停
- */
-async function handleContinuousDevPause(client: ClientConnection): Promise<void> {
-  const orchestrator = orchestrators.get(client.sessionId);
-  if (orchestrator) {
-    orchestrator.pause();
-    sendMessage(client.ws, {
-      type: 'continuous_dev:paused',
-      payload: { success: true }
-    });
-  }
-}
-
-/**
- * 处理恢复
- */
-async function handleContinuousDevResume(client: ClientConnection): Promise<void> {
-  const orchestrator = orchestrators.get(client.sessionId);
-  if (orchestrator) {
-    orchestrator.resume();
-    sendMessage(client.ws, {
-      type: 'continuous_dev:resumed',
-      payload: { success: true }
-    });
-  }
-}
-
-/**
- * 处理批准执行
- */
-async function handleContinuousDevApprove(client: ClientConnection): Promise<void> {
-  const orchestrator = orchestrators.get(client.sessionId);
-  if (orchestrator) {
-    try {
-      await orchestrator.approveAndExecute();
-      sendMessage(client.ws, {
-        type: 'continuous_dev:approved',
-        payload: { success: true }
-      });
-    } catch (error) {
-      sendMessage(client.ws, {
-        type: 'error',
-        payload: { message: error instanceof Error ? error.message : '批准失败' }
-      });
-    }
-  }
-}
-
-/**
- * 处理回滚
- */
-async function handleContinuousDevRollback(
-  client: ClientConnection,
-  payload: { checkpointId?: string }
-): Promise<void> {
-  // 目前编排器还未完全公开回滚 API，这里作为预留接口
-  // 实际实现需要调用 checkpointManager 和 orchestrator 的重置逻辑
-  sendMessage(client.ws, {
-    type: 'error',
-    payload: { message: '回滚功能正在开发中' }
-  });
-}
-
-// ============================================================================
-// Rewind 功能处理
-// ============================================================================
-
-/**
- * 处理回滚预览请求
- */
-async function handleRewindPreview(
-  client: ClientConnection,
-  payload: { messageId: string; option: 'code' | 'conversation' | 'both' },
-  conversationManager: ConversationManager
-): Promise<void> {
-  try {
-    const preview = conversationManager.getRewindPreview(
-      client.sessionId,
-      payload.messageId,
-      payload.option
-    );
-
-    sendMessage(client.ws, {
-      type: 'rewind_preview',
-      payload: {
-        success: true,
-        preview,
-      },
-    });
-  } catch (error) {
-    sendMessage(client.ws, {
-      type: 'error',
-      payload: { message: error instanceof Error ? error.message : '获取预览失败' },
-    });
-  }
-}
-
-/**
- * 处理回滚执行请求
- */
-async function handleRewindExecute(
-  client: ClientConnection,
-  payload: { messageId: string; option: 'code' | 'conversation' | 'both' },
-  conversationManager: ConversationManager
-): Promise<void> {
-  try {
-    console.log(`[WebSocket] 执行回滚: sessionId=${client.sessionId}, messageId=${payload.messageId}, option=${payload.option}`);
-
-    const result = await conversationManager.rewind(
-      client.sessionId,
-      payload.messageId,
-      payload.option
-    );
-
-    if (result.success) {
-      // 回滚成功，发送更新后的历史记录
-      const history = conversationManager.getHistory(client.sessionId);
-      sendMessage(client.ws, {
-        type: 'rewind_success',
-        payload: {
-          success: true,
-          result,
-          messages: history,
-        },
-      });
-    } else {
-      sendMessage(client.ws, {
-        type: 'error',
-        payload: { message: result.error || '回滚失败' },
-      });
-    }
-  } catch (error) {
-    console.error('[WebSocket] 回滚执行失败:', error);
-    sendMessage(client.ws, {
-      type: 'error',
-      payload: { message: error instanceof Error ? error.message : '回滚失败' },
-    });
-  }
-}

@@ -957,11 +957,35 @@ function cleanupOldSessions(): void {
     }
   }
 
-  // 如果超过最大数量，删除最旧的
+  // 如果超过最大数量，优先删除空会话（无消息、文件小），再按时间删最旧的
+  // 防止定时任务产生的大量空会话挤掉有价值的历史会话
   if (sessions.length > getMaxSessions()) {
-    sessions.sort((a, b) => a.mtime - b.mtime);
-    const toDelete = sessions.slice(0, sessions.length - getMaxSessions());
+    const maxSessions = getMaxSessions();
+    const toDeleteCount = sessions.length - maxSessions;
 
+    // 区分空会话和有内容的会话（空会话文件一般 < 3KB）
+    const EMPTY_SESSION_SIZE_THRESHOLD = 3 * 1024;
+    const emptyOnes: typeof sessions = [];
+    const contentOnes: typeof sessions = [];
+
+    for (const s of sessions) {
+      try {
+        const stat = fs.statSync(path.join(sessionDir, s.file));
+        if (stat.size < EMPTY_SESSION_SIZE_THRESHOLD) {
+          emptyOnes.push(s);
+        } else {
+          contentOnes.push(s);
+        }
+      } catch {
+        emptyOnes.push(s); // 无法 stat 的视为空会话
+      }
+    }
+
+    // 先删空会话（按时间从旧到新），再删有内容的（按时间从旧到新）
+    emptyOnes.sort((a, b) => a.mtime - b.mtime);
+    contentOnes.sort((a, b) => a.mtime - b.mtime);
+
+    const toDelete = [...emptyOnes, ...contentOnes].slice(0, toDeleteCount);
     for (const { file } of toDelete) {
       deleteSessionFiles(sessionDir, file);
     }

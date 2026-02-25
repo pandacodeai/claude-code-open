@@ -5,6 +5,7 @@
 
 import { ConfigManager, UserConfig, ConfigSource, ConfigSourceInfo, ConfigKeySource, EnterprisePolicyConfig } from '../../../config/index.js';
 import type { McpServerConfig } from '../../../types/index.js';
+import { webAuth } from '../web-auth.js';
 
 // ============ 类型定义 ============
 
@@ -214,24 +215,26 @@ export class WebConfigService {
 
   /**
    * 获取 API 配置
+   * apiKey 从 WebAuthProvider 获取，不走 configManager.getAll() 的环境变量合并
    */
   async getApiConfig(): Promise<ApiConfig> {
     try {
       const config = this.configManager.getAll();
+      const creds = webAuth.getCredentials();
+
       return {
-        apiKey: config.apiKey,
+        apiKey: creds.apiKey,  // 只返回 WebAuthProvider 管理的值
         model: config.model,
         maxTokens: config.maxTokens,
         temperature: config.temperature,
         apiProvider: config.apiProvider,
         useBedrock: config.useBedrock,
         useVertex: config.useVertex,
-        oauthToken: config.oauthToken,
+        oauthToken: creds.authToken,
         maxRetries: config.maxRetries,
         requestTimeout: config.requestTimeout,
-        // 自定义 API 配置
-        apiBaseUrl: (config as any).apiBaseUrl,
-        customModelName: (config as any).customModelName,
+        apiBaseUrl: creds.baseUrl,
+        customModelName: webAuth.getCustomModelName(),
         authPriority: (config as any).authPriority || 'auto',
       };
     } catch (error) {

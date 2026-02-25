@@ -326,6 +326,7 @@ export class OAuthManager {
           organizationName: oauthAccount.organizationName,
           displayName: oauthAccount.displayName,
           hasExtraUsageEnabled: oauthAccount.hasExtraUsageEnabled,
+          oauthApiKey: oauthAccount.oauthApiKey,
         };
       }
 
@@ -339,7 +340,7 @@ export class OAuthManager {
   /**
    * 保存 OAuth 配置
    */
-  private async saveOAuthConfig(config: Partial<OAuthConfig>): Promise<void> {
+  async saveOAuthConfig(config: Partial<OAuthConfig>): Promise<void> {
     try {
       const currentConfig = configManager.getAll();
       const existingOAuthAccount = (currentConfig.oauthAccount || {}) as any;

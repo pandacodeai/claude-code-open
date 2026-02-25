@@ -383,6 +383,8 @@ export class BrowserManager {
   private running: RunningChrome | null = null;
   private currentPage: Page | null = null;
   private _isRunning: boolean = false;
+  /** Pages claimed by session controllers — other sessions must not reuse them */
+  private claimedPages: Set<Page> = new Set();
   private _cdpUrl: string = '';
   private _profileName: string = '';
   private _userDataDir: string = '';
@@ -609,6 +611,7 @@ export class BrowserManager {
 
   private cleanup(): void {
     this.currentPage = null;
+    this.claimedPages.clear();
     this._isRunning = false;
   }
 
@@ -646,6 +649,21 @@ export class BrowserManager {
 
   setCurrentPage(page: Page): void {
     this.currentPage = page;
+  }
+
+  /** Mark a page as claimed by a session controller */
+  claimPage(page: Page): void {
+    this.claimedPages.add(page);
+  }
+
+  /** Release a page claim (when session stops or tab closes) */
+  releasePage(page: Page): void {
+    this.claimedPages.delete(page);
+  }
+
+  /** Check if a page is already claimed by another session */
+  isPageClaimed(page: Page): boolean {
+    return this.claimedPages.has(page);
   }
 
   // --- Getters ---

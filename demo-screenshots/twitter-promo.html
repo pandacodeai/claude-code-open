@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { width: 1200px; height: 675px; overflow: hidden; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+.card {
+  width: 1200px; height: 675px;
+  background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+  position: relative;
+  display: flex;
+  padding: 60px 70px;
+  color: white;
+}
+.left { flex: 1; display: flex; flex-direction: column; justify-content: center; z-index: 2; }
+.right { width: 420px; display: flex; align-items: center; justify-content: center; z-index: 2; }
+.badge {
+  display: inline-block;
+  background: linear-gradient(90deg, #ff6b6b, #ee5a24);
+  color: white;
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-bottom: 20px;
+  width: fit-content;
+}
+h1 {
+  font-size: 52px;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 8px;
+  background: linear-gradient(90deg, #fff, #a8edea);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.version {
+  font-size: 22px;
+  color: #a8edea;
+  margin-bottom: 20px;
+  font-weight: 300;
+}
+.tagline {
+  font-size: 20px;
+  color: rgba(255,255,255,0.85);
+  line-height: 1.5;
+  margin-bottom: 30px;
+}
+.features {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 24px;
+}
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: rgba(255,255,255,0.9);
+}
+.feature .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot.blue { background: #4ecdc4; }
+.dot.purple { background: #a78bfa; }
+.dot.orange { background: #fb923c; }
+.dot.pink { background: #f472b6; }
+.dot.green { background: #34d399; }
+.dot.yellow { background: #fbbf24; }
+.stats-ring {
+  width: 340px; height: 340px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.stats-ring::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #4ecdc4 0%, #a78bfa 25%, #f472b6 50%, #fb923c 75%, #4ecdc4 100%);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), black calc(100% - 3px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), black calc(100% - 3px));
+}
+.stats-inner {
+  text-align: center;
+}
+.stats-inner .big { font-size: 72px; font-weight: 800; color: #4ecdc4; }
+.stats-inner .label { font-size: 18px; color: rgba(255,255,255,0.7); margin-top: -5px; }
+.stat-badges {
+  display: flex; gap: 16px; margin-top: 20px; justify-content: center;
+}
+.stat-badge {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 12px;
+  padding: 10px 16px;
+  text-align: center;
+}
+.stat-badge .num { font-size: 24px; font-weight: 700; color: #a78bfa; }
+.stat-badge .lbl { font-size: 11px; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; }
+.bottom-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 50px;
+  background: rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 70px;
+  font-size: 14px;
+  color: rgba(255,255,255,0.6);
+  z-index: 2;
+}
+.bottom-bar a { color: #4ecdc4; text-decoration: none; }
+/* floating orbs */
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.3;
+}
+.orb1 { width: 300px; height: 300px; background: #4ecdc4; top: -50px; right: 100px; }
+.orb2 { width: 250px; height: 250px; background: #a78bfa; bottom: 50px; left: 200px; }
+.orb3 { width: 200px; height: 200px; background: #f472b6; top: 200px; right: -50px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+  <div class="left">
+    <div class="badge">OPEN SOURCE & MIT LICENSED</div>
+    <h1>Claude Code<br>Open</h1>
+    <div class="version">v2.1.33 — AI Coding Platform</div>
+    <div class="tagline">The world needs an open-source Claude Code.<br>It will become the foundational infrastructure of AI.</div>
+    <div class="features">
+      <div class="feature"><span class="dot blue"></span> 37+ Built-in Tools</div>
+      <div class="feature"><span class="dot purple"></span> Web UI IDE</div>
+      <div class="feature"><span class="dot orange"></span> Blueprint Multi-Agent</div>
+      <div class="feature"><span class="dot pink"></span> Self-Evolution</div>
+      <div class="feature"><span class="dot green"></span> MCP Protocol</div>
+      <div class="feature"><span class="dot yellow"></span> Memory System</div>
+    </div>
+  </div>
+  <div class="right">
+    <div>
+      <div class="stats-ring">
+        <div class="stats-inner">
+          <div class="big">37+</div>
+          <div class="label">Built-in Tools</div>
+        </div>
+      </div>
+      <div class="stat-badges">
+        <div class="stat-badge">
+          <div class="num">125</div>
+          <div class="lbl">Stars</div>
+        </div>
+        <div class="stat-badge">
+          <div class="num">47</div>
+          <div class="lbl">Forks</div>
+        </div>
+        <div class="stat-badge">
+          <div class="num">6</div>
+          <div class="lbl">Agents</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <span>github.com/kill136/claude-code-open</span>
+    <span>Demo: voicegpt.site:3456</span>
+    <span>chatbi.site</span>
+  </div>
+</div>
+</body>
+</html>

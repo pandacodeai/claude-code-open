@@ -6,10 +6,10 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
-import { OAUTH_ENDPOINTS, exchangeAuthorizationCode, saveAuthSecure, getAuth, isAuthenticated, logout, initAuth, type AuthConfig } from '../../../auth/index.js';
+import { OAUTH_ENDPOINTS, exchangeAuthorizationCode, createOAuthApiKey, type AuthConfig } from '../../../auth/index.js';
 import { isDemoMode } from '../../../utils/env-check.js';
-import { configManager } from '../../../config/index.js';
-import * as fs from 'fs';
+import { oauthManager } from '../oauth-manager.js';
+import { webAuth } from '../web-auth.js';
 
 const router = Router();
 
@@ -187,11 +187,34 @@ router.post('/submit-code', async (req: Request, res: Response) => {
       scopes: tokenResponse.scope?.split(' ') || oauthConfig.scope,
     };
 
-    // 保存认证信息到文件
-    saveAuthSecure(authConfig);
+    // 如果 token 没有 user:inference scope（订阅用户常见），
+    // 需要调用 createOAuthApiKey 换取能做推理的临时 API Key
+    const grantedScopes = authConfig.scopes as string[] || [];
+    let oauthApiKey: string | undefined;
+    if (!grantedScopes.includes('user:inference')) {
+      console.log('[OAuth] Token lacks user:inference scope, creating API key via org:create_api_key...');
+      try {
+        const key = await createOAuthApiKey(tokenResponse.access_token);
+        if (key) {
+          oauthApiKey = key;
+          console.log('[OAuth] API key created successfully for inference');
+        } else {
+          console.warn('[OAuth] createOAuthApiKey returned null, inference may fail');
+        }
+      } catch (e) {
+        console.error('[OAuth] Failed to create API key:', e);
+      }
+    }
 
-    // 重新初始化认证状态
-    initAuth();
+    // 保存到 oauthManager（settings.json 的 oauthAccount 字段）
+    oauthManager.saveOAuthConfig({
+      accessToken: authConfig.accessToken!,
+      refreshToken: authConfig.refreshToken,
+      expiresAt: authConfig.expiresAt as number | undefined,
+      scopes: grantedScopes,
+      subscriptionType: session.accountType,
+      oauthApiKey,
+    });
 
     // 更新会话状态
     session.status = 'completed';
@@ -226,94 +249,73 @@ router.post('/submit-code', async (req: Request, res: Response) => {
 
 /**
  * GET /api/auth/status
- * 获取当前认证状态
+ * 获取当前认证状态（唯一来源：WebAuthProvider）
  */
 router.get('/status', async (req: Request, res: Response) => {
-  // 优先检查 WebUI settings.json 中的 apiKey
-  // 这是实际对话使用的认证方式（buildClientConfig 优先读这里）
-  // 避免因 .credentials.json 中有过期 OAuth token 而触发无意义的 refresh
-  try {
-    const settingsPath = configManager.getConfigPaths().userSettings;
-    if (fs.existsSync(settingsPath)) {
-      const raw = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
-      if (raw.apiKey) {
-        return res.json({
-          authenticated: true,
-          type: 'api_key',
-          accountType: 'api',
-          isDemoMode: isDemoMode(),
-        });
-      }
-    }
-  } catch {
-    // 忽略，走原有逻辑
-  }
-
-  // 没有 WebUI API Key，走 getAuth() 逻辑
-  let auth = getAuth();
-  const authenticated = isAuthenticated();
-
-  // 自动刷新即将过期的 token（5分钟内过期）
-  if (auth && auth.type === 'oauth' && auth.expiresAt && auth.refreshToken) {
-    const fiveMinutesLater = Date.now() + 5 * 60 * 1000;
-    if (auth.expiresAt < fiveMinutesLater) {
-      try {
-        console.log('[OAuth] Token expiring soon, attempting refresh...');
-        const { refreshTokenAsync } = await import('../../../auth/index.js');
-        const refreshed = await refreshTokenAsync(auth);
-        if (refreshed) {
-          console.log('[OAuth] Token refreshed successfully');
-          auth = refreshed;
-        } else {
-          console.log('[OAuth] Token refresh failed');
-        }
-      } catch (error) {
-        console.error('[OAuth] Token refresh error:', error);
-      }
-    }
-  }
-
-  // 如果是内置 API 配置，返回未认证状态（不应显示为已登录）
-  if (auth?.isBuiltin) {
-    return res.json({
-      authenticated: false,
-      type: 'builtin',
-    });
-  }
-
-  if (!authenticated || !auth) {
-    return res.json({
-      authenticated: false,
-    });
-  }
-
   const demoMode = isDemoMode();
+  const status = webAuth.getStatus();
 
-  res.json({
-    authenticated: true,
-    type: auth.type,
-    accountType: auth.accountType,
-    email: demoMode ? undefined : auth.email,
-    expiresAt: auth.expiresAt,
-    scopes: auth.scopes || auth.scope,
-    isDemoMode: demoMode,
-  });
+  if (!status.authenticated) {
+    return res.json({ authenticated: false });
+  }
+
+  if (status.type === 'api_key') {
+    return res.json({
+      authenticated: true,
+      type: 'api_key',
+      accountType: 'api',
+      isDemoMode: demoMode,
+    });
+  }
+
+  if (status.type === 'oauth') {
+    // 获取 OAuth 详细信息
+    const oauthStatus = webAuth.getOAuthStatus();
+
+    // 自动刷新即将过期的 token
+    const oauthConfig = oauthManager.getOAuthConfig();
+    if (oauthConfig?.expiresAt && oauthConfig.refreshToken) {
+      const fiveMinutesLater = Date.now() + 5 * 60 * 1000;
+      if (oauthConfig.expiresAt < fiveMinutesLater) {
+        try {
+          const refreshed = await oauthManager.refreshToken(oauthConfig.refreshToken);
+          if (refreshed) {
+            return res.json({
+              authenticated: true,
+              type: 'oauth',
+              accountType: oauthStatus.subscriptionType || 'subscription',
+              expiresAt: refreshed.expiresAt,
+              scopes: refreshed.scopes,
+              isDemoMode: demoMode,
+            });
+          }
+        } catch (error) {
+          console.error('[OAuth] Token refresh error:', error);
+        }
+      }
+    }
+
+    return res.json({
+      authenticated: true,
+      type: 'oauth',
+      accountType: oauthStatus.subscriptionType || 'subscription',
+      displayName: oauthStatus.displayName,
+      expiresAt: oauthStatus.expiresAt,
+      scopes: oauthStatus.scopes,
+      isDemoMode: demoMode,
+    });
+  }
+
+  res.json({ authenticated: false });
 });
 
 /**
  * POST /api/auth/logout
- * 登出
+ * 登出（清除 WebUI 管理的所有认证）
  */
 router.post('/logout', async (req: Request, res: Response) => {
   try {
-    logout();
-    
-    // 额外清理 configManager 中的 OAuth 配置
-    const { configManager } = await import('../../../config/index.js');
-    configManager.set('oauthToken', undefined as any);
-    configManager.set('oauthAccount', undefined as any);
-    configManager.set('oauthRefreshToken', undefined as any);
-    
+    webAuth.clearAll();
     res.json({ success: true });
   } catch (error) {
     console.error('[OAuth] Logout error:', error);

@@ -1,11 +1,13 @@
 /**
  * API 管理器
  * 提供API连接测试、模型查询、Token状态等功能
+ *
+ * 认证唯一来源：WebAuthProvider（web-auth.ts）
  */
 
 import { ClaudeClient } from '../../core/client.js';
 import { configManager } from '../../config/index.js';
-import { initAuth, getAuth } from '../../auth/index.js';
+import { webAuth } from './web-auth.js';
 import { modelConfig } from '../../models/index.js';
 import type { ApiStatusPayload, ApiTestResult, ProviderInfo } from '../shared/types.js';
 
@@ -21,23 +23,17 @@ export class ApiManager {
    */
   private initializeClient(): void {
     try {
-      let auth = getAuth();
-      // 如果还没初始化过认证，先初始化（确保内置默认配置生效）
-      if (!auth) {
-        auth = initAuth();
-      }
-      const apiKey = auth?.apiKey || configManager.getApiKey();
-      const authToken = auth?.type === 'oauth' ? (auth.accessToken || auth.authToken) : undefined;
+      const creds = webAuth.getCredentials();
 
-      if (!apiKey && !authToken) {
-        console.warn('[ApiManager] 未找到 API Key 或 Auth Token');
+      if (!creds.apiKey && !creds.authToken) {
+        console.warn('[ApiManager] 未配置认证，请在设置页面配置 API Key 或登录 OAuth');
         return;
       }
 
       this.client = new ClaudeClient({
-        apiKey,
-        authToken,
-        baseUrl: process.env.ANTHROPIC_BASE_URL,
+        apiKey: creds.apiKey,
+        authToken: creds.authToken,
+        baseUrl: creds.baseUrl,
       });
     } catch (error) {
       console.error('[ApiManager] 初始化客户端失败:', error);
@@ -104,24 +100,17 @@ export class ApiManager {
    */
   async getAvailableModels(): Promise<string[]> {
     try {
-      // 从配置中获取所有已知模型
       const allModels = modelConfig.getAllModels().map(m => m.id);
+      const tokenStatus = webAuth.getTokenStatus();
 
-      // 根据认证类型过滤模型
-      const auth = getAuth();
-      if (auth?.type === 'oauth') {
-        // OAuth 模式下，检查 scope 确定可用模型
-        const scopes = auth.scope || auth.scopes || [];
-        if (scopes.includes('user:inference')) {
-          // 有 inference scope，所有模型都可用
-          return allModels;
-        } else {
-          // 没有 inference scope，只能使用基础模型
+      // 如果使用 OAuth，检查 scope 过滤模型
+      if (tokenStatus.type === 'oauth') {
+        const scope = tokenStatus.scope || [];
+        if (!scope.includes('user:inference')) {
           return allModels.filter(m => m.includes('haiku'));
         }
       }
 
-      // API Key 模式，所有模型都可用
       return allModels;
     } catch (error) {
       console.error('[ApiManager] 获取模型列表失败:', error);
@@ -134,30 +123,28 @@ export class ApiManager {
    */
   async getStatus(): Promise<ApiStatusPayload> {
     try {
-      const auth = getAuth();
-      const config = configManager.getAll();
       const models = await this.getAvailableModels();
+      const providerName = webAuth.getProvider();
 
       // 确定 provider 类型
       let provider: 'anthropic' | 'bedrock' | 'vertex' = 'anthropic';
-      if (config.useBedrock || config.apiProvider === 'bedrock') {
+      if (providerName === 'bedrock') {
         provider = 'bedrock';
-      } else if (config.useVertex || config.apiProvider === 'vertex') {
+      } else if (providerName === 'vertex') {
         provider = 'vertex';
       }
 
       // 确定 base URL
-      let baseUrl = 'https://api.anthropic.com';
-      if (process.env.ANTHROPIC_BASE_URL) {
-        baseUrl = process.env.ANTHROPIC_BASE_URL;
-      } else if (provider === 'bedrock') {
+      const creds = webAuth.getCredentials();
+      let baseUrl = creds.baseUrl || 'https://api.anthropic.com';
+      if (provider === 'bedrock') {
         baseUrl = 'AWS Bedrock';
       } else if (provider === 'vertex') {
         baseUrl = 'Google Vertex AI';
       }
 
       // Token 状态
-      const tokenStatus = this.getTokenStatus();
+      const tokenStatus = webAuth.getTokenStatus();
 
       return {
         connected: tokenStatus.valid,
@@ -185,56 +172,7 @@ export class ApiManager {
    * 获取Token状态
    */
   getTokenStatus(): ApiStatusPayload['tokenStatus'] {
-    try {
-      const auth = getAuth();
-
-      if (!auth) {
-        return {
-          type: 'none',
-          valid: false,
-        };
-      }
-
-      if (auth.type === 'api_key') {
-        return {
-          type: 'api_key',
-          valid: !!auth.apiKey,
-        };
-      }
-
-      if (auth.type === 'oauth') {
-        const token = auth.accessToken || auth.authToken;
-        const scopes = auth.scope || auth.scopes || [];
-
-        // 检查token是否过期
-        let expiresAt: number | undefined;
-        if (auth.expiresAt) {
-          expiresAt = typeof auth.expiresAt === 'number'
-            ? auth.expiresAt
-            : new Date(auth.expiresAt).getTime();
-        }
-
-        const isExpired = expiresAt ? Date.now() > expiresAt : false;
-
-        return {
-          type: 'oauth',
-          valid: !!token && !isExpired,
-          expiresAt,
-          scope: scopes,
-        };
-      }
-
-      return {
-        type: 'none',
-        valid: false,
-      };
-    } catch (error) {
-      console.error('[ApiManager] 获取Token状态失败:', error);
-      return {
-        type: 'none',
-        valid: false,
-      };
-    }
+    return webAuth.getTokenStatus();
   }
 
   /**

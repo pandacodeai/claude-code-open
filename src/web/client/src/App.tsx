@@ -192,8 +192,9 @@ function AppContent({
       deleteSession: sessionManager.handleSessionDelete,
       renameSession: sessionManager.handleSessionRename,
       newSession: sessionManager.handleNewSession,
+      searchSessions: sessionManager.handleSearchSessions,
     });
-  }, [sessionManager.handleSessionSelect, sessionManager.handleSessionDelete, sessionManager.handleSessionRename, sessionManager.handleNewSession, registerSessionActions]);
+  }, [sessionManager.handleSessionSelect, sessionManager.handleSessionDelete, sessionManager.handleSessionRename, sessionManager.handleNewSession, sessionManager.handleSearchSessions, registerSessionActions]);
 
   // 全局快捷键
   useEffect(() => {

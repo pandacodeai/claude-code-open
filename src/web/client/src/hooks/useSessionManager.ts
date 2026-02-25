@@ -45,6 +45,7 @@ interface UseSessionManagerReturn {
   handleSessionDelete: (id: string) => void;
   handleSessionRename: (id: string, name: string) => void;
   handleNewSession: () => void;
+  handleSearchSessions: (query: string) => void;
 }
 
 export function useSessionManager({
@@ -202,6 +203,22 @@ export function useSessionManager({
     send({ type: 'session_new', payload: { model, projectPath: currentProjectPath } });
   }, [send, model, currentProjectPath, setMessages]);
 
+  // 服务端搜索（供 SessionSearchModal 使用）
+  const handleSearchSessions = useCallback((query: string) => {
+    if (connected) {
+      send({
+        type: 'session_list',
+        payload: {
+          limit: 100,
+          sortBy: 'updatedAt',
+          sortOrder: 'desc',
+          search: query || undefined,
+          projectPath: currentProjectPath,
+        },
+      });
+    }
+  }, [connected, send, currentProjectPath]);
+
   return {
     sessions,
     refreshSessions,
@@ -209,5 +226,6 @@ export function useSessionManager({
     handleSessionDelete,
     handleSessionRename,
     handleNewSession,
+    handleSearchSessions,
   };
 }

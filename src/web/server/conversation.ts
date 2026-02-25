@@ -12,7 +12,7 @@ import { toolRegistry, registerBlueprintTools } from '../../tools/index.js';
 import { systemPromptBuilder, type PromptContext } from '../../prompt/index.js';
 import { modelConfig } from '../../models/index.js';
 import { configManager } from '../../config/index.js';
-import { initAuth, getAuth } from '../../auth/index.js';
+import { initAuth, getAuth, createOAuthApiKey } from '../../auth/index.js';
 import type { Message, ContentBlock, ToolUseBlock, TextBlock } from '../../types/index.js';
 import type { ChatMessage, ChatContent, ToolResultData, PermissionConfigPayload, PermissionRequestPayload, SystemPromptConfig, SystemPromptGetPayload, DebugMessagesPayload } from '../shared/types.js';
 import { UserInteractionHandler } from './user-interaction.js';
@@ -26,6 +26,7 @@ import { TaskManager } from './task-manager.js';
 import { McpConfigManager } from '../../mcp/config.js';
 import type { ExtendedMcpServerConfig } from '../../mcp/config.js';
 import { oauthManager } from './oauth-manager.js';
+import { webAuth } from './web-auth.js';
 import { blueprintStore, executionManager } from './routes/blueprint-api.js';
 import type { Blueprint } from '../../blueprint/types.js';
 import { StartLeadAgentTool } from '../../tools/start-lead-agent.js';
@@ -323,6 +324,8 @@ export class ConversationManager {
   private marketplaceManager?: MarketplaceManager;
   /** Web Server 内嵌调度器（由 index.ts 注入） */
   private webScheduler?: import('./web-scheduler.js').WebScheduler;
+  /** 广播回调（由 index.ts 注入，用于 ErrorWatcher 通知等） */
+  private broadcastFn?: (msg: any) => void;
 
   constructor(cwd: string, defaultModel: string = 'opus', options?: { verbose?: boolean }) {
     this.cwd = cwd;
@@ -381,6 +384,9 @@ export class ConversationManager {
           completedTasks,
           failedTasks,
         };
+      },
+      cancelExecution: (sessionId: string) => {
+        executionManager.cancel(sessionId);
       },
       getWorkingDirectory: () => this.cwd,
       // navigateToSwarm 在 createSession 中按会话设置（需要 ws 引用）
@@ -544,91 +550,20 @@ export class ConversationManager {
   }
 
   /**
-   * 读取 WebUI 保存在 settings.json 中的原始自定义 API 配置
-   * 直接读文件而非 configManager.getAll()，避免被环境变量覆盖
-   */
-  private getWebUiApiConfig(): { apiBaseUrl?: string; customModelName?: string; authPriority?: string; apiKey?: string } {
-    try {
-      const settingsPath = configManager.getConfigPaths().userSettings;
-      if (fs.existsSync(settingsPath)) {
-        const raw = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
-        return {
-          apiBaseUrl: raw.apiBaseUrl,
-          customModelName: raw.customModelName,
-          authPriority: raw.authPriority,
-          apiKey: raw.apiKey,
-        };
-      }
-    } catch {
-      // 读取失败不影响正常流程
-    }
-    return {};
-  }
-
-  /**
-   * 根据认证信息构建 ClaudeClient 配置
-   * 与核心 loop.ts 逻辑保持一致，同时支持 WebUI 自定义 API 配置
-   *
-   * 优先级：WebUI 页面配置 > 环境变量 > OAuth
+   * 构建 ClaudeClient 配置
+   * 认证全部委托给 webAuth（唯一认证入口）
    */
   private buildClientConfig(model: string): { model: string; apiKey?: string; authToken?: string; baseUrl?: string; timeout?: number } {
-    // 读取 WebUI 保存的原始自定义配置（不经过 configManager 合并，避免被环境变量覆盖）
-    const webUiConfig = this.getWebUiApiConfig();
-    const authPriority = webUiConfig.authPriority || 'auto';
+    const creds = webAuth.getCredentials();
+    const customModel = webAuth.getCustomModelName();
 
-    const config: { model: string; apiKey?: string; authToken?: string; baseUrl?: string; timeout?: number } = {
-      model: webUiConfig.customModelName || this.getModelId(model),
-      timeout: 300000,  // 5分钟 API 请求超时（对齐核心 loop.ts）
+    return {
+      model: customModel || this.getModelId(model),
+      apiKey: creds.apiKey,
+      authToken: creds.authToken,
+      baseUrl: creds.baseUrl,
+      timeout: 300000,
     };
-
-    // 设置自定义 API 地址
-    if (webUiConfig.apiBaseUrl) {
-      config.baseUrl = webUiConfig.apiBaseUrl;
-    }
-
-    // 根据 authPriority 决定认证方式
-    if (authPriority === 'apiKey' && webUiConfig.apiKey) {
-      // 强制使用 WebUI 配置的 API Key
-      config.apiKey = webUiConfig.apiKey;
-    } else if (authPriority === 'oauth') {
-      // 强制使用 OAuth，走现有逻辑
-      this.applyOAuthConfig(config);
-    } else {
-      // auto 模式：WebUI 配置了 apiKey 就优先用，否则走现有 getAuth() 逻辑
-      if (webUiConfig.apiKey) {
-        config.apiKey = webUiConfig.apiKey;
-      } else {
-        this.applyOAuthConfig(config);
-      }
-    }
-
-    return config;
-  }
-
-  /**
-   * 应用 OAuth/getAuth() 认证配置（从原 buildClientConfig 逻辑提取）
-   */
-  private applyOAuthConfig(config: { apiKey?: string; authToken?: string }): void {
-    const auth = getAuth();
-    if (!auth) return;
-
-    if (auth.type === 'api_key' && auth.apiKey) {
-      config.apiKey = auth.apiKey;
-    } else if (auth.type === 'oauth') {
-      const scopes = auth.scopes || auth.scope || [];
-      const INFERENCE_SCOPES = ['user:inference', 'user:ccr_inference', 'user:voice', 'org:service_key_inference'];
-      const hasInferenceScope = scopes.some((s: string) => INFERENCE_SCOPES.includes(s));
-      const oauthToken = auth.authToken || auth.accessToken;
-
-      if (hasInferenceScope && oauthToken) {
-        config.authToken = oauthToken;
-      } else if (auth.oauthApiKey) {
-        config.apiKey = auth.oauthApiKey;
-      } else if (oauthToken) {
-        // Fallback: 内置代理等场景，没有 scopes 但有 authToken
-        config.authToken = oauthToken;
-      }
-    }
   }
 
   /**
@@ -649,23 +584,33 @@ export class ConversationManager {
    * 这个方法在每次调用 API 之前被调用，检查 token 是否过期，如果过期则自动刷新
    */
   private async ensureValidOAuthToken(state: SessionState): Promise<void> {
-    const auth = getAuth();
-
-    // 只有 OAuth 模式才需要刷新
-    if (!auth || auth.type !== 'oauth') {
-      return;
-    }
-
-    // 首先检查是否有 OAuth 配置
+    // 只在使用 OAuth 时处理
     const oauthConfig = oauthManager.getOAuthConfig();
     if (!oauthConfig) {
-      // 没有 OAuth 配置（可能使用 API Key），无需刷新
       return;
     }
 
-    // 检查 token 是否过期
+    // 如果 token 缺少 user:inference scope 且还没有 oauthApiKey，自动创建 API Key
+    // 这处理了历史遗留 token（org:create_api_key scope 但从未调过 createOAuthApiKey 的情况）
+    const hasInferenceScope = oauthConfig.scopes?.includes('user:inference');
+    if (!hasInferenceScope && !oauthConfig.oauthApiKey && oauthConfig.accessToken) {
+      console.log('[ConversationManager] OAuth token 缺少 user:inference scope，尝试自动创建 API Key...');
+      try {
+        const apiKey = await createOAuthApiKey(oauthConfig.accessToken);
+        if (apiKey) {
+          await oauthManager.saveOAuthConfig({ oauthApiKey: apiKey });
+          console.log('[ConversationManager] OAuth API Key 已自动创建，重新构建客户端');
+          const newConfig = this.buildClientConfig(state.model);
+          state.client = new ClaudeClient({ ...newConfig });
+        } else {
+          console.warn('[ConversationManager] createOAuthApiKey 返回 null，推理可能失败');
+        }
+      } catch (e: any) {
+        console.error('[ConversationManager] 自动创建 API Key 失败:', e.message);
+      }
+    }
+
     if (!oauthManager.isTokenExpired()) {
-      // Token 还未过期，无需刷新
       return;
     }
 
@@ -901,6 +846,8 @@ export class ConversationManager {
     const state = this.sessions.get(sessionId);
     if (state) {
       state.cancelled = true;
+      // 谁启动的蜂群，谁负责关闭：如果 Planner Agent 正在等待蜂群执行，一并取消
+      StartLeadAgentTool.cancelActiveExecution();
       // 中断正在执行的工具（如 Bash 命令），让 conversationLoop 的 Promise.race 立即返回
       state.currentAbortController?.abort();
       // 取消所有待处理的用户问题
@@ -3483,6 +3430,92 @@ Guidelines:
    */
   setWebScheduler(scheduler: import('./web-scheduler.js').WebScheduler): void {
     this.webScheduler = scheduler;
+  }
+
+  /**
+   * 注入广播回调（由 index.ts 调用）
+   */
+  setBroadcast(fn: (msg: any) => void): void {
+    this.broadcastFn = fn;
+  }
+
+  /**
+   * 向当前活跃会话发送错误通知，让主 Agent 感知并自行决定是否修复
+   * "活跃" = 有 ws 连接且未在处理中的会话，优先选最近有消息的
+   */
+  async notifyActiveSession(errorMessage: string): Promise<boolean> {
+    // 找到有 ws 连接的活跃会话
+    let targetSessionId: string | null = null;
+    let latestMessageTime = 0;
+
+    for (const [sessionId, state] of this.sessions) {
+      if (!state.ws || state.ws.readyState !== 1 /* OPEN */) continue;
+      // 跳过正在处理中的会话（不打断 Agent 工作）
+      if (state.isProcessing) continue;
+
+      // 选最近有消息的会话
+      const lastMsgTime = state.chatHistory.length > 0
+        ? new Date(state.chatHistory[state.chatHistory.length - 1].timestamp).getTime()
+        : 0;
+      if (lastMsgTime > latestMessageTime) {
+        latestMessageTime = lastMsgTime;
+        targetSessionId = sessionId;
+      }
+    }
+
+    if (!targetSessionId) return false;
+
+    const state = this.sessions.get(targetSessionId)!;
+    const broadcast = this.broadcastFn;
+    if (!broadcast) return false;
+
+    // 生成 messageId
+    const { randomUUID } = await import('crypto');
+    const messageId = randomUUID();
+
+    // 构造 callbacks，通过 broadcast 发送到前端
+    const callbacks: StreamCallbacks = {
+      onThinkingStart: () => broadcast({ type: 'thinking_start', payload: { messageId, sessionId: targetSessionId } }),
+      onThinkingDelta: (text: string) => broadcast({ type: 'thinking_delta', payload: { messageId, text, sessionId: targetSessionId } }),
+      onThinkingComplete: () => broadcast({ type: 'thinking_complete', payload: { messageId, sessionId: targetSessionId } }),
+      onTextDelta: (text: string) => broadcast({ type: 'text_delta', payload: { messageId, text, sessionId: targetSessionId } }),
+      onToolUseStart: (toolUseId: string, toolName: string, input: unknown) => {
+        broadcast({ type: 'tool_use_start', payload: { messageId, toolUseId, toolName, input, sessionId: targetSessionId } });
+        broadcast({ type: 'status', payload: { status: 'tool_executing', message: `执行 ${toolName}...`, sessionId: targetSessionId } });
+      },
+      onToolUseDelta: (toolUseId: string, partialJson: string) => broadcast({ type: 'tool_use_delta', payload: { toolUseId, partialJson, sessionId: targetSessionId } }),
+      onToolResult: (toolUseId: string, success: boolean, output?: string, error?: string, data?: unknown) => {
+        broadcast({ type: 'tool_result', payload: { toolUseId, success, output, error, data: data as any, defaultCollapsed: true, sessionId: targetSessionId } });
+      },
+      onComplete: async (stopReason: string | null, usage?: { inputTokens: number; outputTokens: number }) => {
+        await this.persistSession(targetSessionId!);
+        broadcast({ type: 'message_complete', payload: { messageId, stopReason: (stopReason || 'end_turn'), usage, sessionId: targetSessionId } });
+        broadcast({ type: 'status', payload: { status: 'idle', sessionId: targetSessionId } });
+      },
+      onError: (error: Error) => {
+        broadcast({ type: 'error', payload: { error: error.message, sessionId: targetSessionId } });
+        broadcast({ type: 'status', payload: { status: 'idle', sessionId: targetSessionId } });
+      },
+    };
+
+    // 发送 message_start
+    broadcast({ type: 'message_start', payload: { messageId, sessionId: targetSessionId } });
+    broadcast({ type: 'status', payload: { status: 'thinking', sessionId: targetSessionId } });
+
+    // 调用 chat，让主 Agent 处理错误通知
+    this.chat(
+      targetSessionId,
+      errorMessage,
+      undefined,
+      state.model,
+      callbacks,
+      state.session.cwd,
+      state.ws,
+    ).catch(err => {
+      console.error(`[ErrorWatcher] Notify session ${targetSessionId} failed:`, err);
+    });
+
+    return true;
   }
 
   /**

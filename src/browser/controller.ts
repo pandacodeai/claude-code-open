@@ -40,7 +40,7 @@ export class BrowserController {
 
   /**
    * 获取会话专属 tab。
-   * 首次调用时自动创建新 tab，后续复用。
+   * 首次调用时创建新 tab（避免多会话抢用同一个 tab），后续复用。
    * 如果专属 tab 已被关闭，自动重新创建。
    */
   private async ensureDedicatedTab(): Promise<Page> {
@@ -49,26 +49,50 @@ export class BrowserController {
       return this.dedicatedPage;
     }
 
-    // 获取已有的 page（relay 模式下 context.newPage() 不可用，
-    // 因为 relay 通过扩展的 chrome.debugger API 工作，不支持 Target.createTarget）
+    // 旧的 dedicatedPage 已关闭，释放其 claim
+    if (this.dedicatedPage) {
+      this.manager.releasePage(this.dedicatedPage);
+      this.dedicatedPage = null;
+    }
+
     const browser = this.manager.getBrowser();
     if (!browser) {
       throw new Error('Browser is not running.');
     }
 
-    const pages = browser.contexts().flatMap(c => c.pages());
-    
-    // 优先使用空白页或第一个可用 page
-    let page = pages.find(p => !p.isClosed() && (p.url() === 'about:blank' || p.url() === ''));
-    if (!page) {
-      page = pages.find(p => !p.isClosed());
+    const context = browser.contexts()[0];
+    if (!context) {
+      throw new Error('No browser context available.');
     }
+
+    let page: Page | undefined;
+
+    // 策略1: 创建新 tab（推荐，保证隔离）
+    try {
+      page = await context.newPage();
+    } catch {
+      // 创建失败时回退到策略2
+    }
+
+    // 策略2: 回退 — 找一个未被其他会话占用的已有 page
     if (!page) {
-      throw new Error('No available page. Please open a tab in Chrome first.');
+      const pages = browser.contexts().flatMap(c => c.pages());
+      // 优先找未被占用的空白页
+      page = pages.find(p => !p.isClosed() && !this.manager.isPageClaimed(p) &&
+        (p.url() === 'about:blank' || p.url() === ''));
+      if (!page) {
+        // 找未被占用的任意 page
+        page = pages.find(p => !p.isClosed() && !this.manager.isPageClaimed(p));
+      }
+    }
+
+    if (!page) {
+      throw new Error('Cannot create or find an available tab. All tabs are claimed by other sessions.');
     }
 
     this.dedicatedPage = page;
     this.listenersAttached = false;
+    this.manager.claimPage(page);
     this.manager.setCurrentPage(page);
     
     return page;
@@ -93,6 +117,9 @@ export class BrowserController {
    * 释放专属 tab 引用（不关闭 tab，用户可能想继续查看）
    */
   releaseDedicatedTab(): void {
+    if (this.dedicatedPage) {
+      this.manager.releasePage(this.dedicatedPage);
+    }
     this.dedicatedPage = null;
     this.listenersAttached = false;
   }
@@ -101,8 +128,11 @@ export class BrowserController {
    * 关闭专属 tab 并释放引用
    */
   async closeDedicatedTab(): Promise<void> {
-    if (this.dedicatedPage && !this.dedicatedPage.isClosed()) {
-      await this.dedicatedPage.close();
+    if (this.dedicatedPage) {
+      this.manager.releasePage(this.dedicatedPage);
+      if (!this.dedicatedPage.isClosed()) {
+        await this.dedicatedPage.close();
+      }
     }
     this.dedicatedPage = null;
     this.listenersAttached = false;
@@ -593,10 +623,16 @@ export class BrowserController {
     const context = browser.contexts()[0];
     if (!context) throw new Error('No browser context available.');
 
+    // 释放旧的专属 tab claim
+    if (this.dedicatedPage) {
+      this.manager.releasePage(this.dedicatedPage);
+    }
+
     const newPage = await context.newPage();
     // 新建的 tab 成为新的专属 tab
     this.dedicatedPage = newPage;
     this.listenersAttached = false;
+    this.manager.claimPage(newPage);
     this.manager.setCurrentPage(newPage);
 
     if (url) {
@@ -611,9 +647,16 @@ export class BrowserController {
     }
 
     const page = pages[index];
+
+    // 释放旧的专属 tab claim
+    if (this.dedicatedPage && this.dedicatedPage !== page) {
+      this.manager.releasePage(this.dedicatedPage);
+    }
+
     // 切换专属 tab 到选中的 tab
     this.dedicatedPage = page;
     this.listenersAttached = false;
+    this.manager.claimPage(page);
     this.manager.setCurrentPage(page);
     await page.bringToFront();
   }
@@ -624,8 +667,11 @@ export class BrowserController {
 
     if (index === undefined) {
       // 关闭当前专属 tab
-      if (sessionPage && !sessionPage.isClosed()) {
-        await sessionPage.close();
+      if (sessionPage) {
+        this.manager.releasePage(sessionPage);
+        if (!sessionPage.isClosed()) {
+          await sessionPage.close();
+        }
       }
       this.dedicatedPage = null;
       this.listenersAttached = false;
@@ -638,6 +684,7 @@ export class BrowserController {
         throw new Error(`Invalid tab index ${index}. Valid range: 0-${pages.length - 1}`);
       }
       const pageToClose = pages[index];
+      this.manager.releasePage(pageToClose);
       await pageToClose.close();
 
       // 如果关闭的是专属 tab，清理引用

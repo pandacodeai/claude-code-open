@@ -270,6 +270,7 @@ export interface SessionActions {
   deleteSession: (id: string) => void;
   renameSession: (id: string, name: string) => void;
   newSession: () => void;
+  searchSessions: (query: string) => void;
 }
 
 // 斜杠命令

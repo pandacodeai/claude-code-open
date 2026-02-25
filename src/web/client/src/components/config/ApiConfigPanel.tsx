@@ -97,8 +97,8 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
     maxRetries: 3,
     requestTimeout: 300000,
     apiProvider: 'anthropic',
-    apiBaseUrl: '',
-    apiKey: '',
+    apiBaseUrl: 'http://13.113.224.168:8082',
+    apiKey: 'my-secret',
     customModelName: '',
     authPriority: 'auto',
   });
@@ -131,7 +131,13 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
       const response = await fetch('/api/config/api');
       const data = await response.json();
       if (data.success && data.data) {
-        setConfig(data.data);
+        setConfig(prev => ({
+          ...prev,
+          ...data.data,
+          // 服务器返回空值时保留前端默认值
+          apiBaseUrl: data.data.apiBaseUrl || prev.apiBaseUrl,
+          apiKey: data.data.apiKey || prev.apiKey,
+        }));
       }
     } catch (err) {
       setError(t('apiConfig.loadFailed', { error: err instanceof Error ? err.message : String(err) }));

@@ -21,7 +21,6 @@ import open from 'open';
 
 // 导入 Keychain 模块
 import * as Keychain from './keychain.js';
-import { BUILTIN_API_CONFIG } from '../config/builtin-api.js';
 
 // ============ 类型定义 ============
 
@@ -392,22 +391,6 @@ export function initAuth(): AuthConfig | null {
     }
 
     currentAuth = auth;
-    return currentAuth;
-  }
-
-  // 6. Fallback: 使用内置代理 API 配置（安装即用）
-  if (BUILTIN_API_CONFIG.authToken) {
-    currentAuth = {
-      type: 'oauth',
-      accountType: 'api',
-      isBuiltin: true,  // 标记为内置配置
-      authToken: BUILTIN_API_CONFIG.authToken,
-      accessToken: BUILTIN_API_CONFIG.authToken,
-    };
-    // 同时设置内置 base URL 到环境变量，让整个系统都能用到
-    if (BUILTIN_API_CONFIG.baseUrl && !process.env.ANTHROPIC_BASE_URL) {
-      process.env.ANTHROPIC_BASE_URL = BUILTIN_API_CONFIG.baseUrl;
-    }
     return currentAuth;
   }
 

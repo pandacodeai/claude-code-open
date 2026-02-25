@@ -58,6 +58,7 @@ export class LeadAgent extends EventEmitter {
   private projectPath: string;
   private taskResults: Map<string, TaskResult> = new Map();
   private startTime: number = 0;
+  private stopped: boolean = false;
 
   constructor(config: LeadAgentConfig) {
     super();
@@ -697,11 +698,21 @@ ${taskSummary}
     let fatalError = false;
 
     while (true) {
+      // 检查是否已被外部调用 stop() 取消
+      if (this.stopped) {
+        console.log('[LeadAgent] 检测到 stop() 调用，退出执行循环');
+        break;
+      }
+
       // 构建提示词：首次使用初始/恢复提示词，自愈重启使用恢复提示词
       const prompt = isResumeRun
         ? this.buildResumePrompt()
         : this.buildInitialPrompt();
-      const messageStream = this.loop!.processMessageStream(prompt);
+      if (!this.loop) {
+        console.log('[LeadAgent] Loop 已被销毁（stop 调用），退出执行循环');
+        break;
+      }
+      const messageStream = this.loop.processMessageStream(prompt);
 
       let loopDiedFromError = false;
       lastErrorMsg = '';
@@ -904,6 +915,7 @@ ${taskSummary}
    * 调用 ConversationLoop.abort() 中断当前 API 请求和执行循环
    */
   stop(): void {
+    this.stopped = true;
     // 清理工具静态上下文
     UpdateTaskPlanTool.clearContext();
     DispatchWorkerTool.clearContext();
