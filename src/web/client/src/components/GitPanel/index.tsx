@@ -9,6 +9,7 @@ import { StatusView } from './StatusView';
 import { LogView } from './LogView';
 import { BranchesView } from './BranchesView';
 import { StashView } from './StashView';
+import { TagsView } from './TagsView';
 import { DiffView } from './DiffView';
 import { MarkdownContent } from '../MarkdownContent';
 import './GitPanel.css';
@@ -48,12 +49,19 @@ export interface GitStash {
   date: string;
 }
 
+export interface GitTag {
+  name: string;
+  commit: string;
+  type: 'lightweight' | 'annotated';
+  message?: string;
+}
+
 export interface GitDiff {
   file?: string;
   content: string;
 }
 
-type TabType = 'status' | 'log' | 'branches' | 'stash';
+type TabType = 'status' | 'log' | 'branches' | 'stash' | 'tags';
 
 interface GitPanelProps {
   isOpen: boolean;
@@ -72,6 +80,7 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
   const [commits, setCommits] = useState<GitCommit[]>([]);
   const [branches, setBranches] = useState<GitBranch[]>([]);
   const [stashes, setStashes] = useState<GitStash[]>([]);
+  const [tags, setTags] = useState<GitTag[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -124,6 +133,12 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
         case 'git:stashes_response':
           if (msg.payload?.success) {
             setStashes(msg.payload.data || []);
+          }
+          break;
+
+        case 'git:tags_response':
+          if (msg.payload?.success) {
+            setTags(msg.payload.data || []);
           }
           break;
 
@@ -208,6 +223,11 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
       type: 'git:get_stashes',
       payload: { projectPath },
     });
+
+    send({
+      type: 'git:get_tags',
+      payload: { projectPath },
+    });
   }, [projectPath, send]);
 
   // 切换标签页时请求相应数据
@@ -222,6 +242,11 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
     } else if (activeTab === 'stash') {
       send({
         type: 'git:get_stashes',
+        payload: { projectPath },
+      });
+    } else if (activeTab === 'tags') {
+      send({
+        type: 'git:get_tags',
         payload: { projectPath },
       });
     }
@@ -316,6 +341,12 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
         >
           {t('git.tab.stash')}
         </button>
+        <button
+          className={`git-tab ${activeTab === 'tags' ? 'active' : ''}`}
+          onClick={() => setActiveTab('tags')}
+        >
+          {t('git.tab.tags')}
+        </button>
       </div>
 
       {/* 内容区 */}
@@ -373,6 +404,16 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
                   send={send}
                   projectPath={projectPath}
                   onRefresh={refreshGitData}
+                />
+              </div>
+            )}
+
+            {activeTab === 'tags' && (
+              <div className="git-tab-content">
+                <TagsView
+                  tags={tags}
+                  send={send}
+                  projectPath={projectPath}
                 />
               </div>
             )}

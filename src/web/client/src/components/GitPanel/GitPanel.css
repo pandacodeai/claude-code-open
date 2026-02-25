@@ -951,6 +951,202 @@
 }
 
 /* ============================================
+   TagsView - 标签管理视图
+   ============================================ */
+
+.git-tags-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.git-tags-header {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+
+.git-new-tag-button,
+.git-push-all-tags-button {
+  padding: 8px 16px;
+  background: var(--accent-primary);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.git-new-tag-button:hover,
+.git-push-all-tags-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.git-push-all-tags-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.git-tag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.git-tag-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.git-tag-item:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--accent-primary);
+}
+
+.git-tag-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.git-tag-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.git-tag-name {
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.git-tag-type-badge {
+  padding: 2px 8px;
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-primary);
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+}
+
+.git-tag-commit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.git-tag-commit-hash {
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.git-tag-message {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.4;
+  word-break: break-word;
+  padding: 8px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+  border-left: 3px solid var(--accent-primary);
+}
+
+.git-tag-actions {
+  display: flex;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.git-tag-actions button {
+  padding: 4px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.git-tag-actions button:hover {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
+/* Tag 类型选择器 */
+.git-tag-type-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.git-tag-type-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.git-tag-type-options {
+  display: flex;
+  gap: 16px;
+}
+
+.git-tag-type-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.git-tag-type-option input[type="radio"] {
+  cursor: pointer;
+}
+
+.git-tag-type-option span {
+  user-select: none;
+}
+
+/* Textarea for tag message */
+.git-input-dialog-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  margin-bottom: 16px;
+  outline: none;
+  transition: all 0.2s;
+  resize: vertical;
+}
+
+.git-input-dialog-textarea:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.1);
+}
+
+/* ============================================
    响应式设计
    ============================================ */
 
