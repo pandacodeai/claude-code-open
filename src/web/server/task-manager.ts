@@ -102,6 +102,9 @@ export class TaskManager {
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
   private readonly TASK_RETENTION_MS = 30 * 60 * 1000;  // 30分钟后清理已完成的任务
   private readonly MAX_COMPLETED_TASKS = 50;
+  
+  // 输出截断限制（对齐其他工具如 Bash/Grep 的 30KB 限制）
+  private readonly MAX_TASK_OUTPUT = 30000;
 
   constructor() {
     // v12.0: 启动定期清理（每5分钟检查一次）
@@ -502,8 +505,8 @@ export class TaskManager {
                 startTime: Date.now(),
               };
 
-              // 保存到追踪
-              activeToolCalls.set(event.toolName, toolCall);
+              // 用唯一 ID 作为 key（修复并行执行同名工具时互相覆盖的问题）
+              activeToolCalls.set(toolCallId, toolCall);
               task.toolCalls!.push(toolCall);
               task.toolUseCount = toolCallCounter;
               task.lastToolInfo = event.toolName;
@@ -524,14 +527,23 @@ export class TaskManager {
 
           case 'tool_end':
             // 工具执行结束
+            // 按 toolName 反查仍在 running 的最早同名工具（因为并行执行同名工具时需要按顺序匹配）
             if (event.toolName) {
-              const toolCall = activeToolCalls.get(event.toolName);
-              if (toolCall) {
-                toolCall.status = event.toolError ? 'error' : 'completed';
-                toolCall.result = event.toolResult;
-                toolCall.error = event.toolError;
-                toolCall.endTime = Date.now();
-                const duration = toolCall.endTime - toolCall.startTime;
+              let matchedId: string | undefined;
+              let matchedCall: SubagentToolCall | undefined;
+              for (const [id, tc] of activeToolCalls) {
+                if (tc.name === event.toolName && tc.status === 'running') {
+                  matchedId = id;
+                  matchedCall = tc;
+                  break;
+                }
+              }
+              if (matchedId && matchedCall) {
+                matchedCall.status = event.toolError ? 'error' : 'completed';
+                matchedCall.result = event.toolResult;
+                matchedCall.error = event.toolError;
+                matchedCall.endTime = Date.now();
+                const duration = matchedCall.endTime - matchedCall.startTime;
 
                 // 日志输出子 agent 工具执行结果
                 const resultPreview = event.toolResult
@@ -541,16 +553,24 @@ export class TaskManager {
                 console.log(`[SubAgent:${task.agentType}] ${statusIcon} Tool ${event.toolName} (${duration}ms)${event.toolError ? ` | Error: ${event.toolError}` : resultPreview ? ` | Result: ${resultPreview}${resultPreview.length >= 150 ? '...' : ''}` : ''}`);
 
                 // 从活动列表移除
-                activeToolCalls.delete(event.toolName);
+                activeToolCalls.delete(matchedId);
 
                 // 推送到前端
-                this.sendSubagentToolEnd(task.id, toolCall, task.toolUseId);
+                this.sendSubagentToolEnd(task.id, matchedCall, task.toolUseId);
               }
             }
             break;
 
           case 'done':
-            // 流式处理完成
+            // 流式处理完成 — 检测 maxTurns 截断
+            if (event.content === '[max_turns_reached]') {
+              task.status = 'failed';
+              task.endTime = new Date();
+              task.error = 'Max turns reached, task incomplete';
+              this.sendTaskStatus(task);
+              await runSubagentStopHooks(task.id, task.agentType);
+              return;
+            }
             break;
 
           case 'interrupted':
@@ -567,7 +587,21 @@ export class TaskManager {
       // 任务完成
       task.status = 'completed';
       task.endTime = new Date();
-      task.result = textChunks.join('');
+      
+      // 拼接完整输出
+      let fullOutput = textChunks.join('');
+      
+      // 输出截断（对齐其他工具的 30KB 限制）
+      const MAX_TASK_OUTPUT = 30000;
+      if (fullOutput.length > MAX_TASK_OUTPUT) {
+        const headSize = 15000;
+        const tailSize = 15000;
+        const head = fullOutput.substring(0, headSize);
+        const tail = fullOutput.substring(fullOutput.length - tailSize);
+        fullOutput = `${head}\n\n... [Output truncated: ${fullOutput.length} chars → ${MAX_TASK_OUTPUT} chars] ...\n\n${tail}`;
+      }
+      
+      task.result = fullOutput;
       const totalDuration = task.endTime.getTime() - task.startTime.getTime();
 
       // 日志：子 agent 完成

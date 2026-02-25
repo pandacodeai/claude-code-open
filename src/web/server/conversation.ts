@@ -105,7 +105,7 @@ const PERSISTED_OUTPUT_END = '</persisted-output>';
 const MAX_OUTPUT_LINES = 2000;
 
 /** 输出阈值（字符数），超过此值使用持久化标签 */
-const OUTPUT_THRESHOLD = 400000; // 400KB
+const OUTPUT_THRESHOLD = 30000; // 30KB（对齐 Bash/Grep 的输出限制）
 
 /** 预览大小（字节） */
 const PREVIEW_SIZE = 2000; // 2KB
@@ -180,70 +180,215 @@ function formatToolResult(
   return content;
 }
 
-/**
- * 清理消息历史中的旧持久化输出
- * 保留最近的 N 个持久化输出，清理更早的
- */
-function cleanOldPersistedOutputs(messages: Message[], keepRecent: number = 3): Message[] {
-  const persistedOutputIndices: number[] = [];
+// ============================================================================
+// Microcompact 常量（借鉴 CLI loop.ts 的两阶段裁剪机制）
+// ============================================================================
 
-  // 找到所有包含持久化输出的消息索引
-  for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i];
-    if (msg.role === 'user' && Array.isArray(msg.content)) {
+/** 可清理工具白名单 */
+const COMPACTABLE_TOOLS = new Set([
+  'Read',
+  'Bash',
+  'Grep',
+  'Glob',
+  'WebSearch',
+  'WebFetch',
+  'Edit',
+  'Write'
+]);
+
+/** 软裁剪触发阈值：tool result 超过此字符数时进行头尾截断 */
+const SOFT_TRIM_CHARS = 4000;
+
+/** 软裁剪保留头部字符数 */
+const SOFT_TRIM_HEAD = 1500;
+
+/** 软裁剪保留尾部字符数 */
+const SOFT_TRIM_TAIL = 1500;
+
+/** Microcompact 触发阈值（tokens） */
+const MICROCOMPACT_THRESHOLD = 40000;
+
+/** 最小节省阈值（tokens） */
+const MIN_SAVINGS_THRESHOLD = 20000;
+
+/** 保留最近的结果数量（不清理） */
+const KEEP_RECENT_COUNT = 3;
+
+/**
+ * 查找 tool_result 对应的 tool_use 的工具名
+ */
+function findToolNameForResult(messages: Message[], toolUseId: string): string {
+  for (const msg of messages) {
+    if (msg.role === 'assistant' && Array.isArray(msg.content)) {
       for (const block of msg.content) {
         if (
           typeof block === 'object' &&
           'type' in block &&
-          block.type === 'tool_result' &&
-          typeof block.content === 'string' &&
-          block.content.includes(PERSISTED_OUTPUT_START)
+          block.type === 'tool_use' &&
+          'id' in block &&
+          block.id === toolUseId &&
+          'name' in block
         ) {
-          persistedOutputIndices.push(i);
-          break;
+          return block.name as string;
+        }
+      }
+    }
+  }
+  return '';
+}
+
+/**
+ * 清理消息历史中的旧工具输出（两阶段裁剪）
+ *
+ * 借鉴 moltbot 的 context-pruning 和官方的 Vd 函数，实现两阶段清理：
+ *
+ * 阶段 1 - 软裁剪（新增）：
+ *   对旧的大 tool result（>4000 字符）保留头尾各 1500 字符，中间截掉。
+ *   覆盖所有 COMPACTABLE_TOOLS 的输出，不限于有 <persisted-output> 标签的。
+ *
+ * 阶段 2 - 硬清理（原有）：
+ *   对有 <persisted-output> 标签或已保存到文件的超大结果，
+ *   直接替换为 '[Old tool result content cleared]'。
+ *
+ * 两阶段共享的控制逻辑：
+ * - 环境变量 DISABLE_MICROCOMPACT=1 完全禁用
+ * - 总 token > MICROCOMPACT_THRESHOLD (40K) 才触发
+ * - 节省 token > MIN_SAVINGS_THRESHOLD (20K) 才执行
+ * - 最近 KEEP_RECENT_COUNT (3) 个结果不清理
+ * - 只清理白名单工具（COMPACTABLE_TOOLS）
+ *
+ * @param messages 消息列表
+ * @param keepRecent 保留最近的数量（默认 3）
+ * @returns 清理后的消息列表
+ */
+function cleanOldPersistedOutputs(messages: Message[], keepRecent: number = KEEP_RECENT_COUNT): Message[] {
+  // 检查环境变量 - 如果禁用则直接返回
+  if (process.env.DISABLE_MICROCOMPACT === '1' || process.env.DISABLE_MICROCOMPACT === 'true') {
+    return messages;
+  }
+
+  // 收集所有可清理工具的 tool_result 信息
+  interface CleanableResult {
+    msgIndex: number;
+    blockIndex: number;
+    toolName: string;
+    toolUseId: string;
+    contentLength: number;
+    tokens: number;
+    hasPersisted: boolean; // 有 <persisted-output> 标签或 "Output has been saved to"
+  }
+
+  const cleanableResults: CleanableResult[] = [];
+
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    if (msg.role !== 'user' || !Array.isArray(msg.content)) continue;
+
+    for (let j = 0; j < msg.content.length; j++) {
+      const block = msg.content[j];
+      if (
+        typeof block === 'object' &&
+        'type' in block &&
+        block.type === 'tool_result' &&
+        typeof block.content === 'string' &&
+        'tool_use_id' in block
+      ) {
+        const content = block.content as string;
+        const toolName = findToolNameForResult(messages, block.tool_use_id as string);
+
+        if (COMPACTABLE_TOOLS.has(toolName) && content.length > SOFT_TRIM_CHARS) {
+          // 简单估算 token：字符数 / 4
+          const estimatedTokens = Math.ceil(content.length / 4);
+          cleanableResults.push({
+            msgIndex: i,
+            blockIndex: j,
+            toolName,
+            toolUseId: block.tool_use_id as string,
+            contentLength: content.length,
+            tokens: estimatedTokens,
+            hasPersisted: content.includes(PERSISTED_OUTPUT_START) || content.includes('Output has been saved to'),
+          });
         }
       }
     }
   }
 
-  // 如果持久化输出数量超过限制，清理旧的
-  if (persistedOutputIndices.length > keepRecent) {
-    const indicesToClean = persistedOutputIndices.slice(0, -keepRecent);
-
-    return messages.map((msg, index) => {
-      if (!indicesToClean.includes(index)) {
-        return msg;
-      }
-
-      // 清理这条消息中的持久化标签
-      if (msg.role === 'user' && Array.isArray(msg.content)) {
-        return {
-          ...msg,
-          content: msg.content.map((block) => {
-            if (
-              typeof block === 'object' &&
-              'type' in block &&
-              block.type === 'tool_result' &&
-              typeof block.content === 'string'
-            ) {
-              // 移除持久化标签，替换为简单的清理提示
-              let content = block.content;
-              if (content.includes(PERSISTED_OUTPUT_START)) {
-                // 官方实现：直接替换为固定的清理消息
-                content = '[Old tool result content cleared]';
-              }
-              return { ...block, content };
-            }
-            return block;
-          }),
-        };
-      }
-
-      return msg;
-    });
+  // 如果没有足够的可清理输出，直接返回
+  if (cleanableResults.length <= keepRecent) {
+    return messages;
   }
 
-  return messages;
+  // 计算当前消息的总 token 数（简单估算）
+  let totalTokens = 0;
+  for (const msg of messages) {
+    if (typeof msg.content === 'string') {
+      totalTokens += Math.ceil(msg.content.length / 4);
+    } else if (Array.isArray(msg.content)) {
+      for (const block of msg.content) {
+        if (typeof block === 'string') {
+          totalTokens += Math.ceil(block.length / 4);
+        } else if (typeof block === 'object' && 'type' in block) {
+          if (block.type === 'text' && 'text' in block && typeof block.text === 'string') {
+            totalTokens += Math.ceil(block.text.length / 4);
+          } else if (block.type === 'tool_result' && 'content' in block && typeof block.content === 'string') {
+            totalTokens += Math.ceil(block.content.length / 4);
+          }
+        }
+      }
+    }
+  }
+
+  // 保留最近的 N 个，清理其余的
+  const toClean = cleanableResults.slice(0, -keepRecent);
+  const totalSavings = toClean.reduce((sum, item) => sum + item.tokens, 0);
+
+  // 智能触发判断
+  if (totalTokens <= MICROCOMPACT_THRESHOLD || totalSavings < MIN_SAVINGS_THRESHOLD) {
+    return messages;
+  }
+
+  // 构建要清理的位置索引 Map
+  const cleanTargets = new Map<string, CleanableResult>(); // key: "msgIndex:blockIndex"
+  for (const item of toClean) {
+    cleanTargets.set(`${item.msgIndex}:${item.blockIndex}`, item);
+  }
+
+  return messages.map((msg, msgIndex) => {
+    if (msg.role !== 'user' || !Array.isArray(msg.content)) return msg;
+
+    let modified = false;
+    const newContent = msg.content.map((block, blockIndex) => {
+      const target = cleanTargets.get(`${msgIndex}:${blockIndex}`);
+      if (!target) return block;
+
+      if (
+        typeof block === 'object' &&
+        'type' in block &&
+        block.type === 'tool_result' &&
+        typeof block.content === 'string'
+      ) {
+        const content = block.content as string;
+        let newContentStr: string;
+
+        if (target.hasPersisted) {
+          // 阶段 2（硬清理）：已保存到文件或有持久化标签的，直接清除
+          newContentStr = '[Old tool result content cleared]';
+        } else {
+          // 阶段 1（软裁剪）：保留头尾，截掉中间
+          const head = content.substring(0, SOFT_TRIM_HEAD);
+          const tail = content.substring(content.length - SOFT_TRIM_TAIL);
+          const omitted = content.length - SOFT_TRIM_HEAD - SOFT_TRIM_TAIL;
+          newContentStr = `${head}\n\n... [${omitted} characters trimmed from old tool result] ...\n\n${tail}`;
+        }
+
+        modified = true;
+        return { ...block, content: newContentStr };
+      }
+      return block;
+    });
+
+    return modified ? { ...msg, content: newContent } : msg;
+  });
 }
 
 /**
@@ -287,6 +432,8 @@ interface SessionState {
   isProcessing: boolean;
   /** 上一次 API 返回的实际 inputTokens（用于精确判断是否需要压缩） */
   lastActualInputTokens: number;
+  /** 最后一次 API 调用成功时 state.messages 的长度（用于混合 token 估算） */
+  messagesLenAtLastApiCall: number;
   /** 最后一次压缩的边界标记 UUID（对齐官方，用于增量压缩） */
   lastCompactedUuid?: string;
   /** 标记：处理中 WebSocket 被刷新替换，完成后需要重发 history */
@@ -610,39 +757,21 @@ export class ConversationManager {
       }
     }
 
-    if (!oauthManager.isTokenExpired()) {
-      return;
+    // 记住刷新前的 token，用于判断是否需要重建客户端
+    const tokenBefore = oauthManager.getOAuthConfig()?.accessToken;
+
+    // 统一的 token 有效性检查（对齐官方 NM() 语义）
+    const refreshOk = await webAuth.ensureValidToken();
+    if (!refreshOk) {
+      throw new Error('OAuth token 已过期，刷新失败。请重新登录。');
     }
 
-    console.log('[ConversationManager] OAuth token 已过期，正在刷新...');
-
-    try {
-      // 刷新 token
-      const refreshed = await oauthManager.refreshToken();
-
-      console.log('[ConversationManager] OAuth token 刷新成功，过期时间:', new Date(refreshed.expiresAt));
-
-      // 重新构建客户端配置并更新客户端
+    // 只有 token 真正变更了才重建客户端
+    const tokenAfter = oauthManager.getOAuthConfig()?.accessToken;
+    if (tokenBefore !== tokenAfter) {
       const newConfig = this.buildClientConfig(state.model);
-
-      // 更新客户端的 authToken
-      if (newConfig.authToken) {
-        // 创建新的客户端实例
-        state.client = new ClaudeClient({
-          ...newConfig,
-        });
-        console.log('[ConversationManager] 客户端已更新为新的 OAuth token');
-      } else if (newConfig.apiKey) {
-        // OAuth 用户可能使用 API Key
-        state.client = new ClaudeClient({
-          ...newConfig,
-          authToken: undefined,
-        });
-        console.log('[ConversationManager] 客户端已更新为 OAuth API Key');
-      }
-    } catch (error: any) {
-      console.error('[ConversationManager] OAuth token 刷新失败:', error.message);
-      throw new Error(`OAuth token 已过期，刷新失败: ${error.message}。请重新登录。`);
+      state.client = new ClaudeClient({ ...newConfig });
+      console.log('[ConversationManager] 客户端已使用刷新后的 OAuth 凭证');
     }
   }
 
@@ -712,6 +841,7 @@ export class ConversationManager {
       },
       isProcessing: false,
       lastActualInputTokens: 0,
+      messagesLenAtLastApiCall: 0,
       lastPersistedMessageCount: 0,
     };
 
@@ -1158,14 +1288,27 @@ export class ConversationManager {
       let cleanedMessages = cleanOldPersistedOutputs(state.messages, 3);
 
       // AutoCompact：检查是否需要压缩上下文（对齐 CLI loop.ts 的 autoCompact）
-      // 双重检查：1) 估算值检查  2) 上一次 API 实际 inputTokens 检查
+      // 使用混合 token 估算策略（对齐官方 Fv 函数）：
+      // - 如果有精确 API usage 数据，用它作为基准，只估算新增消息的 token
+      // - 否则 fallback 到纯估算（shouldAutoCompact）
       const resolvedModel = modelConfig.resolveAlias(state.model);
       const threshold = calculateAutoCompactThreshold(resolvedModel);
+      
+      // 混合估算逻辑
+      let hybridTokens = 0;
+      if (state.lastActualInputTokens > 0 && state.messagesLenAtLastApiCall > 0) {
+        // 有精确基准：精确值 + 新增消息的估算值
+        const newMessagesStart = state.messagesLenAtLastApiCall;
+        const newMessages = cleanedMessages.slice(newMessagesStart);
+        const newMessagesTokens = this.estimateMessageTokens(newMessages);
+        hybridTokens = state.lastActualInputTokens + newMessagesTokens;
+      }
+      
       // 防止连续压缩：刚压缩完的下一轮跳过（系统提示词+工具定义的 token 开销不可压缩，
       // lastActualInputTokens 包含了这些不可压缩的部分，可能仍超阈值导致死循环）
       const needsCompact = !justAutoCompacted && (
         shouldAutoCompact(cleanedMessages, resolvedModel) ||
-        (state.lastActualInputTokens > 0 && state.lastActualInputTokens >= threshold)
+        (hybridTokens > 0 && hybridTokens >= threshold)
       );
       justAutoCompacted = false; // 重置标志（仅跳过紧接的一轮）
 
@@ -1259,6 +1402,7 @@ export class ConversationManager {
             cleanedMessages = [...compactResult.messages, ...messagesToKeep];
             state.messages = [...compactResult.messages, ...messagesToKeep];
             state.lastActualInputTokens = 0; // 压缩后重置
+            state.messagesLenAtLastApiCall = 0; // 压缩后重置，下次重新建立基准
             justAutoCompacted = true; // 标记刚压缩完，防止下一轮再次触发
             // compact 后旧的 _messagesLen 已失效（messages 被压缩替换），清除它们
             // 防止回滚时用过时的 _messagesLen 截断到错误位置
@@ -1305,6 +1449,24 @@ export class ConversationManager {
         } catch (err) {
           console.warn('[AutoCompact] 压缩失败，使用原消息继续:', err);
           callbacks.onContextCompact?.('error', { message: String(err) });
+        }
+      }
+
+      // 对齐官方 Wc 函数：检查 blocking limit（上下文窗口 - 3000 缓冲）
+      // 如果压缩失败（或未触发）但消息已超限，直接报错退出，不再尝试调 API
+      // 使用混合估算（与 autoCompact 判断一致）
+      {
+        const contextWindow = getContextWindowSize(resolvedModel);
+        const blockingLimit = contextWindow - 3000;
+        
+        // 混合估算（复用上面计算的 hybridTokens，若为 0 则 fallback 纯估算）
+        const tokensToCheck = hybridTokens > 0 ? hybridTokens : this.estimateMessageTokens(cleanedMessages);
+
+        if (tokensToCheck >= blockingLimit) {
+          console.error(`[ConversationManager] 消息 token (${tokensToCheck.toLocaleString()}) 已达到 blocking limit (${blockingLimit.toLocaleString()})，无法继续对话`);
+          callbacks.onError?.(new Error('Prompt is too long. The conversation context exceeds the model limit and compaction failed. Please start a new conversation or manually remove old messages.'));
+          continueLoop = false;
+          continue;
         }
       }
 
@@ -1437,6 +1599,8 @@ export class ConversationManager {
                 totalOutputTokens = event.usage.outputTokens || 0;
                 // 记录实际 inputTokens 供下次循环迭代的自动压缩判断使用
                 state.lastActualInputTokens = totalInputTokens;
+                // 记录当前 messages 长度，供混合 token 估算使用
+                state.messagesLenAtLastApiCall = state.messages.length;
 
                 // 实时发送上下文使用量更新（每次 API 调用都更新，而非仅对话结束时）
                 if (totalInputTokens > 0) {
@@ -1673,6 +1837,7 @@ export class ConversationManager {
             if (compactResult.wasCompacted) {
               state.messages = [...compactResult.messages, ...forceKeepMsgs];
               state.lastActualInputTokens = 0;
+              state.messagesLenAtLastApiCall = 0; // 压缩后重置，下次重新建立基准
               justAutoCompacted = true; // 防止连续压缩
               // compact 后旧的 _messagesLen 已失效，清除
               for (const entry of state.chatHistory) {
@@ -2731,6 +2896,27 @@ export class ConversationManager {
    * - boundaryMarker: 压缩边界标记（type: "user", 带 uuid）
    * - summaryMessage: 摘要消息（type: "user", isCompactSummary: true）
    */
+
+  /**
+   * 粗略估算消息列表的 token 数（char/4 估算，对齐官方 Fv 函数）
+   * 用于 blocking limit 检查和 NJ1 摘要前的超限判断
+   */
+  private estimateMessageTokens(messages: Message[]): number {
+    return messages.reduce((sum: number, msg: Message) => {
+      if (typeof msg.content === 'string') return sum + Math.ceil(msg.content.length / 4);
+      if (Array.isArray(msg.content)) {
+        for (const block of msg.content) {
+          if (typeof block === 'object' && 'type' in block) {
+            if (block.type === 'text' && 'text' in block && typeof (block as any).text === 'string') sum += Math.ceil((block as any).text.length / 4);
+            else if (block.type === 'tool_result' && 'content' in block && typeof (block as any).content === 'string') sum += Math.ceil((block as any).content.length / 4);
+            else if (block.type === 'image' || block.type === 'document') sum += 4000;
+          }
+        }
+      }
+      return sum;
+    }, 0);
+  }
+
   private async performAutoCompact(
     messages: Message[],
     model: string,
@@ -2775,6 +2961,16 @@ export class ConversationManager {
 
     // 2. 尝试对话摘要 (NJ1) — 对齐官方 oj1 压缩函数
     try {
+      // 对齐官方：检查消息总 token 是否已超过上下文窗口限制
+      // 如果超限，NJ1 摘要请求也必然失败（摘要请求 = 全量消息 + summaryPrompt），直接跳过
+      const contextWindow = getContextWindowSize(model);
+      const estimatedMsgTokens = this.estimateMessageTokens(messages);
+
+      if (estimatedMsgTokens >= contextWindow) {
+        console.warn(`[AutoCompact/NJ1] 消息 token (${estimatedMsgTokens.toLocaleString()}) 已超过上下文窗口 (${contextWindow.toLocaleString()})，跳过 NJ1 摘要（必然失败）`);
+        return { wasCompacted: false, messages };
+      }
+
       // 对齐官方 dDA 函数：使用完整的摘要 prompt（含 <analysis> + <summary> 结构）
       const summaryPrompt = generateSummaryPrompt();
 
@@ -3736,6 +3932,7 @@ Guidelines:
         },
         isProcessing: false,
         lastActualInputTokens: 0,
+        messagesLenAtLastApiCall: 0,
         lastPersistedMessageCount: sessionData.messages.length, // 从磁盘加载时，初始化为当前消息数
       };
 

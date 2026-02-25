@@ -818,12 +818,13 @@ export function getMaxOutputTokens(model: string): number {
 
 /**
  * 计算可用的输入 token 空间
- * 对齐官方 EHA 函数
+ * 对齐官方 EHA 函数（官方 N91: IG(A, iP()) - Math.min(zh8(A), _QY)）
+ * _QY = 20000: 将 maxOutputTokens cap 在 20K，防止过度预留输出空间
  * @param model 模型 ID
  * @returns 可用的输入 tokens
  */
 export function calculateAvailableInput(model: string): number {
-  return getContextWindowSize(model) - getMaxOutputTokens(model);
+  return getContextWindowSize(model) - Math.min(getMaxOutputTokens(model), 20000);
 }
 
 /**
@@ -2689,6 +2690,8 @@ export class ConversationLoop {
       // 收集所有工具返回的 newMessages（对齐官网实现）
       const allNewMessages: Array<{ role: 'user'; content: any[] }> = [];
 
+      // 分离非工具块和工具块
+      const toolUseBlocks: ContentBlock[] = [];
       for (const block of response.content) {
         if (block.type === 'text') {
           assistantContent.push(block);
@@ -2697,22 +2700,17 @@ export class ConversationLoop {
             process.stdout.write(block.text || '');
           }
         } else if (block.type === 'server_tool_use') {
-          // Server Tool (如 web_search) - 由 Anthropic 服务器执行
-          // 不需要客户端执行，只记录日志
           assistantContent.push(block);
           const serverToolBlock = block as any;
           if (this.options.verbose) {
             console.log(chalk.cyan(`\n[Server Tool: ${serverToolBlock.name}]`));
             console.log(chalk.gray('(executed by Anthropic servers)'));
           }
-          // Server Tool 不需要返回 tool_result，结果由服务器自动提供
         } else if (block.type === 'web_search_tool_result') {
-          // Web Search 结果 - 由 Anthropic 服务器返回
           assistantContent.push(block);
           const searchResultBlock = block as any;
           if (this.options.verbose) {
             console.log(chalk.cyan(`\n[Web Search Results]`));
-            // 显示搜索结果摘要
             if (Array.isArray(searchResultBlock.content)) {
               const results = searchResultBlock.content;
               console.log(chalk.gray(`Found ${results.length} results`));
@@ -2725,46 +2723,66 @@ export class ConversationLoop {
               console.log(chalk.red(`Search error: ${searchResultBlock.content.error_code}`));
             }
           }
-          // Web Search 结果已经是完整的，不需要额外的 tool_result
         } else if (block.type === 'tool_use') {
           assistantContent.push(block);
+          toolUseBlocks.push(block);
+        }
+      }
 
-          // 执行工具
-          const toolName = block.name || '';
-          const toolInput = block.input || {};
-          const toolId = block.id || '';
+      // 并行执行所有工具（对齐官方 KM5 函数：Promise.all(toolUseBlocks.map(...))）
+      if (toolUseBlocks.length > 0) {
+        const execResults = await Promise.all(toolUseBlocks.map(async (block) => {
+          const toolBlock = block as any;
+          const toolName: string = toolBlock.name || '';
+          const toolInput: any = toolBlock.input || {};
+          const toolId: string = toolBlock.id || '';
 
           if (this.options.verbose) {
             console.log(chalk.cyan(`\n[Tool: ${toolName}]`));
           }
 
-          // 执行工具（带权限检查和回调）
-          const result = await toolRegistry.execute(
-            toolName,
-            toolInput,
-            // 权限请求回调函数
-            async (name, input, message) => {
-              return await this.handlePermissionRequest(name, input, message);
+          try {
+            const result = await toolRegistry.execute(
+              toolName,
+              toolInput,
+              async (name, input, message) => {
+                return await this.handlePermissionRequest(name, input, message);
+              }
+            );
+
+            if (this.options.verbose) {
+              console.log(chalk.gray(result.output || result.error || ''));
             }
-          );
 
-          if (this.options.verbose) {
-            console.log(chalk.gray(result.output || result.error || ''));
+            return { toolName, toolInput, toolId, result, error: null };
+          } catch (err) {
+            return { toolName, toolInput, toolId, result: null, error: err };
+          }
+        }));
+
+        // 按顺序处理结果
+        for (const exec of execResults) {
+          if (exec.error || !exec.result) {
+            toolResults.push({
+              type: 'tool_result',
+              tool_use_id: exec.toolId,
+              content: `Error: ${exec.error instanceof Error ? exec.error.message : String(exec.error)}`,
+            });
+            continue;
           }
 
-          // v2.1.27: 记录工具执行失败到调试日志
+          const result = exec.result;
+
           if (!result.success && result.error) {
-            logToolFailed(toolName, result.error, toolInput, this.session.sessionId);
+            logToolFailed(exec.toolName, result.error, exec.toolInput, this.session.sessionId);
           }
 
-          // 使用格式化函数处理工具结果
-          const formattedContent = formatToolResult(toolName, result);
+          const formattedContent = formatToolResult(exec.toolName, result);
 
-          // 如果工具返回了 images，构建混合 content 数组（ImageBlockParam 嵌入 tool_result）
           if (result.images && result.images.length > 0) {
             toolResults.push({
               type: 'tool_result',
-              tool_use_id: toolId,
+              tool_use_id: exec.toolId,
               content: [
                 { type: 'text', text: formattedContent || 'Tool completed.' },
                 ...result.images,
@@ -2773,28 +2791,27 @@ export class ConversationLoop {
           } else {
             toolResults.push({
               type: 'tool_result',
-              tool_use_id: toolId,
+              tool_use_id: exec.toolId,
               content: formattedContent,
             });
           }
 
-          // 收集 newMessages（对齐官网实现）
           if (result.newMessages && result.newMessages.length > 0) {
             allNewMessages.push(...result.newMessages);
           }
 
-          // 工具循环检测：记录调用
-          const loopStatus = this.recordToolCall(toolName, toolInput);
+          // 工具循环检测
+          const loopStatus = this.recordToolCall(exec.toolName, exec.toolInput);
           if (loopStatus === 'circuit_break') {
             console.error(`[ToolLoop] Circuit breaker triggered after ${ConversationLoop.TOOL_LOOP_CIRCUIT_BREAKER} tool calls in one turn`);
             toolResults.push({
               type: 'tool_result',
-              tool_use_id: toolId,
+              tool_use_id: exec.toolId,
               content: `[CIRCUIT BREAKER] Too many tool calls (${ConversationLoop.TOOL_LOOP_CIRCUIT_BREAKER}) in a single user message. Stop calling tools and summarize what you have done so far.`,
             });
             break;
           } else if (loopStatus === 'warning') {
-            console.error(`[ToolLoop] Repetitive tool call pattern detected for ${toolName}`);
+            console.error(`[ToolLoop] Repetitive tool call pattern detected for ${exec.toolName}`);
           }
         }
       }
@@ -2859,6 +2876,11 @@ export class ConversationLoop {
         0,
         0
       );
+    }
+
+    // maxTurns 耗尽但仍有工具调用 → 标记为截断
+    if (turns >= maxTurns) {
+      finalResponse += '\n\n[WARNING: max turns reached, task may be incomplete]';
     }
 
     // 自动保存会话
@@ -3181,11 +3203,15 @@ Guidelines:
       // 收集所有工具返回的 newMessages（对齐官网实现）
       const allNewMessages: Array<{ role: 'user'; content: any[] }> = [];
 
+      // ========================================================================
+      // 并行工具执行（对齐官方 KM5 函数：Promise.all(toolUseBlocks.map(...))）
+      // 官方实现中所有 tool_use 块是并行执行的，而非串行
+      // ========================================================================
+
+      // 第一步：处理 Server Tool（同步，不需要执行）
+      const clientToolCalls: Array<[string, typeof toolCalls extends Map<string, infer V> ? V : never]> = [];
       for (const [id, tool] of toolCalls) {
-        // 跳过 Server Tool（由 Anthropic 服务器执行，不需要客户端处理）
         if (tool.isServerTool) {
-          // Server Tool 的结果会自动包含在 API 响应中
-          // 只需要记录到 assistantContent 中
           assistantContent.push({
             type: 'server_tool_use' as any,
             id,
@@ -3193,7 +3219,6 @@ Guidelines:
             input: {},
           });
 
-          // 生成搜索结果摘要（对齐官方 "Did N searches in Xs" 格式）
           let toolResult = '(executed by Anthropic servers)';
           const searchResult = webSearchResults.get(id);
           if (searchResult && tool.name === 'web_search') {
@@ -3219,118 +3244,20 @@ Guidelines:
             toolResult,
             toolError: undefined,
           };
-          continue;
+        } else {
+          clientToolCalls.push([id, tool as any]);
         }
+      }
 
+      // 第二步：为所有客户端工具发送 tool_start 事件
+      const parsedInputs = new Map<string, any>();
+      for (const [id, tool] of clientToolCalls) {
         try {
           const input = JSON.parse(tool.input || '{}');
-
-          // v3.5: 在工具执行前发送带完整 toolInput 的 tool_start
-          // 这样前端可以在长时间运行的工具（如 Bash）执行期间显示输入参数
+          parsedInputs.set(id, input);
           yield { type: 'tool_start', toolName: tool.name, toolInput: input };
-
-          let result: ToolResult;
-
-          // v4.2: AskUserQuestion 工具拦截 - 使用自定义处理器
-          if (tool.name === 'AskUserQuestion' && this.options.askUserHandler) {
-            try {
-              const handlerResult = await this.options.askUserHandler({
-                questions: input.questions || [],
-              });
-
-              if (handlerResult.cancelled) {
-                result = {
-                  success: false,
-                  error: t('loop.userCancelled'),
-                };
-              } else {
-                // 使用官方格式返回结果
-                const formattedAnswers = Object.entries(handlerResult.answers)
-                  .map(([header, answer]) => `"${header}"="${answer}"`)
-                  .join(', ');
-                result = {
-                  success: true,
-                  output: `User has answered your questions: ${formattedAnswers}. You can now continue with the user's answers in mind.`,
-                };
-              }
-            } catch (err) {
-              result = {
-                success: false,
-                error: t('loop.handlerError', { error: err instanceof Error ? err.message : String(err) }),
-              };
-            }
-          } else {
-            // 正常执行工具（带权限检查和回调）
-            result = await toolRegistry.execute(
-              tool.name,
-              input,
-              // 权限请求回调函数
-              async (name, toolInput, message) => {
-                return await this.handlePermissionRequest(name, toolInput, message);
-              }
-            );
-          }
-
-          yield {
-            type: 'tool_end',
-            toolName: tool.name,
-            toolInput: input,
-            toolResult: result.success ? result.output : undefined,
-            toolError: result.success ? undefined : result.error,
-          };
-
-          // v2.1.27: 记录工具执行失败到调试日志
-          if (!result.success && result.error) {
-            logToolFailed(tool.name, result.error, input, this.session.sessionId);
-          }
-
-          assistantContent.push({
-            type: 'tool_use',
-            id,
-            name: tool.name,
-            input,
-          });
-
-          // 使用格式化函数处理工具结果
-          const formattedContent = formatToolResult(tool.name, result);
-
-          // 如果工具返回了 images，构建混合 content 数组（ImageBlockParam 嵌入 tool_result）
-          if (result.images && result.images.length > 0) {
-            toolResults.push({
-              type: 'tool_result',
-              tool_use_id: id,
-              content: [
-                { type: 'text', text: formattedContent || 'Tool completed.' },
-                ...result.images,
-              ],
-            });
-          } else {
-            toolResults.push({
-              type: 'tool_result',
-              tool_use_id: id,
-              content: formattedContent,
-            });
-          }
-
-          // 收集 newMessages（对齐官网实现）
-          if (result.newMessages && result.newMessages.length > 0) {
-            allNewMessages.push(...result.newMessages);
-          }
-
-          // 工具循环检测：记录调用
-          const loopStatus = this.recordToolCall(tool.name, input);
-          if (loopStatus === 'circuit_break') {
-            console.error(`[ToolLoop] Circuit breaker triggered after ${ConversationLoop.TOOL_LOOP_CIRCUIT_BREAKER} tool calls in one turn`);
-            toolResults.push({
-              type: 'tool_result',
-              tool_use_id: id,
-              content: `[CIRCUIT BREAKER] Too many tool calls (${ConversationLoop.TOOL_LOOP_CIRCUIT_BREAKER}) in a single user message. Stop calling tools and summarize what you have done so far.`,
-            });
-            break;
-          } else if (loopStatus === 'warning') {
-            console.error(`[ToolLoop] Repetitive tool call pattern detected for ${tool.name}`);
-          }
         } catch (err) {
+          parsedInputs.set(id, null);
           yield {
             type: 'tool_end',
             toolName: tool.name,
@@ -3338,6 +3265,149 @@ Guidelines:
             toolResult: undefined,
             toolError: `Parse error: ${err}`,
           };
+        }
+      }
+
+      // 第三步：并行执行所有工具（核心修复）
+      type ToolExecResult = {
+        id: string;
+        toolName: string;
+        input: any;
+        result: ToolResult | null;
+        error: string | null;
+      };
+
+      const execPromises: Promise<ToolExecResult>[] = [];
+      for (const [id, tool] of clientToolCalls) {
+        const input = parsedInputs.get(id);
+        if (input === null) {
+          // 解析失败，已经 yield 了 tool_end 错误事件
+          continue;
+        }
+
+        const promise = (async (): Promise<ToolExecResult> => {
+          try {
+            let result: ToolResult;
+
+            if (tool.name === 'AskUserQuestion' && this.options.askUserHandler) {
+              try {
+                const handlerResult = await this.options.askUserHandler({
+                  questions: input.questions || [],
+                });
+
+                if (handlerResult.cancelled) {
+                  result = {
+                    success: false,
+                    error: t('loop.userCancelled'),
+                  };
+                } else {
+                  const formattedAnswers = Object.entries(handlerResult.answers)
+                    .map(([header, answer]) => `"${header}"="${answer}"`)
+                    .join(', ');
+                  result = {
+                    success: true,
+                    output: `User has answered your questions: ${formattedAnswers}. You can now continue with the user's answers in mind.`,
+                  };
+                }
+              } catch (err) {
+                result = {
+                  success: false,
+                  error: t('loop.handlerError', { error: err instanceof Error ? err.message : String(err) }),
+                };
+              }
+            } else {
+              result = await toolRegistry.execute(
+                tool.name,
+                input,
+                async (name, toolInput, message) => {
+                  return await this.handlePermissionRequest(name, toolInput, message);
+                }
+              );
+            }
+
+            return { id, toolName: tool.name, input, result, error: null };
+          } catch (err) {
+            return { id, toolName: tool.name, input, result: null, error: `Error: ${err}` };
+          }
+        })();
+
+        execPromises.push(promise);
+      }
+
+      // 等待所有工具并行执行完成
+      const execResults = await Promise.all(execPromises);
+
+      // 第四步：按顺序处理结果（yield tool_end 事件、构建 toolResults）
+      let circuitBroken = false;
+      for (const exec of execResults) {
+        if (exec.error || !exec.result) {
+          yield {
+            type: 'tool_end',
+            toolName: exec.toolName,
+            toolInput: exec.input,
+            toolResult: undefined,
+            toolError: exec.error || 'Unknown error',
+          };
+          continue;
+        }
+
+        const result = exec.result;
+
+        yield {
+          type: 'tool_end',
+          toolName: exec.toolName,
+          toolInput: exec.input,
+          toolResult: result.success ? result.output : undefined,
+          toolError: result.success ? undefined : result.error,
+        };
+
+        if (!result.success && result.error) {
+          logToolFailed(exec.toolName, result.error, exec.input, this.session.sessionId);
+        }
+
+        assistantContent.push({
+          type: 'tool_use',
+          id: exec.id,
+          name: exec.toolName,
+          input: exec.input,
+        });
+
+        const formattedContent = formatToolResult(exec.toolName, result);
+
+        if (result.images && result.images.length > 0) {
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: exec.id,
+            content: [
+              { type: 'text', text: formattedContent || 'Tool completed.' },
+              ...result.images,
+            ],
+          });
+        } else {
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: exec.id,
+            content: formattedContent,
+          });
+        }
+
+        if (result.newMessages && result.newMessages.length > 0) {
+          allNewMessages.push(...result.newMessages);
+        }
+
+        // 工具循环检测
+        const loopStatus = this.recordToolCall(exec.toolName, exec.input);
+        if (loopStatus === 'circuit_break') {
+          console.error(`[ToolLoop] Circuit breaker triggered after ${ConversationLoop.TOOL_LOOP_CIRCUIT_BREAKER} tool calls in one turn`);
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: exec.id,
+            content: `[CIRCUIT BREAKER] Too many tool calls (${ConversationLoop.TOOL_LOOP_CIRCUIT_BREAKER}) in a single user message. Stop calling tools and summarize what you have done so far.`,
+          });
+          circuitBroken = true;
+          break;
+        } else if (loopStatus === 'warning') {
+          console.error(`[ToolLoop] Repetitive tool call pattern detected for ${exec.toolName}`);
         }
       }
 
@@ -3394,7 +3464,12 @@ Guidelines:
     // 自动保存会话
     this.autoSave();
 
-    yield { type: 'done' };
+    // maxTurns 耗尽时标记截断，让调用方知道任务未完整完成
+    if (turns >= maxTurns) {
+      yield { type: 'done', content: '[max_turns_reached]' };
+    } else {
+      yield { type: 'done' };
+    }
   }
 
   getSession(): Session {
