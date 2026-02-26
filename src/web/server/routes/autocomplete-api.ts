@@ -10,6 +10,7 @@ import { Router, Request, Response } from 'express';
 import { ClaudeClient } from '../../../core/client.js';
 import { configManager } from '../../../config/index.js';
 import { getAuth } from '../../../auth/index.js';
+import { webAuth } from '../web-auth.js';
 import { LRUCache } from 'lru-cache';
 import crypto from 'crypto';
 import fs from 'fs';
@@ -106,6 +107,8 @@ function createClient(): ClaudeClient | null {
  * 调用 Claude API
  */
 async function callClaude(prompt: string): Promise<string | null> {
+  // 确保 OAuth token 有效（对齐官方 NM()）
+  await webAuth.ensureValidToken();
   const client = createClient();
   if (!client) {
     throw new Error('API 客户端未初始化，请检查 API Key 配置');

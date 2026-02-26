@@ -518,8 +518,17 @@ ${modelUsageStr ? '\n模型使用统计:' + modelUsageStr : ''}
   /**
    * 保存会话到文件
    * 使用原子写入（tmp+rename）防止半写文件，使用排他锁防止并发写入
+   *
+   * 防止空会话污染：如果会话没有消息且没有标题，跳过写入。
+   * 定时任务（ScheduleTask）和未使用的临时会话会产生大量空文件，
+   * 累积后触发 cleanupOldSessions() 按时间删除，可能误删有价值的旧会话。
    */
   save(): string {
+    // 空会话保护：没有消息且没有标题的会话不写入磁盘
+    if (this.messages.length === 0 && !this.customTitle) {
+      return '';
+    }
+
     const sessionFile = path.join(this.configDir, 'sessions', `${this.state.sessionId}.json`);
     const sessionDir = path.dirname(sessionFile);
 

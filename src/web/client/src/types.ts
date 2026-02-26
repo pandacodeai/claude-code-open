@@ -251,6 +251,17 @@ export interface Session {
   name: string;
   updatedAt: number;
   messageCount: number;
+  createdAt?: number;
+  model?: string;
+  cost?: number;
+  tokenUsage?: {
+    input: number;
+    output: number;
+    total: number;
+  };
+  tags?: string[];
+  workingDirectory?: string;
+  projectPath?: string;
 }
 
 /** App 暴露给 Root 的会话操作接口 */
@@ -259,6 +270,7 @@ export interface SessionActions {
   deleteSession: (id: string) => void;
   renameSession: (id: string, name: string) => void;
   newSession: () => void;
+  searchSessions: (query: string) => void;
 }
 
 // 斜杠命令
@@ -337,8 +349,9 @@ export type WSMessageType =
   | 'task_status'
   | 'subagent_tool_start'
   | 'subagent_tool_end'
-  // 定时任务倒计时
+  // 定时任务倒计时/闹钟
   | 'schedule_countdown'
+  | 'schedule_alarm'
   // 持续开发相关消息类型
   | 'continuous_dev:ack'
   | 'continuous_dev:status_update'
@@ -364,9 +377,50 @@ export type WSMessageType =
   // 设计图生成
   | 'design_image_generated'
   // 探针调试消息
-  | 'debug_messages_response';
+  | 'debug_messages_response'
+  // 定时任务实时更新
+  | 'schedule:task_created'
+  | 'schedule:task_updated'
+  | 'schedule:task_deleted';
 
 export interface WSMessage {
   type: WSMessageType | string;  // 允许扩展类型
   payload?: unknown;
+}
+
+/**
+ * Git Merge Status
+ * 用于 MergeView 组件显示合并/变基冲突状态
+ */
+export interface GitMergeStatus {
+  inProgress: boolean;
+  type: 'merge' | 'rebase' | 'cherry-pick' | null;
+  conflicts: string[];
+  currentBranch: string;
+  targetBranch?: string;
+}
+
+/**
+ * Git File History Commit
+ * 用于 FileHistoryView 组件显示文件修改历史
+ */
+export interface GitFileHistoryCommit {
+  hash: string;
+  shortHash: string;
+  author: string;
+  date: string;
+  message: string;
+  diff?: string;
+}
+
+/**
+ * Git Blame Line
+ * 用于 BlameView 组件显示文件的每行追溯信息
+ */
+export interface GitBlameLine {
+  lineNumber: number;
+  commit: string;
+  author: string;
+  date: string;
+  content: string;
 }

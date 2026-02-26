@@ -6,12 +6,13 @@
 import { ClaudeClient } from '../../core/client.js';
 import { Session } from '../../core/session.js';
 import { runWithCwd } from '../../core/cwd-context.js';
+import { runWithSessionId } from '../../core/session-context.js';
 import { shouldAutoCompact, calculateAutoCompactThreshold, getContextWindowSize, generateSummaryPrompt, formatCompactSummaryContent, validateToolResults } from '../../core/loop.js';
 import { toolRegistry, registerBlueprintTools } from '../../tools/index.js';
 import { systemPromptBuilder, type PromptContext } from '../../prompt/index.js';
 import { modelConfig } from '../../models/index.js';
 import { configManager } from '../../config/index.js';
-import { initAuth, getAuth } from '../../auth/index.js';
+import { initAuth, getAuth, createOAuthApiKey } from '../../auth/index.js';
 import type { Message, ContentBlock, ToolUseBlock, TextBlock } from '../../types/index.js';
 import type { ChatMessage, ChatContent, ToolResultData, PermissionConfigPayload, PermissionRequestPayload, SystemPromptConfig, SystemPromptGetPayload, DebugMessagesPayload } from '../shared/types.js';
 import { UserInteractionHandler } from './user-interaction.js';
@@ -25,6 +26,7 @@ import { TaskManager } from './task-manager.js';
 import { McpConfigManager } from '../../mcp/config.js';
 import type { ExtendedMcpServerConfig } from '../../mcp/config.js';
 import { oauthManager } from './oauth-manager.js';
+import { webAuth } from './web-auth.js';
 import { blueprintStore, executionManager } from './routes/blueprint-api.js';
 import type { Blueprint } from '../../blueprint/types.js';
 import { StartLeadAgentTool } from '../../tools/start-lead-agent.js';
@@ -103,7 +105,7 @@ const PERSISTED_OUTPUT_END = '</persisted-output>';
 const MAX_OUTPUT_LINES = 2000;
 
 /** 输出阈值（字符数），超过此值使用持久化标签 */
-const OUTPUT_THRESHOLD = 400000; // 400KB
+const OUTPUT_THRESHOLD = 30000; // 30KB（对齐 Bash/Grep 的输出限制）
 
 /** 预览大小（字节） */
 const PREVIEW_SIZE = 2000; // 2KB
@@ -178,70 +180,213 @@ function formatToolResult(
   return content;
 }
 
-/**
- * 清理消息历史中的旧持久化输出
- * 保留最近的 N 个持久化输出，清理更早的
- */
-function cleanOldPersistedOutputs(messages: Message[], keepRecent: number = 3): Message[] {
-  const persistedOutputIndices: number[] = [];
+// ============================================================================
+// Microcompact 常量（借鉴 CLI loop.ts 的两阶段裁剪机制）
+// ============================================================================
 
-  // 找到所有包含持久化输出的消息索引
-  for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i];
-    if (msg.role === 'user' && Array.isArray(msg.content)) {
+/** 可清理工具白名单 */
+const COMPACTABLE_TOOLS = new Set([
+  'Read',
+  'Bash',
+  'Grep',
+  'Glob',
+  'WebSearch',
+  'WebFetch',
+  'Edit',
+  'Write'
+]);
+
+/** 软裁剪触发阈值：tool result 超过此字符数时进行头尾截断 */
+const SOFT_TRIM_CHARS = 4000;
+
+/** 软裁剪保留头部字符数 */
+const SOFT_TRIM_HEAD = 1500;
+
+/** 软裁剪保留尾部字符数 */
+const SOFT_TRIM_TAIL = 1500;
+
+/** Microcompact 触发阈值（tokens） */
+const MICROCOMPACT_THRESHOLD = 40000;
+
+/** 最小节省阈值（tokens） */
+const MIN_SAVINGS_THRESHOLD = 20000;
+
+/** 保留最近的结果数量（不清理） */
+const KEEP_RECENT_COUNT = 3;
+
+/**
+ * 查找 tool_result 对应的 tool_use 的工具名
+ */
+function findToolNameForResult(messages: Message[], toolUseId: string): string {
+  for (const msg of messages) {
+    if (msg.role === 'assistant' && Array.isArray(msg.content)) {
       for (const block of msg.content) {
         if (
           typeof block === 'object' &&
           'type' in block &&
-          block.type === 'tool_result' &&
-          typeof block.content === 'string' &&
-          block.content.includes(PERSISTED_OUTPUT_START)
+          block.type === 'tool_use' &&
+          'id' in block &&
+          block.id === toolUseId &&
+          'name' in block
         ) {
-          persistedOutputIndices.push(i);
-          break;
+          return block.name as string;
+        }
+      }
+    }
+  }
+  return '';
+}
+
+/**
+ * 清理消息历史中的旧工具输出（两阶段裁剪）
+ *
+ * 借鉴 moltbot 的 context-pruning 和官方的 Vd 函数，实现两阶段清理：
+ *
+ * 阶段 1 - 软裁剪（新增）：
+ *   对旧的大 tool result（>4000 字符）保留头尾各 1500 字符，中间截掉。
+ *   覆盖所有 COMPACTABLE_TOOLS 的输出，不限于有 <persisted-output> 标签的。
+ *
+ * 阶段 2 - 硬清理（原有）：
+ *   对有 <persisted-output> 标签或已保存到文件的超大结果，
+ *   直接替换为 '[Old tool result content cleared]'。
+ *
+ * 两阶段共享的控制逻辑：
+ * - 环境变量 DISABLE_MICROCOMPACT=1 完全禁用
+ * - 总 token > MICROCOMPACT_THRESHOLD (40K) 才触发
+ * - 节省 token > MIN_SAVINGS_THRESHOLD (20K) 才执行
+ * - 最近 KEEP_RECENT_COUNT (3) 个结果不清理
+ * - 只清理白名单工具（COMPACTABLE_TOOLS）
+ *
+ * @param messages 消息列表
+ * @param keepRecent 保留最近的数量（默认 3）
+ * @returns 清理后的消息列表
+ */
+function cleanOldPersistedOutputs(messages: Message[], keepRecent: number = KEEP_RECENT_COUNT): Message[] {
+  // 检查环境变量 - 如果禁用则直接返回
+  if (process.env.DISABLE_MICROCOMPACT === '1' || process.env.DISABLE_MICROCOMPACT === 'true') {
+    return messages;
+  }
+
+  // 收集所有可清理工具的 tool_result 信息
+  interface CleanableResult {
+    msgIndex: number;
+    blockIndex: number;
+    toolName: string;
+    toolUseId: string;
+    contentLength: number;
+    tokens: number;
+    hasPersisted: boolean; // 有 <persisted-output> 标签或 "Output has been saved to"
+  }
+
+  const cleanableResults: CleanableResult[] = [];
+
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    if (msg.role !== 'user' || !Array.isArray(msg.content)) continue;
+
+    for (let j = 0; j < msg.content.length; j++) {
+      const block = msg.content[j];
+      if (
+        typeof block === 'object' &&
+        'type' in block &&
+        block.type === 'tool_result' &&
+        typeof block.content === 'string' &&
+        'tool_use_id' in block
+      ) {
+        const content = block.content as string;
+        const toolName = findToolNameForResult(messages, block.tool_use_id as string);
+
+        if (COMPACTABLE_TOOLS.has(toolName) && content.length > SOFT_TRIM_CHARS) {
+          // 简单估算 token：字符数 / 4
+          const estimatedTokens = Math.ceil(content.length / 4);
+          cleanableResults.push({
+            msgIndex: i,
+            blockIndex: j,
+            toolName,
+            toolUseId: block.tool_use_id as string,
+            contentLength: content.length,
+            tokens: estimatedTokens,
+            hasPersisted: content.includes(PERSISTED_OUTPUT_START) || content.includes('Output has been saved to'),
+          });
         }
       }
     }
   }
 
-  // 如果持久化输出数量超过限制，清理旧的
-  if (persistedOutputIndices.length > keepRecent) {
-    const indicesToClean = persistedOutputIndices.slice(0, -keepRecent);
-
-    return messages.map((msg, index) => {
-      if (!indicesToClean.includes(index)) {
-        return msg;
-      }
-
-      // 清理这条消息中的持久化标签
-      if (msg.role === 'user' && Array.isArray(msg.content)) {
-        return {
-          ...msg,
-          content: msg.content.map((block) => {
-            if (
-              typeof block === 'object' &&
-              'type' in block &&
-              block.type === 'tool_result' &&
-              typeof block.content === 'string'
-            ) {
-              // 移除持久化标签，替换为简单的清理提示
-              let content = block.content;
-              if (content.includes(PERSISTED_OUTPUT_START)) {
-                // 官方实现：直接替换为固定的清理消息
-                content = '[Old tool result content cleared]';
-              }
-              return { ...block, content };
-            }
-            return block;
-          }),
-        };
-      }
-
-      return msg;
-    });
+  // 如果没有足够的可清理输出，直接返回
+  if (cleanableResults.length <= keepRecent) {
+    return messages;
   }
 
-  return messages;
+  // 计算当前消息的总 token 数（简单估算）
+  let totalTokens = 0;
+  for (const msg of messages) {
+    if (typeof msg.content === 'string') {
+      totalTokens += Math.ceil(msg.content.length / 4);
+    } else if (Array.isArray(msg.content)) {
+      for (const block of msg.content) {
+        if (typeof block === 'object' && 'type' in block) {
+          if (block.type === 'text' && 'text' in block && typeof block.text === 'string') {
+            totalTokens += Math.ceil(block.text.length / 4);
+          } else if (block.type === 'tool_result' && 'content' in block && typeof block.content === 'string') {
+            totalTokens += Math.ceil(block.content.length / 4);
+          }
+        }
+      }
+    }
+  }
+
+  // 保留最近的 N 个，清理其余的
+  const toClean = cleanableResults.slice(0, -keepRecent);
+  const totalSavings = toClean.reduce((sum, item) => sum + item.tokens, 0);
+
+  // 智能触发判断
+  if (totalTokens <= MICROCOMPACT_THRESHOLD || totalSavings < MIN_SAVINGS_THRESHOLD) {
+    return messages;
+  }
+
+  // 构建要清理的位置索引 Map
+  const cleanTargets = new Map<string, CleanableResult>(); // key: "msgIndex:blockIndex"
+  for (const item of toClean) {
+    cleanTargets.set(`${item.msgIndex}:${item.blockIndex}`, item);
+  }
+
+  return messages.map((msg, msgIndex) => {
+    if (msg.role !== 'user' || !Array.isArray(msg.content)) return msg;
+
+    let modified = false;
+    const newContent = msg.content.map((block, blockIndex) => {
+      const target = cleanTargets.get(`${msgIndex}:${blockIndex}`);
+      if (!target) return block;
+
+      if (
+        typeof block === 'object' &&
+        'type' in block &&
+        block.type === 'tool_result' &&
+        typeof block.content === 'string'
+      ) {
+        const content = block.content as string;
+        let newContentStr: string;
+
+        if (target.hasPersisted) {
+          // 阶段 2（硬清理）：已保存到文件或有持久化标签的，直接清除
+          newContentStr = '[Old tool result content cleared]';
+        } else {
+          // 阶段 1（软裁剪）：保留头尾，截掉中间
+          const head = content.substring(0, SOFT_TRIM_HEAD);
+          const tail = content.substring(content.length - SOFT_TRIM_TAIL);
+          const omitted = content.length - SOFT_TRIM_HEAD - SOFT_TRIM_TAIL;
+          newContentStr = `${head}\n\n... [${omitted} characters trimmed from old tool result] ...\n\n${tail}`;
+        }
+
+        modified = true;
+        return { ...block, content: newContentStr };
+      }
+      return block;
+    });
+
+    return modified ? { ...msg, content: newContent } : msg;
+  });
 }
 
 /**
@@ -285,6 +430,8 @@ interface SessionState {
   isProcessing: boolean;
   /** 上一次 API 返回的实际 inputTokens（用于精确判断是否需要压缩） */
   lastActualInputTokens: number;
+  /** 最后一次 API 调用成功时 state.messages 的长度（用于混合 token 估算） */
+  messagesLenAtLastApiCall: number;
   /** 最后一次压缩的边界标记 UUID（对齐官方，用于增量压缩） */
   lastCompactedUuid?: string;
   /** 标记：处理中 WebSocket 被刷新替换，完成后需要重发 history */
@@ -320,6 +467,10 @@ export class ConversationManager {
   private mcpTools: Array<{ name: string; description: string; inputSchema: any; isMcp?: boolean }> = [];
   /** 插件市场管理器 */
   private marketplaceManager?: MarketplaceManager;
+  /** Web Server 内嵌调度器（由 index.ts 注入） */
+  private webScheduler?: import('./web-scheduler.js').WebScheduler;
+  /** 广播回调（由 index.ts 注入，用于 ErrorWatcher 通知等） */
+  private broadcastFn?: (msg: any) => void;
 
   constructor(cwd: string, defaultModel: string = 'opus', options?: { verbose?: boolean }) {
     this.cwd = cwd;
@@ -378,6 +529,9 @@ export class ConversationManager {
           completedTasks,
           failedTasks,
         };
+      },
+      cancelExecution: (sessionId: string) => {
+        executionManager.cancel(sessionId);
       },
       getWorkingDirectory: () => this.cwd,
       // navigateToSwarm 在 createSession 中按会话设置（需要 ws 引用）
@@ -541,91 +695,20 @@ export class ConversationManager {
   }
 
   /**
-   * 读取 WebUI 保存在 settings.json 中的原始自定义 API 配置
-   * 直接读文件而非 configManager.getAll()，避免被环境变量覆盖
-   */
-  private getWebUiApiConfig(): { apiBaseUrl?: string; customModelName?: string; authPriority?: string; apiKey?: string } {
-    try {
-      const settingsPath = configManager.getConfigPaths().userSettings;
-      if (fs.existsSync(settingsPath)) {
-        const raw = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
-        return {
-          apiBaseUrl: raw.apiBaseUrl,
-          customModelName: raw.customModelName,
-          authPriority: raw.authPriority,
-          apiKey: raw.apiKey,
-        };
-      }
-    } catch {
-      // 读取失败不影响正常流程
-    }
-    return {};
-  }
-
-  /**
-   * 根据认证信息构建 ClaudeClient 配置
-   * 与核心 loop.ts 逻辑保持一致，同时支持 WebUI 自定义 API 配置
-   *
-   * 优先级：WebUI 页面配置 > 环境变量 > OAuth
+   * 构建 ClaudeClient 配置
+   * 认证全部委托给 webAuth（唯一认证入口）
    */
   private buildClientConfig(model: string): { model: string; apiKey?: string; authToken?: string; baseUrl?: string; timeout?: number } {
-    // 读取 WebUI 保存的原始自定义配置（不经过 configManager 合并，避免被环境变量覆盖）
-    const webUiConfig = this.getWebUiApiConfig();
-    const authPriority = webUiConfig.authPriority || 'auto';
+    const creds = webAuth.getCredentials();
+    const customModel = webAuth.getCustomModelName();
 
-    const config: { model: string; apiKey?: string; authToken?: string; baseUrl?: string; timeout?: number } = {
-      model: webUiConfig.customModelName || this.getModelId(model),
-      timeout: 300000,  // 5分钟 API 请求超时（对齐核心 loop.ts）
+    return {
+      model: customModel || this.getModelId(model),
+      apiKey: creds.apiKey,
+      authToken: creds.authToken,
+      baseUrl: creds.baseUrl,
+      timeout: 300000,
     };
-
-    // 设置自定义 API 地址
-    if (webUiConfig.apiBaseUrl) {
-      config.baseUrl = webUiConfig.apiBaseUrl;
-    }
-
-    // 根据 authPriority 决定认证方式
-    if (authPriority === 'apiKey' && webUiConfig.apiKey) {
-      // 强制使用 WebUI 配置的 API Key
-      config.apiKey = webUiConfig.apiKey;
-    } else if (authPriority === 'oauth') {
-      // 强制使用 OAuth，走现有逻辑
-      this.applyOAuthConfig(config);
-    } else {
-      // auto 模式：WebUI 配置了 apiKey 就优先用，否则走现有 getAuth() 逻辑
-      if (webUiConfig.apiKey) {
-        config.apiKey = webUiConfig.apiKey;
-      } else {
-        this.applyOAuthConfig(config);
-      }
-    }
-
-    return config;
-  }
-
-  /**
-   * 应用 OAuth/getAuth() 认证配置（从原 buildClientConfig 逻辑提取）
-   */
-  private applyOAuthConfig(config: { apiKey?: string; authToken?: string }): void {
-    const auth = getAuth();
-    if (!auth) return;
-
-    if (auth.type === 'api_key' && auth.apiKey) {
-      config.apiKey = auth.apiKey;
-    } else if (auth.type === 'oauth') {
-      const scopes = auth.scopes || auth.scope || [];
-      const INFERENCE_SCOPES = ['user:inference', 'user:ccr_inference', 'user:voice', 'org:service_key_inference'];
-      const hasInferenceScope = scopes.some((s: string) => INFERENCE_SCOPES.includes(s));
-      const oauthToken = auth.authToken || auth.accessToken;
-
-      if (hasInferenceScope && oauthToken) {
-        config.authToken = oauthToken;
-      } else if (auth.oauthApiKey) {
-        config.apiKey = auth.oauthApiKey;
-      } else if (oauthToken) {
-        // Fallback: 内置代理等场景，没有 scopes 但有 authToken
-        config.authToken = oauthToken;
-      }
-    }
   }
 
   /**
@@ -646,55 +729,47 @@ export class ConversationManager {
    * 这个方法在每次调用 API 之前被调用，检查 token 是否过期，如果过期则自动刷新
    */
   private async ensureValidOAuthToken(state: SessionState): Promise<void> {
-    const auth = getAuth();
-
-    // 只有 OAuth 模式才需要刷新
-    if (!auth || auth.type !== 'oauth') {
-      return;
-    }
-
-    // 首先检查是否有 OAuth 配置
+    // 只在使用 OAuth 时处理
     const oauthConfig = oauthManager.getOAuthConfig();
     if (!oauthConfig) {
-      // 没有 OAuth 配置（可能使用 API Key），无需刷新
       return;
     }
 
-    // 检查 token 是否过期
-    if (!oauthManager.isTokenExpired()) {
-      // Token 还未过期，无需刷新
-      return;
-    }
-
-    console.log('[ConversationManager] OAuth token 已过期，正在刷新...');
-
-    try {
-      // 刷新 token
-      const refreshed = await oauthManager.refreshToken();
-
-      console.log('[ConversationManager] OAuth token 刷新成功，过期时间:', new Date(refreshed.expiresAt));
-
-      // 重新构建客户端配置并更新客户端
-      const newConfig = this.buildClientConfig(state.model);
-
-      // 更新客户端的 authToken
-      if (newConfig.authToken) {
-        // 创建新的客户端实例
-        state.client = new ClaudeClient({
-          ...newConfig,
-        });
-        console.log('[ConversationManager] 客户端已更新为新的 OAuth token');
-      } else if (newConfig.apiKey) {
-        // OAuth 用户可能使用 API Key
-        state.client = new ClaudeClient({
-          ...newConfig,
-          authToken: undefined,
-        });
-        console.log('[ConversationManager] 客户端已更新为 OAuth API Key');
+    // 如果 token 缺少 user:inference scope 且还没有 oauthApiKey，自动创建 API Key
+    // 这处理了历史遗留 token（org:create_api_key scope 但从未调过 createOAuthApiKey 的情况）
+    const hasInferenceScope = oauthConfig.scopes?.includes('user:inference');
+    if (!hasInferenceScope && !oauthConfig.oauthApiKey && oauthConfig.accessToken) {
+      console.log('[ConversationManager] OAuth token 缺少 user:inference scope，尝试自动创建 API Key...');
+      try {
+        const apiKey = await createOAuthApiKey(oauthConfig.accessToken);
+        if (apiKey) {
+          await oauthManager.saveOAuthConfig({ oauthApiKey: apiKey });
+          console.log('[ConversationManager] OAuth API Key 已自动创建，重新构建客户端');
+          const newConfig = this.buildClientConfig(state.model);
+          state.client = new ClaudeClient({ ...newConfig });
+        } else {
+          console.warn('[ConversationManager] createOAuthApiKey 返回 null，推理可能失败');
+        }
+      } catch (e: any) {
+        console.error('[ConversationManager] 自动创建 API Key 失败:', e.message);
       }
-    } catch (error: any) {
-      console.error('[ConversationManager] OAuth token 刷新失败:', error.message);
-      throw new Error(`OAuth token 已过期，刷新失败: ${error.message}。请重新登录。`);
+    }
+
+    // 记住刷新前的 token，用于判断是否需要重建客户端
+    const tokenBefore = oauthManager.getOAuthConfig()?.accessToken;
+
+    // 统一的 token 有效性检查（对齐官方 NM() 语义）
+    const refreshOk = await webAuth.ensureValidToken();
+    if (!refreshOk) {
+      throw new Error('OAuth token 已过期，刷新失败。请重新登录。');
+    }
+
+    // 只有 token 真正变更了才重建客户端
+    const tokenAfter = oauthManager.getOAuthConfig()?.accessToken;
+    if (tokenBefore !== tokenAfter) {
+      const newConfig = this.buildClientConfig(state.model);
+      state.client = new ClaudeClient({ ...newConfig });
+      console.log('[ConversationManager] 客户端已使用刷新后的 OAuth 凭证');
     }
   }
 
@@ -764,6 +839,7 @@ export class ConversationManager {
       },
       isProcessing: false,
       lastActualInputTokens: 0,
+      messagesLenAtLastApiCall: 0,
       lastPersistedMessageCount: 0,
     };
 
@@ -898,6 +974,8 @@ export class ConversationManager {
     const state = this.sessions.get(sessionId);
     if (state) {
       state.cancelled = true;
+      // 谁启动的蜂群，谁负责关闭：如果 Planner Agent 正在等待蜂群执行，一并取消
+      StartLeadAgentTool.cancelActiveExecution();
       // 中断正在执行的工具（如 Bash 命令），让 conversationLoop 的 Promise.race 立即返回
       state.currentAbortController?.abort();
       // 取消所有待处理的用户问题
@@ -1153,6 +1231,10 @@ export class ConversationManager {
       callbacks.onError?.(error instanceof Error ? error : new Error(String(error)));
     } finally {
       state.isProcessing = false;
+      // 通知 WebScheduler 对话空闲，可能有待投递的闹钟
+      if (sessionId) {
+        this.webScheduler?.onSessionIdle(sessionId);
+      }
     }
   }
 
@@ -1204,14 +1286,27 @@ export class ConversationManager {
       let cleanedMessages = cleanOldPersistedOutputs(state.messages, 3);
 
       // AutoCompact：检查是否需要压缩上下文（对齐 CLI loop.ts 的 autoCompact）
-      // 双重检查：1) 估算值检查  2) 上一次 API 实际 inputTokens 检查
+      // 使用混合 token 估算策略（对齐官方 Fv 函数）：
+      // - 如果有精确 API usage 数据，用它作为基准，只估算新增消息的 token
+      // - 否则 fallback 到纯估算（shouldAutoCompact）
       const resolvedModel = modelConfig.resolveAlias(state.model);
       const threshold = calculateAutoCompactThreshold(resolvedModel);
+      
+      // 混合估算逻辑
+      let hybridTokens = 0;
+      if (state.lastActualInputTokens > 0 && state.messagesLenAtLastApiCall > 0) {
+        // 有精确基准：精确值 + 新增消息的估算值
+        const newMessagesStart = state.messagesLenAtLastApiCall;
+        const newMessages = cleanedMessages.slice(newMessagesStart);
+        const newMessagesTokens = this.estimateMessageTokens(newMessages);
+        hybridTokens = state.lastActualInputTokens + newMessagesTokens;
+      }
+      
       // 防止连续压缩：刚压缩完的下一轮跳过（系统提示词+工具定义的 token 开销不可压缩，
       // lastActualInputTokens 包含了这些不可压缩的部分，可能仍超阈值导致死循环）
       const needsCompact = !justAutoCompacted && (
         shouldAutoCompact(cleanedMessages, resolvedModel) ||
-        (state.lastActualInputTokens > 0 && state.lastActualInputTokens >= threshold)
+        (hybridTokens > 0 && hybridTokens >= threshold)
       );
       justAutoCompacted = false; // 重置标志（仅跳过紧接的一轮）
 
@@ -1305,6 +1400,7 @@ export class ConversationManager {
             cleanedMessages = [...compactResult.messages, ...messagesToKeep];
             state.messages = [...compactResult.messages, ...messagesToKeep];
             state.lastActualInputTokens = 0; // 压缩后重置
+            state.messagesLenAtLastApiCall = 0; // 压缩后重置，下次重新建立基准
             justAutoCompacted = true; // 标记刚压缩完，防止下一轮再次触发
             // compact 后旧的 _messagesLen 已失效（messages 被压缩替换），清除它们
             // 防止回滚时用过时的 _messagesLen 截断到错误位置
@@ -1351,6 +1447,24 @@ export class ConversationManager {
         } catch (err) {
           console.warn('[AutoCompact] 压缩失败，使用原消息继续:', err);
           callbacks.onContextCompact?.('error', { message: String(err) });
+        }
+      }
+
+      // 对齐官方 Wc 函数：检查 blocking limit（上下文窗口 - 3000 缓冲）
+      // 如果压缩失败（或未触发）但消息已超限，直接报错退出，不再尝试调 API
+      // 使用混合估算（与 autoCompact 判断一致）
+      {
+        const contextWindow = getContextWindowSize(resolvedModel);
+        const blockingLimit = contextWindow - 3000;
+        
+        // 混合估算（复用上面计算的 hybridTokens，若为 0 则 fallback 纯估算）
+        const tokensToCheck = hybridTokens > 0 ? hybridTokens : this.estimateMessageTokens(cleanedMessages);
+
+        if (tokensToCheck >= blockingLimit) {
+          console.error(`[ConversationManager] 消息 token (${tokensToCheck.toLocaleString()}) 已达到 blocking limit (${blockingLimit.toLocaleString()})，无法继续对话`);
+          callbacks.onError?.(new Error('Prompt is too long. The conversation context exceeds the model limit and compaction failed. Please start a new conversation or manually remove old messages.'));
+          continueLoop = false;
+          continue;
         }
       }
 
@@ -1483,6 +1597,8 @@ export class ConversationManager {
                 totalOutputTokens = event.usage.outputTokens || 0;
                 // 记录实际 inputTokens 供下次循环迭代的自动压缩判断使用
                 state.lastActualInputTokens = totalInputTokens;
+                // 记录当前 messages 长度，供混合 token 估算使用
+                state.messagesLenAtLastApiCall = state.messages.length;
 
                 // 实时发送上下文使用量更新（每次 API 调用都更新，而非仅对话结束时）
                 if (totalInputTokens > 0) {
@@ -1558,16 +1674,18 @@ export class ConversationManager {
             }
           }
 
-          for (const toolUse of toolUseBlocks) {
-            if (state.cancelled) break;
-            if (skipToolIds.has(toolUse.id)) continue;
+          // 并行执行所有工具（对齐官方实现：Promise.all + map）
+          const pendingToolUses = toolUseBlocks.filter(t => !skipToolIds.has(t.id));
 
-            // 用 Promise.race 包裹，使 cancel 时 AbortController.abort() 能立即打断阻塞的工具执行
+          const results = await Promise.all(pendingToolUses.map(async (toolUse) => {
+            if (state.cancelled) {
+              return { toolUse, result: { success: false, error: 'Operation cancelled by user' } as Awaited<ReturnType<typeof this.executeToolWithCancellation>> };
+            }
             const result = await this.executeToolWithCancellation(toolUse, state, callbacks);
+            return { toolUse, result };
+          }));
 
-            // 取消后不再处理后续结果
-            if (state.cancelled) break;
-
+          for (const { toolUse, result } of results) {
             // 使用格式化函数处理工具结果（与 CLI 完全一致）
             const formattedContent = formatToolResult(toolUse.name, result);
 
@@ -1717,6 +1835,7 @@ export class ConversationManager {
             if (compactResult.wasCompacted) {
               state.messages = [...compactResult.messages, ...forceKeepMsgs];
               state.lastActualInputTokens = 0;
+              state.messagesLenAtLastApiCall = 0; // 压缩后重置，下次重新建立基准
               justAutoCompacted = true; // 防止连续压缩
               // compact 后旧的 _messagesLen 已失效，清除
               for (const entry of state.chatHistory) {
@@ -1952,6 +2071,7 @@ export class ConversationManager {
       model: input.model,
       timeoutMs: input.timeoutMs,
       enabled: true,
+      sessionId: state.session.sessionId,
     });
 
     // 标记为运行中，防止 daemon 抢执行
@@ -2143,9 +2263,15 @@ export class ConversationManager {
       return { success: false, error: 'Operation cancelled by user' };
     }
 
+    // 注入 sessionId 上下文，让工具（如 Browser）能区分不同会话
+    const sessionId = state.session.sessionId || 'web-default';
+    const executeInContext = () => runWithSessionId(sessionId, () => {
+      return this.executeTool(toolUse, state, callbacks);
+    });
+
     // 如果没有 AbortController（不应该发生），直接执行
     if (!signal) {
-      return this.executeTool(toolUse, state, callbacks);
+      return executeInContext();
     }
 
     // Promise.race: 工具执行 vs 取消信号
@@ -2160,7 +2286,7 @@ export class ConversationManager {
     });
 
     return Promise.race([
-      this.executeTool(toolUse, state, callbacks),
+      executeInContext(),
       abortPromise,
     ]);
   }
@@ -2317,7 +2443,34 @@ export class ConversationManager {
             // parseTimeExpression 失败，走正常工具执行
           }
         }
-        // 非 inline 情况（list/cancel/watch/远期 once/interval），走正常工具执行路径
+
+        // 非 inline create：走正常工具执行，但事后注入 sessionId 并通知 WebScheduler
+        if (input.action === 'create') {
+          // 执行前记录已有任务 ID，执行后取差集找到新建的任务
+          let existingIds: Set<string> | null = null;
+          try {
+            const preStore = new TaskStore();
+            existingIds = new Set(preStore.listTasks().map((t: any) => t.id));
+          } catch { /* ignore */ }
+
+          const result = await this.executeTool(toolUse, state, callbacks);
+
+          // 用差集精确找到新创建的任务
+          if (result.success && existingIds) {
+            try {
+              const postStore = new TaskStore();
+              const newTask = postStore.listTasks().find((t: any) => !existingIds!.has(t.id));
+              if (newTask) {
+                postStore.updateTask(newTask.id, { sessionId: state.session.sessionId });
+              }
+              // 通知 WebScheduler 有新任务
+              this.webScheduler?.onTaskCreated();
+            } catch { /* 不影响主流程 */ }
+          }
+
+          return result;
+        }
+        // list/cancel/watch 走正常工具执行路径
       }
 
       // 拦截 TaskOutput 工具 - 从 TaskManager 获取任务输出
@@ -2463,12 +2616,16 @@ export class ConversationManager {
         const input = toolUse.input as any;
         try {
           const blueprintId = `bp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          const hasModules = Array.isArray(input.modules) && input.modules.length > 0;
+          const isCodebase = hasModules || (Array.isArray(input.businessProcesses) && input.businessProcesses.length > 0);
+
           const blueprint: Blueprint = {
             id: blueprintId,
             name: input.name,
             description: input.description,
             projectPath: state.session.cwd,
             status: 'confirmed',
+            source: isCodebase ? 'codebase' : 'requirement',
             requirements: input.requirements || [],
             techStack: input.techStack || {},
             constraints: input.constraints || [],
@@ -2477,6 +2634,49 @@ export class ConversationManager {
             updatedAt: new Date(),
             confirmedAt: new Date(),
           };
+
+          // 全景蓝图字段
+          if (input.modules) {
+            blueprint.modules = input.modules.map((m: any, i: number) => ({
+              id: m.id || `mod-${i + 1}`,
+              name: m.name,
+              type: m.type || 'other',
+              description: m.description || '',
+              rootPath: m.rootPath || '',
+              responsibilities: m.responsibilities || [],
+              dependencies: m.dependencies || [],
+              source: 'existing' as const,
+              interfaces: [],
+              techStack: [],
+            }));
+          }
+          if (input.businessProcesses) {
+            blueprint.businessProcesses = input.businessProcesses.map((p: any, i: number) => ({
+              id: p.id || `bp-${i + 1}`,
+              name: p.name,
+              description: p.description || '',
+              type: 'as-is' as const,
+              steps: (p.steps || []).map((s: string, si: number) => ({
+                id: `${p.id || `bp-${i + 1}`}-step-${si + 1}`,
+                order: si + 1,
+                name: s,
+                description: s,
+                actor: 'system',
+              })),
+              actors: ['system'],
+              inputs: [],
+              outputs: [],
+            }));
+          }
+          if (input.nfrs) {
+            blueprint.nfrs = input.nfrs.map((n: any, i: number) => ({
+              id: `nfr-${i + 1}`,
+              category: n.category || 'other',
+              name: n.name,
+              description: n.description || '',
+              priority: 'should' as const,
+            }));
+          }
 
           blueprintStore.save(blueprint);
 
@@ -2488,7 +2688,14 @@ export class ConversationManager {
             }));
           }
 
-          const output = `蓝图已生成并保存。\n蓝图ID: ${blueprint.id}\n项目名: ${blueprint.name}\n需求数: ${blueprint.requirements?.length || 0}\n\n现在可以调用 StartLeadAgent 启动执行。`;
+          const moduleCount = blueprint.modules?.length || 0;
+          const processCount = blueprint.businessProcesses?.length || 0;
+          const nfrCount = blueprint.nfrs?.length || 0;
+          const reqCount = blueprint.requirements?.length || 0;
+          const stats = isCodebase
+            ? `模块: ${moduleCount}, 流程: ${processCount}, NFR: ${nfrCount}`
+            : `需求数: ${reqCount}`;
+          const output = `蓝图已生成并保存。\n蓝图ID: ${blueprint.id}\n项目名: ${blueprint.name}\n类型: ${isCodebase ? '全景蓝图' : '需求蓝图'}\n${stats}\n\n现在可以调用 StartLeadAgent 启动执行。`;
           callbacks.onToolResult?.(toolUse.id, true, output);
           return { success: true, output };
         } catch (error) {
@@ -2500,12 +2707,14 @@ export class ConversationManager {
       }
 
       // v11.0: StartLeadAgent 不再拦截，走正常 tool.execute() 路径
-      // 执行前动态绑定当前会话的 WebSocket，用于前端导航通知
+      // 执行前动态绑定当前会话的 WebSocket 和工作目录，确保蜂群在正确的项目路径下执行
       if (toolUse.name === 'StartLeadAgent') {
         const currentCtx = StartLeadAgentTool.getContext();
         if (currentCtx) {
           StartLeadAgentTool.setContext({
             ...currentCtx,
+            // 动态返回当前会话的工作目录（跟随项目选择器），而非 ConversationManager 构造时的固定 cwd
+            getWorkingDirectory: () => state.session.cwd,
             navigateToSwarm: (blueprintId: string, executionId: string) => {
               if (state.ws && state.ws.readyState === 1) {
                 state.ws.send(JSON.stringify({
@@ -2685,6 +2894,27 @@ export class ConversationManager {
    * - boundaryMarker: 压缩边界标记（type: "user", 带 uuid）
    * - summaryMessage: 摘要消息（type: "user", isCompactSummary: true）
    */
+
+  /**
+   * 粗略估算消息列表的 token 数（char/4 估算，对齐官方 Fv 函数）
+   * 用于 blocking limit 检查和 NJ1 摘要前的超限判断
+   */
+  private estimateMessageTokens(messages: Message[]): number {
+    return messages.reduce((sum: number, msg: Message) => {
+      if (typeof msg.content === 'string') return sum + Math.ceil(msg.content.length / 4);
+      if (Array.isArray(msg.content)) {
+        for (const block of msg.content) {
+          if (typeof block === 'object' && 'type' in block) {
+            if (block.type === 'text' && 'text' in block && typeof (block as any).text === 'string') sum += Math.ceil((block as any).text.length / 4);
+            else if (block.type === 'tool_result' && 'content' in block && typeof (block as any).content === 'string') sum += Math.ceil((block as any).content.length / 4);
+            else if (block.type === 'image' || block.type === 'document') sum += 4000;
+          }
+        }
+      }
+      return sum;
+    }, 0);
+  }
+
   private async performAutoCompact(
     messages: Message[],
     model: string,
@@ -2729,6 +2959,16 @@ export class ConversationManager {
 
     // 2. 尝试对话摘要 (NJ1) — 对齐官方 oj1 压缩函数
     try {
+      // 对齐官方：检查消息总 token 是否已超过上下文窗口限制
+      // 如果超限，NJ1 摘要请求也必然失败（摘要请求 = 全量消息 + summaryPrompt），直接跳过
+      const contextWindow = getContextWindowSize(model);
+      const estimatedMsgTokens = this.estimateMessageTokens(messages);
+
+      if (estimatedMsgTokens >= contextWindow) {
+        console.warn(`[AutoCompact/NJ1] 消息 token (${estimatedMsgTokens.toLocaleString()}) 已超过上下文窗口 (${contextWindow.toLocaleString()})，跳过 NJ1 摘要（必然失败）`);
+        return { wasCompacted: false, messages };
+      }
+
       // 对齐官方 dDA 函数：使用完整的摘要 prompt（含 <analysis> + <summary> 结构）
       const summaryPrompt = generateSummaryPrompt();
 
@@ -3438,6 +3678,106 @@ Guidelines:
   }
 
   /**
+   * 注入 WebScheduler 实例（由 index.ts 调用）
+   */
+  setWebScheduler(scheduler: import('./web-scheduler.js').WebScheduler): void {
+    this.webScheduler = scheduler;
+  }
+
+  /**
+   * 注入广播回调（由 index.ts 调用）
+   */
+  setBroadcast(fn: (msg: any) => void): void {
+    this.broadcastFn = fn;
+  }
+
+  /**
+   * 向当前活跃会话发送错误通知，让主 Agent 感知并自行决定是否修复
+   * "活跃" = 有 ws 连接且未在处理中的会话，优先选最近有消息的
+   */
+  async notifyActiveSession(errorMessage: string): Promise<boolean> {
+    // 找到有 ws 连接的活跃会话
+    let targetSessionId: string | null = null;
+    let latestMessageTime = 0;
+
+    for (const [sessionId, state] of this.sessions) {
+      if (!state.ws || state.ws.readyState !== 1 /* OPEN */) continue;
+      // 跳过正在处理中的会话（不打断 Agent 工作）
+      if (state.isProcessing) continue;
+
+      // 选最近有消息的会话
+      const lastMsgTime = state.chatHistory.length > 0
+        ? new Date(state.chatHistory[state.chatHistory.length - 1].timestamp).getTime()
+        : 0;
+      if (lastMsgTime > latestMessageTime) {
+        latestMessageTime = lastMsgTime;
+        targetSessionId = sessionId;
+      }
+    }
+
+    if (!targetSessionId) return false;
+
+    const state = this.sessions.get(targetSessionId)!;
+    const broadcast = this.broadcastFn;
+    if (!broadcast) return false;
+
+    // 生成 messageId
+    const { randomUUID } = await import('crypto');
+    const messageId = randomUUID();
+
+    // 构造 callbacks，通过 broadcast 发送到前端
+    const callbacks: StreamCallbacks = {
+      onThinkingStart: () => broadcast({ type: 'thinking_start', payload: { messageId, sessionId: targetSessionId } }),
+      onThinkingDelta: (text: string) => broadcast({ type: 'thinking_delta', payload: { messageId, text, sessionId: targetSessionId } }),
+      onThinkingComplete: () => broadcast({ type: 'thinking_complete', payload: { messageId, sessionId: targetSessionId } }),
+      onTextDelta: (text: string) => broadcast({ type: 'text_delta', payload: { messageId, text, sessionId: targetSessionId } }),
+      onToolUseStart: (toolUseId: string, toolName: string, input: unknown) => {
+        broadcast({ type: 'tool_use_start', payload: { messageId, toolUseId, toolName, input, sessionId: targetSessionId } });
+        broadcast({ type: 'status', payload: { status: 'tool_executing', message: `执行 ${toolName}...`, sessionId: targetSessionId } });
+      },
+      onToolUseDelta: (toolUseId: string, partialJson: string) => broadcast({ type: 'tool_use_delta', payload: { toolUseId, partialJson, sessionId: targetSessionId } }),
+      onToolResult: (toolUseId: string, success: boolean, output?: string, error?: string, data?: unknown) => {
+        broadcast({ type: 'tool_result', payload: { toolUseId, success, output, error, data: data as any, defaultCollapsed: true, sessionId: targetSessionId } });
+      },
+      onComplete: async (stopReason: string | null, usage?: { inputTokens: number; outputTokens: number }) => {
+        await this.persistSession(targetSessionId!);
+        broadcast({ type: 'message_complete', payload: { messageId, stopReason: (stopReason || 'end_turn'), usage, sessionId: targetSessionId } });
+        broadcast({ type: 'status', payload: { status: 'idle', sessionId: targetSessionId } });
+      },
+      onError: (error: Error) => {
+        broadcast({ type: 'error', payload: { error: error.message, sessionId: targetSessionId } });
+        broadcast({ type: 'status', payload: { status: 'idle', sessionId: targetSessionId } });
+      },
+    };
+
+    // 发送 message_start
+    broadcast({ type: 'message_start', payload: { messageId, sessionId: targetSessionId } });
+    broadcast({ type: 'status', payload: { status: 'thinking', sessionId: targetSessionId } });
+
+    // 调用 chat，让主 Agent 处理错误通知
+    this.chat(
+      targetSessionId,
+      errorMessage,
+      undefined,
+      state.model,
+      callbacks,
+      state.session.cwd,
+      state.ws,
+    ).catch(err => {
+      console.error(`[ErrorWatcher] Notify session ${targetSessionId} failed:`, err);
+    });
+
+    return true;
+  }
+
+  /**
+   * 检查指定会话是否存在于内存中（活跃的）
+   */
+  hasSession(sessionId: string): boolean {
+    return this.sessions.has(sessionId);
+  }
+
+  /**
    * 从内存中获取会话的工作目录和项目路径
    * 用于避免重复从磁盘加载会话数据
    */
@@ -3590,6 +3930,7 @@ Guidelines:
         },
         isProcessing: false,
         lastActualInputTokens: 0,
+        messagesLenAtLastApiCall: 0,
         lastPersistedMessageCount: sessionData.messages.length, // 从磁盘加载时，初始化为当前消息数
       };
 
@@ -3660,6 +4001,10 @@ Guidelines:
       callbacks.onError?.(error instanceof Error ? error : new Error(String(error)));
     } finally {
       state.isProcessing = false;
+      // 通知 WebScheduler 对话空闲
+      if (sessionId) {
+        this.webScheduler?.onSessionIdle(sessionId);
+      }
     }
   }
 

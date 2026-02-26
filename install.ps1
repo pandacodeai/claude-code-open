@@ -313,6 +313,109 @@ function Install-Python {
     Write-Warn "Python3 not available. Installation will continue (prebuilt binaries should work)."
 }
 
+# --- Chromium Browser (required for Browser Control feature) ---
+# Extensions.loadUnpacked CDP command requires Chrome/Edge/Brave 120+
+$BrowserMinVersion = 120
+
+function Get-BrowserVersion {
+    param([string]$ExePath)
+    try {
+        $verInfo = (Get-Item $ExePath).VersionInfo
+        if ($verInfo.ProductVersion) {
+            return $verInfo.ProductVersion
+        }
+    } catch {}
+    return $null
+}
+
+function Test-Browser {
+    # Windows Chromium-based browser candidates (in priority order)
+    $candidates = @(
+        @{ Kind = "Chrome";   Paths = @(
+            "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
+            "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe"
+        )},
+        @{ Kind = "Edge";     Paths = @(
+            "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe",
+            "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe"
+        )},
+        @{ Kind = "Brave";    Paths = @(
+            "$env:ProgramFiles\BraveSoftware\Brave-Browser\Application\brave.exe",
+            "${env:ProgramFiles(x86)}\BraveSoftware\Brave-Browser\Application\brave.exe"
+        )},
+        @{ Kind = "Chromium"; Paths = @(
+            "$env:ProgramFiles\Chromium\Application\chrome.exe",
+            "${env:ProgramFiles(x86)}\Chromium\Application\chrome.exe"
+        )}
+    )
+
+    foreach ($browser in $candidates) {
+        foreach ($p in $browser.Paths) {
+            if (Test-Path $p) {
+                $ver = Get-BrowserVersion $p
+                if ($ver) {
+                    $major = [int]($ver.Split('.')[0])
+                    if ($major -ge $script:BrowserMinVersion) {
+                        Write-Ok "$($browser.Kind) $ver detected (Browser Control ready)"
+                        return $true
+                    } else {
+                        Write-Warn "$($browser.Kind) $ver detected, but Browser Control requires version >= $script:BrowserMinVersion"
+                        Write-Warn "Please update your browser for Browser Control feature to work"
+                        return $true  # Browser exists, just old
+                    }
+                } else {
+                    Write-Ok "$($browser.Kind) detected at $p (version unknown, Browser Control may work)"
+                    return $true
+                }
+            }
+        }
+    }
+
+    return $false
+}
+
+function Install-Browser {
+    Write-Warn "No Chromium-based browser found (Chrome/Edge/Brave/Chromium)"
+    Write-Warn "Browser Control feature requires a Chromium-based browser"
+
+    # On Windows, Edge is usually pre-installed. If it's missing, try installing Chrome via winget.
+    if (Test-Winget) {
+        Write-Info "Installing Google Chrome via winget..."
+        winget install Google.Chrome --accept-source-agreements --accept-package-agreements --silent 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            Refresh-Path
+            if (Test-Browser) { return }
+        }
+        Write-Warn "winget install did not succeed."
+    }
+
+    # Fallback: direct download
+    $chromeInstaller = Join-Path $env:TEMP "chrome-installer.exe"
+    $chromeUrl = "https://dl.google.com/chrome/install/GoogleChromeStandaloneEnterprise64.msi"
+    Write-Info "Downloading Google Chrome from $chromeUrl ..."
+    try {
+        Invoke-WebRequest -Uri $chromeUrl -OutFile $chromeInstaller -UseBasicParsing -TimeoutSec 120
+        if (Test-Path $chromeInstaller) {
+            Write-Info "Installing Google Chrome..."
+            $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+            if ($isAdmin) {
+                Start-Process msiexec.exe -ArgumentList "/i `"$chromeInstaller`" /quiet /norestart" -Wait -NoNewWindow
+            } else {
+                Write-Info "Requesting administrator privileges for Chrome installation..."
+                Start-Process msiexec.exe -ArgumentList "/i `"$chromeInstaller`" /quiet /norestart" -Wait -Verb RunAs
+            }
+            Remove-Item $chromeInstaller -Force -ErrorAction SilentlyContinue
+            Refresh-Path
+            if (Test-Browser) { return }
+        }
+    } catch {
+        Write-Warn "Chrome download failed: $_"
+    }
+
+    Write-Warn "Browser installation failed. Browser Control feature will not work."
+    Write-Warn "Please install Chrome manually: https://www.google.com/chrome/"
+}
+
 # --- Check Docker ---
 function Test-Docker {
     try {
@@ -887,7 +990,12 @@ function Main {
         Install-Python
     }
 
-    # 5. Check Docker availability (optional)
+    # 5. Browser (optional, needed for Browser Control feature)
+    if (-not (Test-Browser)) {
+        Install-Browser
+    }
+
+    # 6. Check Docker availability (optional)
     $hasDocker = Test-Docker
 
     Write-Host ""

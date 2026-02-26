@@ -90,6 +90,22 @@ export interface ScheduledTask {
 
   /** 历史执行摘要链，每次执行后追加本次结果摘要，最多保留最近 10 条 */
   executionMemory?: string[];
+
+  /** Web UI 创建任务时的会话 ID，用于到期后定点投递到对应对话 */
+  sessionId?: string;
+
+  /** 创建任务时的认证快照，daemon 执行时恢复认证（解决独立进程没有 API Key 的问题） */
+  authSnapshot?: {
+    apiKey?: string;
+    authToken?: string;
+    baseUrl?: string;
+  };
+
+  /**
+   * 静默 token：如果 agent 回复中包含此字符串，视为"无事发生"，不推送给前端。
+   * 典型用法：设为 "HEARTBEAT_OK"，配合 prompt 中"没事回复 HEARTBEAT_OK"实现心跳巡检。
+   */
+  silentToken?: string;
 }
 
 // ============================================================================

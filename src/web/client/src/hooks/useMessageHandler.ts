@@ -269,17 +269,26 @@ export function useMessageHandler({
             if (toolUseIndex !== -1) {
               const toolUse = currentMsg.content[toolUseIndex];
               if (toolUse.type === 'tool_use') {
+                const finalStatus = (payload.success ? 'completed' : 'error') as 'completed' | 'error';
                 const newContent = currentMsg.content.map((item, index) => {
                   if (index === toolUseIndex && item.type === 'tool_use') {
+                    // 当 Task 工具完成时，把所有仍在 running 的 subagentToolCalls 也标记为完成
+                    // 修复：Task 整体完成后内部工具仍显示 spinner 的问题
+                    const fixedSubagentCalls = item.subagentToolCalls?.map(call =>
+                      call.status === 'running'
+                        ? { ...call, status: finalStatus, endTime: Date.now() }
+                        : call
+                    );
                     return {
                       ...item,
-                      status: (payload.success ? 'completed' : 'error') as 'completed' | 'error',
+                      status: finalStatus,
                       result: {
                         success: payload.success as boolean,
                         output: payload.output as string | undefined,
                         error: payload.error as string | undefined,
                         data: payload.data,
                       },
+                      ...(fixedSubagentCalls && { subagentToolCalls: fixedSubagentCalls }),
                     };
                   }
                   return item;
@@ -489,62 +498,60 @@ export function useMessageHandler({
 
           const taskToolUseId = payload.toolUseId as string | undefined;
 
-          // 查找匹配的 Task tool_use 块：优先用 toolUseId 精确匹配，fallback 到名称匹配
-          const findTaskTool = (content: ChatContent[]): ChatContent | undefined => {
-            if (taskToolUseId) {
-              return content.find(c => c.type === 'tool_use' && c.id === taskToolUseId);
-            }
-            return content.find(c => c.type === 'tool_use' && (c.name === 'Task' || c.name === 'ScheduleTask'));
-          };
-
-          let targetMsg = currentMessageRef.current;
-          let taskTool: ChatContent | undefined;
-
-          if (targetMsg) {
-            taskTool = findTaskTool(targetMsg.content);
-          }
-
-          if (!taskTool) {
-            setMessages(prev => {
-              for (let i = prev.length - 1; i >= 0; i--) {
-                const msg = prev[i];
-                if (msg.role !== 'assistant') continue;
-                const found = findTaskTool(msg.content);
-                if (found && found.type === 'tool_use') {
-                  found.toolUseCount = payload.toolUseCount as number | undefined;
-                  found.lastToolInfo = payload.lastToolInfo as string | undefined;
-                  if (payload.status === 'completed' || payload.status === 'failed') {
-                    found.status = payload.status === 'completed' ? 'completed' : 'error';
-                    found.result = {
-                      success: payload.status === 'completed',
-                      output: payload.result as string | undefined,
-                      error: payload.error as string | undefined,
-                    };
-                  }
-                  return [...prev.slice(0, i), { ...msg }, ...prev.slice(i + 1)];
-                }
-              }
-              return prev;
+          // 不可变更新辅助函数：在 content 中找到匹配的 Task tool_use 并返回更新后的 content
+          const updateTaskStatusInContent = (content: ChatContent[]): ChatContent[] | null => {
+            const idx = content.findIndex(c => {
+              if (c.type !== 'tool_use') return false;
+              if (taskToolUseId) return c.id === taskToolUseId;
+              return c.name === 'Task' || c.name === 'ScheduleTask';
             });
-            break;
-          }
+            if (idx === -1) return null;
+            const item = content[idx];
+            if (item.type !== 'tool_use') return null;
 
-          if (taskTool && taskTool.type === 'tool_use') {
-            taskTool.toolUseCount = payload.toolUseCount as number | undefined;
-            taskTool.lastToolInfo = payload.lastToolInfo as string | undefined;
+            const updates: Partial<ChatContent> = {
+              toolUseCount: payload.toolUseCount as number | undefined,
+              lastToolInfo: payload.lastToolInfo as string | undefined,
+            };
             if (payload.status === 'completed' || payload.status === 'failed') {
-              taskTool.status = payload.status === 'completed' ? 'completed' : 'error';
-              taskTool.result = {
+              updates.status = payload.status === 'completed' ? 'completed' : 'error';
+              updates.result = {
                 success: payload.status === 'completed',
                 output: payload.result as string | undefined,
                 error: payload.error as string | undefined,
               };
             }
-            setMessages(prev => {
-              const filtered = prev.filter(m => m.id !== targetMsg!.id);
-              return [...filtered, { ...targetMsg! }];
-            });
+            return content.map((c, i) => i === idx ? { ...c, ...updates } : c);
+          };
+
+          // 优先从 currentMessageRef 更新（不可变方式）
+          const taskStatusMsg = currentMessageRef.current;
+          if (taskStatusMsg) {
+            const newContent = updateTaskStatusInContent(taskStatusMsg.content);
+            if (newContent) {
+              const updatedMsg = { ...taskStatusMsg, content: newContent };
+              currentMessageRef.current = updatedMsg;
+              setMessages(prev => {
+                const filtered = prev.filter(m => m.id !== taskStatusMsg.id);
+                return [...filtered, updatedMsg];
+              });
+              break;
+            }
           }
+
+          // fallback: 遍历历史消息
+          setMessages(prev => {
+            for (let i = prev.length - 1; i >= 0; i--) {
+              const msg = prev[i];
+              if (msg.role !== 'assistant') continue;
+              const newContent = updateTaskStatusInContent(msg.content);
+              if (newContent) {
+                const updatedMsg = { ...msg, content: newContent };
+                return [...prev.slice(0, i), updatedMsg, ...prev.slice(i + 1)];
+              }
+            }
+            return prev;
+          });
           break;
         }
 
@@ -553,63 +560,59 @@ export function useMessageHandler({
 
           const tc = payload.toolCall as { id: string; name: string; input?: unknown; status: 'running' | 'completed' | 'error'; startTime: number };
           const startToolUseId = payload.toolUseId as string | undefined;
-
-          // 查找匹配的 Task tool_use 块：优先用 toolUseId 精确匹配，fallback 到名称匹配
-          const findStartTaskTool = (content: ChatContent[]): ChatContent | undefined => {
-            if (startToolUseId) {
-              return content.find(c => c.type === 'tool_use' && c.id === startToolUseId);
-            }
-            return content.find(c => c.type === 'tool_use' && (c.name === 'Task' || c.name === 'ScheduleTask'));
+          const newSubagentCall = {
+            id: tc.id,
+            name: tc.name,
+            input: tc.input,
+            status: tc.status,
+            startTime: tc.startTime,
           };
 
-          let targetMsg = currentMessageRef.current;
-          let taskTool: ChatContent | undefined;
-
-          if (targetMsg) {
-            taskTool = findStartTaskTool(targetMsg.content);
-          }
-
-          if (!taskTool) {
-            setMessages(prev => {
-              for (let i = prev.length - 1; i >= 0; i--) {
-                const msg = prev[i];
-                if (msg.role !== 'assistant') continue;
-                const found = findStartTaskTool(msg.content);
-                if (found && found.type === 'tool_use') {
-                  if (!found.subagentToolCalls) {
-                    found.subagentToolCalls = [];
-                  }
-                  found.subagentToolCalls.push({
-                    id: tc.id,
-                    name: tc.name,
-                    input: tc.input,
-                    status: tc.status,
-                    startTime: tc.startTime,
-                  });
-                  return [...prev.slice(0, i), { ...msg }, ...prev.slice(i + 1)];
-                }
-              }
-              return prev;
+          // 不可变更新辅助函数：在 content 中找到匹配的 Task 并追加 subagent call
+          const addSubagentCallToContent = (content: ChatContent[]): ChatContent[] | null => {
+            const idx = content.findIndex(c => {
+              if (c.type !== 'tool_use') return false;
+              if (startToolUseId) return c.id === startToolUseId;
+              return c.name === 'Task' || c.name === 'ScheduleTask';
             });
-            break;
-          }
+            if (idx === -1) return null;
+            const item = content[idx];
+            if (item.type !== 'tool_use') return null;
 
-          if (taskTool && taskTool.type === 'tool_use') {
-            if (!taskTool.subagentToolCalls) {
-              taskTool.subagentToolCalls = [];
+            return content.map((c, i) => i === idx ? {
+              ...c,
+              subagentToolCalls: [...(c.subagentToolCalls || []), newSubagentCall],
+            } : c);
+          };
+
+          // 优先从 currentMessageRef 更新（不可变方式）
+          const subStartMsg = currentMessageRef.current;
+          if (subStartMsg) {
+            const newContent = addSubagentCallToContent(subStartMsg.content);
+            if (newContent) {
+              const updatedMsg = { ...subStartMsg, content: newContent };
+              currentMessageRef.current = updatedMsg;
+              setMessages(prev => {
+                const filtered = prev.filter(m => m.id !== subStartMsg.id);
+                return [...filtered, updatedMsg];
+              });
+              break;
             }
-            taskTool.subagentToolCalls.push({
-              id: tc.id,
-              name: tc.name,
-              input: tc.input,
-              status: tc.status,
-              startTime: tc.startTime,
-            });
-            setMessages(prev => {
-              const filtered = prev.filter(m => m.id !== targetMsg!.id);
-              return [...filtered, { ...targetMsg! }];
-            });
           }
+
+          // fallback: 遍历历史消息
+          setMessages(prev => {
+            for (let i = prev.length - 1; i >= 0; i--) {
+              const msg = prev[i];
+              if (msg.role !== 'assistant') continue;
+              const newContent = addSubagentCallToContent(msg.content);
+              if (newContent) {
+                const updatedMsg = { ...msg, content: newContent };
+                return [...prev.slice(0, i), updatedMsg, ...prev.slice(i + 1)];
+              }
+            }
+            return prev;
+          });
           break;
         }
 
@@ -619,59 +622,59 @@ export function useMessageHandler({
           const tc = payload.toolCall as { id: string; name: string; status: 'running' | 'completed' | 'error'; result?: string; error?: string; endTime?: number };
           const endToolUseId = payload.toolUseId as string | undefined;
 
-          // 查找匹配的 Task tool_use 块：优先用 toolUseId 精确匹配，fallback 到名称匹配
-          const findEndTaskTool = (content: ChatContent[]): ChatContent | undefined => {
-            if (endToolUseId) {
-              return content.find(c => c.type === 'tool_use' && c.id === endToolUseId);
-            }
-            // fallback: 找有 subagentToolCalls 的 Task 块
-            return content.find(
-              c => c.type === 'tool_use' && (c.name === 'Task' || c.name === 'ScheduleTask') && c.subagentToolCalls?.length
+          // 不可变更新辅助函数：在 content 中找到匹配的 Task 并更新 subagent call 状态
+          const updateSubagentCallInContent = (content: ChatContent[]): ChatContent[] | null => {
+            const idx = content.findIndex(c => {
+              if (c.type !== 'tool_use') return false;
+              if (endToolUseId) return c.id === endToolUseId;
+              // fallback: 找有匹配 subagent call 的 Task 块
+              return (c.name === 'Task' || c.name === 'ScheduleTask') &&
+                c.subagentToolCalls?.some(call => call.id === tc.id);
+            });
+            if (idx === -1) return null;
+            const item = content[idx];
+            if (item.type !== 'tool_use' || !item.subagentToolCalls) return null;
+
+            const updatedCalls = item.subagentToolCalls.map(call =>
+              call.id === tc.id
+                ? { ...call, status: tc.status, result: tc.result, error: tc.error, endTime: tc.endTime }
+                : call
             );
+
+            return content.map((c, i) => i === idx ? {
+              ...c,
+              subagentToolCalls: updatedCalls,
+            } : c);
           };
 
-          let targetMsg = currentMessageRef.current;
-          let taskTool: ChatContent | undefined;
-
-          if (targetMsg) {
-            taskTool = findEndTaskTool(targetMsg.content);
-          }
-
-          if (!taskTool) {
-            setMessages(prev => {
-              for (let i = prev.length - 1; i >= 0; i--) {
-                const msg = prev[i];
-                if (msg.role !== 'assistant') continue;
-                const found = findEndTaskTool(msg.content);
-                if (found && found.type === 'tool_use' && found.subagentToolCalls) {
-                  const existingCall = found.subagentToolCalls.find(call => call.id === tc.id);
-                  if (existingCall) {
-                    existingCall.status = tc.status;
-                    existingCall.result = tc.result;
-                    existingCall.error = tc.error;
-                    existingCall.endTime = tc.endTime;
-                    return [...prev.slice(0, i), { ...msg }, ...prev.slice(i + 1)];
-                  }
-                }
-              }
-              return prev;
-            });
-            break;
-          }
-
-          if (taskTool && taskTool.type === 'tool_use' && taskTool.subagentToolCalls) {
-            const existingCall = taskTool.subagentToolCalls.find(c => c.id === tc.id);
-            if (existingCall) {
-              existingCall.status = tc.status;
-              existingCall.result = tc.result;
-              existingCall.error = tc.error;
-              existingCall.endTime = tc.endTime;
+          // 优先从 currentMessageRef 更新（不可变方式）
+          const subEndMsg = currentMessageRef.current;
+          if (subEndMsg) {
+            const newContent = updateSubagentCallInContent(subEndMsg.content);
+            if (newContent) {
+              const updatedMsg = { ...subEndMsg, content: newContent };
+              currentMessageRef.current = updatedMsg;
+              setMessages(prev => {
+                const filtered = prev.filter(m => m.id !== subEndMsg.id);
+                return [...filtered, updatedMsg];
+              });
+              break;
             }
-            setMessages(prev => {
-              const filtered = prev.filter(m => m.id !== targetMsg!.id);
-              return [...filtered, { ...targetMsg! }];
-            });
           }
+
+          // fallback: 遍历历史消息
+          setMessages(prev => {
+            for (let i = prev.length - 1; i >= 0; i--) {
+              const msg = prev[i];
+              if (msg.role !== 'assistant') continue;
+              const newContent = updateSubagentCallInContent(msg.content);
+              if (newContent) {
+                const updatedMsg = { ...msg, content: newContent };
+                return [...prev.slice(0, i), updatedMsg, ...prev.slice(i + 1)];
+              }
+            }
+            return prev;
+          });
           break;
         }
 
@@ -717,6 +720,42 @@ export function useMessageHandler({
                 }
               }
               return prev;
+            });
+          }
+          break;
+        }
+
+        // 定时任务闹钟提醒
+        case 'schedule_alarm': {
+          const alarmTaskName = payload.taskName as string || '';
+          const alarmSessionId = payload.sessionId as string || '';
+          const alarmPrompt = payload.prompt as string || '';
+          const alarmIsNewSession = !!(payload as any).isNewSession;
+
+          // 只在当前查看的会话中插入提醒消息
+          const currentSid = sessionIdRef.current;
+          if (alarmSessionId && currentSid === alarmSessionId) {
+            const alarmMessage: ChatMessage = {
+              id: `alarm-${Date.now()}`,
+              role: 'assistant',
+              timestamp: Date.now(),
+              content: [{
+                type: 'text',
+                text: `⏰ **定时提醒** — 任务 "${alarmTaskName}" 到时间了！\n\n正在执行: ${alarmPrompt}`,
+              }],
+              sessionId: alarmSessionId,
+            };
+            setMessages(prev => [...prev, alarmMessage]);
+          }
+
+          // 无论是否是当前会话，都发浏览器通知（用户可能在别的 tab）
+          if ('Notification' in window && Notification.permission === 'granted') {
+            const body = alarmIsNewSession
+              ? `${alarmPrompt.slice(0, 80)}\n(在新会话中执行，请切换查看)`
+              : alarmPrompt.slice(0, 100);
+            new Notification(`⏰ ${alarmTaskName}`, {
+              body,
+              icon: '/favicon.ico',
             });
           }
           break;

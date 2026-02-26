@@ -9,7 +9,11 @@ import { StatusView } from './StatusView';
 import { LogView } from './LogView';
 import { BranchesView } from './BranchesView';
 import { StashView } from './StashView';
+import { TagsView } from './TagsView';
+import { RemotesView, GitRemote } from './RemotesView';
 import { DiffView } from './DiffView';
+import { FileHistoryView } from './FileHistoryView';
+import { BlameView } from './BlameView';
 import { MarkdownContent } from '../MarkdownContent';
 import './GitPanel.css';
 
@@ -48,12 +52,22 @@ export interface GitStash {
   date: string;
 }
 
+export interface GitTag {
+  name: string;
+  commit: string;
+  type: 'lightweight' | 'annotated';
+  message?: string;
+}
+
 export interface GitDiff {
   file?: string;
   content: string;
 }
 
-type TabType = 'status' | 'log' | 'branches' | 'stash';
+// 导出 GitRemote 接口供外部使用
+export type { GitRemote };
+
+type TabType = 'status' | 'log' | 'branches' | 'stash' | 'tags' | 'remotes';
 
 interface GitPanelProps {
   isOpen: boolean;
@@ -72,12 +86,24 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
   const [commits, setCommits] = useState<GitCommit[]>([]);
   const [branches, setBranches] = useState<GitBranch[]>([]);
   const [stashes, setStashes] = useState<GitStash[]>([]);
+  const [tags, setTags] = useState<GitTag[]>([]);
+  const [remotes, setRemotes] = useState<GitRemote[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Diff 查看状态
   const [diffContent, setDiffContent] = useState<string | null>(null);
   const [diffFileName, setDiffFileName] = useState('');
+
+  // File History 查看状态
+  const [viewingFileHistory, setViewingFileHistory] = useState<string | null>(null);
+
+  // Blame 查看状态
+  const [viewingBlameFile, setViewingBlameFile] = useState<string | null>(null);
+
+  // 自动 Fetch 状态
+  const [autoFetchEnabled, setAutoFetchEnabled] = useState(false);
+  const [autoFetchInterval, setAutoFetchInterval] = useState(5); // 分钟
 
   // AI 增强状态
   const [isGeneratingCommit, setIsGeneratingCommit] = useState(false);
@@ -127,10 +153,36 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
           }
           break;
 
+        case 'git:tags_response':
+          if (msg.payload?.success) {
+            setTags(msg.payload.data || []);
+          }
+          break;
+
+        case 'git:remotes_response':
+          if (msg.payload?.success) {
+            setRemotes(msg.payload.data || []);
+          }
+          break;
+
         case 'git:diff_response':
           if (msg.payload?.success && msg.payload.data) {
             setDiffContent(msg.payload.data.content || '');
             setDiffFileName(msg.payload.data.file || 'diff');
+          }
+          break;
+
+        case 'git:get_file_history':
+          // Track when file history is requested from StatusView
+          if (msg.payload?.file) {
+            setViewingFileHistory(msg.payload.file);
+          }
+          break;
+
+        case 'git:get_blame':
+          // Track when blame is requested from StatusView
+          if (msg.payload?.file) {
+            setViewingBlameFile(msg.payload.file);
           }
           break;
 
@@ -208,6 +260,16 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
       type: 'git:get_stashes',
       payload: { projectPath },
     });
+
+    send({
+      type: 'git:get_tags',
+      payload: { projectPath },
+    });
+
+    send({
+      type: 'git:get_remotes',
+      payload: { projectPath },
+    });
   }, [projectPath, send]);
 
   // 切换标签页时请求相应数据
@@ -224,8 +286,33 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
         type: 'git:get_stashes',
         payload: { projectPath },
       });
+    } else if (activeTab === 'tags') {
+      send({
+        type: 'git:get_tags',
+        payload: { projectPath },
+      });
+    } else if (activeTab === 'remotes') {
+      send({
+        type: 'git:get_remotes',
+        payload: { projectPath },
+      });
     }
   }, [activeTab, isOpen, projectPath, send]);
+
+  // 自动 Fetch 定时器
+  useEffect(() => {
+    if (!autoFetchEnabled || !projectPath || !isOpen) return;
+
+    const intervalMs = autoFetchInterval * 60 * 1000; // 转换为毫秒
+    const timer = setInterval(() => {
+      send({
+        type: 'git:fetch',
+        payload: { projectPath },
+      });
+    }, intervalMs);
+
+    return () => clearInterval(timer);
+  }, [autoFetchEnabled, autoFetchInterval, projectPath, isOpen, send]);
 
   // AI 智能提交
   const handleSmartCommit = useCallback(() => {
@@ -267,26 +354,44 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
           )}
         </div>
         <div className="git-panel-header-actions">
-          {/* AI 增强按钮组 */}
-          <button
-            className="git-ai-button"
-            onClick={handleSmartCommit}
-            disabled={isGeneratingCommit || !(gitStatus?.staged.length || gitStatus?.unstaged.length || gitStatus?.untracked.length)}
-            title={t('git.smartCommit')}
-          >
-            {isGeneratingCommit ? '⚡' : '🤖'} {t('git.smartCommit')}
-          </button>
-          <button
-            className="git-ai-button"
-            onClick={handleSmartReview}
-            disabled={isReviewing}
-            title={t('git.smartReview')}
-          >
-            {isReviewing ? '⚡' : '🔍'} {t('git.smartReview')}
-          </button>
           <button className="git-panel-close" onClick={onClose} title={t('git.closeShortcut')}>
             ✕
           </button>
+        </div>
+      </div>
+
+      {/* 工具栏：AI 按钮 + 自动 Fetch */}
+      <div className="git-panel-toolbar">
+        <button
+          className="git-ai-button"
+          onClick={handleSmartCommit}
+          disabled={isGeneratingCommit || !(gitStatus?.staged.length || gitStatus?.unstaged.length || gitStatus?.untracked.length)}
+          title={t('git.smartCommit')}
+        >
+          {isGeneratingCommit ? '⚡' : '🤖'} {t('git.smartCommit')}
+        </button>
+        <button
+          className="git-ai-button"
+          onClick={handleSmartReview}
+          disabled={isReviewing}
+          title={t('git.smartReview')}
+        >
+          {isReviewing ? '⚡' : '🔍'} {t('git.smartReview')}
+        </button>
+        <div className="git-toolbar-spacer" />
+        <div className="git-auto-fetch-toggle" title={t('git.autoFetchTooltip')}>
+          <label className="git-toggle-label">
+            <input
+              type="checkbox"
+              checked={autoFetchEnabled}
+              onChange={(e) => setAutoFetchEnabled(e.target.checked)}
+              className="git-toggle-checkbox"
+            />
+            <span className="git-toggle-slider"></span>
+          </label>
+          <span className="git-toggle-text">
+            {t('git.autoFetch')}
+          </span>
         </div>
       </div>
 
@@ -315,6 +420,18 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
           onClick={() => setActiveTab('stash')}
         >
           {t('git.tab.stash')}
+        </button>
+        <button
+          className={`git-tab ${activeTab === 'tags' ? 'active' : ''}`}
+          onClick={() => setActiveTab('tags')}
+        >
+          {t('git.tab.tags')}
+        </button>
+        <button
+          className={`git-tab ${activeTab === 'remotes' ? 'active' : ''}`}
+          onClick={() => setActiveTab('remotes')}
+        >
+          {t('git.tab.remotes')}
         </button>
       </div>
 
@@ -351,6 +468,7 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
                 <LogView
                   commits={commits}
                   send={send}
+                  addMessageHandler={addMessageHandler}
                   projectPath={projectPath}
                 />
               </div>
@@ -376,6 +494,26 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
                 />
               </div>
             )}
+
+            {activeTab === 'tags' && (
+              <div className="git-tab-content">
+                <TagsView
+                  tags={tags}
+                  send={send}
+                  projectPath={projectPath}
+                />
+              </div>
+            )}
+
+            {activeTab === 'remotes' && (
+              <div className="git-tab-content">
+                <RemotesView
+                  remotes={remotes}
+                  send={send}
+                  projectPath={projectPath}
+                />
+              </div>
+            )}
           </>
         )}
       </div>
@@ -387,6 +525,32 @@ export function GitPanel({ isOpen, onClose, send, addMessageHandler, projectPath
             diff={diffContent}
             fileName={diffFileName}
             onClose={() => { setDiffContent(null); setDiffFileName(''); }}
+          />
+        </div>
+      )}
+
+      {/* Blame 浮层 */}
+      {viewingBlameFile !== null && (
+        <div className="git-blame-overlay">
+          <BlameView
+            file={viewingBlameFile}
+            send={send}
+            addMessageHandler={addMessageHandler}
+            projectPath={projectPath}
+            onClose={() => setViewingBlameFile(null)}
+          />
+        </div>
+      )}
+
+      {/* File History 浮层 */}
+      {viewingFileHistory !== null && (
+        <div className="git-file-history-overlay">
+          <FileHistoryView
+            file={viewingFileHistory}
+            send={send}
+            addMessageHandler={addMessageHandler}
+            projectPath={projectPath}
+            onClose={() => setViewingFileHistory(null)}
           />
         </div>
       )}

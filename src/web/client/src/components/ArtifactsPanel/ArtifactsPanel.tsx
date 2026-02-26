@@ -147,6 +147,7 @@ function ArtifactDetailOverlay({
   artifact: FileArtifact;
   onClose: () => void;
 }) {
+  const { t } = useLanguage();
   const toolBadgeClass = artifact.toolName === 'Write'
     ? 'artifacts-detail-tool-badge--write'
     : 'artifacts-detail-tool-badge--edit';
@@ -291,6 +292,7 @@ function ScheduleDetailOverlay({
   artifact: ScheduleArtifact;
   onClose: () => void;
 }) {
+  const { t } = useLanguage();
   const statusClass = getScheduleStatusClass(artifact);
   const statusText = getScheduleStatusText(artifact);
 

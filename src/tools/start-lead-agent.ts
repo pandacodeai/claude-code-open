@@ -64,6 +64,8 @@ export interface StartLeadAgentContext {
     failedTasks?: string[];
     completedTasks?: string[];
   }>;
+  /** 取消执行（由 Chat Tab 中断时调用） */
+  cancelExecution: (sessionId: string) => void;
   /** 通知前端导航到 SwarmConsole（可选） */
   navigateToSwarm?: (blueprintId: string, executionId: string) => void;
   /** 获取当前工作目录 */
@@ -109,6 +111,8 @@ export class StartLeadAgentTool extends BaseTool<StartLeadAgentInput, ToolResult
 
   // 静态上下文 - 由 ConversationManager 在启动 ConversationLoop 前设置
   private static context: StartLeadAgentContext | null = null;
+  // 当前活跃的执行会话 ID（用于 Chat Tab 中断时取消蜂群）
+  private static activeExecutionId: string | null = null;
 
   /**
    * 设置上下文（由 ConversationManager 在启动 ConversationLoop 前调用）
@@ -122,6 +126,7 @@ export class StartLeadAgentTool extends BaseTool<StartLeadAgentInput, ToolResult
    */
   static clearContext(): void {
     StartLeadAgentTool.context = null;
+    StartLeadAgentTool.activeExecutionId = null;
   }
 
   /**
@@ -129,6 +134,18 @@ export class StartLeadAgentTool extends BaseTool<StartLeadAgentInput, ToolResult
    */
   static getContext(): StartLeadAgentContext | null {
     return StartLeadAgentTool.context;
+  }
+
+  /**
+   * 取消当前活跃的蜂群执行（由 Chat Tab cancel 时调用）
+   * 谁启动的蜂群，谁负责关闭
+   */
+  static cancelActiveExecution(): void {
+    if (StartLeadAgentTool.activeExecutionId && StartLeadAgentTool.context) {
+      console.log(`[StartLeadAgent] Chat Tab 中断，取消蜂群执行: ${StartLeadAgentTool.activeExecutionId}`);
+      StartLeadAgentTool.context.cancelExecution(StartLeadAgentTool.activeExecutionId);
+      StartLeadAgentTool.activeExecutionId = null;
+    }
   }
 
   getInputSchema(): ToolDefinition['inputSchema'] {
@@ -240,6 +257,9 @@ export class StartLeadAgentTool extends BaseTool<StartLeadAgentInput, ToolResult
       // 启动执行（taskPlanObj 仅在 TaskPlan 模式时有值，通过管线传递到 LeadAgent）
       const session = await ctx.startExecution(blueprint, taskPlanObj);
 
+      // 记录活跃执行 ID，供 Chat Tab 中断时取消
+      StartLeadAgentTool.activeExecutionId = session.id;
+
       // 通知前端导航到 SwarmConsole 查看实时进度
       ctx.navigateToSwarm?.(blueprintId, session.id);
 
@@ -247,6 +267,9 @@ export class StartLeadAgentTool extends BaseTool<StartLeadAgentInput, ToolResult
 
       // 阻塞等待 LeadAgent 执行完成
       const result = await ctx.waitForCompletion(session.id);
+
+      // 执行完成，清除活跃 ID
+      StartLeadAgentTool.activeExecutionId = null;
 
       console.log(`[StartLeadAgent] LeadAgent 执行完成 (success: ${result.success})`);
 

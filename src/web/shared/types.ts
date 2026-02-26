@@ -218,7 +218,37 @@ export type ClientMessage =
   | { type: 'git:get_diff'; payload?: { file?: string } }
   | { type: 'git:smart_commit' }
   | { type: 'git:smart_review' }
-  | { type: 'git:explain_commit'; payload: { hash: string } };
+  | { type: 'git:explain_commit'; payload: { hash: string } }
+  | { type: 'git:get_commit_detail'; payload: { hash: string } }
+  | { type: 'git:get_commit_file_diff'; payload: { projectPath?: string; hash: string; file: string } }
+  // Git Enhanced Features
+  | { type: 'git:merge'; payload: { branch: string; strategy?: GitMergeStrategy } }
+  | { type: 'git:rebase'; payload: { branch: string; onto?: string } }
+  | { type: 'git:merge_abort' }
+  | { type: 'git:rebase_abort' }
+  | { type: 'git:rebase_continue' }
+  | { type: 'git:reset'; payload: { commit: string; mode: GitResetMode } }
+  | { type: 'git:discard_file'; payload: { file: string } }
+  | { type: 'git:stage_all' }
+  | { type: 'git:unstage_all' }
+  | { type: 'git:discard_all' }
+  | { type: 'git:amend_commit'; payload: { message: string } }
+  | { type: 'git:revert_commit'; payload: { hash: string } }
+  | { type: 'git:cherry_pick'; payload: { hash: string } }
+  | { type: 'git:get_tags' }
+  | { type: 'git:create_tag'; payload: { name: string; message?: string; type: GitTagType } }
+  | { type: 'git:delete_tag'; payload: { name: string } }
+  | { type: 'git:push_tags' }
+  | { type: 'git:get_remotes' }
+  | { type: 'git:add_remote'; payload: { name: string; url: string } }
+  | { type: 'git:remove_remote'; payload: { name: string } }
+  | { type: 'git:fetch'; payload?: { remote?: string } }
+  | { type: 'git:search_commits'; payload: GitCommitSearchFilter }
+  | { type: 'git:get_file_history'; payload: { file: string; limit?: number } }
+  | { type: 'git:get_blame'; payload: { file: string } }
+  | { type: 'git:compare_branches'; payload: { base: string; target: string } }
+  | { type: 'git:get_merge_status' }
+  | { type: 'git:get_conflicts'; payload: { file: string } };
 
 /**
  * 服务端发送的消息类型
@@ -258,6 +288,7 @@ export type ServerMessage =
   | { type: 'task_status'; payload: TaskStatusPayload }
   | { type: 'task_cancelled'; payload: { taskId: string; success: boolean } }
   | { type: 'schedule_countdown'; payload: ScheduleCountdownPayload }
+  | { type: 'schedule_alarm'; payload: ScheduleAlarmPayload }
   | { type: 'task_output_response'; payload: TaskOutputPayload }
   | { type: 'mcp_list_response'; payload: McpListPayload }
   | { type: 'mcp_server_added'; payload: { success: boolean; name: string; server?: McpServerConfig } }
@@ -303,6 +334,15 @@ export type ServerMessage =
   | { type: 'git:smart_commit_response'; payload: GitSmartCommitResponsePayload }
   | { type: 'git:smart_review_response'; payload: GitSmartReviewResponsePayload }
   | { type: 'git:explain_commit_response'; payload: GitExplainCommitResponsePayload }
+  | { type: 'git:commit_detail_response'; payload: { success: boolean; data?: { hash: string; shortHash: string; author: string; date: string; message: string; diff: string; files: { status: string; file: string }[] }; error?: string } }
+  // Git Enhanced Features Responses
+  | { type: 'git:tags_response'; payload: { success: boolean; data?: GitTag[]; error?: string } }
+  | { type: 'git:remotes_response'; payload: { success: boolean; data?: GitRemote[]; error?: string } }
+  | { type: 'git:file_history_response'; payload: { success: boolean; data?: GitFileHistoryCommit[]; error?: string } }
+  | { type: 'git:blame_response'; payload: { success: boolean; data?: GitBlameLine[]; error?: string } }
+  | { type: 'git:compare_branches_response'; payload: { success: boolean; data?: GitCompareBranches; error?: string } }
+  | { type: 'git:merge_status_response'; payload: { success: boolean; data?: GitMergeStatus; error?: string } }
+  | { type: 'git:conflicts_response'; payload: { success: boolean; data?: GitConflict; error?: string } }
   // 蜂群相关消息
   | { type: 'swarm:state'; payload: any }
   | { type: 'swarm:task_update'; payload: any }
@@ -976,6 +1016,19 @@ export interface ScheduleCountdownPayload {
 }
 
 /**
+ * 定时任务闹钟提醒负载
+ */
+export interface ScheduleAlarmPayload {
+  taskId: string;
+  taskName: string;
+  sessionId: string;
+  prompt: string;
+  triggeredAt: number;
+  /** 是否在新会话中执行（原会话已关闭） */
+  isNewSession?: boolean;
+}
+
+/**
  * 任务状态更新负载
  */
 export interface TaskStatusPayload {
@@ -1606,6 +1659,8 @@ export interface OAuthConfig {
   displayName?: string;
   /** 是否启用额外用量 */
   hasExtraUsageEnabled?: boolean;
+  /** 通过 org:create_api_key 换取的临时 API Key（供无 user:inference scope 的订阅用户推理用） */
+  oauthApiKey?: string;
 }
 
 /**
@@ -3226,4 +3281,109 @@ export interface GitExplainCommitResponsePayload {
     explanation: string;
   };
   error?: string;
+}
+
+// ============ Git Enhanced Features Types ============
+
+/**
+ * Git Reset Mode
+ */
+export type GitResetMode = 'soft' | 'mixed' | 'hard';
+
+/**
+ * Git Merge Strategy
+ */
+export type GitMergeStrategy = 'no-ff' | 'squash' | 'ff-only' | 'default';
+
+/**
+ * Git Tag Type
+ */
+export type GitTagType = 'lightweight' | 'annotated';
+
+/**
+ * Git Tag Info
+ */
+export interface GitTag {
+  name: string;
+  commit: string;
+  message?: string;
+  tagger?: string;
+  date?: string;
+  type: GitTagType;
+}
+
+/**
+ * Git Remote Info
+ */
+export interface GitRemote {
+  name: string;
+  fetchUrl: string;
+  pushUrl: string;
+}
+
+/**
+ * Git Blame Line
+ */
+export interface GitBlameLine {
+  lineNumber: number;
+  commit: string;
+  author: string;
+  date: string;
+  content: string;
+}
+
+/**
+ * Git File History Commit
+ */
+export interface GitFileHistoryCommit {
+  hash: string;
+  shortHash: string;
+  author: string;
+  date: string;
+  message: string;
+  diff?: string;
+}
+
+/**
+ * Git Conflict Info
+ */
+export interface GitConflict {
+  file: string;
+  ours: string;
+  theirs: string;
+  base?: string;
+}
+
+/**
+ * Git Merge/Rebase Status
+ */
+export interface GitMergeStatus {
+  inProgress: boolean;
+  type: 'merge' | 'rebase' | 'cherry-pick' | null;
+  conflicts: string[];
+  currentBranch: string;
+  targetBranch?: string;
+}
+
+/**
+ * Git Compare Branches Result
+ */
+export interface GitCompareBranches {
+  ahead: number;
+  behind: number;
+  files: Array<{
+    file: string;
+    status: string;
+  }>;
+}
+
+/**
+ * Git Commit Search Filter
+ */
+export interface GitCommitSearchFilter {
+  query?: string;
+  author?: string;
+  since?: string;
+  until?: string;
+  limit?: number;
 }

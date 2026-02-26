@@ -11,23 +11,22 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { spawn } from 'child_process';
 import { BaseTool } from './base.js';
 import type { ToolDefinition, ToolResult } from '../types/index.js';
 import { t } from '../i18n/index.js';
 import { fromMsysPath } from '../utils/platform.js';
 import { TaskStore, type ScheduledTask } from '../daemon/store.js';
-import { isDaemonRunning } from '../daemon/index.js';
 import { parseTimeExpression } from '../daemon/time-parser.js';
 import { appendRunLog, readRunLogEntries } from '../daemon/run-log.js';
+import { getAuth, initAuth } from '../auth/index.js';
 
 /** once 类型任务自动在会话内执行的最大等待时间（10 分钟） */
 const INLINE_WAIT_THRESHOLD_MS = 10 * 60 * 1000;
 
 interface ScheduleTaskInput {
-  action: 'create' | 'cancel' | 'list' | 'watch';
+  action: 'create' | 'cancel' | 'list' | 'watch' | 'update';
 
-  // create 参数
+  // create / update 参数
   name?: string;
   type?: 'once' | 'interval' | 'watch';
   triggerAt?: string;
@@ -44,13 +43,19 @@ interface ScheduleTaskInput {
   /** 创建任务时的对话上下文快照 — 简要描述当前对话场景，帮助执行时的模型理解背景 */
   context?: string;
 
-  // cancel / watch 参数
+  /**
+   * 静默 token：agent 回复包含此字符串时静默（不推给用户）。
+   * 用于心跳巡检场景：prompt 里写"没事回复 HEARTBEAT_OK"，silentToken 设为 "HEARTBEAT_OK"。
+   */
+  silentToken?: string;
+
+  // cancel / watch / update 参数
   taskId?: string;
 }
 
 export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
   name = 'ScheduleTask';
-  description = 'Create, cancel, or list scheduled tasks. Tasks are executed by the daemon process and results are sent via desktop notification or Feishu. The daemon must be running (claude daemon start) for tasks to execute. For once-type tasks triggering within 10 minutes, execution happens inline in the current session. Use action=watch with taskId to view execution history.\n\nNever call ScheduleTask twice for the same task — one call is sufficient.';
+  description = 'Create, update, cancel, or list scheduled tasks. Tasks are executed by the daemon process and results are sent via desktop notification or Feishu. The daemon must be running (claude daemon start) for tasks to execute. For once-type tasks triggering within 10 minutes, execution happens inline in the current session. Use action=watch with taskId to view execution history. Use action=update with taskId to modify existing task fields.\n\nNever call ScheduleTask twice for the same task — one call is sufficient.';
 
   getInputSchema(): ToolDefinition['inputSchema'] {
     return {
@@ -58,7 +63,7 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
       properties: {
         action: {
           type: 'string',
-          enum: ['create', 'cancel', 'list', 'watch'],
+          enum: ['create', 'cancel', 'list', 'watch', 'update'],
           description: 'Action to perform.',
         },
         name: {
@@ -117,6 +122,10 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
           type: 'string',
           description: 'Brief context snapshot of the current conversation when creating the task. Helps the executing model understand the background. Keep it concise (100-300 chars).',
         },
+        silentToken: {
+          type: 'string',
+          description: 'Silent token for heartbeat mode. When the agent reply contains this token, the result is suppressed (not delivered to the user). Example: set to "HEARTBEAT_OK" with a prompt like "if nothing needs attention, reply HEARTBEAT_OK".',
+        },
         taskId: {
           type: 'string',
           description: 'Task ID to cancel (required for action=cancel).',
@@ -138,6 +147,8 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
         return this.handleList(store);
       case 'watch':
         return this.handleWatch(store, input);
+      case 'update':
+        return this.handleUpdate(store, input);
       default:
         return { success: false, output: t('schedule.unknownAction', { action: input.action }) };
     }
@@ -192,6 +203,9 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
       }
     }
 
+    // 快照当前会话的认证信息，daemon 独立进程执行时用它恢复认证
+    const authSnapshot = this.snapshotAuth();
+
     const task = store.addTask({
       type: input.type,
       name: input.name,
@@ -208,48 +222,21 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
       model: input.model,
       timeoutMs: input.timeoutMs,
       context: input.context,
+      silentToken: input.silentToken,
       enabled: true,
+      authSnapshot,
     });
 
     // 通知 daemon 热加载
     store.signalReload();
 
-    // 如果 daemon 未运行，自动拉起
-    let daemonAutoStarted = false;
-    if (!isDaemonRunning()) {
-      try {
-        const claudeDir = path.join(os.homedir(), '.claude');
-        if (!fs.existsSync(claudeDir)) {
-          fs.mkdirSync(claudeDir, { recursive: true });
-        }
-        const logPath = path.join(claudeDir, 'daemon.log');
-        const logFd = fs.openSync(logPath, 'a');
-        // 判断运行模式：编译后 dist/tools/ 下有 cli.js，开发模式 src/tools/ 下需要用 tsx 运行 cli.ts
-        const compiledCliPath = path.join(import.meta.dirname, '..', 'cli.js');
-        const isDev = !fs.existsSync(compiledCliPath);
-        let spawnCmd: string;
-        let spawnArgs: string[];
-        if (isDev) {
-          const tsCliPath = path.join(import.meta.dirname, '..', 'cli.ts');
-          // 用 node --import tsx 运行 .ts 文件，跨平台兼容
-          // 避免 Windows 上 spawn tsx.cmd + detached 导致 PID 指向 cmd.exe 的问题
-          spawnCmd = process.execPath;
-          spawnArgs = ['--import', 'tsx', tsCliPath, 'daemon', 'start'];
-        } else {
-          spawnCmd = process.execPath;
-          spawnArgs = [compiledCliPath, 'daemon', 'start'];
-        }
-        const daemonProcess = spawn(spawnCmd, spawnArgs, {
-          detached: true,
-          stdio: ['ignore', logFd, logFd],
-          cwd: process.cwd(),
-        });
-        daemonProcess.unref();
-        fs.closeSync(logFd);
-        daemonAutoStarted = true;
-      } catch {
-        // 自动启动失败，不影响任务创建
-      }
+    // 注册到进程内 scheduler（如果已初始化）
+    let schedulerRegistered = false;
+    const { getInProcessScheduler } = await import('../daemon/in-process-scheduler.js');
+    const ips = getInProcessScheduler();
+    if (ips) {
+      ips.registerTask(task);
+      schedulerRegistered = true;
     }
 
     let details = `Task created: "${task.name}" (ID: ${task.id})\n`;
@@ -264,8 +251,10 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
       details += `Watch: ${task.watchPaths.join(', ')}\n`;
     }
     details += `Notify: ${task.notify.join(', ')}`;
-    if (daemonAutoStarted) {
-      details += `\n\nDaemon was not running — auto-started successfully.`;
+    if (schedulerRegistered) {
+      details += `\n\nRegistered with in-process scheduler.`;
+    } else {
+      details += `\n\nWarning: In-process scheduler not initialized. Task saved but won't execute until process restarts.`;
     }
 
     // 会话内等待执行：once 类型 + 触发时间在阈值内 → 阻塞等待并在当前进程执行
@@ -276,7 +265,7 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
     return { success: true, output: details };
   }
 
-  private handleCancel(store: TaskStore, input: ScheduleTaskInput): ToolResult {
+  private async handleCancel(store: TaskStore, input: ScheduleTaskInput): Promise<ToolResult> {
     if (!input.taskId) {
       return { success: false, output: t('schedule.cancelIdRequired') };
     }
@@ -284,6 +273,12 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
     const removed = store.removeTask(input.taskId);
     if (removed) {
       store.signalReload();
+      // 通知进程内 scheduler 取消
+      const { getInProcessScheduler } = await import('../daemon/in-process-scheduler.js');
+      const ips = getInProcessScheduler();
+      if (ips) {
+        ips.cancelTask(input.taskId);
+      }
       return { success: true, output: t('schedule.cancelled', { taskId: input.taskId }) };
     } else {
       return { success: false, output: t('schedule.notFound', { taskId: input.taskId }) };
@@ -310,6 +305,9 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
       }
       info += `\n  Prompt: ${task.prompt.slice(0, 100)}${task.prompt.length > 100 ? '...' : ''}`;
       info += `\n  Notify: ${task.notify.join(', ')}`;
+      if (task.silentToken) {
+        info += `\n  Silent token: "${task.silentToken}"`;
+      }
       info += `\n  Enabled: ${task.enabled}`;
       // 执行状态
       if (task.lastRunAt) {
@@ -364,6 +362,72 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
   }
 
   /**
+   * 更新任务
+   */
+  private async handleUpdate(store: TaskStore, input: ScheduleTaskInput): Promise<ToolResult> {
+    if (!input.taskId) {
+      return { success: false, output: 'taskId is required for update action' };
+    }
+
+    const task = store.getTask(input.taskId);
+    if (!task) {
+      return { success: false, output: t('schedule.notFound', { taskId: input.taskId }) };
+    }
+
+    const updates: Partial<ScheduledTask> = {};
+
+    // 通用字段
+    if (input.name !== undefined) updates.name = input.name;
+    if (input.prompt !== undefined) updates.prompt = input.prompt;
+    if (input.model !== undefined) updates.model = input.model;
+    if (input.timeoutMs !== undefined) updates.timeoutMs = input.timeoutMs;
+    if (input.silentToken !== undefined) updates.silentToken = input.silentToken;
+    if (input.context !== undefined) updates.context = input.context;
+    if (input.notify !== undefined) updates.notify = input.notify;
+    if (input.feishuChatId !== undefined) updates.feishuChatId = input.feishuChatId;
+
+    // 类型特定字段
+    if (task.type === 'once' && input.triggerAt !== undefined) {
+      const triggerAt = parseTimeExpression(input.triggerAt);
+      updates.triggerAt = triggerAt;
+      updates.nextRunAtMs = triggerAt; // 同步更新 nextRunAtMs
+    }
+
+    if (task.type === 'interval' && input.intervalMs !== undefined) {
+      if (input.intervalMs <= 0) {
+        return { success: false, output: 'intervalMs must be > 0' };
+      }
+      updates.intervalMs = input.intervalMs;
+    }
+
+    if (task.type === 'watch') {
+      if (input.watchPaths !== undefined) {
+        updates.watchPaths = input.watchPaths.map(fromMsysPath);
+      }
+      if (input.watchEvents !== undefined) {
+        updates.watchEvents = input.watchEvents;
+      }
+      if (input.debounceMs !== undefined) {
+        updates.debounceMs = input.debounceMs;
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return { success: false, output: 'No fields to update. Provide at least one field to modify.' };
+    }
+
+    const updated = store.updateTask(input.taskId, updates);
+    if (!updated) {
+      return { success: false, output: 'Failed to update task' };
+    }
+
+    store.signalReload();
+
+    const fields = Object.keys(updates).join(', ');
+    return { success: true, output: `Task "${task.name}" (${input.taskId}) updated: ${fields}` };
+  }
+
+  /**
    * 会话内等待执行：阻塞等待触发时间，然后在当前进程内执行 prompt
    * 执行期间 UI 上显示 ScheduleTask 工具的 spinner，执行完成后显示结果
    */
@@ -394,8 +458,12 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
     const timeoutMs = task.timeoutMs || 300000;
 
     try {
-      const { initAuth } = await import('../auth/index.js');
-      initAuth();
+      // 从 authSnapshot 恢复认证，如果没有快照则走默认 initAuth
+      const authSnap = task.authSnapshot;
+      if (!authSnap) {
+        const { initAuth: _initAuth } = await import('../auth/index.js');
+        _initAuth();
+      }
 
       const { ConversationLoop } = await import('../core/loop.js');
       // 排除不适合在定时任务执行环境中使用的工具：
@@ -405,10 +473,13 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
         model: task.model || 'sonnet',
         permissionMode: 'bypassPermissions' as any,
         workingDir: task.workingDir,
-        maxTurns: 10,
+        maxTurns: 30,
         verbose: false,
         isSubAgent: true,
         disallowedTools: ['ScheduleTask', 'AskUserQuestion'],
+        ...(authSnap?.apiKey && { apiKey: authSnap.apiKey }),
+        ...(authSnap?.authToken && { authToken: authSnap.authToken }),
+        ...(authSnap?.baseUrl && { baseUrl: authSnap.baseUrl }),
       });
 
       // 带超时保护执行
@@ -429,14 +500,19 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
 
       const endedAt = Date.now();
 
+      // 检测是否因 maxTurns 耗尽而截断（任务实际未完成）
+      const wasTruncated = response.includes('[WARNING: max turns reached, task may be incomplete]');
+      const finalStatus = wasTruncated ? 'failed' : 'success';
+
       // 更新任务状态
       store.updateTask(task.id, {
         runningAtMs: undefined,
         lastRunAt: startedAt,
-        lastRunStatus: 'success',
+        lastRunStatus: finalStatus,
+        lastRunError: wasTruncated ? 'Max turns reached, task incomplete' : undefined,
         lastDurationMs: endedAt - startedAt,
         runCount: (task.runCount || 0) + 1,
-        consecutiveErrors: 0,
+        consecutiveErrors: wasTruncated ? (task.consecutiveErrors || 0) + 1 : 0,
         enabled: false,
         nextRunAtMs: undefined,
       });
@@ -447,10 +523,18 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
         taskId: task.id,
         taskName: task.name,
         action: 'finished',
-        status: 'success',
+        status: finalStatus,
         summary: response.slice(0, 500),
+        error: wasTruncated ? 'Max turns reached, task incomplete' : undefined,
         durationMs: endedAt - startedAt,
       }).catch(() => {});
+
+      if (wasTruncated) {
+        return {
+          success: false,
+          error: `${createDetails}\n\n--- Inline Execution ---\nTask "${task.name}" was truncated (max turns reached) after ${Math.round((endedAt - startedAt) / 1000)}s. The task did not fully complete.\n\nPartial result:\n${response}`,
+        };
+      }
 
       return {
         success: true,
@@ -488,5 +572,37 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
         error: `${createDetails}\n\n--- Inline Execution ---\nTask "${task.name}" ${isTimeout ? 'timed out' : 'failed'}: ${errMsg}`,
       };
     }
+  }
+
+  /**
+   * 快照当前会话的认证信息
+   * 存入任务记录，daemon 执行时恢复
+   */
+  private snapshotAuth(): ScheduledTask['authSnapshot'] {
+    try {
+      initAuth();
+      const auth = getAuth();
+      if (!auth) return undefined;
+
+      if (auth.type === 'api_key' && auth.apiKey) {
+        return {
+          apiKey: auth.apiKey,
+          baseUrl: process.env.ANTHROPIC_BASE_URL,
+        };
+      }
+
+      if (auth.type === 'oauth') {
+        const token = auth.authToken || auth.accessToken;
+        if (token) {
+          return {
+            authToken: token,
+            baseUrl: process.env.ANTHROPIC_BASE_URL,
+          };
+        }
+      }
+    } catch {
+      // 快照失败不影响任务创建
+    }
+    return undefined;
   }
 }

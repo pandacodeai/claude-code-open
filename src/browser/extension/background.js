@@ -28,8 +28,8 @@ const PING_INTERVAL_MS = 5000;
 const KEEPALIVE_INTERVAL_MS = 30000;
 
 // __RELAY_CONFIG_START__ (do not edit - replaced by installExtension)
-const INJECTED_RELAY_PORT = 0;
-const INJECTED_GATEWAY_TOKEN = '';
+const INJECTED_RELAY_PORT = 9223;
+const INJECTED_GATEWAY_TOKEN = "70aae498aa81cdb63c37f5d561a9e1bfa1dd0208206132417bc0a3301c8b6d37";
 // __RELAY_CONFIG_END__
 
 // Tab states: 'attaching' | 'attached' | 'detaching' | 'detached'
@@ -231,6 +231,13 @@ async function connectToRelay() {
           });
           console.log('[Bridge] Re-announced tab', tabId, 'sessionId:', tabState.sessionId);
         }
+      }
+
+      // Pipe mode auto-attach: when config is injected (not manual install),
+      // automatically attach all existing tabs on first relay connection.
+      // This ensures the extension works without user clicking the toolbar button.
+      if (INJECTED_RELAY_PORT && INJECTED_GATEWAY_TOKEN && tabs.size === 0) {
+        autoAttachExistingTabs();
       }
     };
 
@@ -624,6 +631,33 @@ async function connectOrToggleForActiveTab() {
 }
 
 /**
+ * Auto-attach all existing tabs (pipe mode).
+ * Called once when extension first connects to relay with injected config.
+ */
+async function autoAttachExistingTabs() {
+  try {
+    const allTabs = await chrome.tabs.query({});
+    // Filter to http/https/about tabs (skip chrome://, chrome-extension://, etc.)
+    const attachableTabs = allTabs.filter(tab => {
+      if (!tab.id) return false;
+      const url = tab.url || '';
+      return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('about:');
+    });
+
+    console.log('[Bridge] Auto-attaching', attachableTabs.length, 'existing tabs (pipe mode)');
+    for (const tab of attachableTabs) {
+      try {
+        await attachTab(tab.id);
+      } catch (e) {
+        console.warn('[Bridge] Failed to auto-attach tab', tab.id, ':', e.message);
+      }
+    }
+  } catch (error) {
+    console.error('[Bridge] autoAttachExistingTabs error:', error);
+  }
+}
+
+/**
  * Set badge text to indicate status
  */
 function setBadgeText(text) {
@@ -658,26 +692,8 @@ chrome.debugger.onDetach.addListener(async (source, reason) => {
 
   console.log('[Bridge] Debugger detached from tab', tabId, 'reason:', reason);
 
-  // If detached due to navigation (target_closed), try to reattach after delay
-  if (reason === 'target_closed') {
-    setTimeout(async () => {
-      try {
-        // Check if tab still exists
-        await chrome.tabs.get(tabId);
-        await attachTab(tabId);
-      } catch {
-        // Tab no longer exists, clean up
-        const sessionId = tabState.sessionId;
-        if (sessionId) {
-          forwardCDPEvent('Target.detachedFromTarget', { sessionId, targetId: tabState.targetId || String(tabId) });
-          tabBySession.delete(sessionId);
-        }
-        tabs.delete(tabId);
-        await persistTabState();
-      }
-    }, 500);
-  } else {
-    // Other reasons: clean up immediately
+  // User clicked "Cancel" in the debugger banner — respect and clean up
+  if (reason === 'canceled_by_user') {
     const sessionId = tabState.sessionId;
     if (sessionId) {
       forwardCDPEvent('Target.detachedFromTarget', { sessionId, targetId: tabState.targetId || String(tabId) });
@@ -685,7 +701,28 @@ chrome.debugger.onDetach.addListener(async (source, reason) => {
     }
     tabs.delete(tabId);
     await persistTabState();
+    return;
   }
+
+  // For all other reasons (target_closed, replaced_with_devtools, etc.),
+  // try to reattach after a short delay — navigation and site-isolation
+  // process swaps both trigger detach but the tab still exists.
+  setTimeout(async () => {
+    try {
+      await chrome.tabs.get(tabId);
+      console.log('[Bridge] Attempting reattach after detach (reason:', reason, ') tab:', tabId);
+      await attachTab(tabId);
+    } catch {
+      // Tab no longer exists, clean up
+      const sessionId = tabState.sessionId;
+      if (sessionId) {
+        forwardCDPEvent('Target.detachedFromTarget', { sessionId, targetId: tabState.targetId || String(tabId) });
+        tabBySession.delete(sessionId);
+      }
+      tabs.delete(tabId);
+      await persistTabState();
+    }
+  }, 500);
 });
 
 // Action button clicked
@@ -708,6 +745,27 @@ chrome.action.onClicked.addListener(async (tab) => {
   } catch (error) {
     console.error('[Bridge] === ACTION ERROR ===', error);
   }
+});
+
+// Auto-attach new tabs in pipe mode
+chrome.tabs.onCreated.addListener(async (tab) => {
+  // Only auto-attach in pipe mode (injected config)
+  if (!INJECTED_RELAY_PORT || !INJECTED_GATEWAY_TOKEN) return;
+  if (!tab.id) return;
+  // Wait a bit for the tab to settle (URL may not be set yet)
+  setTimeout(async () => {
+    try {
+      const current = await chrome.tabs.get(tab.id);
+      const url = current.url || '';
+      if (url.startsWith('chrome://') || url.startsWith('chrome-extension://')) return;
+      if (tabs.has(tab.id)) return; // Already attached
+      await attachTab(tab.id);
+      console.log('[Bridge] Auto-attached new tab', tab.id);
+    } catch (e) {
+      // Tab may have been closed already
+      console.warn('[Bridge] Failed to auto-attach new tab', tab.id, ':', e.message);
+    }
+  }, 500);
 });
 
 // Tab removed

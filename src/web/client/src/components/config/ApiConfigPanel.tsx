@@ -131,7 +131,13 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
       const response = await fetch('/api/config/api');
       const data = await response.json();
       if (data.success && data.data) {
-        setConfig(data.data);
+        setConfig(prev => ({
+          ...prev,
+          ...data.data,
+          // 服务器返回什么就用什么，不回退到默认值（否则用户无法清空）
+          apiBaseUrl: data.data.apiBaseUrl || '',
+          apiKey: data.data.apiKey || '',
+        }));
       }
     } catch (err) {
       setError(t('apiConfig.loadFailed', { error: err instanceof Error ? err.message : String(err) }));

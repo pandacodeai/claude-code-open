@@ -38,21 +38,19 @@ interface RepairRecord {
   action: string;
   reason: string;
   success: boolean;
-  sessionId?: string;
 }
 
 /**
- * 修复会话创建器回调类型
- * 由 web/server/index.ts 注入，避免 utils → web/server 的循环依赖
+ * 错误通知回调类型
+ * 由 web/server/index.ts 注入，向当前活跃会话发送错误通知
  *
- * @param pattern - 触发修复的错误模式
+ * @param pattern - 触发通知的错误模式
  * @param sourceContext - 源码上下文
- * @returns sessionId 或 null（创建失败）
  */
-export type RepairSessionCreator = (
+export type ErrorNotifier = (
   pattern: ErrorPattern,
   sourceContext: string,
-) => Promise<string | null>;
+) => Promise<void>;
 
 // ============================================================================
 // 常量
@@ -93,7 +91,7 @@ class ErrorWatcher {
   private repairHistory: RepairRecord[] = [];
   private enabled = false;
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
-  private repairSessionCreator: RepairSessionCreator | null = null;
+  private errorNotifier: ErrorNotifier | null = null;
 
   enable(): void {
     if (this.enabled) return;
@@ -104,12 +102,12 @@ class ErrorWatcher {
   }
 
   /**
-   * 注入修复会话创建器
-   * 由 web/server/index.ts 在初始化时调用，将"创建修复会话"的能力注入 ErrorWatcher
+   * 注入错误通知回调
+   * 由 web/server/index.ts 在初始化时调用，将"通知主 Agent"的能力注入 ErrorWatcher
    */
-  setRepairSessionCreator(creator: RepairSessionCreator): void {
-    this.repairSessionCreator = creator;
-    this.log('info', 'Repair session creator injected — auto-repair enabled');
+  setErrorNotifier(notifier: ErrorNotifier): void {
+    this.errorNotifier = notifier;
+    this.log('info', 'Error notifier injected — will notify active session on source errors');
   }
 
   disable(): void {
@@ -254,49 +252,34 @@ class ErrorWatcher {
     const now = Date.now();
     this.lastRepairTime = now;
 
-    this.log('info', '=== Repair Pipeline START ===');
-    this.log('info', `Fingerprint: ${pattern.fingerprint}`);
-    this.log('info', `Description: ${pattern.description}`);
-    this.log('info', `Count: ${pattern.count}`);
-    this.log('info', `Location: ${pattern.sourceLocation || 'unknown'}`);
+    this.log('info', `Source error repeated ${pattern.count}x: ${pattern.description}`);
 
     const sourceContext = await this.readSourceContext(pattern);
+    let success = false;
 
-    // Phase 2: 自动创建修复会话
-    let sessionId: string | null = null;
-    let action = 'notify';
-
-    if (this.repairSessionCreator) {
+    if (this.errorNotifier) {
       try {
-        this.log('info', 'Creating auto-repair session...');
-        sessionId = await this.repairSessionCreator(pattern, sourceContext);
-        if (sessionId) {
-          action = 'repair_session';
-          this.log('info', `Repair session created: ${sessionId}`);
-        } else {
-          this.log('warn', 'Repair session creator returned null — falling back to notify');
-        }
+        await this.errorNotifier(pattern, sourceContext);
+        success = true;
+        this.log('info', `Notified active session about: ${pattern.fingerprint}`);
       } catch (err) {
-        this.log('error', `Failed to create repair session: ${err instanceof Error ? err.message : String(err)}`);
+        this.log('error', `Failed to notify: ${err instanceof Error ? err.message : String(err)}`);
       }
     } else {
-      this.log('info', 'No repair session creator injected — notify only');
+      this.log('info', 'No error notifier — log only');
     }
 
     const record: RepairRecord = {
       timestamp: now,
       fingerprint: pattern.fingerprint,
-      action,
+      action: success ? 'notified' : 'log_only',
       reason: `Source error repeated ${pattern.count}x: ${pattern.description}`,
-      success: !!sessionId,
-      sessionId: sessionId || undefined,
+      success,
     };
     this.repairHistory.push(record);
 
     this.appendRepairLog(record, pattern, sourceContext);
     await this.writeToNotebook(pattern, sourceContext);
-
-    this.log('info', `=== Repair Pipeline END (${action}) ===`);
   }
 
   private async readSourceContext(pattern: ErrorPattern): Promise<string> {

@@ -962,10 +962,6 @@ export const FileTree: React.FC<FileTreeProps> = ({
   // 正常显示
   return (
     <div className={styles.fileTree}>
-      <div className={styles.header}>
-        <span className={styles.projectName}>{projectName || tree?.name || '项目'}</span>
-      </div>
-
       <div 
         className={styles.treeContainer}
         onContextMenu={handleContainerContextMenu}

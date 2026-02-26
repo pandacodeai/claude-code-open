@@ -21,8 +21,8 @@ interface ProjectItem {
 }
 
 export interface TopNavBarProps {
-  currentPage: 'chat' | 'swarm' | 'blueprint';
-  onPageChange: (page: 'chat' | 'swarm' | 'blueprint') => void;
+  currentPage: 'chat' | 'swarm' | 'blueprint' | 'schedule';
+  onPageChange: (page: 'chat' | 'swarm' | 'blueprint' | 'schedule') => void;
   onSettingsClick?: () => void;
   /** 代码视图是否激活 */
   codeViewActive?: boolean;
@@ -50,6 +50,8 @@ export interface TopNavBarProps {
   onNewSession?: () => void;
   onSessionDelete?: (id: string) => void;
   onSessionRename?: (id: string, name: string) => void;
+  // 会话搜索
+  onOpenSessionSearch?: () => void;
 }
 
 // SVG 图标组件
@@ -81,6 +83,13 @@ const SwarmIcon = () => (
   </svg>
 );
 
+const ScheduleIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="8" cy="8" r="6" />
+    <path d="M8 4v4l3 2" />
+  </svg>
+);
+
 const ConversationViewIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M2 3h12M2 8h12M2 13h8" />
@@ -109,6 +118,19 @@ const SettingsIcon = () => (
   </svg>
 );
 
+const MenuIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 4h12M2 8h12M2 12h12" />
+  </svg>
+);
+
+const SearchIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="7" cy="7" r="4.5" />
+    <path d="M10.5 10.5L14 14" />
+  </svg>
+);
+
 /**
  * 顶部导航栏组件 - 两行布局
  * 第一行：项目选择器 + 会话选择器 + 连接状态 + 新会话按钮 + 设置按钮
@@ -122,6 +144,7 @@ export default function TopNavBar({
   currentProject, onProjectChange, onOpenFolder, onProjectRemove,
   sessions = [], currentSessionId, onSessionSelect, onNewSession,
   onSessionDelete, onSessionRename,
+  onOpenSessionSearch,
 }: TopNavBarProps) {
   const { t } = useLanguage();
   const [sessionDropdownOpen, setSessionDropdownOpen] = useState(false);
@@ -279,6 +302,11 @@ export default function TopNavBar({
           <button className={styles.newSessionButton} onClick={onNewSession} title={t('nav.newSession')}>
             +
           </button>
+          {onOpenSessionSearch && (
+            <button className={styles.searchButton} onClick={onOpenSessionSearch} title={`${t('sessionSearch.placeholder')} (Ctrl+K)`}>
+              <SearchIcon />
+            </button>
+          )}
           </div>
         </div>
 
@@ -324,6 +352,15 @@ export default function TopNavBar({
               <SwarmIcon />
             </span>
             <span>{t('nav.swarm')}</span>
+          </button>
+          <button
+            className={`${styles.navTab} ${currentPage === 'schedule' ? styles.active : ''}`}
+            onClick={() => onPageChange('schedule')}
+          >
+            <span className={styles.icon}>
+              <ScheduleIcon />
+            </span>
+            <span>{t('nav.schedule')}</span>
           </button>
         </div>
 

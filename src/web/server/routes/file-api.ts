@@ -885,4 +885,539 @@ router.post('/reveal', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/files/preview
+ * 以原始内容返回 HTML 文件，用于 iframe 预览
+ * 
+ * Query 参数:
+ * - path: 文件绝对路径或相对路径
+ * - root: 项目根目录（可选）
+ */
+router.get('/preview', async (req: Request, res: Response) => {
+  try {
+    const queryPath = req.query.path as string;
+    
+    if (!queryPath) {
+      res.status(400).send('缺少 path 参数');
+      return;
+    }
+
+    // 只允许 .html / .htm 文件
+    const ext = path.extname(queryPath).toLowerCase();
+    if (ext !== '.html' && ext !== '.htm') {
+      res.status(400).send('仅支持预览 .html / .htm 文件');
+      return;
+    }
+
+    // 解析文件路径：支持绝对路径和相对路径
+    let resolvedPath: string;
+    if (path.isAbsolute(queryPath)) {
+      resolvedPath = path.normalize(queryPath);
+    } else {
+      const projectRoot = getProjectRoot(req);
+      const validation = validatePath(queryPath, projectRoot);
+      if (!validation.valid) {
+        res.status(400).send(validation.error || '路径无效');
+        return;
+      }
+      resolvedPath = validation.resolvedPath;
+    }
+
+    // 检查文件是否存在
+    try {
+      const stats = await fs.stat(resolvedPath);
+      if (!stats.isFile()) {
+        res.status(400).send('路径不是文件');
+        return;
+      }
+    } catch {
+      res.status(404).send('文件不存在');
+      return;
+    }
+
+    // 读取并返回原始 HTML 内容
+    const content = await fs.readFile(resolvedPath, 'utf-8');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(content);
+  } catch (error) {
+    console.error('[File API] 预览文件失败:', error);
+    res.status(500).send('预览文件失败');
+  }
+});
+
+/**
+ * 检查文件是否为二进制文件
+ * 通过检查文件前 512 字节是否包含 \0 来判断
+ */
+async function isBinaryFile(filePath: string): Promise<boolean> {
+  try {
+    const buffer = Buffer.alloc(512);
+    const fd = await fs.open(filePath, 'r');
+    try {
+      const { bytesRead } = await fd.read(buffer, 0, 512, 0);
+      const content = buffer.slice(0, bytesRead);
+      // 检查是否包含空字节
+      return content.includes(0);
+    } finally {
+      await fd.close();
+    }
+  } catch {
+    return true; // 读取失败时视为二进制文件
+  }
+}
+
+/**
+ * 递归搜索文件内容
+ */
+async function searchInDirectory(
+  dirPath: string,
+  query: string,
+  options: {
+    isRegex: boolean;
+    isCaseSensitive: boolean;
+    isWholeWord: boolean;
+    includePattern?: string;
+    excludePattern?: string;
+  },
+  projectRoot: string,
+  results: SearchResult[],
+  maxResults: number
+): Promise<void> {
+  if (results.length >= maxResults) {
+    return;
+  }
+
+  try {
+    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (results.length >= maxResults) {
+        break;
+      }
+
+      const entryPath = path.join(dirPath, entry.name);
+      const relativePath = path.relative(projectRoot, entryPath);
+
+      if (entry.isDirectory()) {
+        // 跳过排除的目录
+        if (EXCLUDED_DIRS.has(entry.name)) {
+          continue;
+        }
+        // 递归搜索子目录
+        await searchInDirectory(entryPath, query, options, projectRoot, results, maxResults);
+      } else if (entry.isFile()) {
+        // 检查是否匹配 include/exclude 模式
+        if (options.includePattern) {
+          const includeRegex = new RegExp(options.includePattern);
+          if (!includeRegex.test(relativePath)) {
+            continue;
+          }
+        }
+        if (options.excludePattern) {
+          const excludeRegex = new RegExp(options.excludePattern);
+          if (excludeRegex.test(relativePath)) {
+            continue;
+          }
+        }
+
+        // 跳过二进制文件
+        if (await isBinaryFile(entryPath)) {
+          continue;
+        }
+
+        // 搜索文件内容
+        const matches = await searchInFile(entryPath, query, options);
+        if (matches.length > 0) {
+          results.push({
+            file: relativePath,
+            matches,
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error(`[Search] 搜索目录失败: ${dirPath}`, error);
+  }
+}
+
+/**
+ * 在单个文件中搜索
+ */
+async function searchInFile(
+  filePath: string,
+  query: string,
+  options: {
+    isRegex: boolean;
+    isCaseSensitive: boolean;
+    isWholeWord: boolean;
+  }
+): Promise<SearchMatch[]> {
+  try {
+    const content = await fs.readFile(filePath, 'utf-8');
+    const lines = content.split('\n');
+    const matches: SearchMatch[] = [];
+
+    // 构建搜索正则表达式
+    let searchRegex: RegExp;
+    if (options.isRegex) {
+      try {
+        searchRegex = new RegExp(
+          query,
+          options.isCaseSensitive ? 'g' : 'gi'
+        );
+      } catch {
+        // 无效的正则表达式，返回空结果
+        return [];
+      }
+    } else {
+      // 转义特殊字符
+      const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = options.isWholeWord
+        ? `\\b${escapedQuery}\\b`
+        : escapedQuery;
+      searchRegex = new RegExp(
+        pattern,
+        options.isCaseSensitive ? 'g' : 'gi'
+      );
+    }
+
+    // 逐行搜索
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const lineMatches = [...line.matchAll(searchRegex)];
+
+      for (const match of lineMatches) {
+        if (match.index === undefined) continue;
+
+        const column = match.index;
+        const matchText = match[0];
+        const previewBefore = line.slice(Math.max(0, column - 50), column);
+        const previewAfter = line.slice(column + matchText.length, column + matchText.length + 50);
+
+        matches.push({
+          line: i + 1, // 1-based line number
+          column: column + 1, // 1-based column number
+          length: matchText.length,
+          lineContent: line,
+          previewBefore,
+          matchText,
+          previewAfter,
+        });
+      }
+    }
+
+    return matches;
+  } catch (error) {
+    console.error(`[Search] 搜索文件失败: ${filePath}`, error);
+    return [];
+  }
+}
+
+/**
+ * 类型定义
+ */
+interface SearchMatch {
+  line: number;
+  column: number;
+  length: number;
+  lineContent: string;
+  previewBefore: string;
+  matchText: string;
+  previewAfter: string;
+}
+
+interface SearchResult {
+  file: string;
+  matches: SearchMatch[];
+}
+
+interface SearchRequest {
+  query: string;
+  root?: string;
+  isRegex?: boolean;
+  isCaseSensitive?: boolean;
+  isWholeWord?: boolean;
+  includePattern?: string;
+  excludePattern?: string;
+  maxResults?: number;
+}
+
+interface SearchResponse {
+  results: SearchResult[];
+  totalMatches: number;
+  truncated: boolean;
+}
+
+interface ReplaceRequest {
+  file: string;
+  root?: string;
+  replacements: Array<{
+    line: number;
+    column: number;
+    length: number;
+    newText: string;
+  }>;
+}
+
+interface ReplaceResponse {
+  success: boolean;
+  replacedCount: number;
+}
+
+/**
+ * POST /api/files/search
+ * 在项目中搜索文本
+ * 
+ * Body:
+ * - query: 搜索查询字符串
+ * - root: 项目根目录（可选）
+ * - isRegex: 是否使用正则表达式（默认 false）
+ * - isCaseSensitive: 是否区分大小写（默认 false）
+ * - isWholeWord: 是否全词匹配（默认 false）
+ * - includePattern: 包含文件模式（可选，正则）
+ * - excludePattern: 排除文件模式（可选，正则）
+ * - maxResults: 最大结果数（默认 500）
+ */
+router.post('/search', async (req: Request, res: Response) => {
+  try {
+    const projectRoot = getProjectRoot(req);
+    const {
+      query,
+      isRegex = false,
+      isCaseSensitive = false,
+      isWholeWord = false,
+      includePattern,
+      excludePattern,
+      maxResults = 500,
+    } = req.body as SearchRequest;
+
+    if (!query) {
+      res.status(400).json({
+        error: '缺少 query 参数',
+      });
+      return;
+    }
+
+    // 检查项目根目录是否存在
+    try {
+      await fs.access(projectRoot);
+    } catch {
+      res.status(404).json({
+        error: '项目根目录不存在',
+      });
+      return;
+    }
+
+    const results: SearchResult[] = [];
+
+    // 递归搜索
+    await searchInDirectory(
+      projectRoot,
+      query,
+      {
+        isRegex,
+        isCaseSensitive,
+        isWholeWord,
+        includePattern,
+        excludePattern,
+      },
+      projectRoot,
+      results,
+      maxResults
+    );
+
+    // 计算总匹配数
+    const totalMatches = results.reduce((sum, r) => sum + r.matches.length, 0);
+    const truncated = results.length >= maxResults;
+
+    const response: SearchResponse = {
+      results,
+      totalMatches,
+      truncated,
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('[File API] 搜索失败:', error);
+    res.status(500).json({
+      error: '搜索失败',
+      message: error instanceof Error ? error.message : '未知错误',
+    });
+  }
+});
+
+/**
+ * POST /api/files/replace
+ * 替换文件中的文本
+ * 
+ * Body:
+ * - file: 文件路径（相对）
+ * - root: 项目根目录（可选）
+ * - replacements: 替换项数组（按行号从大到小排序）
+ */
+router.post('/replace', async (req: Request, res: Response) => {
+  try {
+    const projectRoot = getProjectRoot(req);
+    const { file: filePath, replacements } = req.body as ReplaceRequest;
+
+    if (!filePath) {
+      res.status(400).json({
+        success: false,
+        message: '缺少 file 参数',
+      });
+      return;
+    }
+
+    if (!Array.isArray(replacements) || replacements.length === 0) {
+      res.status(400).json({
+        success: false,
+        message: '缺少 replacements 参数',
+      });
+      return;
+    }
+
+    // 验证路径
+    const validation = validatePath(filePath, projectRoot);
+    if (!validation.valid) {
+      res.status(400).json({
+        success: false,
+        message: validation.error,
+      });
+      return;
+    }
+
+    // 检查文件是否存在
+    try {
+      const stats = await fs.stat(validation.resolvedPath);
+      if (!stats.isFile()) {
+        res.status(400).json({
+          success: false,
+          message: '路径不是文件',
+        });
+        return;
+      }
+    } catch {
+      res.status(404).json({
+        success: false,
+        message: '文件不存在',
+      });
+      return;
+    }
+
+    // 读取文件内容
+    const content = await fs.readFile(validation.resolvedPath, 'utf-8');
+    const lines = content.split('\n');
+
+    // 按行号从大到小排序（避免偏移问题）
+    const sortedReplacements = [...replacements].sort((a, b) => {
+      if (b.line !== a.line) {
+        return b.line - a.line;
+      }
+      return b.column - a.column;
+    });
+
+    let replacedCount = 0;
+
+    // 执行替换
+    for (const replacement of sortedReplacements) {
+      const { line, column, length, newText } = replacement;
+      const lineIndex = line - 1; // 转换为 0-based
+
+      if (lineIndex < 0 || lineIndex >= lines.length) {
+        continue; // 行号无效，跳过
+      }
+
+      const originalLine = lines[lineIndex];
+      const columnIndex = column - 1; // 转换为 0-based
+
+      if (columnIndex < 0 || columnIndex + length > originalLine.length) {
+        continue; // 列号无效，跳过
+      }
+
+      // 执行替换
+      const before = originalLine.slice(0, columnIndex);
+      const after = originalLine.slice(columnIndex + length);
+      lines[lineIndex] = before + newText + after;
+      replacedCount++;
+    }
+
+    // 写回文件
+    const newContent = lines.join('\n');
+    await fs.writeFile(validation.resolvedPath, newContent, 'utf-8');
+
+    const response: ReplaceResponse = {
+      success: true,
+      replacedCount,
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('[File API] 替换失败:', error);
+    res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : '未知错误',
+    });
+  }
+});
+
+/**
+ * GET /api/files/preview
+ * 以原始内容返回 HTML 文件，用于 iframe 预览
+ *
+ * Query 参数:
+ * - path: 文件绝对路径或相对路径
+ * - root: 项目根目录（可选）
+ */
+router.get('/preview', async (req: Request, res: Response) => {
+  try {
+    const queryPath = req.query.path as string;
+
+    if (!queryPath) {
+      res.status(400).send('缺少 path 参数');
+      return;
+    }
+
+    // 只允许 .html / .htm 文件
+    const ext = path.extname(queryPath).toLowerCase();
+    if (ext !== '.html' && ext !== '.htm') {
+      res.status(400).send('仅支持预览 .html / .htm 文件');
+      return;
+    }
+
+    // 解析文件路径：支持绝对路径和相对路径
+    let resolvedPath: string;
+    if (path.isAbsolute(queryPath)) {
+      resolvedPath = path.normalize(queryPath);
+    } else {
+      const projectRoot = getProjectRoot(req);
+      const validation = validatePath(queryPath, projectRoot);
+      if (!validation.valid) {
+        res.status(400).send(validation.error || '路径无效');
+        return;
+      }
+      resolvedPath = validation.resolvedPath;
+    }
+
+    // 检查文件是否存在
+    try {
+      const stats = await fs.stat(resolvedPath);
+      if (!stats.isFile()) {
+        res.status(400).send('路径不是文件');
+        return;
+      }
+    } catch {
+      res.status(404).send('文件不存在');
+      return;
+    }
+
+    // 读取并返回原始 HTML 内容
+    const content = await fs.readFile(resolvedPath, 'utf-8');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(content);
+  } catch (error) {
+    console.error('[File API] 预览文件失败:', error);
+    res.status(500).send('预览文件失败');
+  }
+});
+
 export default router;

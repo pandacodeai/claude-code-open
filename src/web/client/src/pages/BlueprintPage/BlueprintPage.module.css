@@ -280,6 +280,35 @@
   flex-shrink: 0;
 }
 
+.listActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 初始化项目全景按钮 */
+.initPanoramaButton {
+  padding: 8px 16px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.initPanoramaButton:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.initPanoramaButton:active {
+  transform: translateY(0);
+}
+
 /* 可滚动区域 */
 .scrollArea {
   flex: 1;
@@ -407,6 +436,40 @@
   margin-bottom: 12px;
 }
 
+.cardHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* 删除按钮 - 默认隐藏，hover 卡片时显示 */
+.deleteButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.blueprintCard:hover .deleteButton,
+.codebaseCard:hover .deleteButton {
+  opacity: 1;
+}
+
+.deleteButton:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
 .cardTitle {
   font-size: 18px;
   font-weight: 600;
@@ -513,4 +576,92 @@
 
 .cardDate {
   color: var(--text-muted);
+}
+
+/* 删除确认对话框 */
+.deleteOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.deleteDialog {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  width: 360px;
+  max-width: 90vw;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.deleteDialogTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+}
+
+.deleteDialogText {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+.deleteDialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.deleteDialogCancel {
+  padding: 8px 16px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.deleteDialogCancel:hover {
+  background: var(--bg-primary);
+}
+
+.deleteDialogConfirm {
+  padding: 8px 16px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.deleteDialogConfirm:hover {
+  opacity: 0.9;
+}
+
+.deleteDialogConfirm:disabled,
+.deleteDialogCancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

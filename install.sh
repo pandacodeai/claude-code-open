@@ -388,6 +388,163 @@ install_node_via_nvm() {
     nvm use 22
 }
 
+# --- Chromium Browser (required for Browser Control feature) ---
+# Extensions.loadUnpacked CDP command requires Chrome/Edge/Brave 120+
+BROWSER_MIN_VERSION=120
+
+detect_browser_version() {
+    local exe="$1"
+    local ver=""
+    ver=$("$exe" --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+\.\d+' | head -1)
+    if [ -z "$ver" ]; then
+        ver=$("$exe" --version 2>/dev/null | grep -oP '\d+' | head -1)
+    fi
+    echo "$ver"
+}
+
+get_browser_major_version() {
+    local ver="$1"
+    echo "$ver" | cut -d. -f1
+}
+
+ensure_browser() {
+    local found_exe=""
+    local found_kind=""
+    local found_version=""
+
+    if [ "$PLATFORM" = "linux" ]; then
+        # Check common Chromium-based browsers on Linux
+        local -a browser_cmds=("google-chrome" "google-chrome-stable" "microsoft-edge" "microsoft-edge-stable" "brave-browser" "chromium-browser" "chromium")
+        local -a browser_kinds=("Chrome" "Chrome" "Edge" "Edge" "Brave" "Chromium" "Chromium")
+        for i in "${!browser_cmds[@]}"; do
+            if command -v "${browser_cmds[$i]}" &> /dev/null; then
+                found_exe="${browser_cmds[$i]}"
+                found_kind="${browser_kinds[$i]}"
+                found_version=$(detect_browser_version "$found_exe")
+                break
+            fi
+        done
+    elif [ "$PLATFORM" = "macos" ]; then
+        local -a browser_paths=(
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
+            "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"
+            "/Applications/Chromium.app/Contents/MacOS/Chromium"
+        )
+        local -a browser_kinds=("Chrome" "Edge" "Brave" "Chromium")
+        for i in "${!browser_paths[@]}"; do
+            if [ -x "${browser_paths[$i]}" ]; then
+                found_exe="${browser_paths[$i]}"
+                found_kind="${browser_kinds[$i]}"
+                found_version=$(detect_browser_version "$found_exe")
+                break
+            fi
+        done
+    fi
+
+    if [ -n "$found_exe" ]; then
+        local major=""
+        major=$(get_browser_major_version "$found_version")
+        if [ -n "$major" ] && [ "$major" -ge "$BROWSER_MIN_VERSION" ] 2>/dev/null; then
+            success "$found_kind $found_version detected (Browser Control ready)"
+            return
+        elif [ -n "$major" ]; then
+            warn "$found_kind $found_version detected, but Browser Control requires version >= $BROWSER_MIN_VERSION"
+            warn "Please update your browser for Browser Control feature to work"
+            return
+        else
+            success "$found_kind detected at $found_exe (version unknown, Browser Control may work)"
+            return
+        fi
+    fi
+
+    # No browser found — attempt auto-install
+    warn "No Chromium-based browser found (Chrome/Edge/Brave/Chromium)"
+    warn "Browser Control feature requires a Chromium-based browser"
+
+    if [ "$PLATFORM" = "linux" ]; then
+        info "Attempting to install Google Chrome..."
+        case "$PKG_MGR" in
+            apt)
+                if command -v curl &> /dev/null || command -v wget &> /dev/null; then
+                    local tmp_deb
+                    tmp_deb=$(mktemp /tmp/chrome-XXXXXX.deb)
+                    if command -v curl &> /dev/null; then
+                        curl -fsSL "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" -o "$tmp_deb"
+                    else
+                        wget -q "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" -O "$tmp_deb"
+                    fi
+                    if [ -f "$tmp_deb" ] && [ -s "$tmp_deb" ]; then
+                        sudo dpkg -i "$tmp_deb" 2>/dev/null || sudo apt-get install -f -y
+                        rm -f "$tmp_deb"
+                    else
+                        rm -f "$tmp_deb"
+                        warn "Failed to download Chrome .deb package"
+                        # Fallback: try chromium from apt
+                        info "Trying chromium-browser from apt..."
+                        pkg_install chromium-browser || pkg_install chromium || true
+                    fi
+                else
+                    info "Trying chromium-browser from apt..."
+                    pkg_install chromium-browser || pkg_install chromium || true
+                fi
+                ;;
+            dnf|yum)
+                info "Trying to install Google Chrome via rpm..."
+                if command -v curl &> /dev/null || command -v wget &> /dev/null; then
+                    local tmp_rpm
+                    tmp_rpm=$(mktemp /tmp/chrome-XXXXXX.rpm)
+                    if command -v curl &> /dev/null; then
+                        curl -fsSL "https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm" -o "$tmp_rpm"
+                    else
+                        wget -q "https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm" -O "$tmp_rpm"
+                    fi
+                    if [ -f "$tmp_rpm" ] && [ -s "$tmp_rpm" ]; then
+                        sudo $PKG_MGR install -y "$tmp_rpm" || true
+                        rm -f "$tmp_rpm"
+                    else
+                        rm -f "$tmp_rpm"
+                        warn "Failed to download Chrome .rpm package"
+                        pkg_install chromium || true
+                    fi
+                else
+                    pkg_install chromium || true
+                fi
+                ;;
+            pacman)
+                pkg_install chromium || true
+                ;;
+            apk)
+                pkg_install chromium || true
+                ;;
+            *)
+                warn "Cannot auto-install browser. Please install Chrome, Edge, or Brave manually."
+                ;;
+        esac
+
+        # Verify installation
+        if command -v google-chrome &> /dev/null || command -v google-chrome-stable &> /dev/null || command -v chromium-browser &> /dev/null || command -v chromium &> /dev/null; then
+            success "Chromium-based browser installed (Browser Control ready)"
+        else
+            warn "Browser installation failed. Browser Control feature will not work."
+            warn "Please install Chrome manually: https://www.google.com/chrome/"
+        fi
+
+    elif [ "$PLATFORM" = "macos" ]; then
+        if command -v brew &> /dev/null; then
+            info "Installing Google Chrome via Homebrew..."
+            brew install --cask google-chrome || true
+            if [ -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ]; then
+                success "Google Chrome installed (Browser Control ready)"
+            else
+                warn "Chrome installation failed. Please install manually: https://www.google.com/chrome/"
+            fi
+        else
+            warn "Homebrew not available. Please install Chrome manually: https://www.google.com/chrome/"
+        fi
+    fi
+}
+
 # ============================================
 # Desktop shortcuts
 # ============================================
@@ -878,6 +1035,9 @@ main() {
 
     # 3. Node.js
     ensure_node
+
+    # 4. Browser (optional, needed for Browser Control feature)
+    ensure_browser
 
     echo ""
 

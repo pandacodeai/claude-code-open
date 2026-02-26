@@ -54,6 +54,12 @@ const UserConfigSchema = z.object({
   useVertex: z.boolean().default(false),
   oauthToken: z.string().optional(),
 
+  // WebUI 专用配置（settings.json passthrough 字段）
+  apiBaseUrl: z.string().optional(),
+  customModelName: z.string().optional(),
+  authPriority: z.enum(['apiKey', 'oauth', 'auto']).default('auto').optional(),
+  oauthAccount: z.record(z.any()).optional(),
+
   // 功能配置
   maxRetries: z.number().int().min(0).max(10).default(3),
   debugLogsDir: z.string().optional(),
@@ -1305,9 +1311,31 @@ export class ConfigManager {
     // 备份现有配置
     this.backupConfig(this.userConfigFile);
 
+    // 读取当前文件中的内容，保留 mergedConfig 中没有但文件中存在的 passthrough 字段
+    // （防止多个进程实例交替写入导致字段丢失，例如 oauthAccount）
+    let fileContent: Record<string, any> = {};
+    try {
+      if (fs.existsSync(this.userConfigFile)) {
+        fileContent = JSON.parse(fs.readFileSync(this.userConfigFile, 'utf-8'));
+      }
+    } catch {
+      // 文件读取失败，忽略
+    }
+
+    // 合并：mergedConfig 优先，但保留文件中的额外字段
+    const output = { ...fileContent, ...this.mergedConfig };
+
+    // 处理显式设为 undefined 的属性：从 output 中删除
+    // （JSON.stringify 会忽略 undefined 值，导致文件中的旧值无法被清除）
+    for (const key of Object.keys(output)) {
+      if (output[key] === undefined) {
+        delete output[key];
+      }
+    }
+
     fs.writeFileSync(
       this.userConfigFile,
-      JSON.stringify(this.mergedConfig, null, 2),
+      JSON.stringify(output, null, 2),
       'utf-8'
     );
   }

@@ -715,17 +715,16 @@ const loginCommand: SlashCommand = {
   category: 'auth',
   execute: async (ctx: ExtendedCommandContext): Promise<CommandResult> => {
     const { args } = ctx;
-    const { authManager } = await import('./auth-manager.js');
+    const { webAuth } = await import('./web-auth.js');
 
     if (!args || args.length === 0 || args[0] === 'status') {
       try {
-        const status = authManager.getAuthStatus();
-        const maskedKey = authManager.getMaskedApiKey();
+        const status = webAuth.getStatus();
+        const maskedKey = webAuth.getMaskedApiKey();
         let message = '认证状态\n\n';
         message += `认证: ${status.authenticated ? '✓ 已认证' : '✗ 未认证'}\n`;
         message += `类型: ${status.type === 'api_key' ? 'API密钥' : status.type === 'oauth' ? 'OAuth' : '无'}\n`;
         if (maskedKey) message += `API密钥: ${maskedKey}\n`;
-        if (status.username) message += `用户: ${status.username}\n`;
         message += '\n命令: /login set <key> | /login clear | /logout';
         return { success: true, message, dialogType: 'text' };
       } catch (error) {
@@ -738,9 +737,9 @@ const loginCommand: SlashCommand = {
     if (sub === 'set' && args.length >= 2) {
       try {
         const apiKey = args.slice(1).join(' ');
-        const success = authManager.setApiKey(apiKey);
+        const success = webAuth.setApiKey(apiKey);
         if (success) {
-          return { success: true, message: `API密钥已设置: ${authManager.getMaskedApiKey()}`, dialogType: 'text' };
+          return { success: true, message: `API密钥已设置: ${webAuth.getMaskedApiKey()}`, dialogType: 'text' };
         }
         return { success: false, message: '设置API密钥失败，请检查格式。', dialogType: 'text' };
       } catch (error) {
@@ -750,7 +749,7 @@ const loginCommand: SlashCommand = {
 
     if (sub === 'clear') {
       try {
-        authManager.clearAuth();
+        webAuth.clearAll();
         return { success: true, message: '认证已清除。', dialogType: 'text' };
       } catch (error) {
         return { success: false, message: `清除失败: ${error instanceof Error ? error.message : String(error)}`, dialogType: 'text' };

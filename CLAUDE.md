@@ -33,10 +33,12 @@ This is an educational reverse-engineering project that recreates Claude Code CL
 - 下次对话开局就能看到，不会重蹈覆辙。
 - 不写 = 下次必忘 = 必然重犯。
 
-### 铁律6：三思而后行
+### 铁律6：三思而后行 ****这是最重要的纪律
 - 每个方案出来后，重新思考缺点，至少自我反驳一次。
 - 禁止写 todo 占位，直接实现功能。
 - 每次回复结束前，必须自我反思自己给出方案是否有别的问题。
+
+### 铁律7：采用第一性原理思考和解决问题
 
 ## 项目性质
 - 这是一个**复刻还原项目**，目标是还原 Claude Code CLI v2.1.4。
@@ -50,6 +52,11 @@ This is an educational reverse-engineering project that recreates Claude Code CL
 ## 行为红线
 - 不要被用户的情绪或期望干扰判断，只相信自己看到的代码
 - 用户的能力并不如你，当他提出的方案不正确时，必须直接指出问题
+
+## 自我感知能力
+- 你可以用 Browser 工具访问 `http://localhost:3456` 来查看自己的 Web UI（导航守卫已对自身端口开白名单）
+- 当用户反馈 UI 问题时，应该主动用 Browser 截图确认，而不是盲猜
+- 流程：`Browser start` → `Browser goto http://localhost:3456` → `Browser screenshot` → 看到自己的界面
 ## Development Commands
 
 ```bash

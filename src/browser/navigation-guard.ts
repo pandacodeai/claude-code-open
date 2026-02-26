@@ -71,6 +71,24 @@ function isPrivateIPv6(hostname: string): boolean {
 }
 
 /**
+ * 获取当前 Web UI 的端口号（用于自身 UI 白名单）
+ */
+function getOwnWebPort(): number {
+  return parseInt(process.env.CLAUDE_WEB_PORT || '3456');
+}
+
+/**
+ * 检查 URL 是否指向自身 Web UI
+ */
+function isOwnWebUI(hostname: string, port: string): boolean {
+  const ownPort = getOwnWebPort();
+  const targetPort = port ? parseInt(port) : (hostname === 'localhost' ? 80 : 80);
+  if (targetPort !== ownPort) return false;
+  const localHosts = ['localhost', '127.0.0.1', '::1', 'localhost.localdomain'];
+  return localHosts.includes(hostname);
+}
+
+/**
  * 检查导航是否被允许
  * @param url 要访问的 URL
  * @returns 导航守卫结果
@@ -80,6 +98,11 @@ export function isNavigationAllowed(url: string): NavigationGuardResult {
     const parsedUrl = new URL(url);
     const protocol = parsedUrl.protocol.toLowerCase();
     const hostname = parsedUrl.hostname.toLowerCase();
+
+    // 0. 允许访问自身 Web UI（自我感知）
+    if (isOwnWebUI(hostname, parsedUrl.port)) {
+      return { allowed: true };
+    }
 
     // 1. 阻止 file:// 协议
     if (protocol === 'file:') {

@@ -1,0 +1,330 @@
+/* ===================== Overlay ===================== */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 10vh;
+  animation: overlayFadeIn 0.15s ease;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ===================== Modal ===================== */
+.modal {
+  width: 560px;
+  max-width: 90vw;
+  max-height: 70vh;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalSlideIn 0.15s ease;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ===================== Header / Search ===================== */
+.header {
+  padding: 16px 16px 0;
+  flex-shrink: 0;
+}
+
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  transition: border-color 0.2s;
+}
+
+.searchRow:focus-within {
+  border-color: var(--accent-primary);
+}
+
+.searchIcon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+
+.searchInput {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 15px;
+  outline: none;
+  min-width: 0;
+}
+
+.searchInput::placeholder {
+  color: var(--text-muted);
+}
+
+.shortcutHint {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+/* ===================== Body / List ===================== */
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+  min-height: 0;
+}
+
+.body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.body::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+}
+
+/* ===================== Group ===================== */
+.groupLabel {
+  padding: 10px 16px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  user-select: none;
+}
+
+/* ===================== Session Item ===================== */
+.sessionItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background 0.12s;
+  position: relative;
+}
+
+.sessionItem:hover {
+  background: var(--bg-tertiary);
+}
+
+.sessionItem.active {
+  background: rgba(99, 102, 241, 0.10);
+}
+
+.sessionItem.focused {
+  background: var(--bg-tertiary);
+  outline: 1px solid var(--accent-primary);
+  outline-offset: -1px;
+  border-radius: 4px;
+}
+
+.sessionInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sessionName {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessionMeta {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sessionMeta .dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.modelBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.sessionActions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.sessionItem:hover .sessionActions {
+  opacity: 1;
+}
+
+.actionBtn {
+  padding: 4px 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  color: var(--text-muted);
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.actionBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.actionBtnDanger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-error);
+}
+
+/* Rename input inline */
+.renameInput {
+  width: 100%;
+  padding: 2px 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--accent-primary);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+}
+
+/* ===================== Empty / No results ===================== */
+.emptyState {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.emptyIcon {
+  color: var(--text-muted);
+  opacity: 0.4;
+}
+
+/* ===================== Footer ===================== */
+.footer {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.newSessionBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--accent-primary);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.newSessionBtn:hover {
+  background: var(--accent-hover);
+}
+
+.footerHints {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.footerHint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.footerHint kbd {
+  padding: 1px 4px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 10px;
+}
+
+/* ===================== Responsive ===================== */
+@media (max-width: 640px) {
+  .overlay {
+    padding-top: 5vh;
+  }
+
+  .modal {
+    max-height: 80vh;
+    border-radius: 8px;
+  }
+
+  .footerHints {
+    display: none;
+  }
+}

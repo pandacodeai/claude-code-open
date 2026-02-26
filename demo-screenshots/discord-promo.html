@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  width: 1200px; height: 630px;
+  background: #1a1127;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: #e0e0e0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Animated-look gradient background */
+body::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse 600px 400px at 15% 20%, rgba(88, 101, 242, 0.25), transparent),
+    radial-gradient(ellipse 500px 350px at 85% 75%, rgba(87, 242, 135, 0.15), transparent),
+    radial-gradient(ellipse 400px 300px at 50% 50%, rgba(254, 231, 92, 0.08), transparent);
+}
+
+/* Dot grid */
+body::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.container {
+  position: relative; z-index: 1;
+  padding: 44px 56px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Top section */
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo {
+  width: 52px; height: 52px;
+  background: linear-gradient(135deg, #5865F2, #7c3aed);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; font-weight: 900; color: white;
+  box-shadow: 0 8px 32px rgba(88, 101, 242, 0.5);
+  position: relative;
+}
+.logo::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #5865F2, #7c3aed, #57F287);
+  z-index: -1;
+  filter: blur(8px);
+  opacity: 0.6;
+}
+
+.brand-text h1 {
+  font-size: 32px; font-weight: 800; color: #fff;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+}
+.brand-text h1 span { color: #5865F2; }
+.brand-text .sub {
+  font-size: 14px; color: #8b95a5;
+  margin-top: 2px;
+}
+
+.stats-row {
+  display: flex; gap: 12px; align-items: center;
+}
+.stat-chip {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 14px;
+  display: flex; align-items: center; gap: 6px;
+}
+.stat-chip .num { color: #57F287; font-weight: 700; }
+.stat-chip .lbl { color: #8b95a5; }
+
+/* Tagline */
+.tagline {
+  font-size: 18px;
+  color: rgba(255,255,255,0.75);
+  margin-bottom: 28px;
+  line-height: 1.5;
+  max-width: 700px;
+}
+.tagline strong { color: #fff; }
+
+/* Features */
+.features {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+  flex: 1;
+}
+
+.feat {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s;
+}
+.feat:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(88, 101, 242, 0.3);
+}
+
+.feat-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.feat-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.fi-1 { background: rgba(88, 101, 242, 0.2); }
+.fi-2 { background: rgba(87, 242, 135, 0.2); }
+.fi-3 { background: rgba(254, 231, 92, 0.2); }
+.fi-4 { background: rgba(237, 66, 69, 0.15); }
+.fi-5 { background: rgba(59, 165, 242, 0.2); }
+.fi-6 { background: rgba(235, 69, 158, 0.15); }
+
+.feat-head h3 {
+  font-size: 14px; font-weight: 700; color: #f1f5f9;
+}
+.feat p {
+  font-size: 12px; color: #6b7a8d; line-height: 1.45;
+}
+
+/* Bottom bar */
+.bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.links {
+  display: flex; gap: 24px;
+}
+.link {
+  font-size: 13px; color: #5865F2;
+  display: flex; align-items: center; gap: 5px;
+}
+.mit {
+  background: rgba(87, 242, 135, 0.12);
+  border: 1px solid rgba(87, 242, 135, 0.25);
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  color: #57F287;
+  font-weight: 600;
+}
+.cta {
+  background: linear-gradient(90deg, #5865F2, #7c3aed);
+  color: white;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 16px rgba(88, 101, 242, 0.4);
+}
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="top">
+      <div class="brand">
+        <div class="logo">C</div>
+        <div class="brand-text">
+          <h1>Claude Code <span>Open</span></h1>
+          <div class="sub">Open-Source AI Coding Platform</div>
+        </div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-chip"><span class="num">129</span><span class="lbl">Stars</span></div>
+        <div class="stat-chip"><span class="num">50</span><span class="lbl">Forks</span></div>
+        <div class="stat-chip"><span class="num">37+</span><span class="lbl">Tools</span></div>
+      </div>
+    </div>
+
+    <div class="tagline">
+      The world needs an open-source Claude Code. <strong>Full Web IDE</strong> with Monaco editor,
+      <strong>multi-agent orchestration</strong>, and <strong>self-evolution</strong> — running on your own machine.
+    </div>
+
+    <div class="features">
+      <div class="feat">
+        <div class="feat-head">
+          <div class="feat-icon fi-1">🖥️</div>
+          <h3>Web UI IDE</h3>
+        </div>
+        <p>Full browser IDE — Monaco editor, file tree, AI-enhanced editing, real-time streaming</p>
+      </div>
+      <div class="feat">
+        <div class="feat-head">
+          <div class="feat-icon fi-2">🤖</div>
+          <h3>Blueprint Multi-Agent</h3>
+        </div>
+        <p>Smart Planner + Lead Agent + Autonomous Workers running tasks in parallel</p>
+      </div>
+      <div class="feat">
+        <div class="feat-head">
+          <div class="feat-icon fi-3">🧬</div>
+          <h3>Self-Evolution</h3>
+        </div>
+        <p>AI modifies its own source code, runs type checks, and hot-reloads automatically</p>
+      </div>
+      <div class="feat">
+        <div class="feat-head">
+          <div class="feat-icon fi-4">🔌</div>
+          <h3>MCP Protocol</h3>
+        </div>
+        <p>Full Model Context Protocol — stdio, HTTP, SSE transports with auto-discovery</p>
+      </div>
+      <div class="feat">
+        <div class="feat-head">
+          <div class="feat-icon fi-5">⏰</div>
+          <h3>Task Scheduler</h3>
+        </div>
+        <p>Background daemon for automated AI workflows — cron, file watch, notifications</p>
+      </div>
+      <div class="feat">
+        <div class="feat-head">
+          <div class="feat-icon fi-6">🧠</div>
+          <h3>Memory System</h3>
+        </div>
+        <p>Vector store + BM25 search + conversation memory across sessions</p>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <div class="links">
+        <div class="link">⭐ github.com/kill136/claude-code-open</div>
+        <div class="link">🌐 voicegpt.site:3456</div>
+        <div class="mit">MIT Licensed</div>
+      </div>
+      <div class="cta">★ Star on GitHub</div>
+    </div>
+  </div>
+</body>
+</html>

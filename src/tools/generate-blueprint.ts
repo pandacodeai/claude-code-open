@@ -27,6 +27,28 @@ export interface GenerateBlueprintInput {
   };
   constraints?: string[];
   brief: string;
+  // 全景蓝图字段（Agent 扫描代码库后填充）
+  modules?: Array<{
+    id: string;
+    name: string;
+    type: string;
+    description: string;
+    rootPath?: string;
+    responsibilities?: string[];
+    dependencies?: string[];
+  }>;
+  businessProcesses?: Array<{
+    id: string;
+    name: string;
+    type?: string;
+    description: string;
+    steps?: string[];
+  }>;
+  nfrs?: Array<{
+    name: string;
+    category: string;
+    description: string;
+  }>;
 }
 
 /**
@@ -35,22 +57,30 @@ export interface GenerateBlueprintInput {
  */
 export class GenerateBlueprintTool extends BaseTool<GenerateBlueprintInput, ToolResult> {
   name = 'GenerateBlueprint';
-  description = `将对话中收集的需求结构化为项目蓝图
+  description = `将对话中收集的需求或代码库分析结果结构化为项目蓝图
 
-## 使用时机
-一些比较大的需求改动才使用这工具，比如创建新的项目，普通的小改动，请使用PlanMode工具，当你与用户充分讨论了项目需求后，调用此工具生成结构化蓝图。
+## 两种模式
+
+### 模式1：需求蓝图（新项目）
+用户描述需求后，填写 name/description/requirements/techStack/brief 生成蓝图。
+
+### 模式2：全景蓝图（已有项目）
+用户要求分析已有代码库时，先用 Glob/Grep/Read 探索项目结构，然后填写 modules/businessProcesses/nfrs 生成全景蓝图。
 
 ## 参数说明
 - name: 项目名称
 - description: 项目描述（1-3句话）
-- requirements: 核心需求列表（每条一个功能点）
-- techStack: 技术栈（language, framework, database 等）
+- requirements: 核心需求列表（需求蓝图用）
+- techStack: 技术栈
 - constraints: 约束条件（可选）
-- brief: **最重要的参数** — 你对需求的深度理解，会传递给执行引擎
+- brief: **最重要的参数** — 你对需求/项目的深度理解
+- modules: 识别的系统模块（全景蓝图用）
+- businessProcesses: 识别的业务流程（全景蓝图用）
+- nfrs: 非功能需求（全景蓝图用）
 
 ## 注意
-- 在调用前确保已充分了解用户需求
-- brief 写清楚：设计决策、用户偏好、排除项、技术选型理由
+- 需求蓝图：在调用前确保已充分了解用户需求
+- 全景蓝图：在调用前必须用工具充分探索代码库
 - 生成后蓝图会保存，用户可在蓝图页面查看`;
 
   getInputSchema(): ToolDefinition['inputSchema'] {
@@ -90,8 +120,53 @@ export class GenerateBlueprintTool extends BaseTool<GenerateBlueprintInput, Tool
           type: 'string',
           description: '关键上下文简报：设计决策、用户偏好、排除项、技术选型理由等（传递给执行引擎）',
         },
+        modules: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              type: { type: 'string', description: 'frontend|backend|service|database|infrastructure|shared|other' },
+              description: { type: 'string' },
+              rootPath: { type: 'string' },
+              responsibilities: { type: 'array', items: { type: 'string' } },
+              dependencies: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['id', 'name', 'type', 'description'],
+          },
+          description: '全景蓝图用：识别的系统模块列表',
+        },
+        businessProcesses: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              type: { type: 'string', description: 'core|support|management' },
+              description: { type: 'string' },
+              steps: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['id', 'name', 'description'],
+          },
+          description: '全景蓝图用：识别的业务流程列表',
+        },
+        nfrs: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              category: { type: 'string', description: 'performance|security|reliability|scalability|maintainability|usability' },
+              description: { type: 'string' },
+            },
+            required: ['name', 'category', 'description'],
+          },
+          description: '全景蓝图用：非功能需求列表',
+        },
       },
-      required: ['name', 'description', 'requirements', 'brief'],
+      required: ['name', 'description', 'brief'],
     };
   }
 
