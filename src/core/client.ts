@@ -937,10 +937,16 @@ export class ClaudeClient {
           MIN_OUTPUT_TOKENS,
           overflowInfo.contextLimit - overflowInfo.inputTokens - 1000
         );
+        // 防止无限递归：如果调整后的值和当前值相同，说明无法再缩小，直接抛出
+        if (adjustedMaxTokens >= this.maxTokens) {
+          console.error(
+            `[ClaudeClient] Context overflow: input=${overflowInfo.inputTokens} exceeds context limit=${overflowInfo.contextLimit}, cannot reduce max_tokens further (current=${this.maxTokens})`
+          );
+          throw error;
+        }
         console.error(
           `[ClaudeClient] Context overflow: input=${overflowInfo.inputTokens}, max_tokens=${overflowInfo.maxTokens}, limit=${overflowInfo.contextLimit}. Adjusting max_tokens to ${adjustedMaxTokens}`
         );
-        // 更新 maxTokens 并重试（不计入重试次数）
         this.maxTokens = adjustedMaxTokens;
         return this.withRetry(operation, retryCount, overloadedCount);
       }
@@ -1444,6 +1450,13 @@ export class ClaudeClient {
             MIN_OUTPUT_TOKENS,
             overflowInfo.contextLimit - overflowInfo.inputTokens - 1000
           );
+          if (adjustedMaxTokens >= this.maxTokens) {
+            console.error(
+              `[ClaudeClient] Stream context overflow: input=${overflowInfo.inputTokens} exceeds context limit=${overflowInfo.contextLimit}, cannot reduce max_tokens further (current=${this.maxTokens})`
+            );
+            yield { type: 'error', error: `Context overflow: input tokens (${overflowInfo.inputTokens}) exceed context limit (${overflowInfo.contextLimit})` };
+            return;
+          }
           console.error(
             `[ClaudeClient] Stream context overflow: input=${overflowInfo.inputTokens}, limit=${overflowInfo.contextLimit}. Adjusting max_tokens to ${adjustedMaxTokens}`
           );

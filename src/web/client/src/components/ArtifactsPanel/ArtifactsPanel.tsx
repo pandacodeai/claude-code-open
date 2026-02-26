@@ -434,7 +434,14 @@ export function ArtifactsPanel({
         </button>
       </div>
 
-      {/* 定时任务分区 */}
+      {groups.length === 0 && (!scheduleArtifacts || scheduleArtifacts.length === 0) ? (
+        <div className="artifacts-empty">
+          <div className="artifacts-empty-icon">&#128196;</div>
+          <div className="artifacts-empty-text">{t('artifacts.empty')}</div>
+        </div>
+      ) : (
+        <div className="artifacts-panel-body">
+          {/* 定时任务分区 */}
           {scheduleArtifacts && scheduleArtifacts.length > 0 && (
             <div className="artifacts-section">
               {hasBothSections && (
@@ -457,12 +464,7 @@ export function ArtifactsPanel({
           )}
 
           {/* 文件变更分区 */}
-          {groups.length === 0 && (!scheduleArtifacts || scheduleArtifacts.length === 0) ? (
-            <div className="artifacts-empty">
-              <div className="artifacts-empty-icon">&#128196;</div>
-              <div className="artifacts-empty-text">{t('artifacts.empty')}</div>
-            </div>
-          ) : groups.length > 0 ? (
+          {groups.length > 0 && (
             <div className="artifacts-section">
               {hasBothSections && (
                 <div className="artifacts-section-header">文件变更</div>
@@ -535,7 +537,9 @@ export function ArtifactsPanel({
               })}
               </div>
             </div>
-          ) : null}
+          )}
+        </div>
+      )}
     </div>
   );
 }

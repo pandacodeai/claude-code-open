@@ -451,10 +451,16 @@ export class ParallelAgentExecutor extends EventEmitter {
         this.emit('task-started', task.id);
 
         // 执行任务(带超时)
-        const result = await Promise.race([
-          this.runAgentTask(worker, task),
-          this.createTimeout(timeout),
-        ]);
+        const timeout_ = this.createTimeout(timeout);
+        let result: AgentResult;
+        try {
+          result = await Promise.race([
+            this.runAgentTask(worker, task),
+            timeout_.promise,
+          ]);
+        } finally {
+          timeout_.cancel();
+        }
 
         info.endTime = new Date();
         info.result = result;
@@ -475,15 +481,13 @@ export class ParallelAgentExecutor extends EventEmitter {
         this.pool.release(worker);
       }
     } catch (error) {
+      // 注意：不在此处重试。内层 try 的重试逻辑（line 476-478）已经通过
+      // retryTask → executeTask 递归处理了重试。如果异常从 retryTask 传播到这里，
+      // 说明重试本身也失败了，再次重试只会导致重试次数失控。
       info.endTime = new Date();
       info.status = 'failed';
       info.error = error instanceof Error ? error.message : String(error);
       this.emit('task-error', task.id, info.error);
-
-      // 重试逻辑
-      if (this.config.retryOnFailure && info.retryCount < (this.config.maxRetries || 3)) {
-        await this.retryTask(task, info);
-      }
     }
   }
 
@@ -555,12 +559,14 @@ export class ParallelAgentExecutor extends EventEmitter {
   }
 
   /**
-   * 创建超时Promise
+   * 创建可取消的超时Promise
    */
-  private createTimeout(ms: number): Promise<never> {
-    return new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(`Task timeout after ${ms}ms`)), ms);
+  private createTimeout(ms: number): { promise: Promise<never>; cancel: () => void } {
+    let timerId: ReturnType<typeof setTimeout>;
+    const promise = new Promise<never>((_, reject) => {
+      timerId = setTimeout(() => reject(new Error(`Task timeout after ${ms}ms`)), ms);
     });
+    return { promise, cancel: () => clearTimeout(timerId!) };
   }
 
   /**
@@ -610,7 +616,7 @@ export class ParallelAgentExecutor extends EventEmitter {
 export class AgentPool {
   private workers: AgentWorker[] = [];
   private availableWorkers: AgentWorker[] = [];
-  private waitQueue: Array<(worker: AgentWorker) => void> = [];
+  private waitQueue: Array<{ resolve: (worker: AgentWorker) => void; reject: (error: Error) => void }> = [];
   private poolSize: number;
   private nextWorkerId = 1;
 
@@ -657,8 +663,8 @@ export class AgentPool {
     }
 
     // 否则等待
-    return new Promise(resolve => {
-      this.waitQueue.push(resolve);
+    return new Promise((resolve, reject) => {
+      this.waitQueue.push({ resolve, reject });
     });
   }
 
@@ -674,7 +680,7 @@ export class AgentPool {
     const waiting = this.waitQueue.shift();
     if (waiting) {
       worker.busy = true;
-      waiting(worker);
+      waiting.resolve(worker);
     } else {
       this.availableWorkers.push(worker);
     }
@@ -738,10 +744,9 @@ export class AgentPool {
     this.availableWorkers = [];
     
     // 4. 拒绝所有等待中的请求
-    const error = new Error('AgentPool is shutting down');
-    for (const resolve of this.waitQueue) {
-      // 不能resolve，因为没有可用worker，我们应该抛出错误
-      // 但waitQueue是resolve函数，所以我们创建一个被标记为无效的worker
+    const shutdownError = new Error('AgentPool is shutting down');
+    for (const waiter of this.waitQueue) {
+      waiter.reject(shutdownError);
     }
     this.waitQueue = [];
   }
@@ -1003,6 +1008,10 @@ export function estimateExecutionTime(
   parallel: number;
   speedup: number;
 } {
+  if (tasks.length === 0) {
+    return { sequential: 0, parallel: 0, speedup: 1 };
+  }
+
   const avgTaskTime = 60000; // 假设平均任务时间为60秒
   const maxConcurrency = config.maxConcurrency || DEFAULT_CONFIG.maxConcurrency;
 
@@ -1010,15 +1019,13 @@ export function estimateExecutionTime(
 
   // 简单估算:考虑依赖关系
   const graph = createDependencyGraph(tasks);
-  const maxLevel = graph.levels.reduce((max, level) => Math.max(max, level.length), 0);
-  const avgLevelSize = tasks.length / graph.levels.length;
 
   const parallel = graph.levels.reduce((total, level) => {
     const batchCount = Math.ceil(level.length / maxConcurrency);
     return total + batchCount * avgTaskTime;
   }, 0);
 
-  const speedup = sequential / parallel;
+  const speedup = parallel > 0 ? sequential / parallel : 1;
 
   return {
     sequential,

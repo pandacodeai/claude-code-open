@@ -726,13 +726,14 @@ export function createSystemError(
  * 从原生错误创建 Claude 错误
  */
 export function fromNativeError(
-  error: Error,
+  error: unknown,
   code: ErrorCode = ErrorCode.UNKNOWN_ERROR,
   options: ErrorOptions = {}
 ): BaseClaudeError {
-  return new BaseClaudeError(code, error.message, {
+  const nativeError = error instanceof Error ? error : new Error(String(error));
+  return new BaseClaudeError(code, nativeError.message, {
     ...options,
-    cause: error,
+    cause: nativeError,
   });
 }
 
@@ -874,7 +875,7 @@ export function wrapWithErrorHandling<T, Args extends unknown[]>(
       if (isClaudeError(error)) {
         throw error;
       }
-      throw fromNativeError(error as Error, errorCode, { context });
+      throw fromNativeError(error, errorCode, { context });
     }
   };
 }
@@ -894,7 +895,7 @@ export function wrapAsyncWithErrorHandling<T, Args extends unknown[]>(
       if (isClaudeError(error)) {
         throw error;
       }
-      throw fromNativeError(error as Error, errorCode, { context });
+      throw fromNativeError(error, errorCode, { context });
     }
   };
 }

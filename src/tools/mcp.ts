@@ -357,12 +357,20 @@ export async function connectMcpServer(name: string, retry = true): Promise<bool
     }
   }
 
-  // 创建新的连接 Promise 并缓存
-  server.connectionPromise = doConnect(name, server, retry);
+  // 创建新的连接 Promise 并缓存（带超时保护，防止永不 settle）
+  const CONNECTION_TIMEOUT = 30000; // 30 秒
+  let timeoutId: ReturnType<typeof setTimeout>;
+  server.connectionPromise = Promise.race([
+    doConnect(name, server, retry),
+    new Promise<boolean>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(`MCP connection to "${name}" timed out after ${CONNECTION_TIMEOUT}ms`)), CONNECTION_TIMEOUT);
+    }),
+  ]);
 
   try {
     return await server.connectionPromise;
   } finally {
+    clearTimeout(timeoutId!);
     // 连接完成后清除缓存，允许后续重连
     server.connectionPromise = undefined;
   }

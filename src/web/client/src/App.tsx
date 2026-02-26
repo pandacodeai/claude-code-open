@@ -70,7 +70,16 @@ function AppContent({
   const [showGitPanelLocal, setShowGitPanelLocal] = useState(false);
   const showGitPanel = showGitPanelProp ?? showGitPanelLocal;
   const setShowGitPanel = onToggleGitPanel
-    ? (_: boolean | ((prev: boolean) => boolean)) => onToggleGitPanel()
+    ? (valueOrUpdater: boolean | ((prev: boolean) => boolean)) => {
+        // 计算实际值：支持函数式更新器
+        const newValue = typeof valueOrUpdater === 'function'
+          ? valueOrUpdater(showGitPanel)
+          : valueOrUpdater;
+        // 只在状态真正变化时调用外部 toggle
+        if (newValue !== showGitPanel) {
+          onToggleGitPanel();
+        }
+      }
     : setShowGitPanelLocal;
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
@@ -312,13 +321,24 @@ function AppContent({
 
     // 等待回滚完成（监听 rewind_success 消息）
     return new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const cleanup = () => {
+        if (!settled) {
+          settled = true;
+          unsubSuccess();
+          unsubError();
+          clearTimeout(timeout);
+        }
+      };
+
       const timeout = setTimeout(() => {
+        cleanup();
         reject(new Error('回滚超时'));
       }, 30000);
 
       const successHandler = (data: any) => {
         if (data.type === 'rewind_success') {
-          clearTimeout(timeout);
+          cleanup();
           // 更新消息列表
           if (data.payload?.messages) {
             setMessages(data.payload.messages);
@@ -334,8 +354,10 @@ function AppContent({
       };
 
       const errorHandler = (data: any) => {
-        if (data.type === 'error') {
-          clearTimeout(timeout);
+        // 只匹配与回滚相关的 error（包含 rewind 关键词或通用错误），
+        // 避免不相关的工具执行错误误触发回滚失败
+        if (data.type === 'error' && data.payload?.source === 'rewind') {
+          cleanup();
           reject(new Error(data.payload?.message || '回滚失败'));
         }
       };
@@ -343,12 +365,6 @@ function AppContent({
       // 临时添加监听器
       const unsubSuccess = addMessageHandler(successHandler);
       const unsubError = addMessageHandler(errorHandler);
-
-      // 清理监听器
-      setTimeout(() => {
-        unsubSuccess();
-        unsubError();
-      }, 30000);
     });
   }, [send, setMessages, addMessageHandler, messages, chatInput]);
 

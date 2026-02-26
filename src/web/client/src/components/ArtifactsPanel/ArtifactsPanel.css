@@ -87,9 +87,13 @@
    File List View
    ========================================= */
 
-.artifacts-file-list {
+.artifacts-panel-body {
   flex: 1;
   overflow-y: auto;
+  min-height: 0;
+}
+
+.artifacts-file-list {
   padding: 8px;
 }
 

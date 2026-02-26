@@ -343,10 +343,9 @@ export class EnhancedMessageStream extends EventEmitter {
 
     this.updateActivity();
 
-    // T339: 背压处理
+    // 队列异常积压时告警（不丢弃事件，因为丢弃会导致消息/工具调用丢失）
     if (this.eventQueue.length >= this.maxQueueSize) {
-      console.warn('Event queue full, dropping event');
-      return;
+      console.warn(`[MessageStream] Event queue size ${this.eventQueue.length} exceeds soft limit ${this.maxQueueSize}`);
     }
 
     this.eventQueue.push(event);

@@ -445,6 +445,8 @@ interface SessionState {
     thinkingText: string;
     textContent: string;
   };
+  /** 上次创建 client 时的凭据指纹（用于检测认证变更后自动重建客户端） */
+  credentialsFingerprint?: string;
 }
 
 /**
@@ -695,6 +697,29 @@ export class ConversationManager {
   }
 
   /**
+   * 计算凭据指纹，用于检测认证变更
+   */
+  private getCredentialsFingerprint(): string {
+    const creds = webAuth.getCredentials();
+    // 用凭据的关键字段拼接成指纹，任何变更都会导致指纹不同
+    return `${creds.apiKey || ''}\0${creds.authToken || ''}\0${creds.baseUrl || ''}`;
+  }
+
+  /**
+   * 检查凭据是否变更，如果变更则重建客户端
+   * 处理场景：用户在 WebUI 重新登录/切换 API Key 后，已有会话自动使用新凭据
+   */
+  private ensureClientCredentialsFresh(state: SessionState): void {
+    const currentFingerprint = this.getCredentialsFingerprint();
+    if (state.credentialsFingerprint && state.credentialsFingerprint !== currentFingerprint) {
+      console.log('[ConversationManager] 检测到认证凭据变更，重建客户端');
+      const newConfig = this.buildClientConfig(state.model);
+      state.client = new ClaudeClient({ ...newConfig });
+      state.credentialsFingerprint = currentFingerprint;
+    }
+  }
+
+  /**
    * 构建 ClaudeClient 配置
    * 认证全部委托给 webAuth（唯一认证入口）
    */
@@ -747,6 +772,7 @@ export class ConversationManager {
           console.log('[ConversationManager] OAuth API Key 已自动创建，重新构建客户端');
           const newConfig = this.buildClientConfig(state.model);
           state.client = new ClaudeClient({ ...newConfig });
+          state.credentialsFingerprint = this.getCredentialsFingerprint();
         } else {
           console.warn('[ConversationManager] createOAuthApiKey 返回 null，推理可能失败');
         }
@@ -769,6 +795,7 @@ export class ConversationManager {
     if (tokenBefore !== tokenAfter) {
       const newConfig = this.buildClientConfig(state.model);
       state.client = new ClaudeClient({ ...newConfig });
+      state.credentialsFingerprint = this.getCredentialsFingerprint();
       console.log('[ConversationManager] 客户端已使用刷新后的 OAuth 凭证');
     }
   }
@@ -841,6 +868,7 @@ export class ConversationManager {
       lastActualInputTokens: 0,
       messagesLenAtLastApiCall: 0,
       lastPersistedMessageCount: 0,
+      credentialsFingerprint: this.getCredentialsFingerprint(),
     };
 
     this.sessions.set(sessionId, state);
@@ -1268,6 +1296,9 @@ export class ConversationManager {
       // 初始化流式中间内容追踪（用于浏览器刷新后恢复）
       state.streamingContent = { thinkingText: '', textContent: '' };
 
+      // 凭据变更检测（处理用户在 WebUI 重新登录后已有会话自动使用新凭据）
+      this.ensureClientCredentialsFresh(state);
+
       // OAuth Token 自动刷新检查（在调用 API 之前）
       try {
         await this.ensureValidOAuthToken(state);
@@ -1457,8 +1488,15 @@ export class ConversationManager {
         const contextWindow = getContextWindowSize(resolvedModel);
         const blockingLimit = contextWindow - 3000;
         
-        // 混合估算（复用上面计算的 hybridTokens，若为 0 则 fallback 纯估算）
-        const tokensToCheck = hybridTokens > 0 ? hybridTokens : this.estimateMessageTokens(cleanedMessages);
+        // 混合估算：如果刚执行过 autoCompact，hybridTokens 是过时的（基于压缩前的数据），
+        // 需要重新计算。通过检查 justAutoCompacted 标志来判断。
+        let tokensToCheck: number;
+        if (justAutoCompacted || hybridTokens <= 0) {
+          // autoCompact 后 hybridTokens 过时，使用纯估算
+          tokensToCheck = this.estimateMessageTokens(cleanedMessages);
+        } else {
+          tokensToCheck = hybridTokens;
+        }
 
         if (tokensToCheck >= blockingLimit) {
           console.error(`[ConversationManager] 消息 token (${tokensToCheck.toLocaleString()}) 已达到 blocking limit (${blockingLimit.toLocaleString()})，无法继续对话`);
@@ -1831,7 +1869,11 @@ export class ConversationManager {
                 break;
               }
             }
-            const compactResult = await this.performAutoCompact(state.messages, resolvedModel, state);
+            // 只传入需要压缩的部分（排除 forceKeepMsgs），与正常 autoCompact 逻辑一致
+            const messagesForCompact = forceKeepMsgs.length > 0
+              ? state.messages.slice(0, state.messages.length - forceKeepMsgs.length)
+              : state.messages;
+            const compactResult = await this.performAutoCompact(messagesForCompact, resolvedModel, state);
             if (compactResult.wasCompacted) {
               state.messages = [...compactResult.messages, ...forceKeepMsgs];
               state.lastActualInputTokens = 0;
@@ -2444,7 +2486,8 @@ export class ConversationManager {
           }
         }
 
-        // 非 inline create：走正常工具执行，但事后注入 sessionId 并通知 WebScheduler
+        // 非 inline create：直接执行工具，事后注入 sessionId 并通知 WebScheduler
+        // 注意：不能调用 this.executeTool()，否则会无限递归回到这里
         if (input.action === 'create') {
           // 执行前记录已有任务 ID，执行后取差集找到新建的任务
           let existingIds: Set<string> | null = null;
@@ -2453,7 +2496,19 @@ export class ConversationManager {
             existingIds = new Set(preStore.listTasks().map((t: any) => t.id));
           } catch { /* ignore */ }
 
-          const result = await this.executeTool(toolUse, state, callbacks);
+          const scheduleTool = toolRegistry.get('ScheduleTask');
+          if (!scheduleTool) {
+            const error = 'ScheduleTask tool not found in registry';
+            callbacks.onToolResult?.(toolUse.id, false, undefined, error);
+            return { success: false, error };
+          }
+          const rawResult = await scheduleTool.execute(toolUse.input);
+          const result = typeof rawResult === 'object' && rawResult !== null
+            ? rawResult as { success: boolean; output?: string; error?: string }
+            : { success: true, output: String(rawResult) };
+
+          // 通知前端工具结果
+          callbacks.onToolResult?.(toolUse.id, result.success, result.output, result.error);
 
           // 用差集精确找到新创建的任务
           if (result.success && existingIds) {

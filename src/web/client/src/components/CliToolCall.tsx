@@ -1,4 +1,4 @@
-import { useState, useMemo, ReactNode } from 'react';
+import { useState, useMemo, useRef, useEffect, ReactNode } from 'react';
 import { CliSpinner, CliStatusIndicator } from './common/CliSpinner';
 import { useLanguage } from '../i18n';
 import './CliToolCall.css';
@@ -131,9 +131,16 @@ function getToolDescription(name: string, input: any): string {
 
 /**
  * 渲染 Bash 工具内容 - 带 IN/OUT 标签，支持 Click to expand
+ * 当 status=running 且有 streamingOutput 时，显示实时输出
  */
-function BashToolContent({ input, result }: { input: any; result?: any }) {
+function BashToolContent({ input, result, status, streamingOutput }: {
+  input: any;
+  result?: any;
+  status?: string;
+  streamingOutput?: string;
+}) {
   const [expanded, setExpanded] = useState(false);
+  const streamingRef = useRef<HTMLPreElement>(null);
   const { t } = useLanguage();
   const output = result?.output || result?.error || t('cli.noOutput');
   const allLines = output.split('\n');
@@ -141,6 +148,23 @@ function BashToolContent({ input, result }: { input: any; result?: any }) {
   const maxLines = DEFAULT_MAX_LINES;
 
   const displayOutput = expanded ? output : allLines.slice(0, maxLines).join('\n');
+
+  const isRunning = status === 'running';
+  const hasStreamingOutput = isRunning && streamingOutput;
+
+  // 自动滚动到实时输出底部
+  useEffect(() => {
+    if (streamingRef.current) {
+      streamingRef.current.scrollTop = streamingRef.current.scrollHeight;
+    }
+  }, [streamingOutput]);
+
+  // 限制实时输出显示的行数（只显示最后 N 行，避免 DOM 过大）
+  const streamingLines = streamingOutput?.split('\n') || [];
+  const maxStreamingLines = 20;
+  const displayStreaming = streamingLines.length > maxStreamingLines
+    ? streamingLines.slice(-maxStreamingLines).join('\n')
+    : streamingOutput || '';
 
   return (
     <div className="cli-bash-content">
@@ -150,6 +174,19 @@ function BashToolContent({ input, result }: { input: any; result?: any }) {
           <pre className="cli-bash-code">{input.command}</pre>
         </div>
       )}
+      {/* 实时输出（前台执行中） */}
+      {hasStreamingOutput && (
+        <div className="cli-bash-section">
+          <span className="cli-bash-label cli-bash-label--live">LIVE</span>
+          <pre
+            ref={streamingRef}
+            className="cli-bash-code cli-bash-output cli-bash-streaming"
+          >
+            {displayStreaming}
+          </pre>
+        </div>
+      )}
+      {/* 最终结果（执行完成后） */}
       {result && (
         <div className="cli-bash-section">
           <span className="cli-bash-label">{t('cli.outputLabel')}</span>
@@ -890,7 +927,7 @@ function CliSubagentTool({ toolCall, index }: { toolCall: SubagentToolCall; inde
 export function CliToolCall({ toolUse }: CliToolCallProps) {
   const [collapsed, setCollapsed] = useState(false);
   const { t } = useLanguage();
-  const { name, input, status, result, subagentToolCalls, toolUseCount, lastToolInfo } = toolUse;
+  const { name, input, status, result, subagentToolCalls, toolUseCount, lastToolInfo, streamingOutput } = toolUse;
 
   const toolName = CLI_TOOL_NAMES[name] || name;
   const description = getToolDescription(name, input);
@@ -913,7 +950,7 @@ export function CliToolCall({ toolUse }: CliToolCallProps) {
   const renderToolContent = () => {
     switch (name) {
       case 'Bash':
-        return <BashToolContent input={input} result={result} />;
+        return <BashToolContent input={input} result={result} status={status} streamingOutput={streamingOutput} />;
       case 'Edit':
         return <EditToolContent input={input} result={result} />;
       case 'Write':

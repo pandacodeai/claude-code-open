@@ -8,14 +8,21 @@ import { randomUUID } from 'crypto';
 import { TaskStore } from '../../../daemon/store.js';
 import { readRunLogEntries } from '../../../daemon/run-log.js';
 import { broadcastMessage } from '../websocket.js';
+import { getWebScheduler } from '../web-scheduler.js';
 
 const router = express.Router();
-const store = new TaskStore();
+
+// 使用 WebScheduler 的 store 实例（避免多实例竞态覆盖 daemon-tasks.json）
+// fallback 到独立 TaskStore（仅在 WebScheduler 未启动时）
+function getStore(): TaskStore {
+  const ws = getWebScheduler();
+  return ws ? ws.getStore() : new TaskStore();
+}
 
 // GET /api/schedule/tasks - 列出所有任务
 router.get('/tasks', (_req, res) => {
   try {
-    const tasks = store.listTasks();
+    const tasks = getStore().listTasks();
     res.json({ success: true, data: tasks });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -75,11 +82,13 @@ router.post('/tasks', (req, res) => {
       taskData.watchPaths = watchPaths;
     }
     
-    // 调用 store.addTask（它会自动保存到磁盘）
-    // 注意：addTask 会自己生成 id 和 createdAt，但我们已经提供了，所以直接使用内部逻辑
-    store.reload(); // 先重新加载最新数据
+    const store = getStore();
     const created = store.addTask(taskData);
-    store.signalReload(); // 通知 daemon 重新加载
+    store.signalReload();
+    
+    // 通知 WebScheduler 热加载
+    const ws = getWebScheduler();
+    if (ws) ws.onTaskCreated();
     
     // 广播任务创建事件
     broadcastMessage({
@@ -97,7 +106,7 @@ router.post('/tasks', (req, res) => {
 // GET /api/schedule/tasks/:id - 获取单个任务
 router.get('/tasks/:id', (req, res) => {
   try {
-    const task = store.getTask(req.params.id);
+    const task = getStore().getTask(req.params.id);
     if (!task) {
       return res.status(404).json({ success: false, error: 'Task not found' });
     }
@@ -111,11 +120,16 @@ router.get('/tasks/:id', (req, res) => {
 // DELETE /api/schedule/tasks/:id - 删除任务
 router.delete('/tasks/:id', (req, res) => {
   try {
+    const store = getStore();
     const removed = store.removeTask(req.params.id);
     if (!removed) {
       return res.status(404).json({ success: false, error: 'Task not found' });
     }
     store.signalReload();
+    
+    // 通知 WebScheduler 热加载
+    const ws = getWebScheduler();
+    if (ws) ws.onTaskCreated();
     
     // 广播任务删除事件
     broadcastMessage({
@@ -133,7 +147,7 @@ router.delete('/tasks/:id', (req, res) => {
 // POST /api/schedule/tasks/:id/toggle - 启用/禁用切换
 router.post('/tasks/:id/toggle', (req, res) => {
   try {
-    store.reload(); // 获取最新数据
+    const store = getStore();
     const task = store.getTask(req.params.id);
     if (!task) {
       return res.status(404).json({ success: false, error: 'Task not found' });
@@ -159,6 +173,10 @@ router.post('/tasks/:id/toggle', (req, res) => {
     }
     store.signalReload();
     
+    // 通知 WebScheduler 热加载
+    const ws = getWebScheduler();
+    if (ws) ws.onTaskCreated();
+    
     // 广播任务更新事件
     const updatedTask = store.getTask(req.params.id);
     if (updatedTask) {
@@ -178,7 +196,7 @@ router.post('/tasks/:id/toggle', (req, res) => {
 // POST /api/schedule/tasks/:id/run-now - 立即执行任务
 router.post('/tasks/:id/run-now', (req, res) => {
   try {
-    store.reload(); // 获取最新数据
+    const store = getStore();
     const task = store.getTask(req.params.id);
     if (!task) {
       return res.status(404).json({ success: false, error: 'Task not found' });
@@ -196,6 +214,10 @@ router.post('/tasks/:id/run-now', (req, res) => {
     }
     
     store.signalReload();
+    
+    // 通知 WebScheduler 热加载
+    const ws = getWebScheduler();
+    if (ws) ws.onTaskCreated();
     
     // 广播任务更新事件
     const updatedTask = store.getTask(req.params.id);
@@ -216,7 +238,7 @@ router.post('/tasks/:id/run-now', (req, res) => {
 // PATCH /api/schedule/tasks/:id - 更新任务
 router.patch('/tasks/:id', (req, res) => {
   try {
-    store.reload(); // 获取最新数据
+    const store = getStore();
     const task = store.getTask(req.params.id);
     if (!task) {
       return res.status(404).json({ success: false, error: 'Task not found' });
@@ -304,6 +326,10 @@ router.patch('/tasks/:id', (req, res) => {
     }
 
     store.signalReload();
+
+    // 通知 WebScheduler 热加载
+    const ws = getWebScheduler();
+    if (ws) ws.onTaskCreated();
 
     // 广播任务更新事件
     const updatedTask = store.getTask(req.params.id);

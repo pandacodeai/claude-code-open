@@ -410,6 +410,34 @@ async function aiRequest(conversationManager: ConversationManager, prompt: strin
 }
 
 /**
+ * 清理 AI 返回的 commit message，去掉多余的分析、markdown 标记等
+ */
+function cleanCommitMessage(raw: string): string {
+  let msg = raw.trim();
+
+  // 去掉 markdown 代码围栏
+  msg = msg.replace(/^```[\s\S]*?\n([\s\S]*?)\n```$/gm, '$1').trim();
+
+  // 如果包含 "---" 分隔符，提取其中的内容（AI 常用格式）
+  const dashMatch = msg.match(/---\s*\n([\s\S]*?)\n\s*---/);
+  if (dashMatch) {
+    msg = dashMatch[1].trim();
+  }
+
+  // 去掉开头的 "Here's the commit message:" 类前缀
+  msg = msg.replace(/^(?:Here(?:'s| is) (?:the|my|a) commit message[:\s]*\n*)/i, '').trim();
+
+  // 去掉 markdown 格式符号（**bold**、*italic*）
+  msg = msg.replace(/\*\*(.*?)\*\*/g, '$1');
+  msg = msg.replace(/\*(.*?)\*/g, '$1');
+
+  // 确保不以空行开头
+  msg = msg.replace(/^\n+/, '');
+
+  return msg;
+}
+
+/**
  * 获取 diff 内容的辅助函数
  */
 async function getDiffContent(cwd: string, staged: boolean): Promise<string> {
@@ -447,17 +475,19 @@ export async function handleGitSmartCommit(
       return;
     }
 
-    const message = await aiRequest(conversationManager, `分析以下 git diff，生成一条高质量的 commit message。
+    const rawMessage = await aiRequest(conversationManager, `You are a commit message generator. Output ONLY the commit message, nothing else. No analysis, no explanation, no markdown, no code fences, no "---" separators.
 
-要求：
-- 第一行是简短的摘要（不超过 72 字符），使用英文
-- 格式：type(scope): description
-- type 可选：feat, fix, refactor, docs, style, test, chore, perf
-- 如果改动复杂，可以空一行后添加详细说明
-- 只输出纯文本 commit message，不要包含 markdown 格式符号（如反引号、星号等）
+Rules:
+- First line: type(scope): description (max 72 chars, English)
+- type: feat|fix|refactor|docs|style|test|chore|perf
+- If complex, add a blank line then a short body paragraph
+- Output the commit message directly. Do NOT include any preamble like "Here's the commit message:" or analysis
 
 Diff:
 ${diff.substring(0, 8000)}`);
+
+    // 后处理：清理 AI 可能输出的多余内容
+    const message = cleanCommitMessage(rawMessage);
 
     sendMessage(client.ws, {
       type: 'git:smart_commit_response',

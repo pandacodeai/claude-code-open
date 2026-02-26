@@ -224,6 +224,8 @@ export interface ToolUse {
   toolUseCount?: number;
   /** 最后执行的工具信息（Task / ScheduleTask 使用） */
   lastToolInfo?: string;
+  /** Bash 前台执行时的实时流式输出 */
+  streamingOutput?: string;
   /** 定时任务倒计时信息（仅 ScheduleTask 使用） */
   scheduleCountdown?: {
     triggerAt: number;

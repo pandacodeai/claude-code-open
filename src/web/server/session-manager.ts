@@ -47,9 +47,14 @@ export class WebSessionManager {
   private sessions = new Map<string, WebSessionData>();
   private cwd: string;
 
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
+
   constructor(cwd: string) {
     this.cwd = cwd;
     this.ensureSessionDir();
+    // 定期清理内存中过期的会话缓存（每 5 分钟）
+    this.cleanupTimer = setInterval(() => this.cleanupMemoryCache(), 5 * 60 * 1000);
+    this.cleanupTimer.unref();
   }
 
   /**

@@ -492,6 +492,7 @@ export class ContextManager {
   private compressionCount: number = 0;
   private savedTokens: number = 0;
   private apiClient?: any; // 用于 AI 摘要的 API 客户端
+  private compressing: boolean = false; // 防止并发压缩
 
   constructor(config: ContextConfig = {}) {
     this.config = {
@@ -602,25 +603,54 @@ export class ContextManager {
   }
 
   /**
-   * 获取已使用的 token 数（优先使用真实 API usage）
+   * 获取已使用的 token 数
+   *
+   * 混合策略（对齐官方 Fv 函数）：
+   * 1. 从末尾向前找最后一个有真实 apiUsage 的 turn
+   * 2. 用其 inputTokens + cacheTokens + outputTokens 作为基准（inputTokens 已包含之前所有消息）
+   * 3. 该 turn 之后的新消息用文本 length/4 估算追加
+   * 4. 如果没有任何真实 apiUsage，回退到纯估算
    */
   getUsedTokens(): number {
-    let total = estimateTokens(this.systemPrompt);
+    // 从后往前找最后一个有 apiUsage 的 turn
+    let lastApiTurnIndex = -1;
+    for (let i = this.turns.length - 1; i >= 0; i--) {
+      if (this.turns[i].apiUsage && !this.turns[i].summarized) {
+        lastApiTurnIndex = i;
+        break;
+      }
+    }
 
+    if (lastApiTurnIndex >= 0) {
+      const apiTurn = this.turns[lastApiTurnIndex];
+      const usage = apiTurn.apiUsage!;
+      // 基准：该轮 API 调用的 input + cache + output（input 已包含之前所有上下文）
+      let total =
+        usage.inputTokens +
+        (usage.cacheCreationTokens ?? 0) +
+        (usage.cacheReadTokens ?? 0) +
+        usage.outputTokens +
+        (usage.thinkingTokens ?? 0);
+
+      // 加上该 turn 之后新增消息的估算
+      for (let i = lastApiTurnIndex + 1; i < this.turns.length; i++) {
+        const turn = this.turns[i];
+        if (turn.summarized && turn.summary) {
+          total += estimateTokens(turn.summary);
+        } else {
+          total += turn.tokenEstimate;
+        }
+      }
+
+      return total;
+    }
+
+    // 回退：没有真实 apiUsage，纯估算
+    let total = estimateTokens(this.systemPrompt);
     for (const turn of this.turns) {
       if (turn.summarized && turn.summary) {
-        // 已摘要的消息使用摘要 tokens
         total += estimateTokens(turn.summary);
-      } else if (turn.apiUsage) {
-        // ✅ 优先使用真实 API tokens
-        total +=
-          turn.apiUsage.inputTokens +
-          (turn.apiUsage.cacheCreationTokens ?? 0) +
-          (turn.apiUsage.cacheReadTokens ?? 0) +
-          turn.apiUsage.outputTokens +
-          (turn.apiUsage.thinkingTokens ?? 0);
       } else {
-        // 后备估算
         total += turn.tokenEstimate;
       }
     }
@@ -632,6 +662,18 @@ export class ContextManager {
    * 检查并执行压缩
    */
   private async maybeCompress(): Promise<void> {
+    // 防止并发压缩
+    if (this.compressing) return;
+    this.compressing = true;
+
+    try {
+      await this.doCompress();
+    } finally {
+      this.compressing = false;
+    }
+  }
+
+  private async doCompress(): Promise<void> {
     const threshold = this.config.maxTokens * this.config.summarizeThreshold;
     const used = this.getUsedTokens();
 
@@ -987,19 +1029,43 @@ export function truncateMessages(
   const lastMessages = messages.slice(-keepLast);
   const middleMessages = messages.slice(keepFirst, -keepLast);
 
-  // 逐步移除中间消息
+  // 按 user/assistant 配对保留中间消息（保持交替）
   const result = [...firstMessages];
   let currentTokens = estimateTotalTokens(firstMessages) + estimateTotalTokens(lastMessages);
 
-  for (const msg of middleMessages) {
-    const msgTokens = estimateMessageTokens(msg);
-    if (currentTokens + msgTokens <= maxTokens) {
-      result.push(msg);
-      currentTokens += msgTokens;
+  for (let i = 0; i < middleMessages.length; i++) {
+    const msg = middleMessages[i];
+    // 找到配对：user+assistant 一起保留或一起丢弃
+    if (msg.role === 'user' && i + 1 < middleMessages.length && middleMessages[i + 1].role === 'assistant') {
+      const pair = middleMessages[i + 1];
+      const pairTokens = estimateMessageTokens(msg) + estimateMessageTokens(pair);
+      if (currentTokens + pairTokens <= maxTokens) {
+        result.push(msg, pair);
+        currentTokens += pairTokens;
+      }
+      i++; // 跳过 assistant
+    } else if (msg.role === 'assistant' && result.length > 0 && result[result.length - 1].role === 'user') {
+      // 单独的 assistant 消息，前面已有 user，可以保留
+      const msgTokens = estimateMessageTokens(msg);
+      if (currentTokens + msgTokens <= maxTokens) {
+        result.push(msg);
+        currentTokens += msgTokens;
+      }
     }
+    // 其他情况（连续相同 role）跳过，避免破坏交替
   }
 
   result.push(...lastMessages);
+
+  // 最终验证：确保 first 和 last 的连接处也保持交替
+  // 如果 result 中最后一个 first/middle 消息与第一个 last 消息角色相同，移除冲突的
+  if (lastMessages.length > 0) {
+    const insertPoint = result.length - lastMessages.length;
+    if (insertPoint > 0 && result[insertPoint - 1].role === result[insertPoint].role) {
+      result.splice(insertPoint - 1, 1);
+    }
+  }
+
   return result;
 }
 

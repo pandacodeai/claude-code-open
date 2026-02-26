@@ -2628,6 +2628,12 @@ export class ConversationLoop {
     while (turns < maxTurns) {
       turns++;
 
+      // v2.1.34: 每个 turn 开始时重置工具调用历史
+      // 修复 bug：agent 整个生命周期只有一条用户消息，toolCallHistory 永远不会重置，
+      // 导致累积到 TOOL_LOOP_CIRCUIT_BREAKER(20) 后所有后续工具调用被熔断。
+      // maxTurns 已经是防无限循环的主机制，circuit breaker 只需防止单个 turn 内的异常。
+      this.resetToolCallHistory();
+
       // 在发送请求前清理旧的持久化输出（第一层 microcompact）
       // 使用智能触发机制（环境变量 + token 阈值 + 最小节省）
       let messages = this.session.getMessages();
@@ -2736,6 +2742,11 @@ export class ConversationLoop {
           const toolName: string = toolBlock.name || '';
           const toolInput: any = toolBlock.input || {};
           const toolId: string = toolBlock.id || '';
+
+          // 注入 _toolUseId 供 Bash 工具关联实时输出
+          if (toolName === 'Bash' && toolId) {
+            toolInput._toolUseId = toolId;
+          }
 
           if (this.options.verbose) {
             console.log(chalk.cyan(`\n[Tool: ${toolName}]`));
@@ -3010,6 +3021,9 @@ Guidelines:
 
       turns++;
 
+      // v2.1.34: 每个 turn 开始时重置工具调用历史（同 processMessageInternal 的修复）
+      this.resetToolCallHistory();
+
       // 在发送请求前清理旧的持久化输出（第一层 microcompact）
       // 使用智能触发机制（环境变量 + token 阈值 + 最小节省）
       let messages = this.session.getMessages();
@@ -3283,6 +3297,11 @@ Guidelines:
         if (input === null) {
           // 解析失败，已经 yield 了 tool_end 错误事件
           continue;
+        }
+
+        // 注入 _toolUseId 供 Bash 工具关联实时输出
+        if (tool.name === 'Bash' && id) {
+          input._toolUseId = id;
         }
 
         const promise = (async (): Promise<ToolExecResult> => {

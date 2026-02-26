@@ -65,9 +65,7 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<We
     process.env.CLAUDE_CODE_ENTRYPOINT = 'claude-vscode';
   }
 
-  // 启动进程内定时任务调度器（Web UI 长驻进程，天然适合做调度器）
-  const { initInProcessScheduler } = await import('../../daemon/in-process-scheduler.js');
-  initInProcessScheduler();
+  // 定时任务由 WebScheduler 统一管理（稍后初始化）
 
   const {
     port = parseInt(process.env.CLAUDE_WEB_PORT || '3456'),

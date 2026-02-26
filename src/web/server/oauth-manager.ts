@@ -218,8 +218,25 @@ export class OAuthManager {
     } catch (error: any) {
       console.error('[OAuthManager] Token 刷新失败:', error.message);
 
-      // 如果刷新失败，清除过期的 OAuth 配置
-      this.clearOAuthConfig();
+      // 注意：刷新失败不应清除整个 oauthAccount（包括 refreshToken）
+      // 只清除已过期的 accessToken，保留 refreshToken 以便下次重试
+      // 之前的实现（clearOAuthConfig）会把 refreshToken 也删掉，导致用户必须重新登录
+      try {
+        const currentConfig = this.getOAuthConfig();
+        if (currentConfig?.refreshToken) {
+          // 只清除 accessToken 和 expiresAt，保留其他信息（特别是 refreshToken）
+          await this.saveOAuthConfig({
+            accessToken: '',
+            expiresAt: 0,
+          });
+          console.log('[OAuthManager] 已清除过期的 accessToken，保留 refreshToken 供下次刷新');
+        } else {
+          // 没有 refreshToken，彻底清除
+          this.clearOAuthConfig();
+        }
+      } catch {
+        // 保存失败，忽略
+      }
 
       throw new Error(`OAuth token refresh failed: ${error.message}`);
     }

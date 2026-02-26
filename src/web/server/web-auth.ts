@@ -91,10 +91,13 @@ class WebAuthProvider {
 
     // 检查是否有 OAuth 配置
     const config = oauthManager.getOAuthConfig();
-    if (!config?.accessToken) return true; // 没有 OAuth 配置，交给后续报错
+    if (!config) return true; // 完全没有 OAuth 配置，交给后续报错
 
-    // token 未过期（5 分钟缓冲）
-    if (!oauthManager.isTokenExpired()) return true;
+    // accessToken 为空但有 refreshToken（上次刷新失败后保留的）→ 需要尝试刷新
+    const needsRefreshFromEmpty = !config.accessToken && config.refreshToken;
+
+    // token 未过期（5 分钟缓冲）且 accessToken 存在
+    if (!needsRefreshFromEmpty && !oauthManager.isTokenExpired()) return true;
 
     // 需要刷新 — 使用并发锁
     if (this.refreshPromise) {
@@ -344,6 +347,9 @@ class WebAuthProvider {
   private getOAuthCredentials(): { apiKey?: string; authToken?: string } {
     const oauthConfig = oauthManager.getOAuthConfig();
     if (!oauthConfig) return {};
+
+    // accessToken 为空（刷新失败后清除了）则视为无凭证
+    if (!oauthConfig.accessToken) return {};
 
     const hasInferenceScope = oauthConfig.scopes?.includes('user:inference');
     if (hasInferenceScope) {

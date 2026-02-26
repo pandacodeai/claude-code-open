@@ -446,7 +446,7 @@ export class TaskManager {
       // 构建 LoopOptions（对齐 CLI agent.ts 的 executeAgentLoop）
       const loopOptions: LoopOptions = {
         model: resolvedModel,
-        maxTurns: agentDef.maxTurns || 30,
+        maxTurns: agentDef.maxTurns || 100,
         verbose: process.env.CLAUDE_VERBOSE === 'true',
         permissionMode: agentDef.permissionMode || 'default',
         allowedTools: effectiveTools,

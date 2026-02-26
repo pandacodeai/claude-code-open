@@ -129,6 +129,12 @@ export interface BashInput {
    * Output will be streamed to stdout/stderr as the command runs.
    */
   echoOutput?: boolean;
+
+  /**
+   * Internal: tool_use ID injected by the loop for streaming output correlation.
+   * Not part of the public API schema.
+   */
+  _toolUseId?: string;
 }
 
 /**
