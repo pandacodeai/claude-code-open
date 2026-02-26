@@ -34,7 +34,12 @@ const DEFAULT_PROJECT_ROOT = process.env.PROJECT_ROOT || process.cwd();
 function getProjectRoot(req: Request): string {
   const root = (req.query.root as string) || (req.body?.root as string);
   if (root && path.isAbsolute(root)) {
-    return path.normalize(root);
+    const normalized = path.normalize(root);
+    // 防止路径遍历：normalize 后不应包含 ..
+    if (normalized.includes('..')) {
+      return DEFAULT_PROJECT_ROOT;
+    }
+    return normalized;
   }
   return DEFAULT_PROJECT_ROOT;
 }

@@ -293,6 +293,9 @@ export function setupWebSocket(
   // 监听 RealtimeCoordinator 执行事件 (v2.0 新架构)
   // ============================================================================
 
+  // 防止 setupWebSocket 多次调用时监听器累积
+  executionEventEmitter.removeAllListeners();
+
   // Worker 状态更新
   executionEventEmitter.on('worker:update', (data: { blueprintId: string; workerId: string; updates: any }) => {
     console.log(`[Swarm v2.0] Worker update: ${data.workerId} for blueprint ${data.blueprintId}`);
@@ -1177,13 +1180,15 @@ export function setupWebSocket(
         fixAttempts: result.fixAttempts || [],
       };
 
-      // v4.8: 更新 E2E 测试状态（测试完成后保留结果，不立即删除）
+      // v4.8: 更新 E2E 测试状态（测试完成后保留结果，延迟清理）
       activeE2EState.set(data.blueprintId, {
         status: finalStatus,
         message: finalMessage,
         e2eTaskId,
         result: finalResult,
       });
+      // 30 分钟后自动清理，避免内存泄漏
+      setTimeout(() => activeE2EState.delete(data.blueprintId), 30 * 60 * 1000).unref();
 
       broadcastToSubscribers(data.blueprintId, {
         type: 'swarm:verification_update',
@@ -1208,6 +1213,8 @@ export function setupWebSocket(
         message: `E2E 测试执行失败: ${error.message}`,
         e2eTaskId,
       });
+      // 30 分钟后自动清理
+      setTimeout(() => activeE2EState.delete(data.blueprintId), 30 * 60 * 1000).unref();
 
       broadcastToSubscribers(data.blueprintId, {
         type: 'swarm:verification_update',
@@ -1337,9 +1344,17 @@ export function setupWebSocket(
       clients.delete(clientId);
     });
 
-    // 处理错误
+    // 处理错误（执行与 close 相同的清理，防止 error 后不触发 close 的情况）
     ws.on('error', (error) => {
       console.error(`[WebSocket] 客户端错误 ${clientId}:`, error);
+      cleanupClientSubscriptions(clientId);
+      const terminals = clientTerminals.get(clientId);
+      if (terminals) {
+        for (const termId of terminals) {
+          terminalManager.destroy(termId);
+        }
+        clientTerminals.delete(clientId);
+      }
       clients.delete(clientId);
     });
   });
@@ -1534,7 +1549,7 @@ async function handleClientMessage(
           payload: { success: result.success, result, messages: updatedMessages },
         });
       } catch (err: any) {
-        sendMessage(client.ws, { type: 'error', payload: { message: `Rewind 执行失败: ${err.message}` } });
+        sendMessage(client.ws, { type: 'error', payload: { message: `Rewind 执行失败: ${err.message}`, source: 'rewind' } });
       }
       break;
 

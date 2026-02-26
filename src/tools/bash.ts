@@ -902,6 +902,7 @@ Important:
       run_in_background = false,
       dangerouslyDisableSandbox = false,
       echoOutput = false,
+      _toolUseId,
     } = input;
 
     const startTime = Date.now();
@@ -1056,7 +1057,7 @@ Important:
     // 官方逻辑：W = !oP6 && mgY(w) → pP6(w, signal, timeout, cb, preventCwd, sandbox, backgroundable)
     //   onTimeout 回调将前台命令自动转为后台任务，进程不被杀死
     if (!isBackgroundTasksDisabled() && isBackgroundable(command)) {
-      return this.executeWithTimeoutToBackground(command, maxTimeout, input);
+      return this.executeWithTimeoutToBackground(command, maxTimeout, input, _toolUseId);
     }
 
     // 不可后台化的命令（如 sleep）或后台任务被禁用时，使用沙箱执行
@@ -1465,7 +1466,8 @@ Use TaskOutput tool with task_id="${taskId}" to retrieve the output.`;
   private async executeWithTimeoutToBackground(
     command: string,
     timeout: number,
-    input: BashInput
+    input: BashInput,
+    toolUseId?: string,
   ): Promise<BashResult> {
     const startTime = Date.now();
     const cwd = getCurrentCwd();
@@ -1484,8 +1486,39 @@ Use TaskOutput tool with task_id="${taskId}" to retrieve the output.`;
     let stderr = '';
     let processExited = false;
 
-    const stdoutHandler = (data: Buffer) => { stdout += data.toString(); };
-    const stderrHandler = (data: Buffer) => { stderr += data.toString(); };
+    // 缓冲区：攒一段时间后批量推送，避免高频 data 事件压垮 WebSocket/React
+    let outputBuffer = '';
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    const FLUSH_INTERVAL = 150; // ms
+
+    const flushOutputBuffer = () => {
+      flushTimer = null;
+      if (outputBuffer && broadcastMessage && toolUseId) {
+        broadcastMessage({
+          type: 'bash:foreground-output',
+          payload: { toolUseId, data: outputBuffer, stream: 'stdout' },
+        });
+        outputBuffer = '';
+      }
+    };
+
+    const bufferAndBroadcast = (text: string) => {
+      outputBuffer += text;
+      if (!flushTimer) {
+        flushTimer = setTimeout(flushOutputBuffer, FLUSH_INTERVAL);
+      }
+    };
+
+    const stdoutHandler = (data: Buffer) => {
+      const text = data.toString();
+      stdout += text;
+      bufferAndBroadcast(text);
+    };
+    const stderrHandler = (data: Buffer) => {
+      const text = data.toString();
+      stderr += text;
+      bufferAndBroadcast(text);
+    };
 
     proc.stdout?.on('data', stdoutHandler);
     proc.stderr?.on('data', stderrHandler);
@@ -1494,10 +1527,13 @@ Use TaskOutput tool with task_id="${taskId}" to retrieve the output.`;
     const processComplete = new Promise<{ code: number | null; error?: string }>((resolve) => {
       proc.on('close', (code) => {
         processExited = true;
+        // 刷新残余缓冲
+        if (flushTimer) { clearTimeout(flushTimer); flushOutputBuffer(); }
         resolve({ code });
       });
       proc.on('error', (err) => {
         processExited = true;
+        if (flushTimer) { clearTimeout(flushTimer); flushOutputBuffer(); }
         resolve({ code: null, error: err.message });
       });
     });
@@ -1619,6 +1655,13 @@ Use TaskOutput tool with task_id="${taskId}" to retrieve the output.`;
         outputStream.write('\n[Output limit reached]\n');
         taskState.output.push('[Output limit reached]');
       }
+      // 推送到 WebUI（复用已有的 bash:task-output 通道）
+      if (broadcastMessage) {
+        broadcastMessage({
+          type: 'bash:task-output',
+          payload: { taskId, data: text, stream: 'stdout' },
+        });
+      }
     });
 
     proc.stderr?.on('data', (data: Buffer) => {
@@ -1627,6 +1670,13 @@ Use TaskOutput tool with task_id="${taskId}" to retrieve the output.`;
       taskState.outputSize += text.length;
       if (taskState.outputSize <= MAX_BACKGROUND_OUTPUT) {
         outputStream.write(text);
+      }
+      // 推送到 WebUI
+      if (broadcastMessage) {
+        broadcastMessage({
+          type: 'bash:task-output',
+          payload: { taskId, data: text, stream: 'stderr' },
+        });
       }
     });
 
@@ -1969,8 +2019,9 @@ export function listBackgroundShells(): Array<{
  */
 export function killAllBackgroundTasks(): number {
   let killed = 0;
+  const entries = Array.from(backgroundTasks.entries());
 
-  Array.from(backgroundTasks.entries()).forEach(([id, task]) => {
+  for (const [id, task] of entries) {
     try {
       task.process.kill('SIGTERM');
       if (task.timeout) {
@@ -1978,18 +2029,25 @@ export function killAllBackgroundTasks(): number {
       }
       // 关闭输出流
       task.outputStream?.end();
-      setTimeout(() => {
-        if (task.status === 'running') {
-          task.process.kill('SIGKILL');
-        }
-      }, 1000);
+      task.status = 'failed';
       killed++;
     } catch (err) {
       console.error(`Failed to kill task ${id}:`, err);
     }
-  });
+  }
 
-  backgroundTasks.clear();
+  // 延迟 SIGKILL，确保顽固进程被强杀（只清理本次 entries，不影响新建任务）
+  setTimeout(() => {
+    for (const [id, task] of entries) {
+      try {
+        if (!task.process.killed) {
+          task.process.kill('SIGKILL');
+        }
+      } catch { /* ignore */ }
+      backgroundTasks.delete(id);
+    }
+  }, 1000);
+
   return killed;
 }
 

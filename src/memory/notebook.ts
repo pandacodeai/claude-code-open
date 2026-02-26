@@ -133,7 +133,10 @@ export class NotebookManager {
 
     try {
       ensureDir(path.dirname(filePath));
-      fs.writeFileSync(filePath, content, 'utf-8');
+      // 原子写入：先写临时文件再 rename，防止进程崩溃导致文件损坏
+      const tmpPath = filePath + '.tmp';
+      fs.writeFileSync(tmpPath, content, 'utf-8');
+      fs.renameSync(tmpPath, filePath);
       return { success: true, tokens, path: filePath };
     } catch (error) {
       return {

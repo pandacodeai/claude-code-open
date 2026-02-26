@@ -110,32 +110,18 @@ function collectWithinBudget(
 } {
   const collected: ConversationTurn[] = [];
   let totalTokens = 0;
-  let prevTokens: number | null = null;
 
-  // 倒序遍历消息
+  // 倒序遍历消息，累加每轮的文本估算 token 直到超预算
   for (let i = turns.length - 1; i >= 0; i--) {
     const turn = turns[i];
+    const turnTokens = turn.tokenEstimate;
 
-    // 获取真实 tokens 或估算
-    const turnTokens = getTurnTokens(turn);
-
-    // 计算增量（官方源码的逻辑）
-    let delta = 0;
-    if (prevTokens !== null && turnTokens > 0 && turnTokens < prevTokens) {
-      delta = prevTokens - turnTokens;
-    }
-
-    // 检查预算
-    if (totalTokens + delta > budget) {
+    if (totalTokens + turnTokens > budget) {
       break;
     }
 
     collected.unshift(turn);
-    totalTokens += delta;
-
-    if (turnTokens > 0) {
-      prevTokens = turnTokens;
-    }
+    totalTokens += turnTokens;
   }
 
   return { turns: collected, totalTokens };

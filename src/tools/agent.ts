@@ -1376,7 +1376,7 @@ ${!isAgentTeamsEnabled() ? `\nNote: The "Agent Teams" feature (TeammateTool, Sen
       // 构建 LoopOptions
       const loopOptions: LoopOptions = {
         model: resolvedModel,
-        maxTurns: 30,  // 限制最大轮次以避免无限循环
+        maxTurns: 100,  // 限制最大轮次以避免无限循环
         verbose: process.env.CLAUDE_VERBOSE === 'true',
         permissionMode: agentDef.permissionMode || 'default',
         // 根据代理定义限制工具访问

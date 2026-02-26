@@ -298,20 +298,21 @@ export class SSEStream<T = any> {
 
     return {
       async next(): Promise<IteratorResult<T>> {
-        const { done, value } = await self.iterator.next();
+        while (true) {
+          const { done, value } = await self.iterator.next();
 
-        if (done) {
-          return { done: true, value: undefined };
-        }
+          if (done) {
+            return { done: true, value: undefined };
+          }
 
-        // 解析 JSON 数据
-        try {
-          const data = JSON.parse(value.data) as T;
-          return { done: false, value: data };
-        } catch (error) {
-          console.error('Failed to parse SSE data:', value.data, error);
-          // 跳过无效数据
-          return this.next();
+          // 解析 JSON 数据
+          try {
+            const data = JSON.parse(value.data) as T;
+            return { done: false, value: data };
+          } catch (error) {
+            // 跳过无效数据，继续下一个事件（用循环而非递归，避免栈溢出）
+            continue;
+          }
         }
       },
 

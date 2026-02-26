@@ -460,7 +460,7 @@ export function useMessageHandler({
         case 'session_deleted':
           if (payload.success) {
             const deletedId = payload.sessionId as string;
-            if (deletedId === sessionId) {
+            if (deletedId === sessionIdRef.current) {
               setMessages([]);
             }
           }
@@ -552,6 +552,39 @@ export function useMessageHandler({
             }
             return prev;
           });
+          break;
+        }
+
+        // Bash 前台执行实时输出 — 追加到对应 tool_use 的 streamingOutput
+        case 'bash:foreground-output': {
+          const toolUseId = payload.toolUseId as string;
+          const data = payload.data as string;
+          if (!toolUseId || !data) break;
+
+          // 优先更新 currentMessageRef（当前正在构建的消息）
+          if (currentMessageRef.current) {
+            const currentMsg = currentMessageRef.current;
+            const idx = currentMsg.content.findIndex(
+              c => c.type === 'tool_use' && c.id === toolUseId && c.status === 'running'
+            );
+            if (idx !== -1) {
+              const item = currentMsg.content[idx];
+              if (item.type === 'tool_use') {
+                const newContent = [...currentMsg.content];
+                newContent[idx] = {
+                  ...item,
+                  streamingOutput: (item.streamingOutput || '') + data,
+                };
+                const updatedMsg = { ...currentMsg, content: newContent };
+                currentMessageRef.current = updatedMsg;
+                setMessages(prev => {
+                  const filtered = prev.filter(m => m.id !== currentMsg.id);
+                  return [...filtered, updatedMsg];
+                });
+              }
+              break;
+            }
+          }
           break;
         }
 
@@ -688,35 +721,41 @@ export function useMessageHandler({
           const scheduleTriggerAt = payload.triggerAt as number || 0;
 
           // 查找对应的 ScheduleTask tool_use
-          const findAndUpdateScheduleTool = (msg: ChatMessage) => {
-            const tool = msg.content.find(
-              c => c.type === 'tool_use' && c.name === 'ScheduleTask'
-            );
-            if (tool && tool.type === 'tool_use') {
-              tool.scheduleCountdown = {
-                triggerAt: scheduleTriggerAt,
-                remainingMs,
-                phase,
-                taskName: scheduleTaskName,
-              };
-              return true;
-            }
-            return false;
+          const countdownData = {
+            triggerAt: scheduleTriggerAt,
+            remainingMs,
+            phase,
+            taskName: scheduleTaskName,
           };
 
+          const cloneWithCountdown = (msg: ChatMessage): ChatMessage => {
+            const newContent = msg.content.map(c => {
+              if (c.type === 'tool_use' && c.name === 'ScheduleTask') {
+                return { ...c, scheduleCountdown: countdownData };
+              }
+              return c;
+            });
+            return { ...msg, content: newContent };
+          };
+
+          const hasScheduleTool = (msg: ChatMessage) =>
+            msg.content.some(c => c.type === 'tool_use' && c.name === 'ScheduleTask');
+
           let targetMsg = currentMessageRef.current;
-          if (targetMsg && findAndUpdateScheduleTool(targetMsg)) {
+          if (targetMsg && hasScheduleTool(targetMsg)) {
+            const updated = cloneWithCountdown(targetMsg);
+            currentMessageRef.current = updated;
             setMessages(prev => {
               const filtered = prev.filter(m => m.id !== targetMsg!.id);
-              return [...filtered, { ...targetMsg! }];
+              return [...filtered, updated];
             });
           } else {
             setMessages(prev => {
               for (let i = prev.length - 1; i >= 0; i--) {
                 const msg = prev[i];
                 if (msg.role !== 'assistant') continue;
-                if (findAndUpdateScheduleTool(msg)) {
-                  return [...prev.slice(0, i), { ...msg }, ...prev.slice(i + 1)];
+                if (hasScheduleTool(msg)) {
+                  return [...prev.slice(0, i), cloneWithCountdown(msg), ...prev.slice(i + 1)];
                 }
               }
               return prev;
@@ -968,10 +1007,12 @@ export function useMessageHandler({
 
         case 'execution:report':
           console.log('[App] Execution report:', (payload as any).status, (payload as any).summary?.substring(0, 100));
-          addMessageHandler?.({
+          setMessages(prev => [...prev, {
+            id: `exec-report-${Date.now()}`,
             role: 'assistant',
-            content: (payload as any).message || '执行完成',
-          } as any);
+            timestamp: Date.now(),
+            content: [{ type: 'text' as const, text: (payload as any).message || '执行完成' }],
+          }]);
           break;
       }
     });

@@ -311,7 +311,9 @@ export class LongTermStore {
 
     if (this.hasFTS5) {
       // 对查询做中文字级分词，与入库时一致
-      const ftsQuery = tokenizeChinese(query);
+      // 转义 FTS5 特殊字符，防止搜索语法错误
+      const escaped = query.replace(/["\-*(){}:^~\[\]\\+.]/g, ' ');
+      const ftsQuery = tokenizeChinese(escaped);
 
       // 使用 FTS5 搜索
       let sql = `

@@ -371,8 +371,10 @@ function getSessionPath(sessionId: string): string {
 
 /** WAL 条目类型 */
 interface WalEntry {
-  /** 序号，单调递增，用于判断是否比主快照更新 */
+  /** 全局序号，单调递增 */
   seq: number;
+  /** 该 op 类型的分类序号（msg/chat 各自独立递增），用于判断是否比主快照更新 */
+  opSeq?: number;
   /** 时间戳 */
   ts: number;
   /** 操作类型 */
@@ -381,8 +383,8 @@ interface WalEntry {
   data: unknown;
 }
 
-/** 每个会话的 WAL 序号计数器（进程内维护） */
-const walSeqCounters = new Map<string, number>();
+/** 每个会话的 WAL 序号计数器，按 op 类型分别维护（进程内维护） */
+const walSeqCounters = new Map<string, { msg: number; chat: number; global: number }>();
 
 /** 获取 WAL 文件路径 */
 function getWalPath(sessionId: string): string {
@@ -396,10 +398,19 @@ function getWalPath(sessionId: string): string {
 export function walAppend(sessionId: string, op: WalEntry['op'], data: unknown): void {
   if (!sessionId || sessionId === 'undefined') return;
 
-  const seq = (walSeqCounters.get(sessionId) ?? 0) + 1;
-  walSeqCounters.set(sessionId, seq);
+  let counters = walSeqCounters.get(sessionId);
+  if (!counters) {
+    counters = { msg: 0, chat: 0, global: 0 };
+    walSeqCounters.set(sessionId, counters);
+  }
+  counters.global++;
+  // 按 op 类型递增分类计数器
+  let opSeq: number | undefined;
+  if (op === 'msg') { counters.msg++; opSeq = counters.msg; }
+  else if (op === 'chat') { counters.chat++; opSeq = counters.chat; }
+  const seq = counters.global;
 
-  const entry: WalEntry = { seq, ts: Date.now(), op, data };
+  const entry: WalEntry = { seq, ts: Date.now(), op, data, opSeq };
   const line = JSON.stringify(entry) + '\n';
 
   try {
@@ -431,8 +442,15 @@ export function walCheckpoint(session: SessionData): void {
     // 忽略清理失败
   }
 
-  // 重置序号计数器
-  walSeqCounters.delete(sessionId);
+  // 将分类计数器设为当前数量（不是 delete）
+  // 这样 checkpoint 后追加的 WAL 条目的 msg/chat 计数器会从当前 length 继续递增
+  // walReplay 时 msgSeq/chatSeq 会正确地大于 baseMessageCount/baseChatCount
+  const chatCount = (session as any).chatHistory?.length ?? 0;
+  walSeqCounters.set(sessionId, {
+    msg: session.messages.length,
+    chat: chatCount,
+    global: session.messages.length + chatCount,
+  });
 }
 
 /**
@@ -467,33 +485,40 @@ function walRead(sessionId: string): WalEntry[] {
 function walReplay(session: SessionData, entries: WalEntry[]): void {
   if (entries.length === 0) return;
 
-  // 主 JSON 中已有的消息数量作为基线
-  // WAL 中 op='msg' 的条目 seq 从 1 开始递增
-  // 如果主 JSON 有 N 条 messages，那 seq <= N 的已经包含在主 JSON 中，跳过
-  // 但更稳妥的方式：按 WAL 的顺序，从主 JSON 已有数量之后开始追加
   const baseMessageCount = session.messages.length;
   const baseChatCount = (session as any).chatHistory?.length ?? 0;
 
+  let replayedMsgs = 0;
+  let replayedChats = 0;
+
+  // 使用局部计数器作为 fallback（兼容无 opSeq 的旧 WAL 格式）
   let msgSeq = 0;
   let chatSeq = 0;
 
   for (const entry of entries) {
     switch (entry.op) {
-      case 'msg':
+      case 'msg': {
         msgSeq++;
-        if (msgSeq > baseMessageCount) {
+        // 优先使用 opSeq（全局分类序号），回退到局部计数器
+        const effectiveSeq = entry.opSeq ?? msgSeq;
+        if (effectiveSeq > baseMessageCount) {
           session.messages.push(entry.data as Message);
+          replayedMsgs++;
         }
         break;
-      case 'chat':
+      }
+      case 'chat': {
         chatSeq++;
-        if (chatSeq > baseChatCount) {
+        const effectiveSeq = entry.opSeq ?? chatSeq;
+        if (effectiveSeq > baseChatCount) {
           if (!(session as any).chatHistory) {
             (session as any).chatHistory = [];
           }
           (session as any).chatHistory.push(entry.data);
+          replayedChats++;
         }
         break;
+      }
       case 'meta':
         // 元数据更新（model 切换等），直接 merge
         Object.assign(session.metadata, entry.data);
@@ -501,9 +526,9 @@ function walReplay(session: SessionData, entries: WalEntry[]): void {
     }
   }
 
-  if (msgSeq > baseMessageCount || chatSeq > baseChatCount) {
+  if (replayedMsgs > 0 || replayedChats > 0) {
     session.metadata.messageCount = session.messages.length;
-    console.log(`[WAL] Replayed ${msgSeq - baseMessageCount} messages, ${chatSeq - baseChatCount} chat entries for session ${session.metadata.id}`);
+    console.log(`[WAL] Replayed ${replayedMsgs} messages, ${replayedChats} chat entries for session ${session.metadata.id}`);
   }
 }
 
@@ -599,7 +624,19 @@ export function loadSession(sessionId: string): SessionData | null {
       walReplay(session, walEntries);
       // replay 后的条目数写回计数器，以便后续 walAppend 序号连续
       const maxSeq = walEntries[walEntries.length - 1].seq;
-      walSeqCounters.set(sessionId, maxSeq);
+      // 从 WAL 条目中恢复分类计数器
+      let maxMsgOpSeq = 0;
+      let maxChatOpSeq = 0;
+      for (const e of walEntries) {
+        if (e.op === 'msg' && e.opSeq && e.opSeq > maxMsgOpSeq) maxMsgOpSeq = e.opSeq;
+        if (e.op === 'chat' && e.opSeq && e.opSeq > maxChatOpSeq) maxChatOpSeq = e.opSeq;
+      }
+      // 如果旧 WAL 没有 opSeq，使用 session 当前的实际数量作为基线
+      walSeqCounters.set(sessionId, {
+        msg: maxMsgOpSeq || session.messages.length,
+        chat: maxChatOpSeq || ((session as any).chatHistory?.length ?? 0),
+        global: maxSeq,
+      });
     }
 
     return session;
@@ -632,6 +669,18 @@ export function deleteSession(sessionId: string): boolean {
 
   try {
     fs.unlinkSync(sessionPath);
+
+    // 同时删除 WAL 文件（防止资源泄漏和数据幽灵）
+    try {
+      const walPath = getWalPath(sessionId);
+      if (fs.existsSync(walPath)) {
+        fs.unlinkSync(walPath);
+      }
+    } catch { /* WAL 清理失败不影响主逻辑 */ }
+
+    // 清除内存中的 WAL 计数器
+    walSeqCounters.delete(sessionId);
+
     console.log(`[Session] 会话已删除: ${sessionId}`);
     return true;
   } catch (err) {
@@ -710,11 +759,21 @@ export function listSessions(options: SessionListOptions = {}): SessionMetadata[
         const walPath = getWalPath(sessionId);
         if (fs.existsSync(walPath)) {
           const walEntries = walRead(sessionId);
-          const walMsgCount = walEntries.filter(e => e.op === 'msg').length;
-          const extraMsgs = walMsgCount - (metadata.messageCount || 0);
-          if (extraMsgs > 0) {
-            // 浅拷贝 metadata 避免污染缓存
-            metadata = { ...metadata, messageCount: (metadata.messageCount || 0) + extraMsgs };
+          const msgEntries = walEntries.filter(e => e.op === 'msg');
+          if (msgEntries.length > 0) {
+            // 使用 opSeq（分类序号）来确定实际总消息数
+            // opSeq 是全局绝对序号，表示该 msg 是会话中的第 N 条消息
+            const maxOpSeq = msgEntries.reduce((max, e) => Math.max(max, e.opSeq ?? 0), 0);
+            if (maxOpSeq > (metadata.messageCount || 0)) {
+              // 浅拷贝 metadata 避免污染缓存
+              metadata = { ...metadata, messageCount: maxOpSeq };
+            } else if (maxOpSeq === 0) {
+              // 旧格式 WAL 无 opSeq，回退到原始逻辑
+              const extraMsgs = msgEntries.length - (metadata.messageCount || 0);
+              if (extraMsgs > 0) {
+                metadata = { ...metadata, messageCount: (metadata.messageCount || 0) + extraMsgs };
+              }
+            }
           }
         }
 
@@ -1889,6 +1948,7 @@ export class SessionManager {
       this.autoSaveInterval = setInterval(() => {
         this.save();
       }, this.config.autoSaveIntervalMs);
+      this.autoSaveInterval.unref(); // 不阻止 Node.js 进程正常退出
     }
   }
 

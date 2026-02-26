@@ -265,7 +265,7 @@ export type ServerMessage =
   | { type: 'message_complete'; payload: MessageCompletePayload }
   | { type: 'context_update'; payload: ContextUpdatePayload }
   | { type: 'context_compact'; payload: ContextCompactPayload }
-  | { type: 'error'; payload: { message: string; code?: string; sessionId?: string } }
+  | { type: 'error'; payload: { message: string; code?: string; sessionId?: string; source?: string } }
   | { type: 'thinking_start'; payload: { messageId: string; sessionId?: string } }
   | { type: 'thinking_delta'; payload: { messageId: string; text: string; sessionId?: string } }
   | { type: 'thinking_complete'; payload: { messageId: string; sessionId?: string } }

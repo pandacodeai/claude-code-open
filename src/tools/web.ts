@@ -389,7 +389,7 @@ Usage notes:
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         },
         maxRedirects: 0, // 手动处理重定向
-        validateStatus: (status) => status < 400 || (status >= 300 && status < 400),
+        validateStatus: (status) => status >= 200 && status < 300,
         proxy: proxy ? proxy : false,
         maxContentLength: MAX_RESPONSE_SIZE,
         maxBodyLength: MAX_RESPONSE_SIZE,

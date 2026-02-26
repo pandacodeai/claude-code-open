@@ -140,49 +140,49 @@ process.on('beforeExit', async () => {
   await cleanupMcpServers();
 });
 
-// 注册 SIGINT 信号处理（Ctrl+C）
-process.on('SIGINT', async () => {
-  // 自动记忆：退出前保存对话记忆
-  if (activeLoop) {
-    try {
-      console.error(chalk.gray('\n[AutoMemory] 正在保存对话记忆...'));
-      await activeLoop.autoMemorize();
-    } catch {
-      // 静默失败
+// 优雅退出清理（带超时保护）
+let cleanupInProgress = false;
+async function gracefulShutdown(): Promise<void> {
+  if (cleanupInProgress) {
+    // 二次信号，强制退出
+    process.exit(1);
+  }
+  cleanupInProgress = true;
+
+  const CLEANUP_TIMEOUT = 5000; // 5 秒超时
+  const timeoutPromise = new Promise<void>((resolve) => {
+    setTimeout(() => {
+      console.error(chalk.yellow('\nCleanup timeout, forcing exit...'));
+      resolve();
+    }, CLEANUP_TIMEOUT);
+  });
+
+  const cleanupPromise = (async () => {
+    if (activeLoop) {
+      try {
+        await activeLoop.autoMemorize();
+      } catch {
+        // 静默失败
+      }
     }
-  }
-  // SessionEnd hooks
-  try {
-    await runSessionEndHooks(activeSessionId || 'unknown', 'prompt_input_exit');
-  } catch {
-    // 不让 hook 失败阻止退出
-  }
-  await cleanupMcpServers();
+    try {
+      await runSessionEndHooks(activeSessionId || 'unknown', 'prompt_input_exit');
+    } catch {
+      // 不让 hook 失败阻止退出
+    }
+    await cleanupMcpServers();
+  })();
+
+  await Promise.race([cleanupPromise, timeoutPromise]);
   showSessionResumeHint();
   safeExit(0);
-});
+}
+
+// 注册 SIGINT 信号处理（Ctrl+C）
+process.on('SIGINT', gracefulShutdown);
 
 // 注册 SIGTERM 信号处理
-process.on('SIGTERM', async () => {
-  // 自动记忆：退出前保存对话记忆
-  if (activeLoop) {
-    try {
-      console.error(chalk.gray('\n[AutoMemory] 正在保存对话记忆...'));
-      await activeLoop.autoMemorize();
-    } catch {
-      // 静默失败
-    }
-  }
-  // SessionEnd hooks
-  try {
-    await runSessionEndHooks(activeSessionId || 'unknown', 'prompt_input_exit');
-  } catch {
-    // 不让 hook 失败阻止退出
-  }
-  await cleanupMcpServers();
-  showSessionResumeHint();
-  safeExit(0);
-});
+process.on('SIGTERM', gracefulShutdown);
 
 // 注册未捕获异常处理
 process.on('uncaughtException', async (err) => {
@@ -300,10 +300,6 @@ program
 
     // ✅ 启动时自动清理过期数据（异步，不阻塞）
     scheduleCleanup();
-
-    // 启动进程内定时任务调度器
-    const { initInProcessScheduler } = await import('./daemon/in-process-scheduler.js');
-    initInProcessScheduler();
 
     // 🔍 提前验证系统提示选项的互斥性
     if (options.systemPrompt && options.systemPromptFile) {
@@ -772,14 +768,14 @@ program
           }
         }
 
-        console.log(JSON.stringify(result));
+        process.stdout.write(JSON.stringify(result) + '\n');
       } else if (outputFormat === 'stream-json') {
         for await (const event of loop.processMessageStream(prompt)) {
-          console.log(JSON.stringify(event));
+          process.stdout.write(JSON.stringify(event) + '\n');
         }
       } else {
         const response = await loop.processMessage(prompt);
-        console.log(response);
+        process.stdout.write(response + '\n');
       }
       process.exit(0);
     }
@@ -1056,7 +1052,11 @@ async function runTextInterface(
     const earlyKeypressHandler = (chunk: Buffer) => {
       if (!isReplReady) {
         const str = chunk.toString('utf8');
-        // 捕捉可打印字符和空格，忽略控制字符
+        // Ctrl+C (0x03) — 在 raw mode 下不会自动产生 SIGINT，需要手动处理
+        if (str === '\x03') {
+          process.exit(0);
+        }
+        // 捕捉可打印字符和空格，忽略其他控制字符
         if (str.length > 0 && str.charCodeAt(0) >= 32) {
           keyboardBuffer.push(str);
         }
@@ -1087,8 +1087,6 @@ async function runTextInterface(
   // 退出时清除标记
   const cleanupActiveSession = () => { try { clearActiveSession(); } catch {} };
   process.on('exit', cleanupActiveSession);
-  process.on('SIGINT', () => { cleanupActiveSession(); process.exit(0); });
-  process.on('SIGTERM', () => { cleanupActiveSession(); process.exit(0); });
 
   // 交互式循环
   const rl = readline.createInterface({

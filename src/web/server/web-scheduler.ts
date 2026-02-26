@@ -39,6 +39,16 @@ function errorBackoffMs(consecutiveErrors: number): number {
   return ERROR_BACKOFF_SCHEDULE_MS[Math.max(0, idx)];
 }
 
+// =========================================================================
+// 全局单例 getter（供 ScheduleTask 工具等共享 store，避免多实例竞态）
+// =========================================================================
+
+let _instance: WebScheduler | null = null;
+
+export function getWebScheduler(): WebScheduler | null {
+  return _instance;
+}
+
 export class WebScheduler {
   private timer: NodeJS.Timeout | null = null;
   private reloadTimer: NodeJS.Timeout | null = null;
@@ -62,6 +72,14 @@ export class WebScheduler {
     this.broadcastFn = options.broadcastMessage;
     this.defaultModel = options.defaultModel;
     this.cwd = options.cwd;
+    _instance = this;
+  }
+
+  /**
+   * 获取 TaskStore 实例（供 ScheduleTask 工具等共享，避免多实例竞态）
+   */
+  getStore(): TaskStore {
+    return this.store;
   }
 
   // =========================================================================

@@ -101,6 +101,7 @@ export function useWebSocket(url: string): UseWebSocketReturn {
             setSessionId(payload.sessionId);
           }
           setModel(payload.model);
+          setSessionReady(true);
         }
 
         // 接收后端推送的 skills 列表，更新到斜杠命令补全中
@@ -254,5 +255,5 @@ export function useWebSocket(url: string): UseWebSocketReturn {
     }
   }, []);
 
-  return { connected, sessionId, model, setModel: handleModelChange, send, addMessageHandler };
+  return { connected, sessionReady, sessionId, model, setModel: handleModelChange, send, addMessageHandler };
 }

@@ -662,35 +662,41 @@ export function isToolError(result: ToolResult): result is ToolError {
  * Type guard to check if result is a Bash result
  */
 export function isBashResult(result: ToolResult): result is BashToolResult {
-  return 'exitCode' in result || 'stdout' in result || 'stderr' in result;
+  // exitCode 是 Bash 独有的，stdout+stderr 组合也是
+  return 'exitCode' in result || ('stdout' in result && 'stderr' in result);
 }
 
 /**
  * Type guard to check if result is a File result
  */
 export function isFileResult(result: ToolResult): result is ReadToolResult | WriteToolResult | EditToolResult {
-  return 'content' in result || 'filePath' in result || 'bytesWritten' in result;
+  // bytesWritten 是 Write 独有的，lineCount 是 Read 独有的，diff 是 Edit 独有的
+  return 'bytesWritten' in result || 'lineCount' in result || 'diff' in result;
 }
 
 /**
  * Type guard to check if result is a Grep result
  */
 export function isGrepResult(result: ToolResult): result is GrepToolResult {
-  return 'matches' in result || 'totalMatches' in result;
+  // totalMatches 是 Grep 独有的
+  return 'totalMatches' in result;
 }
 
 /**
  * Type guard to check if result is an Agent/Task result
  */
 export function isAgentResult(result: ToolResult): result is AgentToolResult | TaskOutputToolResult {
-  return 'agentId' in result || 'task_id' in result || 'agentType' in result;
+  // agentId + agentType 组合是 Agent 独有的
+  return ('agentId' in result || 'task_id' in result) && 'agentType' in result;
 }
 
 /**
  * Type guard to check if result is a Web result
  */
 export function isWebResult(result: ToolResult): result is WebFetchToolResult | WebSearchToolResult {
-  return 'url' in result || 'query' in result || 'results' in result;
+  // url + (analysis | statusCode) 是 WebFetch 独有的，query + results 是 WebSearch 独有的
+  return ('url' in result && ('analysis' in result || 'statusCode' in result)) ||
+         ('query' in result && 'results' in result);
 }
 
 // ============================================================================

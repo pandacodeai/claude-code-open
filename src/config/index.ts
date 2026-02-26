@@ -366,7 +366,7 @@ function getEnvConfig(): Partial<UserConfig> {
     debugLogsDir: process.env.CLAUDE_CODE_DEBUG_LOGS_DIR,
 
     // ===== 功能开关 =====
-    enableTelemetry: parseEnvBoolean(process.env.CLAUDE_CODE_ENABLE_TELEMETRY) ?? parseEnvBoolean(process.env.DISABLE_TELEMETRY) === false,
+    enableTelemetry: parseEnvBoolean(process.env.CLAUDE_CODE_ENABLE_TELEMETRY) ?? (parseEnvBoolean(process.env.DISABLE_TELEMETRY) === false ? true : undefined),
     disableFileCheckpointing: parseEnvBoolean(process.env.CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING),
 
     // ===== Agent 系统 =====
@@ -381,7 +381,7 @@ function getEnvConfig(): Partial<UserConfig> {
     // ===== UI/UX =====
     promptSuggestionEnabled: parseEnvBoolean(process.env.CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION),
     respectGitignore: parseEnvBoolean(process.env.CLAUDE_CODE_RESPECT_GITIGNORE),
-    autoCompactEnabled: parseEnvBoolean(process.env.DISABLE_COMPACT) === false,
+    autoCompactEnabled: parseEnvBoolean(process.env.DISABLE_COMPACT) === true ? false : undefined,
     spinnerTipsEnabled: parseEnvBoolean(process.env.CLAUDE_CODE_ENABLE_SPINNER_TIPS),
     terminalProgressBarEnabled: parseEnvBoolean(process.env.CLAUDE_CODE_ENABLE_PROGRESS_BAR),
   };
@@ -1311,8 +1311,7 @@ export class ConfigManager {
     // 备份现有配置
     this.backupConfig(this.userConfigFile);
 
-    // 读取当前文件中的内容，保留 mergedConfig 中没有但文件中存在的 passthrough 字段
-    // （防止多个进程实例交替写入导致字段丢失，例如 oauthAccount）
+    // 读取当前文件中的内容作为基础
     let fileContent: Record<string, any> = {};
     try {
       if (fs.existsSync(this.userConfigFile)) {
@@ -1322,11 +1321,13 @@ export class ConfigManager {
       // 文件读取失败，忽略
     }
 
-    // 合并：mergedConfig 优先，但保留文件中的额外字段
-    const output = { ...fileContent, ...this.mergedConfig };
+    // 只把本次 config 参数中的字段合并到文件内容上，不写入整个 mergedConfig
+    // 这样环境变量、项目配置等其他来源的值不会被"烘焙"到用户配置文件
+    const output = config
+      ? { ...fileContent, ...config }
+      : { ...fileContent };
 
     // 处理显式设为 undefined 的属性：从 output 中删除
-    // （JSON.stringify 会忽略 undefined 值，导致文件中的旧值无法被清除）
     for (const key of Object.keys(output)) {
       if (output[key] === undefined) {
         delete output[key];
@@ -1495,7 +1496,7 @@ export class ConfigManager {
    */
   set<K extends keyof UserConfig>(key: K, value: UserConfig[K]): void {
     this.mergedConfig[key] = value;
-    this.save();
+    this.save({ [key]: value } as Partial<UserConfig>);
   }
 
   /**
@@ -1549,7 +1550,7 @@ export class ConfigManager {
       const config = JSON.parse(configJson);
       const validated = UserConfigSchema.parse(config);
       this.mergedConfig = validated;
-      this.save();
+      this.save(validated);
       return true;
     } catch (error) {
       console.error('导入配置失败:', error);
@@ -1577,8 +1578,9 @@ export class ConfigManager {
    * 重置为默认配置
    */
   reset(): void {
-    this.mergedConfig = UserConfigSchema.parse(DEFAULT_CONFIG);
-    this.save();
+    const defaults = UserConfigSchema.parse(DEFAULT_CONFIG);
+    this.mergedConfig = defaults;
+    this.save(defaults);
   }
 
   // ============ 配置来源查询 ============
@@ -1848,7 +1850,7 @@ export class ConfigManager {
         this.mergedConfig.mcpServers = {};
       }
       this.mergedConfig.mcpServers[name] = config;
-      this.save();
+      this.save({ mcpServers: this.mergedConfig.mcpServers });
     } catch (error) {
       throw new Error(`无效的 MCP 服务器配置: ${error}`);
     }
@@ -1857,7 +1859,7 @@ export class ConfigManager {
   removeMcpServer(name: string): boolean {
     if (this.mergedConfig.mcpServers?.[name]) {
       delete this.mergedConfig.mcpServers[name];
-      this.save();
+      this.save({ mcpServers: this.mergedConfig.mcpServers });
       return true;
     }
     return false;
@@ -1869,7 +1871,7 @@ export class ConfigManager {
       try {
         McpServerConfigSchema.parse(updated);
         this.mergedConfig.mcpServers[name] = updated as McpServerConfig;
-        this.save();
+        this.save({ mcpServers: this.mergedConfig.mcpServers });
         return true;
       } catch (error) {
         throw new Error(`无效的 MCP 服务器配置: ${error}`);

@@ -593,6 +593,7 @@ export async function startAuthorizationCodeFlow(
   // 尝试自动打开浏览器
   console.log('Opening browser to sign in...');
   let browserOpened = false;
+  let cleanupRawMode: (() => void) | undefined;
   try {
     await open(authUrlString);
     browserOpened = true;
@@ -614,6 +615,11 @@ export async function startAuthorizationCodeFlow(
 
       const copyHandler = async (chunk: Buffer) => {
         const key = chunk.toString('utf8');
+        // Ctrl+C — raw mode 下不自动产生 SIGINT
+        if (key === '\x03') {
+          process.stdin.setRawMode(false);
+          process.exit(0);
+        }
         if (key === 'c' || key === 'C') {
           // 复制到剪贴板
           try {
@@ -647,20 +653,29 @@ export async function startAuthorizationCodeFlow(
 
       process.stdin.on('data', copyHandler);
 
-      // 在用户开始输入授权码后移除监听器
-      // 使用延时以确保用户有时间按 'c'
-      setTimeout(() => {
+      cleanupRawMode = () => {
         process.stdin.removeListener('data', copyHandler);
         if (process.stdin.isTTY) {
           process.stdin.setRawMode(false);
         }
-      }, 2000);
+      };
+      // 给用户 2 秒按 'c'，之后自动清理
+      const rawModeTimer = setTimeout(cleanupRawMode, 2000);
+      // 创建 readline 前会提前调用清理
+      const origCleanup = cleanupRawMode;
+      cleanupRawMode = () => {
+        clearTimeout(rawModeTimer);
+        origCleanup();
+      };
     }
   }
 
   console.log('After authorizing, you will see a success page with a code.');
   console.log('Look for "Authorization code" on the page and copy the entire code.');
   console.log('\n⚠️  Important: The code expires quickly, please paste it promptly!\n');
+
+  // 创建 readline 前确保 raw mode 已关闭
+  cleanupRawMode?.();
 
   // 等待用户手动输入授权码
   const readline = await import('readline');

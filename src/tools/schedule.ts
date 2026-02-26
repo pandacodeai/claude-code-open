@@ -136,7 +136,10 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
   }
 
   async execute(input: ScheduleTaskInput): Promise<ToolResult> {
-    const store = new TaskStore();
+    // 优先使用 WebScheduler 的 store 实例（避免多实例竞态写入 daemon-tasks.json）
+    const { getWebScheduler } = await import('../web/server/web-scheduler.js');
+    const ws = getWebScheduler();
+    const store = ws ? ws.getStore() : new TaskStore();
 
     switch (input.action) {
       case 'create':
@@ -230,13 +233,15 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
     // 通知 daemon 热加载
     store.signalReload();
 
-    // 注册到进程内 scheduler（如果已初始化）
+    // 通知 WebScheduler 热加载新任务
     let schedulerRegistered = false;
-    const { getInProcessScheduler } = await import('../daemon/in-process-scheduler.js');
-    const ips = getInProcessScheduler();
-    if (ips) {
-      ips.registerTask(task);
-      schedulerRegistered = true;
+    {
+      const { getWebScheduler } = await import('../web/server/web-scheduler.js');
+      const webSched = getWebScheduler();
+      if (webSched) {
+        webSched.onTaskCreated();
+        schedulerRegistered = true;
+      }
     }
 
     let details = `Task created: "${task.name}" (ID: ${task.id})\n`;
@@ -273,11 +278,11 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
     const removed = store.removeTask(input.taskId);
     if (removed) {
       store.signalReload();
-      // 通知进程内 scheduler 取消
-      const { getInProcessScheduler } = await import('../daemon/in-process-scheduler.js');
-      const ips = getInProcessScheduler();
-      if (ips) {
-        ips.cancelTask(input.taskId);
+      // 通知 WebScheduler 重新加载
+      const { getWebScheduler } = await import('../web/server/web-scheduler.js');
+      const webSched = getWebScheduler();
+      if (webSched) {
+        webSched.onTaskCreated();
       }
       return { success: true, output: t('schedule.cancelled', { taskId: input.taskId }) };
     } else {

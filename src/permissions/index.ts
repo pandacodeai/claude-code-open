@@ -192,21 +192,21 @@ export class PermissionManager {
     const resolved = path.resolve(filePath);
     const cwd = process.cwd();
 
-    // 当前工作目录总是允许的
-    if (resolved.startsWith(cwd)) {
+    // 当前工作目录总是允许的（精确匹配或子目录）
+    if (resolved === cwd || resolved.startsWith(cwd + path.sep)) {
       return true;
     }
 
     // 检查额外允许的目录
     for (const dir of this.allowedDirs) {
-      if (resolved.startsWith(dir)) {
+      if (resolved === dir || resolved.startsWith(dir + path.sep)) {
         return true;
       }
     }
 
     // 检查 additionalDirectories
     for (const [dir] of this.additionalDirectories) {
-      if (resolved.startsWith(dir)) {
+      if (resolved === dir || resolved.startsWith(dir + path.sep)) {
         return true;
       }
     }
@@ -362,7 +362,7 @@ export class PermissionManager {
 
     for (const perm of this.rememberedPermissions) {
       if (perm.type === request.type) {
-        if (request.resource?.includes(perm.pattern) || perm.pattern === '*') {
+        if (perm.pattern === '*' || request.resource === perm.pattern || request.resource?.startsWith(perm.pattern + '/')) {
           return perm.allowed;
         }
       }
