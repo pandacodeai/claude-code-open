@@ -533,15 +533,15 @@ const SchedulePage: React.FC = () => {
                   onBlur={() => setEditingField(null)}
                   autoFocus
                 >
-                  <option value="sonnet">Claude 3.7 Sonnet</option>
-                  <option value="haiku">Claude 3.5 Haiku</option>
-                  <option value="opus">Claude 3.5 Opus</option>
+                  <option value="sonnet">Sonnet</option>
+                  <option value="haiku">Haiku</option>
+                  <option value="opus">Opus</option>
                 </select>
               ) : (
                 <span className={styles.infoValue}>
-                  {selectedTask.model === 'haiku' ? 'Claude 3.5 Haiku' :
-                   selectedTask.model === 'opus' ? 'Claude 3.5 Opus' :
-                   'Claude 3.7 Sonnet'}
+                  {selectedTask.model === 'haiku' ? 'Haiku' :
+                   selectedTask.model === 'opus' ? 'Opus' :
+                   'Sonnet'}
                 </span>
               )}
               {editingField !== 'model' && <span className={styles.editIcon}>✏️</span>}
