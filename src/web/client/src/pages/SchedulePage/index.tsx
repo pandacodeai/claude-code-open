@@ -13,6 +13,13 @@ interface ScheduledTask {
   intervalMs?: number;
   triggerAt?: number;
   watchPaths?: string[];
+  watchEvents?: string[];
+  debounceMs?: number;
+  notify?: ('desktop' | 'feishu')[];
+  feishuChatId?: string;
+  silentToken?: string;
+  timeoutMs?: number;
+  context?: string;
   nextRunAtMs?: number;
   runningAtMs?: number;
   lastRunAt?: number;
@@ -40,6 +47,8 @@ const SchedulePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<any>('');
   const [formData, setFormData] = useState({
     name: '',
     type: 'interval' as 'once' | 'interval' | 'watch',
@@ -84,6 +93,31 @@ const SchedulePage: React.FC = () => {
       setHistory([]);
     }
   }, []);
+
+  const handleSave = useCallback(async (field: string, value: any) => {
+    if (!selectedTask) return;
+    
+    const body: any = {};
+    body[field] = value;
+    
+    try {
+      const res = await fetch(`/api/schedule/tasks/${selectedTask.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setEditingField(null);
+        // WebSocket 会自动更新 tasks 列表，无需手动更新
+      } else {
+        alert('保存失败: ' + (data.error || '未知错误'));
+      }
+    } catch (err) {
+      alert('保存失败: ' + (err instanceof Error ? err.message : String(err)));
+    }
+  }, [selectedTask]);
 
   const handleToggle = useCallback(async (taskId: string) => {
     try {
@@ -228,9 +262,37 @@ const SchedulePage: React.FC = () => {
 
   useEffect(() => {
     loadTasks();
-    const interval = setInterval(loadTasks, 10000);
+    const interval = setInterval(loadTasks, 60000); // 改为 60 秒兜底
     return () => clearInterval(interval);
   }, [loadTasks]);
+
+  // WebSocket 实时监听定时任务变化
+  useEffect(() => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${window.location.host}`);
+    
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        switch (msg.type) {
+          case 'schedule:task_created':
+            setTasks(prev => [...prev, msg.payload.task]);
+            break;
+          case 'schedule:task_updated':
+            setTasks(prev => prev.map(t => t.id === msg.payload.task.id ? msg.payload.task : t));
+            break;
+          case 'schedule:task_deleted':
+            setTasks(prev => prev.filter(t => t.id !== msg.payload.taskId));
+            if (selectedId === msg.payload.taskId) setSelectedId(null);
+            break;
+        }
+      } catch (err) {
+        console.error('WS message parse error:', err);
+      }
+    };
+    
+    return () => ws.close();
+  }, [selectedId]);
 
   useEffect(() => {
     if (selectedId) {
@@ -347,7 +409,38 @@ const SchedulePage: React.FC = () => {
       <div className={styles.detailScroll}>
         <div className={styles.detailHeader}>
           <div className={styles.detailTitle}>
-            <h1>{selectedTask.name}</h1>
+            <h1 className={editingField === 'name' ? '' : styles.editableTitle}
+                onClick={() => {
+                  if (editingField !== 'name') {
+                    setEditingField('name');
+                    setEditValue(selectedTask.name);
+                  }
+                }}>
+              {editingField === 'name' ? (
+                <input
+                  className={styles.titleEditInput}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onBlur={() => {
+                    if (editValue.trim() && editValue !== selectedTask.name) {
+                      handleSave('name', editValue.trim());
+                    } else {
+                      setEditingField(null);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur();
+                    } else if (e.key === 'Escape') {
+                      setEditingField(null);
+                    }
+                  }}
+                  autoFocus
+                />
+              ) : (
+                selectedTask.name
+              )}
+            </h1>
             <div className={styles.taskStatus}>
               <span
                 className={`${styles.statusDot} ${
@@ -423,7 +516,36 @@ const SchedulePage: React.FC = () => {
           </div>
           <div className={styles.infoCard}>
             <div className={styles.infoLabel}>{t('schedule.model')}</div>
-            <div className={styles.infoValue}>{selectedTask.model || '-'}</div>
+            <div className={editingField === 'model' ? '' : styles.editable}
+                 onClick={() => {
+                   if (editingField !== 'model') {
+                     setEditingField('model');
+                     setEditValue(selectedTask.model || 'sonnet');
+                   }
+                 }}>
+              {editingField === 'model' ? (
+                <select
+                  className={styles.editSelect}
+                  value={editValue}
+                  onChange={(e) => {
+                    handleSave('model', e.target.value);
+                  }}
+                  onBlur={() => setEditingField(null)}
+                  autoFocus
+                >
+                  <option value="sonnet">Claude 3.7 Sonnet</option>
+                  <option value="haiku">Claude 3.5 Haiku</option>
+                  <option value="opus">Claude 3.5 Opus</option>
+                </select>
+              ) : (
+                <span className={styles.infoValue}>
+                  {selectedTask.model === 'haiku' ? 'Claude 3.5 Haiku' :
+                   selectedTask.model === 'opus' ? 'Claude 3.5 Opus' :
+                   'Claude 3.7 Sonnet'}
+                </span>
+              )}
+              {editingField !== 'model' && <span className={styles.editIcon}>✏️</span>}
+            </div>
           </div>
           <div className={styles.infoCard}>
             <div className={styles.infoLabel}>{t('schedule.created')}</div>
@@ -432,22 +554,139 @@ const SchedulePage: React.FC = () => {
           {selectedTask.type === 'interval' && selectedTask.intervalMs && (
             <div className={styles.infoCard}>
               <div className={styles.infoLabel}>{t('schedule.interval')}</div>
-              <div className={styles.infoValue}>
-                {formatDuration(selectedTask.intervalMs)}
+              <div className={editingField === 'intervalMs' ? '' : styles.editable}
+                   onClick={() => {
+                     if (editingField !== 'intervalMs') {
+                       setEditingField('intervalMs');
+                       setEditValue(selectedTask.intervalMs || 60000);
+                     }
+                   }}>
+                {editingField === 'intervalMs' ? (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="number"
+                      className={styles.editInput}
+                      value={Math.floor((editValue as number) / 1000)}
+                      onChange={(e) => setEditValue(parseInt(e.target.value) * 1000 || 0)}
+                      onBlur={() => {
+                        if (editValue > 0 && editValue !== selectedTask.intervalMs) {
+                          handleSave('intervalMs', editValue);
+                        } else {
+                          setEditingField(null);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.currentTarget.blur();
+                        } else if (e.key === 'Escape') {
+                          setEditingField(null);
+                        }
+                      }}
+                      min="1"
+                      autoFocus
+                    />
+                    <span className={styles.infoValue} style={{ paddingTop: '8px' }}>秒</span>
+                  </div>
+                ) : (
+                  <span className={styles.infoValue}>
+                    {formatDuration(selectedTask.intervalMs)}
+                  </span>
+                )}
+                {editingField !== 'intervalMs' && <span className={styles.editIcon}>✏️</span>}
               </div>
             </div>
           )}
           {selectedTask.type === 'once' && selectedTask.triggerAt && (
             <div className={styles.infoCard}>
               <div className={styles.infoLabel}>{t('schedule.nextRun')}</div>
-              <div className={styles.infoValue}>{formatTime(selectedTask.triggerAt)}</div>
+              <div className={editingField === 'triggerAt' ? '' : styles.editable}
+                   onClick={() => {
+                     if (editingField !== 'triggerAt') {
+                       setEditingField('triggerAt');
+                       const date = new Date(selectedTask.triggerAt!);
+                       const localDatetime = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+                         .toISOString()
+                         .slice(0, 16);
+                       setEditValue(localDatetime);
+                     }
+                   }}>
+                {editingField === 'triggerAt' ? (
+                  <input
+                    type="datetime-local"
+                    className={styles.editInput}
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onBlur={() => {
+                      if (editValue) {
+                        const newTriggerAt = new Date(editValue).getTime();
+                        if (newTriggerAt !== selectedTask.triggerAt) {
+                          handleSave('triggerAt', newTriggerAt);
+                        } else {
+                          setEditingField(null);
+                        }
+                      } else {
+                        setEditingField(null);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.currentTarget.blur();
+                      } else if (e.key === 'Escape') {
+                        setEditingField(null);
+                      }
+                    }}
+                    autoFocus
+                  />
+                ) : (
+                  <span className={styles.infoValue}>{formatTime(selectedTask.triggerAt)}</span>
+                )}
+                {editingField !== 'triggerAt' && <span className={styles.editIcon}>✏️</span>}
+              </div>
             </div>
           )}
           {selectedTask.type === 'watch' && selectedTask.watchPaths && (
             <div className={styles.infoCard}>
               <div className={styles.infoLabel}>Watch Paths</div>
-              <div className={`${styles.infoValue} ${styles.mono}`}>
-                {selectedTask.watchPaths.join(', ')}
+              <div className={editingField === 'watchPaths' ? '' : styles.editable}
+                   onClick={() => {
+                     if (editingField !== 'watchPaths') {
+                       setEditingField('watchPaths');
+                       setEditValue(selectedTask.watchPaths?.join(', ') || '');
+                     }
+                   }}>
+                {editingField === 'watchPaths' ? (
+                  <input
+                    type="text"
+                    className={styles.editInput}
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onBlur={() => {
+                      if (editValue.trim()) {
+                        const paths = editValue.split(',').map(p => p.trim()).filter(p => p);
+                        if (JSON.stringify(paths) !== JSON.stringify(selectedTask.watchPaths)) {
+                          handleSave('watchPaths', paths);
+                        } else {
+                          setEditingField(null);
+                        }
+                      } else {
+                        setEditingField(null);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.currentTarget.blur();
+                      } else if (e.key === 'Escape') {
+                        setEditingField(null);
+                      }
+                    }}
+                    autoFocus
+                  />
+                ) : (
+                  <div className={`${styles.infoValue} ${styles.mono}`}>
+                    {selectedTask.watchPaths.join(', ')}
+                  </div>
+                )}
+                {editingField !== 'watchPaths' && <span className={styles.editIcon}>✏️</span>}
               </div>
             </div>
           )}
@@ -480,9 +719,112 @@ const SchedulePage: React.FC = () => {
               </div>
             </div>
           )}
+          <div className={styles.infoCard}>
+            <div className={styles.infoLabel}>Silent Token</div>
+            <div className={editingField === 'silentToken' ? '' : styles.editable}
+                 onClick={() => {
+                   if (editingField !== 'silentToken') {
+                     setEditingField('silentToken');
+                     setEditValue(selectedTask.silentToken || '');
+                   }
+                 }}>
+              {editingField === 'silentToken' ? (
+                <input
+                  type="text"
+                  className={styles.editInput}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onBlur={() => {
+                    const newValue = editValue.trim() || undefined;
+                    if (newValue !== selectedTask.silentToken) {
+                      handleSave('silentToken', newValue);
+                    } else {
+                      setEditingField(null);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur();
+                    } else if (e.key === 'Escape') {
+                      setEditingField(null);
+                    }
+                  }}
+                  placeholder="未设置"
+                  autoFocus
+                />
+              ) : (
+                <span className={styles.infoValue}>{selectedTask.silentToken || '-'}</span>
+              )}
+              {editingField !== 'silentToken' && <span className={styles.editIcon}>✏️</span>}
+            </div>
+          </div>
+          <div className={styles.infoCard}>
+            <div className={styles.infoLabel}>Timeout (ms)</div>
+            <div className={editingField === 'timeoutMs' ? '' : styles.editable}
+                 onClick={() => {
+                   if (editingField !== 'timeoutMs') {
+                     setEditingField('timeoutMs');
+                     setEditValue(selectedTask.timeoutMs || 300000);
+                   }
+                 }}>
+              {editingField === 'timeoutMs' ? (
+                <input
+                  type="number"
+                  className={styles.editInput}
+                  value={editValue}
+                  onChange={(e) => setEditValue(parseInt(e.target.value) || 0)}
+                  onBlur={() => {
+                    const newValue = editValue > 0 ? editValue : undefined;
+                    if (newValue !== selectedTask.timeoutMs) {
+                      handleSave('timeoutMs', newValue);
+                    } else {
+                      setEditingField(null);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur();
+                    } else if (e.key === 'Escape') {
+                      setEditingField(null);
+                    }
+                  }}
+                  min="1000"
+                  autoFocus
+                />
+              ) : (
+                <span className={styles.infoValue}>{selectedTask.timeoutMs || '-'}</span>
+              )}
+              {editingField !== 'timeoutMs' && <span className={styles.editIcon}>✏️</span>}
+            </div>
+          </div>
           <div className={`${styles.infoCard} ${styles.promptCard}`}>
             <div className={styles.infoLabel}>{t('schedule.prompt')}</div>
-            <div className={styles.promptValue}>{selectedTask.prompt}</div>
+            <div className={editingField === 'prompt' ? '' : styles.editable}
+                 onClick={() => {
+                   if (editingField !== 'prompt') {
+                     setEditingField('prompt');
+                     setEditValue(selectedTask.prompt);
+                   }
+                 }}>
+              {editingField === 'prompt' ? (
+                <textarea
+                  className={styles.editTextarea}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onBlur={() => {
+                    if (editValue.trim() && editValue !== selectedTask.prompt) {
+                      handleSave('prompt', editValue.trim());
+                    } else {
+                      setEditingField(null);
+                    }
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <div className={styles.promptValue}>{selectedTask.prompt}</div>
+              )}
+              {editingField !== 'prompt' && <span className={styles.editIcon}>✏️</span>}
+            </div>
           </div>
         </div>
 

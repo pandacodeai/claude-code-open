@@ -7,6 +7,7 @@ import express from 'express';
 import { randomUUID } from 'crypto';
 import { TaskStore } from '../../../daemon/store.js';
 import { readRunLogEntries } from '../../../daemon/run-log.js';
+import { broadcastMessage } from '../websocket.js';
 
 const router = express.Router();
 const store = new TaskStore();
@@ -80,6 +81,12 @@ router.post('/tasks', (req, res) => {
     const created = store.addTask(taskData);
     store.signalReload(); // 通知 daemon 重新加载
     
+    // 广播任务创建事件
+    broadcastMessage({
+      type: 'schedule:task_created',
+      payload: { task: created },
+    });
+    
     res.json({ success: true, data: created });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -109,6 +116,13 @@ router.delete('/tasks/:id', (req, res) => {
       return res.status(404).json({ success: false, error: 'Task not found' });
     }
     store.signalReload();
+    
+    // 广播任务删除事件
+    broadcastMessage({
+      type: 'schedule:task_deleted',
+      payload: { taskId: req.params.id },
+    });
+    
     res.json({ success: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -144,6 +158,16 @@ router.post('/tasks/:id/toggle', (req, res) => {
       return res.status(500).json({ success: false, error: 'Failed to update task' });
     }
     store.signalReload();
+    
+    // 广播任务更新事件
+    const updatedTask = store.getTask(req.params.id);
+    if (updatedTask) {
+      broadcastMessage({
+        type: 'schedule:task_updated',
+        payload: { task: updatedTask },
+      });
+    }
+    
     res.json({ success: true, data: { enabled: newEnabled } });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -172,7 +196,125 @@ router.post('/tasks/:id/run-now', (req, res) => {
     }
     
     store.signalReload();
+    
+    // 广播任务更新事件
+    const updatedTask = store.getTask(req.params.id);
+    if (updatedTask) {
+      broadcastMessage({
+        type: 'schedule:task_updated',
+        payload: { task: updatedTask },
+      });
+    }
+    
     res.json({ success: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ success: false, error: message });
+  }
+});
+
+// PATCH /api/schedule/tasks/:id - 更新任务
+router.patch('/tasks/:id', (req, res) => {
+  try {
+    store.reload(); // 获取最新数据
+    const task = store.getTask(req.params.id);
+    if (!task) {
+      return res.status(404).json({ success: false, error: 'Task not found' });
+    }
+
+    const updates: any = {};
+    const { name, prompt, model, timeoutMs, triggerAt, intervalMs, watchPaths, watchEvents, debounceMs, notify, feishuChatId, silentToken, context } = req.body;
+
+    // 验证可修改字段
+    if (name !== undefined) {
+      if (typeof name !== 'string' || name.trim() === '') {
+        return res.status(400).json({ success: false, error: 'Name cannot be empty' });
+      }
+      updates.name = name.trim();
+    }
+
+    if (prompt !== undefined) {
+      if (typeof prompt !== 'string' || prompt.trim() === '') {
+        return res.status(400).json({ success: false, error: 'Prompt cannot be empty' });
+      }
+      updates.prompt = prompt.trim();
+    }
+
+    if (model !== undefined) {
+      updates.model = model;
+    }
+
+    if (timeoutMs !== undefined) {
+      updates.timeoutMs = timeoutMs;
+    }
+
+    if (silentToken !== undefined) {
+      updates.silentToken = silentToken;
+    }
+
+    if (context !== undefined) {
+      updates.context = context;
+    }
+
+    if (notify !== undefined) {
+      updates.notify = notify;
+    }
+
+    if (feishuChatId !== undefined) {
+      updates.feishuChatId = feishuChatId;
+    }
+
+    // 类型特定字段
+    if (task.type === 'once' && triggerAt !== undefined) {
+      if (typeof triggerAt !== 'number' || triggerAt <= 0) {
+        return res.status(400).json({ success: false, error: 'Valid triggerAt is required' });
+      }
+      updates.triggerAt = triggerAt;
+    }
+
+    if (task.type === 'interval' && intervalMs !== undefined) {
+      if (typeof intervalMs !== 'number' || intervalMs <= 0) {
+        return res.status(400).json({ success: false, error: 'intervalMs must be > 0' });
+      }
+      updates.intervalMs = intervalMs;
+    }
+
+    if (task.type === 'watch') {
+      if (watchPaths !== undefined) {
+        if (!Array.isArray(watchPaths) || watchPaths.length === 0) {
+          return res.status(400).json({ success: false, error: 'Watch paths cannot be empty' });
+        }
+        updates.watchPaths = watchPaths;
+      }
+      if (watchEvents !== undefined) {
+        updates.watchEvents = watchEvents;
+      }
+      if (debounceMs !== undefined) {
+        updates.debounceMs = debounceMs;
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, error: 'No fields to update' });
+    }
+
+    const updated = store.updateTask(req.params.id, updates);
+    if (!updated) {
+      return res.status(500).json({ success: false, error: 'Failed to update task' });
+    }
+
+    store.signalReload();
+
+    // 广播任务更新事件
+    const updatedTask = store.getTask(req.params.id);
+    if (updatedTask) {
+      broadcastMessage({
+        type: 'schedule:task_updated',
+        payload: { task: updatedTask },
+      });
+    }
+
+    res.json({ success: true, data: updatedTask });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     res.status(500).json({ success: false, error: message });

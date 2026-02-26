@@ -54,6 +54,12 @@ const UserConfigSchema = z.object({
   useVertex: z.boolean().default(false),
   oauthToken: z.string().optional(),
 
+  // WebUI 专用配置（settings.json passthrough 字段）
+  apiBaseUrl: z.string().optional(),
+  customModelName: z.string().optional(),
+  authPriority: z.enum(['apiKey', 'oauth', 'auto']).default('auto').optional(),
+  oauthAccount: z.record(z.any()).optional(),
+
   // 功能配置
   maxRetries: z.number().int().min(0).max(10).default(3),
   debugLogsDir: z.string().optional(),
@@ -1318,6 +1324,14 @@ export class ConfigManager {
 
     // 合并：mergedConfig 优先，但保留文件中的额外字段
     const output = { ...fileContent, ...this.mergedConfig };
+
+    // 处理显式设为 undefined 的属性：从 output 中删除
+    // （JSON.stringify 会忽略 undefined 值，导致文件中的旧值无法被清除）
+    for (const key of Object.keys(output)) {
+      if (output[key] === undefined) {
+        delete output[key];
+      }
+    }
 
     fs.writeFileSync(
       this.userConfigFile,

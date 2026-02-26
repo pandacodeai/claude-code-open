@@ -100,6 +100,12 @@ export interface ScheduledTask {
     authToken?: string;
     baseUrl?: string;
   };
+
+  /**
+   * 静默 token：如果 agent 回复中包含此字符串，视为"无事发生"，不推送给前端。
+   * 典型用法：设为 "HEARTBEAT_OK"，配合 prompt 中"没事回复 HEARTBEAT_OK"实现心跳巡检。
+   */
+  silentToken?: string;
 }
 
 // ============================================================================

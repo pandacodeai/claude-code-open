@@ -740,6 +740,141 @@
   opacity: 0.9;
 }
 
+/* 可编辑字段 */
+.editable {
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin: -4px -8px;
+}
+
+.editable:hover {
+  background: var(--bg-tertiary);
+}
+
+.editIcon {
+  display: none;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 14px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.editable:hover .editIcon {
+  display: block;
+}
+
+/* 编辑中的输入框 */
+.editInput {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg-primary);
+  border: 2px solid var(--accent-primary);
+  border-radius: 4px;
+  font-size: 14px;
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.editInput:focus {
+  outline: none;
+}
+
+.editTextarea {
+  width: 100%;
+  padding: 10px;
+  background: var(--bg-primary);
+  border: 2px solid var(--accent-primary);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-family: inherit;
+  resize: vertical;
+  min-height: 120px;
+  box-sizing: border-box;
+}
+
+.editTextarea:focus {
+  outline: none;
+}
+
+.editSelect {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg-primary);
+  border: 2px solid var(--accent-primary);
+  border-radius: 4px;
+  font-size: 14px;
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+/* 可编辑的标题 */
+.editableTitle {
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.editableTitle:hover {
+  background: var(--bg-tertiary);
+}
+
+.titleEditInput {
+  font-size: 24px;
+  font-weight: 700;
+  background: var(--bg-secondary);
+  border: 2px solid var(--accent-primary);
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: var(--text-primary);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.titleEditInput:focus {
+  outline: none;
+}
+
+/* 实时状态指示器 */
+.liveIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--accent-success);
+  font-weight: 500;
+}
+
+.liveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-success);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* 编辑操作提示 */
+.editHint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
 /* 响应式调整 */
 @media (max-width: 768px) {
   .container {

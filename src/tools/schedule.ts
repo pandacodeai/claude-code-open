@@ -24,9 +24,9 @@ import { getAuth, initAuth } from '../auth/index.js';
 const INLINE_WAIT_THRESHOLD_MS = 10 * 60 * 1000;
 
 interface ScheduleTaskInput {
-  action: 'create' | 'cancel' | 'list' | 'watch';
+  action: 'create' | 'cancel' | 'list' | 'watch' | 'update';
 
-  // create 参数
+  // create / update 参数
   name?: string;
   type?: 'once' | 'interval' | 'watch';
   triggerAt?: string;
@@ -43,13 +43,19 @@ interface ScheduleTaskInput {
   /** 创建任务时的对话上下文快照 — 简要描述当前对话场景，帮助执行时的模型理解背景 */
   context?: string;
 
-  // cancel / watch 参数
+  /**
+   * 静默 token：agent 回复包含此字符串时静默（不推给用户）。
+   * 用于心跳巡检场景：prompt 里写"没事回复 HEARTBEAT_OK"，silentToken 设为 "HEARTBEAT_OK"。
+   */
+  silentToken?: string;
+
+  // cancel / watch / update 参数
   taskId?: string;
 }
 
 export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
   name = 'ScheduleTask';
-  description = 'Create, cancel, or list scheduled tasks. Tasks are executed by the daemon process and results are sent via desktop notification or Feishu. The daemon must be running (claude daemon start) for tasks to execute. For once-type tasks triggering within 10 minutes, execution happens inline in the current session. Use action=watch with taskId to view execution history.\n\nNever call ScheduleTask twice for the same task — one call is sufficient.';
+  description = 'Create, update, cancel, or list scheduled tasks. Tasks are executed by the daemon process and results are sent via desktop notification or Feishu. The daemon must be running (claude daemon start) for tasks to execute. For once-type tasks triggering within 10 minutes, execution happens inline in the current session. Use action=watch with taskId to view execution history. Use action=update with taskId to modify existing task fields.\n\nNever call ScheduleTask twice for the same task — one call is sufficient.';
 
   getInputSchema(): ToolDefinition['inputSchema'] {
     return {
@@ -57,7 +63,7 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
       properties: {
         action: {
           type: 'string',
-          enum: ['create', 'cancel', 'list', 'watch'],
+          enum: ['create', 'cancel', 'list', 'watch', 'update'],
           description: 'Action to perform.',
         },
         name: {
@@ -116,6 +122,10 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
           type: 'string',
           description: 'Brief context snapshot of the current conversation when creating the task. Helps the executing model understand the background. Keep it concise (100-300 chars).',
         },
+        silentToken: {
+          type: 'string',
+          description: 'Silent token for heartbeat mode. When the agent reply contains this token, the result is suppressed (not delivered to the user). Example: set to "HEARTBEAT_OK" with a prompt like "if nothing needs attention, reply HEARTBEAT_OK".',
+        },
         taskId: {
           type: 'string',
           description: 'Task ID to cancel (required for action=cancel).',
@@ -137,6 +147,8 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
         return this.handleList(store);
       case 'watch':
         return this.handleWatch(store, input);
+      case 'update':
+        return this.handleUpdate(store, input);
       default:
         return { success: false, output: t('schedule.unknownAction', { action: input.action }) };
     }
@@ -210,6 +222,7 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
       model: input.model,
       timeoutMs: input.timeoutMs,
       context: input.context,
+      silentToken: input.silentToken,
       enabled: true,
       authSnapshot,
     });
@@ -292,6 +305,9 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
       }
       info += `\n  Prompt: ${task.prompt.slice(0, 100)}${task.prompt.length > 100 ? '...' : ''}`;
       info += `\n  Notify: ${task.notify.join(', ')}`;
+      if (task.silentToken) {
+        info += `\n  Silent token: "${task.silentToken}"`;
+      }
       info += `\n  Enabled: ${task.enabled}`;
       // 执行状态
       if (task.lastRunAt) {
@@ -346,6 +362,72 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
   }
 
   /**
+   * 更新任务
+   */
+  private async handleUpdate(store: TaskStore, input: ScheduleTaskInput): Promise<ToolResult> {
+    if (!input.taskId) {
+      return { success: false, output: 'taskId is required for update action' };
+    }
+
+    const task = store.getTask(input.taskId);
+    if (!task) {
+      return { success: false, output: t('schedule.notFound', { taskId: input.taskId }) };
+    }
+
+    const updates: Partial<ScheduledTask> = {};
+
+    // 通用字段
+    if (input.name !== undefined) updates.name = input.name;
+    if (input.prompt !== undefined) updates.prompt = input.prompt;
+    if (input.model !== undefined) updates.model = input.model;
+    if (input.timeoutMs !== undefined) updates.timeoutMs = input.timeoutMs;
+    if (input.silentToken !== undefined) updates.silentToken = input.silentToken;
+    if (input.context !== undefined) updates.context = input.context;
+    if (input.notify !== undefined) updates.notify = input.notify;
+    if (input.feishuChatId !== undefined) updates.feishuChatId = input.feishuChatId;
+
+    // 类型特定字段
+    if (task.type === 'once' && input.triggerAt !== undefined) {
+      const triggerAt = parseTimeExpression(input.triggerAt);
+      updates.triggerAt = triggerAt;
+      updates.nextRunAtMs = triggerAt; // 同步更新 nextRunAtMs
+    }
+
+    if (task.type === 'interval' && input.intervalMs !== undefined) {
+      if (input.intervalMs <= 0) {
+        return { success: false, output: 'intervalMs must be > 0' };
+      }
+      updates.intervalMs = input.intervalMs;
+    }
+
+    if (task.type === 'watch') {
+      if (input.watchPaths !== undefined) {
+        updates.watchPaths = input.watchPaths.map(fromMsysPath);
+      }
+      if (input.watchEvents !== undefined) {
+        updates.watchEvents = input.watchEvents;
+      }
+      if (input.debounceMs !== undefined) {
+        updates.debounceMs = input.debounceMs;
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return { success: false, output: 'No fields to update. Provide at least one field to modify.' };
+    }
+
+    const updated = store.updateTask(input.taskId, updates);
+    if (!updated) {
+      return { success: false, output: 'Failed to update task' };
+    }
+
+    store.signalReload();
+
+    const fields = Object.keys(updates).join(', ');
+    return { success: true, output: `Task "${task.name}" (${input.taskId}) updated: ${fields}` };
+  }
+
+  /**
    * 会话内等待执行：阻塞等待触发时间，然后在当前进程内执行 prompt
    * 执行期间 UI 上显示 ScheduleTask 工具的 spinner，执行完成后显示结果
    */
@@ -391,7 +473,7 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
         model: task.model || 'sonnet',
         permissionMode: 'bypassPermissions' as any,
         workingDir: task.workingDir,
-        maxTurns: 10,
+        maxTurns: 30,
         verbose: false,
         isSubAgent: true,
         disallowedTools: ['ScheduleTask', 'AskUserQuestion'],
@@ -418,14 +500,19 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
 
       const endedAt = Date.now();
 
+      // 检测是否因 maxTurns 耗尽而截断（任务实际未完成）
+      const wasTruncated = response.includes('[WARNING: max turns reached, task may be incomplete]');
+      const finalStatus = wasTruncated ? 'failed' : 'success';
+
       // 更新任务状态
       store.updateTask(task.id, {
         runningAtMs: undefined,
         lastRunAt: startedAt,
-        lastRunStatus: 'success',
+        lastRunStatus: finalStatus,
+        lastRunError: wasTruncated ? 'Max turns reached, task incomplete' : undefined,
         lastDurationMs: endedAt - startedAt,
         runCount: (task.runCount || 0) + 1,
-        consecutiveErrors: 0,
+        consecutiveErrors: wasTruncated ? (task.consecutiveErrors || 0) + 1 : 0,
         enabled: false,
         nextRunAtMs: undefined,
       });
@@ -436,10 +523,18 @@ export class ScheduleTaskTool extends BaseTool<ScheduleTaskInput> {
         taskId: task.id,
         taskName: task.name,
         action: 'finished',
-        status: 'success',
+        status: finalStatus,
         summary: response.slice(0, 500),
+        error: wasTruncated ? 'Max turns reached, task incomplete' : undefined,
         durationMs: endedAt - startedAt,
       }).catch(() => {});
+
+      if (wasTruncated) {
+        return {
+          success: false,
+          error: `${createDetails}\n\n--- Inline Execution ---\nTask "${task.name}" was truncated (max turns reached) after ${Math.round((endedAt - startedAt) / 1000)}s. The task did not fully complete.\n\nPartial result:\n${response}`,
+        };
+      }
 
       return {
         success: true,

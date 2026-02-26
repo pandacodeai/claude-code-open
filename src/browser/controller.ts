@@ -473,10 +473,30 @@ export class BrowserController {
 
   // --- File Upload ---
 
-  async uploadFile(ref: string, filePath: string): Promise<void> {
+  async uploadFile(ref: string | undefined, filePath: string): Promise<void> {
     try {
-      const locator = await this.resolveLocator(ref);
-      await locator.setInputFiles(filePath, { timeout: 10000 });
+      const page = await this.getSessionPage();
+
+      if (ref) {
+        // Explicit ref: use it directly (original path)
+        const locator = await this.resolveLocator(ref);
+        await locator.setInputFiles(filePath, { timeout: 10000 });
+      } else {
+        // No ref: auto-detect <input type="file"> on the page.
+        // Most sites hide file inputs and create them dynamically on button click,
+        // so they never appear in the accessibility snapshot / refsMap.
+        // Strategy: find all file inputs, prefer the last one (most recently added).
+        const fileInputs = page.locator('input[type="file"]');
+        const count = await fileInputs.count();
+        if (count === 0) {
+          throw new Error(
+            'No <input type="file"> found on the page. ' +
+            'Click the upload button first to trigger the file input, then call upload_file again.'
+          );
+        }
+        const target = fileInputs.nth(count - 1); // last = most recently created
+        await target.setInputFiles(filePath, { timeout: 10000 });
+      }
     } catch (error) {
       throw toAIFriendlyError(error);
     }

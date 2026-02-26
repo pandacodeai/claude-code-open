@@ -47,6 +47,9 @@ export class ApiManager {
     const startTime = Date.now();
 
     try {
+      // 确保 OAuth token 有效（对齐官方 NM()）
+      await webAuth.ensureValidToken();
+
       if (!this.client) {
         this.initializeClient();
       }
@@ -123,6 +126,9 @@ export class ApiManager {
    */
   async getStatus(): Promise<ApiStatusPayload> {
     try {
+      // 确保 OAuth token 有效（对齐官方 NM()）
+      await webAuth.ensureValidToken();
+
       const models = await this.getAvailableModels();
       const providerName = webAuth.getProvider();
 

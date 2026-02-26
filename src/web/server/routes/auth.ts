@@ -269,31 +269,11 @@ router.get('/status', async (req: Request, res: Response) => {
   }
 
   if (status.type === 'oauth') {
-    // 获取 OAuth 详细信息
-    const oauthStatus = webAuth.getOAuthStatus();
+    // 统一的 token 有效性检查（对齐官方 NM()）
+    await webAuth.ensureValidToken();
 
-    // 自动刷新即将过期的 token
-    const oauthConfig = oauthManager.getOAuthConfig();
-    if (oauthConfig?.expiresAt && oauthConfig.refreshToken) {
-      const fiveMinutesLater = Date.now() + 5 * 60 * 1000;
-      if (oauthConfig.expiresAt < fiveMinutesLater) {
-        try {
-          const refreshed = await oauthManager.refreshToken(oauthConfig.refreshToken);
-          if (refreshed) {
-            return res.json({
-              authenticated: true,
-              type: 'oauth',
-              accountType: oauthStatus.subscriptionType || 'subscription',
-              expiresAt: refreshed.expiresAt,
-              scopes: refreshed.scopes,
-              isDemoMode: demoMode,
-            });
-          }
-        } catch (error) {
-          console.error('[OAuth] Token refresh error:', error);
-        }
-      }
-    }
+    // 获取刷新后的 OAuth 详细信息
+    const oauthStatus = webAuth.getOAuthStatus();
 
     return res.json({
       authenticated: true,

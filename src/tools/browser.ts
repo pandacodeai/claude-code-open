@@ -123,7 +123,7 @@ USAGE NOTES:
         },
         filePath: {
           type: 'string',
-          description: 'Absolute file path for upload_file action (sets file on an <input type="file"> element)',
+          description: 'Absolute file path for upload_file action. If ref is provided, sets file on that element; if ref is omitted, auto-detects the <input type="file"> on the page (click the upload button first to trigger it).',
         },
       },
       required: ['action'],
@@ -363,11 +363,12 @@ USAGE NOTES:
         }
 
         case 'upload_file': {
-          if (!input.ref || !input.filePath) {
-            return this.error('upload_file requires both ref (file input element) and filePath (absolute path to file)');
+          if (!input.filePath) {
+            return this.error('upload_file requires filePath (absolute path to file). ref is optional — if omitted, auto-detects <input type="file"> on the page.');
           }
           await controller.uploadFile(input.ref, input.filePath);
-          return this.success(`Uploaded file to ${input.ref}: ${input.filePath}`);
+          const target = input.ref ? `ref ${input.ref}` : 'auto-detected file input';
+          return this.success(`Uploaded file via ${target}: ${input.filePath}`);
         }
 
         case 'go_back': {

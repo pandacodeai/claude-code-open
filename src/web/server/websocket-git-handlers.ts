@@ -7,6 +7,7 @@ import { WebSocket } from 'ws';
 import { GitManager } from './git-manager.js';
 import { ConversationManager } from './conversation.js';
 import { ClaudeClient } from '../../core/client.js';
+import { webAuth } from './web-auth.js';
 
 // 复用 websocket.ts 中的类型
 interface ClientConnection {
@@ -390,6 +391,8 @@ function createGitAIClient(conversationManager: ConversationManager): ClaudeClie
  * 通过 ClaudeClient 发送单次 AI 请求
  */
 async function aiRequest(conversationManager: ConversationManager, prompt: string): Promise<string> {
+  // 确保 OAuth token 有效（对齐官方 NM()）
+  await webAuth.ensureValidToken();
   const client = createGitAIClient(conversationManager);
   const response = await client.createMessage(
     [{ role: 'user', content: prompt }],

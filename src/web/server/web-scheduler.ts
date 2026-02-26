@@ -234,6 +234,15 @@ export class WebScheduler {
 
     // 标记为正在执行，防止 daemon 重复触发
     this.store.updateTask(task.id, { runningAtMs: Date.now() });
+    
+    // 广播任务开始执行
+    const updatedTask = this.store.getTask(task.id);
+    if (updatedTask) {
+      this.broadcastFn({
+        type: 'schedule:task_updated',
+        payload: { task: updatedTask },
+      });
+    }
 
     if (sessionId && this.conversationManager.hasSession(sessionId)) {
       // 有目标会话且还活着
@@ -275,50 +284,83 @@ export class WebScheduler {
 
     const startedAt = Date.now();
     const prompt = this.buildAlarmPrompt(task);
+    const isSilentMode = Boolean(task.silentToken);
 
-    console.log(`[WebScheduler] Executing alarm "${task.name}" in session ${sessionId}`);
-
-    // 通知前端闹钟响了
-    this.broadcastAlarmNotification(task, sessionId);
+    console.log(`[WebScheduler] Executing alarm "${task.name}" in session ${sessionId}${isSilentMode ? ' (silent mode)' : ''}`);
 
     const messageId = randomUUID();
-    const callbacks = this.buildBroadcastCallbacks(sessionId, messageId);
 
-    // 发送 message_start
-    this.broadcastFn({
-      type: 'message_start',
-      payload: { messageId, sessionId },
-    });
-    this.broadcastFn({
-      type: 'status',
-      payload: { status: 'thinking', sessionId },
-    });
+    if (isSilentMode) {
+      // 静默模式：缓冲所有输出，完成后判断是否含 silentToken
+      const callbacks = this.buildSilentCallbacks(task, sessionId, messageId);
 
-    try {
-      await this.conversationManager.chat(
-        sessionId,
-        prompt,
-        undefined,       // mediaAttachments
-        task.model || this.defaultModel,
-        callbacks,
-        task.workingDir || this.cwd,
-        undefined,       // ws
-        'bypassPermissions',
-      );
+      try {
+        await this.conversationManager.chat(
+          sessionId,
+          prompt,
+          undefined,
+          task.model || this.defaultModel,
+          callbacks,
+          task.workingDir || this.cwd,
+          undefined,
+          'bypassPermissions',
+        );
 
-      const endedAt = Date.now();
-      this.applyTaskResult(task, { status: 'success', startedAt, endedAt });
-    } catch (err) {
-      const endedAt = Date.now();
-      const errMsg = err instanceof Error ? err.message : String(err);
-      const isTimeout = errMsg.includes('timeout');
-      console.error(`[WebScheduler] Alarm "${task.name}" failed:`, errMsg);
-      this.applyTaskResult(task, {
-        status: isTimeout ? 'timeout' : 'failed',
-        error: errMsg,
-        startedAt,
-        endedAt,
+        const endedAt = Date.now();
+        this.applyTaskResult(task, { status: 'success', startedAt, endedAt });
+      } catch (err) {
+        const endedAt = Date.now();
+        const errMsg = err instanceof Error ? err.message : String(err);
+        const isTimeout = errMsg.includes('timeout');
+        console.error(`[WebScheduler] Alarm "${task.name}" failed:`, errMsg);
+        this.applyTaskResult(task, {
+          status: isTimeout ? 'timeout' : 'failed',
+          error: errMsg,
+          startedAt,
+          endedAt,
+        });
+      }
+    } else {
+      // 普通模式：直接流式推送
+      this.broadcastAlarmNotification(task, sessionId);
+
+      const callbacks = this.buildBroadcastCallbacks(sessionId, messageId);
+
+      this.broadcastFn({
+        type: 'message_start',
+        payload: { messageId, sessionId },
       });
+      this.broadcastFn({
+        type: 'status',
+        payload: { status: 'thinking', sessionId },
+      });
+
+      try {
+        await this.conversationManager.chat(
+          sessionId,
+          prompt,
+          undefined,
+          task.model || this.defaultModel,
+          callbacks,
+          task.workingDir || this.cwd,
+          undefined,
+          'bypassPermissions',
+        );
+
+        const endedAt = Date.now();
+        this.applyTaskResult(task, { status: 'success', startedAt, endedAt });
+      } catch (err) {
+        const endedAt = Date.now();
+        const errMsg = err instanceof Error ? err.message : String(err);
+        const isTimeout = errMsg.includes('timeout');
+        console.error(`[WebScheduler] Alarm "${task.name}" failed:`, errMsg);
+        this.applyTaskResult(task, {
+          status: isTimeout ? 'timeout' : 'failed',
+          error: errMsg,
+          startedAt,
+          endedAt,
+        });
+      }
     }
   }
 
@@ -549,6 +591,106 @@ export class WebScheduler {
   }
 
   /**
+   * 构建静默模式回调：缓冲所有文本，完成后判断是否含 silentToken。
+   * - 含 silentToken → 只发 schedule_silent_ok 轻量通知，不推消息
+   * - 不含 → 一次性补发完整消息（告警）
+   */
+  private buildSilentCallbacks(task: ScheduledTask, sessionId: string, messageId: string): StreamCallbacks {
+    const silentToken = task.silentToken!;
+    let fullText = '';
+    // 工具调用和 thinking 事件暂存，告警时补发
+    const bufferedEvents: Array<{ type: string; payload: any }>= [];
+
+    return {
+      onThinkingStart: () => {
+        bufferedEvents.push({ type: 'thinking_start', payload: { messageId, sessionId } });
+      },
+      onThinkingDelta: (text: string) => {
+        bufferedEvents.push({ type: 'thinking_delta', payload: { messageId, text, sessionId } });
+      },
+      onThinkingComplete: () => {
+        bufferedEvents.push({ type: 'thinking_complete', payload: { messageId, sessionId } });
+      },
+      onTextDelta: (text: string) => {
+        fullText += text;
+      },
+      onToolUseStart: (toolUseId: string, toolName: string, input: unknown) => {
+        bufferedEvents.push({ type: 'tool_use_start', payload: { messageId, toolUseId, toolName, input, sessionId } });
+      },
+      onToolUseDelta: (toolUseId: string, partialJson: string) => {
+        bufferedEvents.push({ type: 'tool_use_delta', payload: { toolUseId, partialJson, sessionId } });
+      },
+      onToolResult: (toolUseId: string, success: boolean, output?: string, error?: string, data?: unknown) => {
+        bufferedEvents.push({ type: 'tool_result', payload: { toolUseId, success, output, error, data, defaultCollapsed: true, sessionId } });
+      },
+      onPermissionRequest: (request: any) => {
+        // 权限请求必须立即推（不能缓冲），但 silent 模式用 bypassPermissions，理论上不会触发
+        this.broadcastFn({ type: 'permission_request', payload: { ...request, sessionId } });
+      },
+      onComplete: async (stopReason: string | null, usage?: { inputTokens: number; outputTokens: number }) => {
+        await this.conversationManager.persistSession(sessionId);
+
+        const isSilent = fullText.includes(silentToken);
+
+        if (isSilent) {
+          // 静默：不推消息，只发轻量状态通知
+          console.log(`[WebScheduler] Silent OK for "${task.name}" — reply contained "${silentToken}"`);
+          this.broadcastFn({
+            type: 'schedule_silent_ok',
+            payload: {
+              taskId: task.id,
+              taskName: task.name,
+              sessionId,
+              timestamp: Date.now(),
+              silentToken,
+            },
+          });
+        } else {
+          // 告警：补发所有缓冲事件 + 完整文本
+          console.log(`[WebScheduler] Alert from "${task.name}" — broadcasting to frontend`);
+          this.broadcastAlarmNotification(task, sessionId);
+
+          this.broadcastFn({ type: 'message_start', payload: { messageId, sessionId } });
+          this.broadcastFn({ type: 'status', payload: { status: 'thinking', sessionId } });
+
+          // 补发缓冲的工具调用和 thinking 事件
+          for (const evt of bufferedEvents) {
+            this.broadcastFn(evt);
+          }
+
+          // 发送完整文本（一次性）
+          if (fullText) {
+            this.broadcastFn({ type: 'text_delta', payload: { messageId, text: fullText, sessionId } });
+          }
+
+          this.broadcastFn({
+            type: 'message_complete',
+            payload: {
+              messageId,
+              stopReason: (stopReason || 'end_turn') as 'end_turn' | 'max_tokens' | 'stop_sequence' | 'tool_use',
+              usage,
+              sessionId,
+            },
+          });
+          this.broadcastFn({ type: 'status', payload: { status: 'idle', sessionId } });
+        }
+      },
+      onError: (error: Error) => {
+        // 错误不静默，始终推送
+        this.broadcastFn({ type: 'error', payload: { error: error.message, sessionId } });
+        this.broadcastFn({ type: 'status', payload: { status: 'idle', sessionId } });
+      },
+      onContextCompact: (phase: 'start' | 'end' | 'error', info?: Record<string, any>) => {
+        // context compact 不缓冲
+        this.broadcastFn({ type: 'context_compact', payload: { phase, info, sessionId } });
+      },
+      onContextUpdate: (usage: { usedTokens: number; maxTokens: number; percentage: number; model: string }) => {
+        this.broadcastFn({ type: 'context_update', payload: { ...usage, sessionId } });
+      },
+    };
+  }
+
+  /**
    * 应用任务执行结果，更新 TaskStore + 写运行日志
    */
   private applyTaskResult(task: ScheduledTask, result: {
@@ -601,6 +743,15 @@ export class WebScheduler {
       error: result.error,
       durationMs: result.endedAt - result.startedAt,
     }).catch(() => {});
+    
+    // 广播任务执行完成
+    const updatedTask = this.store.getTask(task.id);
+    if (updatedTask) {
+      this.broadcastFn({
+        type: 'schedule:task_updated',
+        payload: { task: updatedTask },
+      });
+    }
   }
 
   // =========================================================================

@@ -497,4 +497,5 @@ const SearchPanel: React.FC<SearchPanelProps> = ({
   );
 };
 
+export { SearchPanel };
 export default SearchPanel;

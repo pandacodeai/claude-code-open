@@ -67,11 +67,62 @@ class WebAuthProvider {
     return { authPriority: 'auto' };
   }
 
+  // ---------- Token 有效性保障（对齐官方 NM() 语义） ----------
+
+  /** 防止并发刷新 */
+  private refreshPromise: Promise<boolean> | null = null;
+
+  /**
+   * 确保 OAuth token 有效（每次 API 调用前必须 await 此方法）
+   *
+   * 对齐官方 CLI：每次出站 API 请求前执行 `await NM()`
+   *   - token 未过期（含 5 分钟缓冲）→ 直接返回
+   *   - token 即将/已过期 → 自动刷新
+   *   - 非 OAuth 认证 → 直接返回
+   *
+   * 返回 true 表示 token 有效或已刷新成功
+   */
+  async ensureValidToken(): Promise<boolean> {
+    const settings = this.readSettings();
+
+    // 非 OAuth 模式，不需要刷新
+    if (settings.authPriority === 'apiKey') return true;
+    if (settings.authPriority === 'auto' && settings.apiKey) return true;
+
+    // 检查是否有 OAuth 配置
+    const config = oauthManager.getOAuthConfig();
+    if (!config?.accessToken) return true; // 没有 OAuth 配置，交给后续报错
+
+    // token 未过期（5 分钟缓冲）
+    if (!oauthManager.isTokenExpired()) return true;
+
+    // 需要刷新 — 使用并发锁
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    this.refreshPromise = (async () => {
+      try {
+        console.log('[WebAuth] OAuth token 即将过期，自动刷新...');
+        await oauthManager.refreshToken();
+        console.log('[WebAuth] OAuth token 刷新成功');
+        return true;
+      } catch (err: any) {
+        console.error('[WebAuth] OAuth token 刷新失败:', err.message);
+        return false;
+      } finally {
+        this.refreshPromise = null;
+      }
+    })();
+
+    return this.refreshPromise;
+  }
+
   // ---------- 核心方法：获取凭证 ----------
 
   /**
-   * 获取当前应使用的认证凭证
-   * 所有需要调用 Claude API 的地方都调这个
+   * 获取当前应使用的认证凭证（同步版本）
+   * 注意：此方法不做 token 过期检查，调用方应先 await ensureValidToken()
    */
   getCredentials(): WebAuthCredentials {
     const settings = this.readSettings();

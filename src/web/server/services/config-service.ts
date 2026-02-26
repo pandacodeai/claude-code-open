@@ -3,7 +3,7 @@
  * 封装 ConfigManager 为 WebUI 提供友好的配置管理接口
  */
 
-import { ConfigManager, UserConfig, ConfigSource, ConfigSourceInfo, ConfigKeySource, EnterprisePolicyConfig } from '../../../config/index.js';
+import { ConfigManager, UserConfig, ConfigSource, ConfigSourceInfo, ConfigKeySource, EnterprisePolicyConfig, configManager as globalConfigManager } from '../../../config/index.js';
 import type { McpServerConfig } from '../../../types/index.js';
 import { webAuth } from '../web-auth.js';
 
@@ -191,11 +191,11 @@ export class WebConfigService {
 
   constructor(configManager?: ConfigManager) {
     // 如果没有传入 ConfigManager，使用全局单例
+    // 注意：必须使用全局单例，否则与 webAuth 等模块的 configManager 实例不同步
     if (configManager) {
       this.configManager = configManager;
     } else {
-      // 延迟导入全局实例以避免循环依赖
-      this.configManager = new ConfigManager();
+      this.configManager = globalConfigManager;
     }
   }
 

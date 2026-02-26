@@ -325,9 +325,7 @@ function cleanOldPersistedOutputs(messages: Message[], keepRecent: number = KEEP
       totalTokens += Math.ceil(msg.content.length / 4);
     } else if (Array.isArray(msg.content)) {
       for (const block of msg.content) {
-        if (typeof block === 'string') {
-          totalTokens += Math.ceil(block.length / 4);
-        } else if (typeof block === 'object' && 'type' in block) {
+        if (typeof block === 'object' && 'type' in block) {
           if (block.type === 'text' && 'text' in block && typeof block.text === 'string') {
             totalTokens += Math.ceil(block.text.length / 4);
           } else if (block.type === 'tool_result' && 'content' in block && typeof block.content === 'string') {

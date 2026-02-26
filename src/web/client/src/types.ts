@@ -377,7 +377,11 @@ export type WSMessageType =
   // 设计图生成
   | 'design_image_generated'
   // 探针调试消息
-  | 'debug_messages_response';
+  | 'debug_messages_response'
+  // 定时任务实时更新
+  | 'schedule:task_created'
+  | 'schedule:task_updated'
+  | 'schedule:task_deleted';
 
 export interface WSMessage {
   type: WSMessageType | string;  // 允许扩展类型
