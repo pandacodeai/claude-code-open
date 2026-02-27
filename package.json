@@ -1,6 +1,6 @@
 {
   "name": "claude-code-open",
-  "version": "2.1.35",
+  "version": "2.1.36",
   "description": "Open source AI coding platform with 37+ tools, Web IDE, multi-agent system, and MCP protocol support",
   "type": "module",
   "bin": {
@@ -14,6 +14,7 @@
   },
   "files": [
     "dist",
+    "scripts/postinstall.js",
     "README.md",
     "LICENSE"
   ],
@@ -43,6 +44,7 @@
     "test:e2e:basic": "tsx tests/e2e/cli-basic.test.ts",
     "test:e2e:session": "tsx tests/e2e/cli-session.test.ts",
     "test:e2e:tools": "tsx tests/e2e/cli-tools.test.ts",
+    "postinstall": "node scripts/postinstall.js || true",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
