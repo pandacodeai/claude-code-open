@@ -19,6 +19,8 @@ export interface RefEntry {
   nth: number;
   /** Index into page.frames() — 0 = main frame, >0 = iframe */
   frameIndex?: number;
+  /** CSS selector for non-standard clickable elements (optional) */
+  selector?: string;
 }
 
 export interface SnapshotResult {
@@ -107,7 +109,10 @@ export type BrowserAction =
   | 'storage_get'
   | 'storage_set'
   | 'storage_clear'
-  | 'pdf';
+  | 'pdf'
+  | 'frame_list'
+  | 'frame_select'
+  | 'wait_for_stable';
 
 export interface BrowserToolInput {
   action: BrowserAction;
@@ -146,4 +151,6 @@ export interface BrowserToolInput {
   routeBody?: string;
   routeStatus?: number;
   savePath?: string;
+  frameIndex?: number;
+  stableMs?: number;
 }

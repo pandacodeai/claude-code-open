@@ -371,19 +371,33 @@ ADVANCED FEATURES:
         }
 
         case 'click': {
-          if (!input.ref) {
-            return this.error(t('browser.missingRef'));
+          // 支持 ref 模式或坐标模式
+          if (input.ref) {
+            await controller.click(input.ref);
+            return this.success(`Clicked element: ${input.ref}`);
+          } else if (input.x !== undefined && input.y !== undefined) {
+            await controller.click(undefined, { x: input.x, y: input.y });
+            return this.success(`Clicked at coordinates (${input.x}, ${input.y})`);
+          } else {
+            return this.error('Either ref or x/y coordinates must be provided for click');
           }
-          await controller.click(input.ref);
-          return this.success(`Clicked element: ${input.ref}`);
         }
 
         case 'fill': {
-          if (!input.ref || !input.value) {
-            return this.error(t('browser.missingRefValue'));
+          if (!input.value) {
+            return this.error('value is required for fill');
           }
-          await controller.fill(input.ref, input.value);
-          return this.success(`Filled element ${input.ref} with: ${input.value}`);
+          
+          // 支持 ref 模式或坐标模式
+          if (input.ref) {
+            await controller.fill(input.ref, input.value);
+            return this.success(`Filled element ${input.ref} with: ${input.value}`);
+          } else if (input.x !== undefined && input.y !== undefined) {
+            await controller.fill(undefined, input.value, { x: input.x, y: input.y });
+            return this.success(`Filled at coordinates (${input.x}, ${input.y}) with: ${input.value}`);
+          } else {
+            return this.error('Either ref or x/y coordinates must be provided for fill');
+          }
         }
 
         case 'type': {
@@ -471,6 +485,24 @@ ADVANCED FEATURES:
           await controller.tabClose(input.index);
           return this.success(
             `Closed tab${input.index !== undefined ? ` ${input.index}` : ''}`
+          );
+        }
+
+        case 'frame_list': {
+          const frames = await controller.frameList();
+          const output = frames.map(f => 
+            `[${f.index}] ${f.name ? `"${f.name}" ` : ''}${f.url}${f.parentFrame !== null ? ` (parent: ${f.parentFrame})` : ''}`
+          ).join('\n');
+          return this.success(`Frames:\n${output}`);
+        }
+
+        case 'frame_select': {
+          const frameIndex = input.frameIndex ?? 0;
+          controller.frameSelect(frameIndex);
+          return this.success(
+            frameIndex === 0 
+              ? 'Selected main frame (index 0)' 
+              : `Selected frame ${frameIndex}. All subsequent operations will target this frame.`
           );
         }
 
@@ -585,15 +617,29 @@ ADVANCED FEATURES:
         }
 
         case 'dblclick': {
-          if (!input.ref) return this.error('dblclick requires ref parameter.');
-          await controller.dblclick(input.ref);
-          return this.success(`Double-clicked element: ${input.ref}`);
+          // 支持 ref 模式或坐标模式
+          if (input.ref) {
+            await controller.dblclick(input.ref);
+            return this.success(`Double-clicked element: ${input.ref}`);
+          } else if (input.x !== undefined && input.y !== undefined) {
+            await controller.dblclick(undefined, { x: input.x, y: input.y });
+            return this.success(`Double-clicked at coordinates (${input.x}, ${input.y})`);
+          } else {
+            return this.error('Either ref or x/y coordinates must be provided for dblclick');
+          }
         }
 
         case 'rightclick': {
-          if (!input.ref) return this.error('rightclick requires ref parameter.');
-          await controller.rightclick(input.ref);
-          return this.success(`Right-clicked element: ${input.ref}`);
+          // 支持 ref 模式或坐标模式
+          if (input.ref) {
+            await controller.rightclick(input.ref);
+            return this.success(`Right-clicked element: ${input.ref}`);
+          } else if (input.x !== undefined && input.y !== undefined) {
+            await controller.rightclick(undefined, { x: input.x, y: input.y });
+            return this.success(`Right-clicked at coordinates (${input.x}, ${input.y})`);
+          } else {
+            return this.error('Either ref or x/y coordinates must be provided for rightclick');
+          }
         }
 
         case 'drag': {
@@ -626,6 +672,15 @@ ADVANCED FEATURES:
           const ms = input.timeout ?? 1000;
           await controller.waitForTimeout(ms);
           return this.success(`Waited ${ms}ms.`);
+        }
+
+        case 'wait_for_stable': {
+          const timeout = input.timeout ?? 10000;
+          const stableMs = input.stableMs ?? 500;
+          await controller.waitForStable({ timeout, stableMs });
+          return this.success(
+            `Page became stable (no DOM changes for ${stableMs}ms, timeout: ${timeout}ms).`
+          );
         }
 
         case 'dialog_handle': {

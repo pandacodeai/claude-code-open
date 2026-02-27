@@ -26,6 +26,7 @@ export class BrowserController {
   private manager: BrowserManager;
   private refsMap: Map<string, RefEntry> = new Map();
   private refCounter: number = 0;
+  private selectedFrameIndex: number = 0; // 0 = main frame, >0 = iframe
   
   // 页面状态追踪
   private consoleMessages: string[] = [];
@@ -122,6 +123,22 @@ export class BrowserController {
    */
   private async getSessionPage(): Promise<Page> {
     return this.ensureDedicatedTab();
+  }
+
+  /**
+   * 获取当前活动的 frame（用于支持 iframe 操作）
+   */
+  private async getActiveFrame(): Promise<Page> {
+    const page = await this.getSessionPage();
+    if (this.selectedFrameIndex === 0) {
+      return page;
+    }
+    const frames = page.frames();
+    if (this.selectedFrameIndex >= frames.length) {
+      throw new Error(`Frame index ${this.selectedFrameIndex} out of bounds (total: ${frames.length})`);
+    }
+    // 注意：Frame 类型与 Page 类型兼容大部分操作
+    return frames[this.selectedFrameIndex] as any as Page;
   }
 
   /**
@@ -329,6 +346,11 @@ export class BrowserController {
     // 绑定页面事件监听器（如果还没有绑定）
     this.attachPageListeners(page);
     
+    // 当选中了 frame 时，只对该 frame 做 snapshot
+    const targetFrame = this.selectedFrameIndex > 0 
+      ? page.frames()[this.selectedFrameIndex] 
+      : null;
+    
     this.refsMap.clear();
     this.refCounter = 0;
 
@@ -361,40 +383,115 @@ export class BrowserController {
       return outputLines;
     };
 
-    // --- Main frame ---
-    const mainAriaYaml = await page.locator('body').ariaSnapshot({ timeout: 10000 });
-    if (!mainAriaYaml) {
-      return {
-        title: await page.title(),
-        url: page.url(),
-        content: 'No accessibility tree available',
-        refs: this.refsMap,
-      };
-    }
-    const outputLines = parseAriaYaml(mainAriaYaml, 0, options?.interactive);
+    // 如果选中了特定 frame，只扫描该 frame
+    let outputLines: string[];
+    if (targetFrame) {
+      const frameAriaYaml = await targetFrame.locator('body').ariaSnapshot({ timeout: 10000 });
+      if (!frameAriaYaml) {
+        return {
+          title: await page.title(),
+          url: targetFrame.url(),
+          content: 'No accessibility tree available in selected frame',
+          refs: this.refsMap,
+        };
+      }
+      outputLines = parseAriaYaml(frameAriaYaml, this.selectedFrameIndex, options?.interactive);
+    } else {
+      // --- Main frame ---
+      const mainAriaYaml = await page.locator('body').ariaSnapshot({ timeout: 10000 });
+      if (!mainAriaYaml) {
+        return {
+          title: await page.title(),
+          url: page.url(),
+          content: 'No accessibility tree available',
+          refs: this.refsMap,
+        };
+      }
+      outputLines = parseAriaYaml(mainAriaYaml, 0, options?.interactive);
 
-    // --- Iframes (cross-origin included) ---
-    const frames = page.frames();
-    for (let i = 1; i < frames.length; i++) {
-      try {
-        const frame = frames[i];
-        const frameUrl = frame.url();
-        // Skip blank/about frames
-        if (!frameUrl || frameUrl === 'about:blank' || frameUrl === 'about:srcdoc') continue;
-        const frameAriaYaml = await frame.locator('body').ariaSnapshot({ timeout: 3000 });
-        if (frameAriaYaml) {
-          // Extract domain for labeling
-          let frameDomain = '';
-          try { frameDomain = new URL(frameUrl).hostname; } catch {}
-          outputLines.push('');
-          outputLines.push(`=== iframe [${frameDomain || frameUrl}] ===`);
-          outputLines.push(...parseAriaYaml(frameAriaYaml, i, options?.interactive));
+      // --- Iframes (cross-origin included) ---
+      const frames = page.frames();
+      for (let i = 1; i < frames.length; i++) {
+        try {
+          const frame = frames[i];
+          const frameUrl = frame.url();
+          // Skip blank/about frames
+          if (!frameUrl || frameUrl === 'about:blank' || frameUrl === 'about:srcdoc') continue;
+          const frameAriaYaml = await frame.locator('body').ariaSnapshot({ timeout: 3000 });
+          if (frameAriaYaml) {
+            // Extract domain for labeling
+            let frameDomain = '';
+            try { frameDomain = new URL(frameUrl).hostname; } catch {}
+            outputLines.push('');
+            outputLines.push(`=== iframe [${frameDomain || frameUrl}] ===`);
+            outputLines.push(...parseAriaYaml(frameAriaYaml, i, options?.interactive));
+          }
+        } catch {
+          // Skip frames that are not accessible (detached, navigating, etc.)
         }
-      } catch {
-        // Skip frames that are not accessible (detached, navigating, etc.)
       }
     }
 
+    // 在 interactive 模式下，扫描 cursor:pointer 的 clickable 元素
+    if (options?.interactive) {
+      try {
+        const activeFrame = targetFrame || page;
+        const clickableElements = await activeFrame.evaluate(() => {
+          const elements: Array<{ text: string; tag: string; selector: string }> = [];
+          const standardTags = new Set(['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA']);
+          
+          const allElements = document.querySelectorAll('*');
+          allElements.forEach((el, index) => {
+            const htmlEl = el as HTMLElement;
+            
+            // 跳过标准交互元素
+            if (standardTags.has(htmlEl.tagName)) return;
+            
+            // 检查 cursor:pointer
+            const computedStyle = globalThis.getComputedStyle(htmlEl);
+            if (computedStyle.cursor !== 'pointer') return;
+            
+            // 检查可见性和尺寸
+            const rect = htmlEl.getBoundingClientRect();
+            if (rect.width < 10 || rect.height < 10) return;
+            if (rect.top > globalThis.innerHeight || rect.bottom < 0) return;
+            
+            // 获取文本内容
+            let text = htmlEl.innerText || htmlEl.textContent || '';
+            text = text.trim().slice(0, 50); // 限制长度
+            if (!text) return;
+            
+            // 生成唯一的 selector
+            const selector = `${htmlEl.tagName.toLowerCase()}:nth-of-type(${index})`;
+            
+            elements.push({ text, tag: htmlEl.tagName, selector });
+          });
+          
+          return elements;
+        });
+        
+        if (clickableElements.length > 0) {
+          outputLines.push('');
+          outputLines.push('=== Clickable Elements ===');
+          for (const el of clickableElements) {
+            this.refCounter++;
+            const refId = `e${this.refCounter}`;
+            const frameIndex = targetFrame ? this.selectedFrameIndex : 0;
+            this.refsMap.set(refId, {
+              role: 'clickable',
+              name: el.text,
+              nth: 0,
+              frameIndex,
+              selector: el.selector,
+            });
+            outputLines.push(`- ${el.tag.toLowerCase()} "${el.text}" [ref=${refId}]`);
+          }
+        }
+      } catch (error) {
+        // 扫描失败不影响主流程
+      }
+    }
+    
     // 追加页面错误和 console 信息（如果有的话）
     let finalContent = outputLines.join('\n');
     
@@ -485,6 +582,12 @@ export class BrowserController {
       }
     }
 
+    // 如果有 selector，使用 selector 定位（用于非标准 clickable 元素）
+    if (entry.selector) {
+      return owner.locator(entry.selector);
+    }
+
+    // 否则使用 role-based 定位
     let locator = owner.getByRole(entry.role as any, {
       name: entry.name,
       exact: true,
@@ -499,19 +602,55 @@ export class BrowserController {
 
   // --- Interactions ---
 
-  async click(ref: string): Promise<void> {
+  async click(ref?: string, options?: { x?: number; y?: number }): Promise<void> {
     try {
-      const locator = await this.resolveLocator(ref);
-      await locator.click({ timeout: 5000 });
+      const page = await this.getSessionPage();
+      
+      // 坐标模式：直接点击指定坐标
+      if (!ref && options?.x !== undefined && options?.y !== undefined) {
+        await page.mouse.click(options.x, options.y, {
+          delay: 50,
+        });
+        return;
+      }
+      
+      // ref 模式：使用 locator 点击
+      if (ref) {
+        const locator = await this.resolveLocator(ref);
+        await locator.click({ timeout: 5000 });
+        return;
+      }
+      
+      throw new Error('Either ref or x/y coordinates must be provided for click');
     } catch (error) {
       throw toAIFriendlyError(error);
     }
   }
 
-  async fill(ref: string, value: string): Promise<void> {
+  async fill(ref?: string, value?: string, options?: { x?: number; y?: number }): Promise<void> {
     try {
-      const locator = await this.resolveLocator(ref);
-      await locator.fill(value, { timeout: 5000 });
+      if (!value) {
+        throw new Error('value is required for fill');
+      }
+      
+      const page = await this.getSessionPage();
+      
+      // 坐标模式：先点击聚焦，然后输入
+      if (!ref && options?.x !== undefined && options?.y !== undefined) {
+        await page.mouse.click(options.x, options.y);
+        await page.waitForTimeout(100); // 等待聚焦
+        await page.keyboard.type(value);
+        return;
+      }
+      
+      // ref 模式：使用 locator fill
+      if (ref) {
+        const locator = await this.resolveLocator(ref);
+        await locator.fill(value, { timeout: 5000 });
+        return;
+      }
+      
+      throw new Error('Either ref or x/y coordinates must be provided for fill');
     } catch (error) {
       throw toAIFriendlyError(error);
     }
@@ -547,19 +686,52 @@ export class BrowserController {
 
   // --- Enhanced Interactions ---
 
-  async dblclick(ref: string): Promise<void> {
+  async dblclick(ref?: string, options?: { x?: number; y?: number }): Promise<void> {
     try {
-      const locator = await this.resolveLocator(ref);
-      await locator.dblclick({ timeout: 5000 });
+      const page = await this.getSessionPage();
+      
+      // 坐标模式：直接双击指定坐标
+      if (!ref && options?.x !== undefined && options?.y !== undefined) {
+        await page.mouse.dblclick(options.x, options.y, {
+          delay: 50,
+        });
+        return;
+      }
+      
+      // ref 模式：使用 locator 双击
+      if (ref) {
+        const locator = await this.resolveLocator(ref);
+        await locator.dblclick({ timeout: 5000 });
+        return;
+      }
+      
+      throw new Error('Either ref or x/y coordinates must be provided for dblclick');
     } catch (error) {
       throw toAIFriendlyError(error);
     }
   }
 
-  async rightclick(ref: string): Promise<void> {
+  async rightclick(ref?: string, options?: { x?: number; y?: number }): Promise<void> {
     try {
-      const locator = await this.resolveLocator(ref);
-      await locator.click({ button: 'right', timeout: 5000 });
+      const page = await this.getSessionPage();
+      
+      // 坐标模式：直接右击指定坐标
+      if (!ref && options?.x !== undefined && options?.y !== undefined) {
+        await page.mouse.click(options.x, options.y, {
+          button: 'right',
+          delay: 50,
+        });
+        return;
+      }
+      
+      // ref 模式：使用 locator 右击
+      if (ref) {
+        const locator = await this.resolveLocator(ref);
+        await locator.click({ button: 'right', timeout: 5000 });
+        return;
+      }
+      
+      throw new Error('Either ref or x/y coordinates must be provided for rightclick');
     } catch (error) {
       throw toAIFriendlyError(error);
     }
@@ -635,6 +807,53 @@ export class BrowserController {
     await page.waitForTimeout(Math.min(ms, 30000)); // 最多 30s
   }
 
+  /**
+   * Wait for DOM to become stable (no mutations for stableMs milliseconds)
+   */
+  async waitForStable(options?: { timeout?: number; stableMs?: number }): Promise<void> {
+    const page = await this.getActiveFrame();
+    const timeout = options?.timeout ?? 10000;
+    const stableMs = options?.stableMs ?? 500;
+    
+    try {
+      await page.evaluate(
+        ({ timeoutMs, stableMsParam }) => {
+          return new Promise<void>((resolve) => {
+            let timer = setTimeout(() => resolve(), stableMsParam);
+            let timeoutTimer: NodeJS.Timeout | null = null;
+            
+            const observer = new MutationObserver(() => {
+              clearTimeout(timer);
+              timer = setTimeout(() => {
+                if (observer) {
+                  observer.disconnect();
+                }
+                resolve();
+              }, stableMsParam);
+            });
+            
+            observer.observe(document.body, {
+              childList: true,
+              subtree: true,
+              attributes: true,
+            });
+            
+            // 超时后停止观察并 resolve
+            timeoutTimer = setTimeout(() => {
+              if (observer) {
+                observer.disconnect();
+              }
+              resolve();
+            }, timeoutMs);
+          });
+        },
+        { timeoutMs: timeout, stableMsParam: stableMs }
+      );
+    } catch (error) {
+      // 超时或其他错误，不抛出，因为这只是一个等待操作
+    }
+  }
+
   // --- Mouse precise operations ---
 
   async mouseMove(x: number, y: number): Promise<void> {
@@ -692,7 +911,10 @@ export class BrowserController {
 
   async screenshot(options?: { fullPage?: boolean }): Promise<Buffer> {
     const page = await this.getSessionPage();
-    return await page.screenshot({ fullPage: options?.fullPage ?? false });
+    return await page.screenshot({ 
+      fullPage: options?.fullPage ?? false,
+      scale: 'css'
+    });
   }
 
   /**
@@ -707,7 +929,10 @@ export class BrowserController {
     const refs = Array.from(this.refsMap.entries());
     
     if (refs.length === 0) {
-      const buffer = await page.screenshot({ fullPage: options?.fullPage ?? false });
+      const buffer = await page.screenshot({ 
+        fullPage: options?.fullPage ?? false,
+        scale: 'css'
+      });
       return { buffer, labelCount: 0, skippedCount: 0 };
     }
 
@@ -791,7 +1016,10 @@ export class BrowserController {
     labelCount = labelData.length;
 
     // Take screenshot
-    const buffer = await page.screenshot({ fullPage: options?.fullPage ?? false });
+    const buffer = await page.screenshot({ 
+      fullPage: options?.fullPage ?? false,
+      scale: 'css'
+    });
 
     // Remove overlays
     // @ts-ignore - This code runs in browser context
@@ -820,6 +1048,33 @@ export class BrowserController {
         active: page === sessionPage,
       }))
     );
+  }
+
+  /**
+   * List all frames (including iframes) in the current page
+   */
+  async frameList(): Promise<Array<{ index: number; url: string; name: string; parentFrame: number | null }>> {
+    const page = await this.getSessionPage();
+    const frames = page.frames();
+    
+    return frames.map((frame, index) => {
+      const parentFrame = frame.parentFrame();
+      const parentIndex = parentFrame ? frames.indexOf(parentFrame) : null;
+      
+      return {
+        index,
+        url: frame.url(),
+        name: frame.name(),
+        parentFrame: parentIndex,
+      };
+    });
+  }
+
+  /**
+   * Select a frame to operate on (0 = main frame, >0 = iframe)
+   */
+  frameSelect(frameIndex: number): void {
+    this.selectedFrameIndex = frameIndex;
   }
 
   async tabNew(url?: string): Promise<void> {
@@ -944,7 +1199,7 @@ export class BrowserController {
   // --- Evaluate ---
 
   async evaluate(expression: string, timeoutMs?: number): Promise<any> {
-    const page = await this.getSessionPage();
+    const page = await this.getActiveFrame();
     const timeout = normalizeTimeoutMs(timeoutMs);
     
     try {
