@@ -4808,7 +4808,10 @@ async function handleSkillList(
     const fs = await import('fs');
     const path = await import('path');
     const homeDir = process.env.HOME || process.env.USERPROFILE || '';
-    const cwd = getCurrentCwd();
+    const cwd = client.projectPath || process.cwd();
+
+    // 确保 skills 已加载（需要 runWithCwd 上下文）
+    await runWithCwd(cwd, () => initializeSkills());
 
     // 获取所有已加载的 skills
     const loadedSkills = getAllSkills();
