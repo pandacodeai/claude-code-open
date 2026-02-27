@@ -498,6 +498,8 @@ const en: Translations = {
   'plugins.skills.source.manual': 'Manual',
   'plugins.skills.actions.view': 'View Details',
   'plugins.skills.actions.delete': 'Delete',
+  'plugins.skills.actions.enable': 'Enable',
+  'plugins.skills.actions.disable': 'Disable',
   'plugins.skills.actions.confirmDelete': 'Are you sure you want to delete this skill?',
   'plugins.skills.empty': 'No skills available',
   'plugins.skills.noResults': 'No skills found matching your search',
@@ -506,6 +508,12 @@ const en: Translations = {
   'plugins.skills.detail.version': 'Version',
   'plugins.skills.detail.path': 'Path',
   'plugins.skills.detail.author': 'Author',
+  'plugins.skills.detail.source': 'Source',
+  'plugins.skills.detail.enabled': 'Enabled',
+  'plugins.skills.detail.disabled': 'Disabled',
+  'plugins.skills.detail.argumentHint': 'Argument Hint',
+  'plugins.skills.viewContent': 'Skill Content',
+  'plugins.skills.closeModal': 'Close',
   
   // Plugins Tab
   'plugins.installed.title': 'Installed Plugins',
@@ -1623,6 +1631,8 @@ const zh: Translations = {
   'plugins.skills.source.manual': '手动',
   'plugins.skills.actions.view': '查看详情',
   'plugins.skills.actions.delete': '删除',
+  'plugins.skills.actions.enable': '启用',
+  'plugins.skills.actions.disable': '禁用',
   'plugins.skills.actions.confirmDelete': '确定要删除这个技能吗？',
   'plugins.skills.empty': '暂无可用技能',
   'plugins.skills.noResults': '未找到匹配的技能',
@@ -1631,6 +1641,12 @@ const zh: Translations = {
   'plugins.skills.detail.version': '版本',
   'plugins.skills.detail.path': '路径',
   'plugins.skills.detail.author': '作者',
+  'plugins.skills.detail.source': '来源',
+  'plugins.skills.detail.enabled': '已启用',
+  'plugins.skills.detail.disabled': '已禁用',
+  'plugins.skills.detail.argumentHint': '参数提示',
+  'plugins.skills.viewContent': '技能内容',
+  'plugins.skills.closeModal': '关闭',
   
   // Plugins Tab
   'plugins.installed.title': '已安装插件',
