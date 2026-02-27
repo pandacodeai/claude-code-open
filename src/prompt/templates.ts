@@ -96,7 +96,6 @@ export function getToolGuidelines(
     hasSkillTool ? `/<skill-name> (e.g., /commit) is shorthand for users to invoke a user-invocable skill. When executed, the skill gets expanded to a full prompt. Use the ${skill} tool to execute them. IMPORTANT: Only use ${skill} for skills listed in its user-invocable skills section - do not guess or use built-in CLI commands.` : null,
     'You can call multiple tools in a single response. If you intend to call multiple tools and there are no dependencies between them, make all independent tool calls in parallel. Maximize use of parallel tool calls where possible to increase efficiency. However, if some tool calls depend on previous calls to inform dependent values, do NOT call these tools in parallel and instead call them sequentially. For instance, if one operation must complete before another starts, run these operations sequentially instead.',
     toolNames.has('Database') ? 'Use the Database tool to directly query databases (postgres/mysql/sqlite/redis/mongo), instead of calling mysql/psql/redis-cli via Bash. Database tool provides structured results, readonly safety mode, and connection management.' : null,
-    toolNames.has('Debugger') ? 'Use the Debugger tool to set breakpoints, inspect call stacks and variable values, and step through code. Prefer Debugger over adding console.log statements for debugging.' : null,
   ];
 
   return ['# Using your tools', ...items.filter(item => item !== null).flatMap(item =>
