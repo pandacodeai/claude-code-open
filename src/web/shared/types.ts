@@ -1604,6 +1604,38 @@ export interface PluginInfo {
 }
 
 /**
+ * Skill 信息
+ */
+export interface SkillInfo {
+  /** skill 名称（完整名称，如 plugin:skillname） */
+  name: string;
+  /** 显示名称（去掉 prefix） */
+  displayName: string;
+  /** skill 描述 */
+  description: string;
+  /** 来源类型 */
+  source: 'plugin' | 'smithery' | 'manual';
+  /** 来源插件名（plugin 类型时） */
+  sourceName?: string;
+  /** 文件路径 */
+  path: string;
+  /** 是否启用 */
+  enabled: boolean;
+  /** 是否可被用户调用 */
+  userInvocable: boolean;
+  /** 指定的模型 */
+  model?: string;
+  /** 允许的工具列表 */
+  allowedTools?: string[];
+  /** 参数提示 */
+  argumentHint?: string;
+  /** 版本号 */
+  version?: string;
+  /** 作者 */
+  author?: string;
+}
+
+/**
  * 插件列表响应负载
  */
 export interface PluginListPayload {

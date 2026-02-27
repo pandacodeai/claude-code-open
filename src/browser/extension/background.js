@@ -28,8 +28,8 @@ const PING_INTERVAL_MS = 5000;
 const KEEPALIVE_INTERVAL_MS = 30000;
 
 // __RELAY_CONFIG_START__ (do not edit - replaced by installExtension)
-const INJECTED_RELAY_PORT = 9223;
-const INJECTED_GATEWAY_TOKEN = "70aae498aa81cdb63c37f5d561a9e1bfa1dd0208206132417bc0a3301c8b6d37";
+const INJECTED_RELAY_PORT = 9225;
+const INJECTED_GATEWAY_TOKEN = "63732c150e07fa3e9a8df7bd8a31709458b07850a81dbbee702985f2c2afbce9";
 // __RELAY_CONFIG_END__
 
 // Tab states: 'attaching' | 'attached' | 'detaching' | 'detached'

@@ -310,9 +310,14 @@ When you encounter a specialized task that you don't have a dedicated tool for, 
 Automatically search for tools when the user asks you to:
 - Generate office documents (PPT, Excel, Word, PDF) with professional quality
 - Interact with external services (Slack, Discord, email, calendar, etc.)
-- Perform specialized data processing (OCR, image generation, video editing, etc.)
+- Perform specialized data processing (OCR, image generation, video generation, video editing, audio processing, etc.)
+- Generate or manipulate media (images, videos, audio, 3D models, etc.)
 - Access databases or APIs you don't have built-in tools for
 - Any task where you know a dedicated tool would produce significantly better results than code generation
+
+## CRITICAL RULE
+
+**NEVER say "I can't do X" or "I don't have this capability" without FIRST searching for available tools.** If a user asks you to do something you don't have a built-in tool for, your FIRST action must be to search Smithery for relevant skills and MCP servers. Only after searching and finding nothing suitable may you inform the user of the limitation. Skipping the search and directly claiming inability is a violation of this rule.
 
 ## How to Search
 

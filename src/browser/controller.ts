@@ -436,35 +436,36 @@ export class BrowserController {
     if (options?.interactive) {
       try {
         const activeFrame = targetFrame || page;
-        const clickableElements = await activeFrame.evaluate(() => {
-          const elements: Array<{ text: string; tag: string; selector: string }> = [];
+        // @ts-ignore - runs in browser context, DOM APIs not available in Node types
+        const clickableElements: Array<{ text: string; tag: string; selector: string }> = await activeFrame.evaluate(() => {
+          const elements: any[] = [];
           const standardTags = new Set(['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA']);
           
-          const allElements = document.querySelectorAll('*');
-          allElements.forEach((el, index) => {
-            const htmlEl = el as HTMLElement;
-            
+          const allElements = (globalThis as any).document.querySelectorAll('*');
+          let idx = 0;
+          allElements.forEach((el: any) => {
+            idx++;
             // 跳过标准交互元素
-            if (standardTags.has(htmlEl.tagName)) return;
+            if (standardTags.has(el.tagName)) return;
             
             // 检查 cursor:pointer
-            const computedStyle = globalThis.getComputedStyle(htmlEl);
+            const computedStyle = (globalThis as any).getComputedStyle(el);
             if (computedStyle.cursor !== 'pointer') return;
             
             // 检查可见性和尺寸
-            const rect = htmlEl.getBoundingClientRect();
+            const rect = el.getBoundingClientRect();
             if (rect.width < 10 || rect.height < 10) return;
-            if (rect.top > globalThis.innerHeight || rect.bottom < 0) return;
+            if (rect.top > (globalThis as any).innerHeight || rect.bottom < 0) return;
             
             // 获取文本内容
-            let text = htmlEl.innerText || htmlEl.textContent || '';
+            let text = el.innerText || el.textContent || '';
             text = text.trim().slice(0, 50); // 限制长度
             if (!text) return;
             
             // 生成唯一的 selector
-            const selector = `${htmlEl.tagName.toLowerCase()}:nth-of-type(${index})`;
+            const selector = `${el.tagName.toLowerCase()}:nth-of-type(${idx})`;
             
-            elements.push({ text, tag: htmlEl.tagName, selector });
+            elements.push({ text, tag: el.tagName, selector });
           });
           
           return elements;
@@ -816,13 +817,13 @@ export class BrowserController {
     const stableMs = options?.stableMs ?? 500;
     
     try {
+      // @ts-ignore - runs in browser context, MutationObserver/document not available in Node types
       await page.evaluate(
-        ({ timeoutMs, stableMsParam }) => {
+        ({ timeoutMs, stableMsParam }: { timeoutMs: number; stableMsParam: number }) => {
           return new Promise<void>((resolve) => {
-            let timer = setTimeout(() => resolve(), stableMsParam);
-            let timeoutTimer: NodeJS.Timeout | null = null;
+            let timer: any = setTimeout(() => resolve(), stableMsParam);
             
-            const observer = new MutationObserver(() => {
+            const observer = new (globalThis as any).MutationObserver(() => {
               clearTimeout(timer);
               timer = setTimeout(() => {
                 if (observer) {
@@ -832,14 +833,14 @@ export class BrowserController {
               }, stableMsParam);
             });
             
-            observer.observe(document.body, {
+            observer.observe((globalThis as any).document.body, {
               childList: true,
               subtree: true,
               attributes: true,
             });
             
             // 超时后停止观察并 resolve
-            timeoutTimer = setTimeout(() => {
+            setTimeout(() => {
               if (observer) {
                 observer.disconnect();
               }
