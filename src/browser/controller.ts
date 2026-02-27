@@ -9,10 +9,11 @@
 
 import type { Locator, Page } from 'playwright-core';
 import type { BrowserManager } from './manager.js';
-import type { SnapshotResult, TabInfo, CookieOptions, RefEntry } from './types.js';
+import type { SnapshotResult, TabInfo, CookieOptions, RefEntry, DownloadInfo, DialogInfo } from './types.js';
 import { isNavigationAllowed } from './navigation-guard.js';
 import { toAIFriendlyError, normalizeTimeoutMs } from './errors.js';
 import WebSocket from 'ws';
+import * as path from 'node:path';
 
 const INTERACTIVE_ROLES = new Set([
   'button', 'link', 'textbox', 'checkbox', 'radio', 'combobox',
@@ -30,6 +31,15 @@ export class BrowserController {
   private consoleMessages: string[] = [];
   private pageErrors: string[] = [];
   private listenersAttached = false;
+  
+  // Dialog 自动处理
+  private lastDialog: DialogInfo | null = null;
+  private dialogQueue: DialogInfo[] = [];
+  private autoAcceptDialogs: boolean = true; // 默认自动接受弹窗避免卡死
+  
+  // Download 处理
+  private downloads: DownloadInfo[] = [];
+  private downloadListenerAttached = false;
 
   // 会话专属 tab：每个 controller 实例拥有独立的 tab，不与用户冲突
   private dedicatedPage: Page | null = null;
@@ -67,27 +77,35 @@ export class BrowserController {
 
     let page: Page | undefined;
 
-    // 策略1: 创建新 tab（推荐，保证隔离）
-    try {
-      page = await context.newPage();
-    } catch {
-      // 创建失败时回退到策略2
+    // 策略1: 优先复用未被占用的空白页（避免产生多余空 tab）
+    const pages = browser.contexts().flatMap(c => c.pages());
+    page = pages.find(p => !p.isClosed() && !this.manager.isPageClaimed(p) &&
+      (p.url() === 'about:blank' || p.url() === ''));
+
+    // 策略2: 没有空白页，创建新 tab
+    let isNewlyCreated = false;
+    if (!page) {
+      try {
+        page = await context.newPage();
+        isNewlyCreated = true;
+      } catch {
+        // 创建失败时回退到策略3
+      }
     }
 
-    // 策略2: 回退 — 找一个未被其他会话占用的已有 page
+    // 策略3: 回退 — 找一个未被占用的任意 page
     if (!page) {
-      const pages = browser.contexts().flatMap(c => c.pages());
-      // 优先找未被占用的空白页
-      page = pages.find(p => !p.isClosed() && !this.manager.isPageClaimed(p) &&
-        (p.url() === 'about:blank' || p.url() === ''));
-      if (!page) {
-        // 找未被占用的任意 page
-        page = pages.find(p => !p.isClosed() && !this.manager.isPageClaimed(p));
-      }
+      page = pages.find(p => !p.isClosed() && !this.manager.isPageClaimed(p));
     }
 
     if (!page) {
       throw new Error('Cannot create or find an available tab. All tabs are claimed by other sessions.');
+    }
+
+    // 新创建的 tab 需要等待 extension auto-attach（extension 有 500ms 延迟）
+    // 否则 Playwright 发的 CDP 命令和事件监听无法到达 extension
+    if (isNewlyCreated && this.manager.isExtensionConnected()) {
+      await new Promise(resolve => setTimeout(resolve, 800));
     }
 
     this.dedicatedPage = page;
@@ -175,6 +193,37 @@ export class BrowserController {
       }
     });
 
+    // 监听 dialog 事件（alert/confirm/prompt/beforeunload）
+    page.on('dialog', async (dialog) => {
+      const info: DialogInfo = {
+        type: dialog.type(),
+        message: dialog.message(),
+        handled: false,
+      };
+      this.dialogQueue.push(info);
+      this.lastDialog = info;
+      
+      // 保留最近 10 条
+      if (this.dialogQueue.length > 10) {
+        this.dialogQueue.shift();
+      }
+      
+      // 自动处理模式：立即接受弹窗避免页面挂死
+      if (this.autoAcceptDialogs) {
+        try {
+          if (dialog.type() === 'prompt') {
+            await dialog.accept('');
+          } else {
+            await dialog.accept();
+          }
+          info.handled = true;
+          info.response = 'auto-accepted';
+        } catch {
+          // dialog 可能已被处理
+        }
+      }
+    });
+
     this.listenersAttached = true;
   }
 
@@ -183,7 +232,7 @@ export class BrowserController {
   /**
    * Check if page is responsive
    */
-  private async isPageResponsive(timeoutMs: number = 3000): Promise<boolean> {
+  private async isPageResponsive(timeoutMs: number = 5000): Promise<boolean> {
     try {
       // 检查专属 tab 是否响应（如果还没有专属 tab，视为响应正常）
       if (!this.dedicatedPage || this.dedicatedPage.isClosed()) {
@@ -261,16 +310,17 @@ export class BrowserController {
 
   // --- Snapshot ---
 
-  async snapshot(options?: { interactive?: boolean }): Promise<SnapshotResult> {
-    // Health check: recover from hung page
-    const isResponsive = await this.isPageResponsive();
+  async snapshot(options?: { interactive?: boolean; skipHealthCheck?: boolean }): Promise<SnapshotResult> {
+    // Health check: recover from hung page (skip when caller already verified, e.g. after goto)
+    const isResponsive = options?.skipHealthCheck ? true : await this.isPageResponsive();
     if (!isResponsive) {
       try {
         await this.terminateExecution();
         // Wait a bit for recovery
         await new Promise(resolve => setTimeout(resolve, 500));
-      } catch (error) {
-        throw new Error('Page is unresponsive and recovery failed. Please reload the page.');
+      } catch {
+        // Recovery failed, but don't give up — let ariaSnapshot below
+        // determine if the page is truly unusable.
       }
     }
 
@@ -282,9 +332,38 @@ export class BrowserController {
     this.refsMap.clear();
     this.refCounter = 0;
 
-    const ariaYaml = await page.locator('body').ariaSnapshot({ timeout: 10000 });
+    // Parse ariaSnapshot YAML for a single frame, assigning ref IDs
+    const roleNameCount = new Map<string, number>();
+    const parseAriaYaml = (ariaYaml: string, frameIndex: number, interactive?: boolean): string[] => {
+      const lines = ariaYaml.split('\n');
+      const outputLines: string[] = [];
+      for (const line of lines) {
+        const match = line.match(/^(\s*- )(\w+)(?:\s+"([^"]*)")?(.*)$/);
+        if (match) {
+          const [, prefix, role, name, rest] = match;
+          const isInteractive = INTERACTIVE_ROLES.has(role);
+          if (interactive && !isInteractive) continue;
+          if (name !== undefined) {
+            const key = `${frameIndex}:${role}:${name}`;
+            const count = roleNameCount.get(key) || 0;
+            roleNameCount.set(key, count + 1);
+            this.refCounter++;
+            const refId = `e${this.refCounter}`;
+            this.refsMap.set(refId, { role, name, nth: count, frameIndex });
+            outputLines.push(`${prefix}${role} "${name}" [ref=${refId}]${rest}`);
+          } else {
+            outputLines.push(line);
+          }
+        } else {
+          if (!interactive) outputLines.push(line);
+        }
+      }
+      return outputLines;
+    };
 
-    if (!ariaYaml) {
+    // --- Main frame ---
+    const mainAriaYaml = await page.locator('body').ariaSnapshot({ timeout: 10000 });
+    if (!mainAriaYaml) {
       return {
         title: await page.title(),
         url: page.url(),
@@ -292,42 +371,27 @@ export class BrowserController {
         refs: this.refsMap,
       };
     }
+    const outputLines = parseAriaYaml(mainAriaYaml, 0, options?.interactive);
 
-    // Parse ariaSnapshot YAML and assign ref IDs
-    // Format: "  - role "name" [extra]" or "  - role [extra]"
-    const roleNameCount = new Map<string, number>();
-    const lines = ariaYaml.split('\n');
-    const outputLines: string[] = [];
-
-    for (const line of lines) {
-      // Match: indent + "- " + role + optional ' "name"' + optional rest
-      const match = line.match(/^(\s*- )(\w+)(?:\s+"([^"]*)")?(.*)$/);
-
-      if (match) {
-        const [, prefix, role, name, rest] = match;
-        const isInteractive = INTERACTIVE_ROLES.has(role);
-
-        if (options?.interactive && !isInteractive) {
-          continue; // Skip non-interactive in interactive mode
+    // --- Iframes (cross-origin included) ---
+    const frames = page.frames();
+    for (let i = 1; i < frames.length; i++) {
+      try {
+        const frame = frames[i];
+        const frameUrl = frame.url();
+        // Skip blank/about frames
+        if (!frameUrl || frameUrl === 'about:blank' || frameUrl === 'about:srcdoc') continue;
+        const frameAriaYaml = await frame.locator('body').ariaSnapshot({ timeout: 3000 });
+        if (frameAriaYaml) {
+          // Extract domain for labeling
+          let frameDomain = '';
+          try { frameDomain = new URL(frameUrl).hostname; } catch {}
+          outputLines.push('');
+          outputLines.push(`=== iframe [${frameDomain || frameUrl}] ===`);
+          outputLines.push(...parseAriaYaml(frameAriaYaml, i, options?.interactive));
         }
-
-        if (name !== undefined) {
-          const key = `${role}:${name}`;
-          const count = roleNameCount.get(key) || 0;
-          roleNameCount.set(key, count + 1);
-
-          this.refCounter++;
-          const refId = `e${this.refCounter}`;
-          this.refsMap.set(refId, { role, name, nth: count });
-
-          outputLines.push(`${prefix}${role} "${name}" [ref=${refId}]${rest}`);
-        } else {
-          outputLines.push(line);
-        }
-      } else {
-        if (!options?.interactive) {
-          outputLines.push(line);
-        }
+      } catch {
+        // Skip frames that are not accessible (detached, navigating, etc.)
       }
     }
 
@@ -382,7 +446,7 @@ export class BrowserController {
     
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(500);
-    return this.snapshot();
+    return this.snapshot({ skipHealthCheck: true });
   }
 
   async goBack(): Promise<void> {
@@ -411,7 +475,17 @@ export class BrowserController {
     }
 
     const page = await this.getSessionPage();
-    let locator = page.getByRole(entry.role as any, {
+
+    // Resolve the correct frame (main frame or iframe)
+    let owner: Page | import('playwright-core').Frame = page;
+    if (entry.frameIndex && entry.frameIndex > 0) {
+      const frames = page.frames();
+      if (entry.frameIndex < frames.length) {
+        owner = frames[entry.frameIndex];
+      }
+    }
+
+    let locator = owner.getByRole(entry.role as any, {
       name: entry.name,
       exact: true,
     });
@@ -469,6 +543,118 @@ export class BrowserController {
     } catch (error) {
       throw toAIFriendlyError(error);
     }
+  }
+
+  // --- Enhanced Interactions ---
+
+  async dblclick(ref: string): Promise<void> {
+    try {
+      const locator = await this.resolveLocator(ref);
+      await locator.dblclick({ timeout: 5000 });
+    } catch (error) {
+      throw toAIFriendlyError(error);
+    }
+  }
+
+  async rightclick(ref: string): Promise<void> {
+    try {
+      const locator = await this.resolveLocator(ref);
+      await locator.click({ button: 'right', timeout: 5000 });
+    } catch (error) {
+      throw toAIFriendlyError(error);
+    }
+  }
+
+  async dragAndDrop(sourceRef: string, targetRef: string): Promise<void> {
+    try {
+      const source = await this.resolveLocator(sourceRef);
+      const target = await this.resolveLocator(targetRef);
+      await source.dragTo(target, { timeout: 10000 });
+    } catch (error) {
+      throw toAIFriendlyError(error);
+    }
+  }
+
+  async scroll(options: { ref?: string; deltaX?: number; deltaY?: number }): Promise<void> {
+    try {
+      const page = await this.getSessionPage();
+      if (options.ref) {
+        // 先滚动到指定元素可见
+        const locator = await this.resolveLocator(options.ref);
+        await locator.scrollIntoViewIfNeeded({ timeout: 5000 });
+      } else {
+        // 滚动页面（使用 mouse.wheel）
+        const dx = options.deltaX ?? 0;
+        const dy = options.deltaY ?? 300; // 默认向下滚动 300px
+        await page.mouse.wheel(dx, dy);
+      }
+    } catch (error) {
+      throw toAIFriendlyError(error);
+    }
+  }
+
+  // --- Wait mechanisms ---
+
+  async waitForSelector(selector: string, options?: { timeout?: number; state?: 'attached' | 'detached' | 'visible' | 'hidden' }): Promise<void> {
+    try {
+      const page = await this.getSessionPage();
+      await page.waitForSelector(selector, {
+        timeout: options?.timeout ?? 10000,
+        state: options?.state ?? 'visible',
+      });
+    } catch (error) {
+      throw toAIFriendlyError(error);
+    }
+  }
+
+  async waitForUrl(urlPattern: string, options?: { timeout?: number }): Promise<void> {
+    try {
+      const page = await this.getSessionPage();
+      // 支持字符串匹配和正则
+      await page.waitForURL(urlPattern, {
+        timeout: options?.timeout ?? 30000,
+      });
+    } catch (error) {
+      throw toAIFriendlyError(error);
+    }
+  }
+
+  async waitForLoadState(state: 'load' | 'domcontentloaded' | 'networkidle', options?: { timeout?: number }): Promise<void> {
+    try {
+      const page = await this.getSessionPage();
+      await page.waitForLoadState(state, {
+        timeout: options?.timeout ?? 30000,
+      });
+    } catch (error) {
+      throw toAIFriendlyError(error);
+    }
+  }
+
+  async waitForTimeout(ms: number): Promise<void> {
+    const page = await this.getSessionPage();
+    await page.waitForTimeout(Math.min(ms, 30000)); // 最多 30s
+  }
+
+  // --- Mouse precise operations ---
+
+  async mouseMove(x: number, y: number): Promise<void> {
+    const page = await this.getSessionPage();
+    await page.mouse.move(x, y);
+  }
+
+  async mouseDown(options?: { button?: 'left' | 'middle' | 'right' }): Promise<void> {
+    const page = await this.getSessionPage();
+    await page.mouse.down({ button: options?.button ?? 'left' });
+  }
+
+  async mouseUp(options?: { button?: 'left' | 'middle' | 'right' }): Promise<void> {
+    const page = await this.getSessionPage();
+    await page.mouse.up({ button: options?.button ?? 'left' });
+  }
+
+  async mouseWheel(deltaX: number, deltaY: number): Promise<void> {
+    const page = await this.getSessionPage();
+    await page.mouse.wheel(deltaX, deltaY);
   }
 
   // --- File Upload ---
@@ -649,6 +835,12 @@ export class BrowserController {
     }
 
     const newPage = await context.newPage();
+
+    // 等待 extension auto-attach 新 tab（extension 有 500ms 延迟）
+    if (this.manager.isExtensionConnected()) {
+      await new Promise(resolve => setTimeout(resolve, 800));
+    }
+
     // 新建的 tab 成为新的专属 tab
     this.dedicatedPage = newPage;
     this.listenersAttached = false;
@@ -793,5 +985,175 @@ export class BrowserController {
       consoleMessages: [...this.consoleMessages],
       pageErrors: [...this.pageErrors],
     };
+  }
+
+  // --- Dialog Handling ---
+
+  async handleDialog(action: 'accept' | 'dismiss', text?: string): Promise<DialogInfo | null> {
+    // 临时禁用自动处理，等待下一个弹窗
+    // 此方法用于 AI 主动控制弹窗行为
+    const info = this.lastDialog;
+    if (!info) {
+      return null;
+    }
+    // 返回最后一个弹窗的信息
+    return info;
+  }
+
+  getDialogHistory(): DialogInfo[] {
+    return [...this.dialogQueue];
+  }
+
+  setAutoAcceptDialogs(enabled: boolean): void {
+    this.autoAcceptDialogs = enabled;
+  }
+
+  // --- Download Handling ---
+
+  async setupDownloadListener(savePath?: string): Promise<void> {
+    if (this.downloadListenerAttached) return;
+    
+    const page = await this.getSessionPage();
+    
+    page.on('download', async (download) => {
+      const info: DownloadInfo = {
+        suggestedFilename: download.suggestedFilename(),
+        url: download.url(),
+      };
+      
+      try {
+        if (savePath) {
+          const fullPath = savePath.endsWith(download.suggestedFilename())
+            ? savePath
+            : path.join(savePath, download.suggestedFilename());
+          await download.saveAs(fullPath);
+          info.savedPath = fullPath;
+        } else {
+          // 保存到默认下载路径
+          const downloadPath = await download.path();
+          info.savedPath = downloadPath || undefined;
+        }
+      } catch (err: any) {
+        info.savedPath = `FAILED: ${err.message}`;
+      }
+      
+      this.downloads.push(info);
+      if (this.downloads.length > 50) {
+        this.downloads.shift();
+      }
+    });
+    
+    this.downloadListenerAttached = true;
+  }
+
+  getDownloads(): DownloadInfo[] {
+    return [...this.downloads];
+  }
+
+  // --- Viewport ---
+
+  async setViewport(width: number, height: number): Promise<void> {
+    const page = await this.getSessionPage();
+    await page.setViewportSize({ width, height });
+  }
+
+  // --- Storage (localStorage / sessionStorage) ---
+
+  async storageGet(type: 'local' | 'session', key?: string): Promise<any> {
+    const page = await this.getSessionPage();
+    const storageType = type === 'local' ? 'localStorage' : 'sessionStorage';
+    if (key) {
+      // @ts-ignore - runs in browser context
+      return await page.evaluate(([st, k]) => {
+        return (globalThis as any)[st].getItem(k);
+      }, [storageType, key] as const);
+    } else {
+      // @ts-ignore - runs in browser context
+      return await page.evaluate((st) => {
+        const storage = (globalThis as any)[st];
+        const result: Record<string, string> = {};
+        for (let i = 0; i < storage.length; i++) {
+          const k = storage.key(i);
+          if (k) result[k] = storage.getItem(k);
+        }
+        return result;
+      }, storageType);
+    }
+  }
+
+  async storageSet(type: 'local' | 'session', key: string, value: string): Promise<void> {
+    const page = await this.getSessionPage();
+    const storageType = type === 'local' ? 'localStorage' : 'sessionStorage';
+    // @ts-ignore - runs in browser context
+    await page.evaluate(([st, k, v]) => {
+      (globalThis as any)[st].setItem(k, v);
+    }, [storageType, key, value] as const);
+  }
+
+  async storageClear(type: 'local' | 'session'): Promise<void> {
+    const page = await this.getSessionPage();
+    const storageType = type === 'local' ? 'localStorage' : 'sessionStorage';
+    // @ts-ignore - runs in browser context
+    await page.evaluate((st) => {
+      (globalThis as any)[st].clear();
+    }, storageType);
+  }
+
+  // --- PDF ---
+
+  async generatePdf(savePath: string): Promise<string> {
+    try {
+      const page = await this.getSessionPage();
+      await page.pdf({ path: savePath });
+      return savePath;
+    } catch (error: any) {
+      if (error.message?.includes('pdf') || error.message?.includes('headless')) {
+        throw new Error('PDF generation requires headless mode. Current browser is running in headed mode.');
+      }
+      throw toAIFriendlyError(error);
+    }
+  }
+
+  // --- Network Interception ---
+
+  private activeRoutes: Map<string, () => Promise<void>> = new Map();
+
+  async networkIntercept(pattern: string, action: 'block' | 'continue' | 'fulfill', options?: { body?: string; status?: number }): Promise<void> {
+    const page = await this.getSessionPage();
+    
+    // 移除已有的同 pattern 路由
+    if (this.activeRoutes.has(pattern)) {
+      await this.activeRoutes.get(pattern)!();
+      this.activeRoutes.delete(pattern);
+    }
+    
+    await page.route(pattern, async (route) => {
+      switch (action) {
+        case 'block':
+          await route.abort();
+          break;
+        case 'continue':
+          await route.continue();
+          break;
+        case 'fulfill':
+          await route.fulfill({
+            status: options?.status ?? 200,
+            body: options?.body ?? '',
+          });
+          break;
+      }
+    });
+    
+    // 记录卸载函数
+    this.activeRoutes.set(pattern, async () => {
+      await page.unroute(pattern);
+    });
+  }
+
+  async networkAbort(pattern: string): Promise<void> {
+    if (this.activeRoutes.has(pattern)) {
+      await this.activeRoutes.get(pattern)!();
+      this.activeRoutes.delete(pattern);
+    }
   }
 }

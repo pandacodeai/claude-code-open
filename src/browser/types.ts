@@ -17,6 +17,8 @@ export interface RefEntry {
   role: string;
   name: string;
   nth: number;
+  /** Index into page.frames() — 0 = main frame, >0 = iframe */
+  frameIndex?: number;
 }
 
 export interface SnapshotResult {
@@ -39,6 +41,19 @@ export interface CookieOptions {
   httpOnly?: boolean;
   secure?: boolean;
   expires?: number;
+}
+
+export interface DownloadInfo {
+  suggestedFilename: string;
+  url: string;
+  savedPath?: string;
+}
+
+export interface DialogInfo {
+  type: string; // 'alert' | 'confirm' | 'prompt' | 'beforeunload'
+  message: string;
+  handled: boolean;
+  response?: string;
 }
 
 export type BrowserAction =
@@ -70,7 +85,29 @@ export type BrowserAction =
   | 'profile_list'
   | 'profile_create'
   | 'profile_delete'
-  | 'upload_file';
+  | 'upload_file'
+  | 'scroll'
+  | 'dblclick'
+  | 'rightclick'
+  | 'drag'
+  | 'wait_for_selector'
+  | 'wait_for_url'
+  | 'wait_for_load_state'
+  | 'wait_for_timeout'
+  | 'dialog_handle'
+  | 'download_start'
+  | 'download_list'
+  | 'mouse_move'
+  | 'mouse_down'
+  | 'mouse_up'
+  | 'mouse_wheel'
+  | 'set_viewport'
+  | 'network_intercept'
+  | 'network_abort'
+  | 'storage_get'
+  | 'storage_set'
+  | 'storage_clear'
+  | 'pdf';
 
 export interface BrowserToolInput {
   action: BrowserAction;
@@ -87,4 +124,26 @@ export interface BrowserToolInput {
   interactive?: boolean;
   profileName?: string;
   filePath?: string;
+  selector?: string;
+  timeout?: number;
+  deltaX?: number;
+  deltaY?: number;
+  x?: number;
+  y?: number;
+  button?: 'left' | 'middle' | 'right';
+  sourceRef?: string;
+  targetRef?: string;
+  dialogAction?: 'accept' | 'dismiss';
+  dialogText?: string;
+  width?: number;
+  height?: number;
+  loadState?: 'load' | 'domcontentloaded' | 'networkidle';
+  storageType?: 'local' | 'session';
+  storageKey?: string;
+  storageValue?: string;
+  routePattern?: string;
+  routeAction?: 'block' | 'continue' | 'fulfill';
+  routeBody?: string;
+  routeStatus?: number;
+  savePath?: string;
 }
