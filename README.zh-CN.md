@@ -6,7 +6,7 @@
 [![GitHub Stars](https://img.shields.io/github/stars/kill136/claude-code-open?style=flat-square)](https://github.com/kill136/claude-code-open)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![Node](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-brightgreen?style=flat-square)](https://nodejs.org)
-[![Discord](https://img.shields.io/discord/1234567890?style=flat-square&label=Discord&color=5865F2)](https://discord.gg/bNyJKk6PVZ)
+[![Discord](https://img.shields.io/discord/1454020463486566432?style=flat-square&label=Discord&color=5865F2)](https://discord.gg/bNyJKk6PVZ)
 
 [官网](https://www.chatbi.site) | [在线体验](https://claude-code-open-production.up.railway.app) | [操作手册](https://www.chatbi.site/zh/user-guide.html) | [Discord](https://discord.gg/bNyJKk6PVZ) | [English](README.md)
 
