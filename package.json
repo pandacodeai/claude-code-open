@@ -1,7 +1,7 @@
 {
   "name": "claude-code-open",
   "version": "2.1.36",
-  "description": "Open source AI coding platform with 37+ tools, Web IDE, multi-agent system, and MCP protocol support",
+  "description": "Free & open source Claude Code alternative with Web IDE, multi-agent system, and self-evolution",
   "type": "module",
   "bin": {
     "claude": "./dist/cli.js",

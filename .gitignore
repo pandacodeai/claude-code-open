@@ -15,6 +15,7 @@ dist/
 **/*secret*
 **/*password*
 **/*token*
+!src/utils/token-estimate.ts
 __tests__/*
 # Video generation intermediate files
 demo-screenshots/video-frames/
@@ -27,6 +28,14 @@ demo-screenshots/*.gif
 # 临时测试文件
 test-*.js
 test-*.cjs
+test-*.txt
+test-*.md
+*-demo.txt
+*-report.md
+*-completed.txt
+
+# WeChat bot memory
+*.memory-card.json
 
 # 推广脚本和文案
 demo-screenshots/make-video-twitter.py

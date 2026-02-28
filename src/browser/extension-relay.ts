@@ -316,12 +316,23 @@ async function createRelayServer(
     res.end('Not Found');
   });
 
+  // Handle client connection errors (e.g. ECONNRESET when Chrome is force-killed)
+  httpServer.on('clientError', (err, socket) => {
+    console.warn('[Relay] Client error (ignored):', err.message);
+    if (socket.writable) {
+      socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+    }
+  });
+
   // ======================================================================
   // WebSocket Servers
   // ======================================================================
 
   // Extension WebSocket
   const extensionWss = new WebSocketServer({ noServer: true });
+  extensionWss.on('error', (err) => {
+    console.error('[Relay] Extension WSS error (non-fatal):', err.message);
+  });
 
   extensionWss.on('connection', (ws, req) => {
     console.log('[Relay] Extension connected');
@@ -360,6 +371,9 @@ async function createRelayServer(
 
   // CDP Client WebSocket
   const cdpWss = new WebSocketServer({ noServer: true });
+  cdpWss.on('error', (err) => {
+    console.error('[Relay] CDP WSS error (non-fatal):', err.message);
+  });
 
   cdpWss.on('connection', (ws, req) => {
     console.log('[Relay] CDP client connected');
@@ -387,6 +401,11 @@ async function createRelayServer(
 
   // HTTP Upgrade Handler
   httpServer.on('upgrade', (request, socket, head) => {
+    // Prevent unhandled socket errors (e.g. ECONNRESET when Chrome is killed)
+    socket.on('error', (err) => {
+      console.warn('[Relay] Upgrade socket error (ignored):', err.message);
+    });
+
     const url = new URL(request.url || '/', `http://${request.headers.host}`);
     const wsPathname = url.pathname.replace(/\/+$/, '') || '/';
 
@@ -916,6 +935,11 @@ async function createRelayServer(
       resolve();
     });
     httpServer.on('error', reject);
+  });
+
+  // Persistent error handler for runtime (the above only covers startup)
+  httpServer.on('error', (err) => {
+    console.error('[Relay] HTTP server error (non-fatal):', err.message);
   });
 
   // Return server interface

@@ -41,7 +41,7 @@ import {
 } from '../../context/session-memory.js';
 import { initNotebookManager, getNotebookManager } from '../../memory/notebook.js';
 import { initMemorySearchManager, getMemorySearchManager } from '../../memory/memory-search.js';
-import { registerMcpServer, connectMcpServer, createMcpTools, getMcpServers, callMcpTool, disconnectMcpServer, unregisterMcpServer, type McpToolDefinition } from '../../tools/mcp.js';
+import { registerMcpServer, connectMcpServer, createMcpTools, getMcpServers, callMcpTool, disconnectMcpServer, unregisterMcpServer, MCPSearchTool, type McpToolDefinition } from '../../tools/mcp.js';
 import { getChromeIntegrationConfig } from '../../chrome-mcp/index.js';
 import { CHROME_MCP_TOOLS } from '../../chrome-mcp/tools.js';
 import { RewindManager, type RewindOption } from '../../rewind/index.js';
@@ -477,6 +477,8 @@ export class ConversationManager {
   private webScheduler?: import('./web-scheduler.js').WebScheduler;
   /** 广播回调（由 index.ts 注入，用于 ErrorWatcher 通知等） */
   private broadcastFn?: (msg: any) => void;
+  /** AI 通过 McpManage enable 的临时 MCP 服务器，工具调用完毕后自动 disable */
+  private temporarilyEnabledMcpServers = new Set<string>();
 
   constructor(cwd: string, defaultModel: string = 'opus', options?: { verbose?: boolean }) {
     this.cwd = cwd;
@@ -559,6 +561,9 @@ export class ConversationManager {
       authToken: clientConfig.authToken,
       baseUrl: clientConfig.baseUrl,
     });
+    // 注册实时凭证提供者：每次启动执行时实时获取最新凭证
+    // 避免用户在 UI 中切换认证方式（如删除 API Key 后改用 OAuth）后，子 agent 仍使用旧凭证
+    executionManager.setCredentialsProvider(() => this.getClientConfig());
 
     // Skills 会在 SkillTool 第一次执行时延迟初始化
     // 此时在 runWithCwd 上下文中，可以正确获取工作目录
@@ -606,6 +611,9 @@ export class ConversationManager {
     } catch (error) {
       console.warn('[ConversationManager] MCP 服务器初始化失败:', error);
     }
+
+    // 同步禁用服务器列表到 MCPSearchTool，使搜索无结果时能提示可启用的服务器
+    this.syncDisabledServersToSearchTool();
 
     // 初始化长期记忆搜索系统（在 initialize 中而非 getOrCreateSession 中，确保首次搜索就可用）
     try {
@@ -698,6 +706,15 @@ export class ConversationManager {
       // 忽略
     }
     return [];
+  }
+
+  /**
+   * 同步禁用服务器列表到 MCPSearchTool
+   * 使 MCPSearchTool 搜索无结果时能提示有哪些已安装但禁用的服务器
+   */
+  private syncDisabledServersToSearchTool(): void {
+    const disabledServers = this.getDisabledMcpServers();
+    MCPSearchTool.disabledServers = disabledServers;
   }
 
   /**
@@ -1271,6 +1288,19 @@ export class ConversationManager {
       // 防止被插话强制重置后，旧 conversationLoop 的 finally 覆盖新循环的状态
       if (state.processingGeneration === currentGeneration) {
         state.isProcessing = false;
+      }
+      // 自动 disable AI 临时启用的 MCP 服务器（对话轮次结束后统一清理）
+      if (this.temporarilyEnabledMcpServers.size > 0) {
+        const servers = [...this.temporarilyEnabledMcpServers];
+        this.temporarilyEnabledMcpServers.clear();
+        for (const serverName of servers) {
+          try {
+            await this.toggleMcpServer(serverName, false);
+            console.log(`[MCP] 对话结束，自动禁用临时 MCP 服务器: ${serverName}`);
+          } catch (err) {
+            console.warn(`[MCP] 自动禁用 MCP 服务器 ${serverName} 失败:`, err);
+          }
+        }
       }
       // 通知 WebScheduler 对话空闲，可能有待投递的闹钟
       if (sessionId) {
@@ -2881,6 +2911,12 @@ export class ConversationManager {
             const enabled = input.action === 'enable';
             const result = await this.toggleMcpServer(input.name, enabled);
             if (result.success) {
+              // 记录 AI 临时启用的 MCP 服务器，用完后自动 disable
+              if (enabled) {
+                this.temporarilyEnabledMcpServers.add(input.name);
+              } else {
+                this.temporarilyEnabledMcpServers.delete(input.name);
+              }
               const output = `MCP server "${input.name}" has been ${result.enabled ? 'enabled' : 'disabled'}.`;
               callbacks.onToolResult?.(toolUse.id, true, output);
               return { success: true, output };
@@ -4567,6 +4603,9 @@ Guidelines:
           console.warn(`[ConversationManager] 重新连接 MCP 服务器 ${name} 失败:`, err);
         }
       }
+
+      // 同步禁用服务器列表到 MCPSearchTool
+      this.syncDisabledServersToSearchTool();
 
       console.log(`[ConversationManager] MCP 服务器 ${name} ${newEnabled ? '已启用' : '已禁用'}, mcpTools 剩余: ${this.mcpTools.length}, 工具名: [${this.mcpTools.map(t => t.name).join(', ')}]`);
       return { success: true, enabled: newEnabled };

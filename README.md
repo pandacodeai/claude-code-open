@@ -1,128 +1,75 @@
-# Claude Code Open - Open Source AI Coding Platform
+# Claude Code Open
 
-> The world needs an open-source Claude Code. It will become the foundational infrastructure of AI in the future, running on every PC.
+### Free & Open Source Claude Code with Web IDE, Multi-Agent, and Self-Evolution
 
-[![Website](https://img.shields.io/badge/Website-chatbi.site-blue?style=flat-square)](https://www.chatbi.site)
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-voicegpt.site:3456-orange?style=flat-square)](http://voicegpt.site:3456/)
+[![npm](https://img.shields.io/npm/v/claude-code-open?style=flat-square&color=CB3837)](https://www.npmjs.com/package/claude-code-open)
 [![GitHub Stars](https://img.shields.io/github/stars/kill136/claude-code-open?style=flat-square)](https://github.com/kill136/claude-code-open)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![Node](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-brightgreen?style=flat-square)](https://nodejs.org)
+[![Discord](https://img.shields.io/discord/1234567890?style=flat-square&label=Discord&color=5865F2)](https://discord.gg/bNyJKk6PVZ)
 
-[Visit Website](https://www.chatbi.site) | [Live Demo](http://voicegpt.site:3456/) | [中文文档](README.zh-CN.md) | [操作手册](https://www.chatbi.site/zh/user-guide.html) | [Discord](https://discord.gg/bNyJKk6PVZ)
+[Website](https://www.chatbi.site) | [Live Demo](https://claude-code-open-production.up.railway.app) | [User Guide](https://www.chatbi.site/zh/user-guide.html) | [Discord](https://discord.gg/bNyJKk6PVZ) | [中文](README.zh-CN.md)
 
 <div align="center">
 
-### Demo
-
-<a href="http://voicegpt.site:3456/">
-<img src="demo-screenshots/01-main.png" width="720" alt="Claude Code Open - Web IDE Interface">
+<a href="https://claude-code-open-production.up.railway.app">
+<img src="demo-screenshots/01-main.png" width="720" alt="Claude Code Open - Web IDE">
 </a>
-
-**Web UI IDE** &bull; **Blueprint Multi-Agent** &bull; **37+ Tools** &bull; **Self-Evolution**
-
-<table>
-<tr>
-<td><img src="demo-screenshots/02-blueprint.png" width="400" alt="Blueprint System"></td>
-<td><img src="demo-screenshots/05-typing.png" width="400" alt="Real-time AI Streaming"></td>
-</tr>
-<tr>
-<td align="center"><b>Blueprint Multi-Agent System</b></td>
-<td align="center"><b>Real-time AI Streaming</b></td>
-</tr>
-</table>
-
-> [Watch Promo Video](demo-screenshots/promo-video.mp4) &bull; [Try Live Demo](http://voicegpt.site:3456/) &bull; [Join Discord](https://discord.gg/bNyJKk6PVZ)
 
 </div>
 
-A reverse-engineered open-source reimplementation based on `@anthropic-ai/claude-code`.
-
-**For educational and research purposes only.**
-
-## Disclaimer
-
-This is an educational project for studying and learning CLI tool architecture design. This is **NOT** the official Claude Code source code, but a reimplementation based on public APIs and type definitions.
-
-For the official Claude Code, please install the official version:
-```bash
-npm install -g @anthropic-ai/claude-code
-```
-
-## Features at a Glance
-
-| Category | Highlights |
-| --- | --- |
-| **37+ Built-in Tools** | File ops, search, execution, web access, task management, scheduled tasks, browser automation, and more |
-| **Web UI IDE** | Full browser IDE with Monaco editor, file tree, AI-enhanced editing, Blueprint visualization, Swarm console |
-| **Blueprint Multi-Agent** | Smart Planner + Lead Agent + Autonomous Workers + Task Queue + Quality Reviewer + E2E Testing |
-| **One-Click Installer** | Automated scripts for Windows/macOS/Linux with auto dependency detection (Node.js, Git, g++, make) |
-| **Scheduled Task Daemon** | Background daemon for time-based tasks, interval jobs, file watching, and multi-channel notifications |
-| **Self-Evolution** | AI can modify its own source code with safety checks and hot-reload |
-| **Checkpoint & Rewind** | File snapshot management and session time-travel |
-| **Memory System** | Vector store, BM25 search, intent extraction, conversation memory |
-| **MCP Protocol** | Full Model Context Protocol with auto-discovery (stdio, HTTP, SSE) |
-| **Multi-Provider** | Anthropic, AWS Bedrock, Google Vertex AI |
-| **Proxy Server** | Share your Claude subscription across devices |
-| **Browser Automation** | Custom browser control + Chrome MCP integration + Playwright support |
-| **i18n** | Chinese and English language support |
-| **Feishu Bot** | Feishu (Lark) messaging integration with Web UI mode |
-| **WeChat Bot** | WeChat messaging integration |
-| **Docker Support** | Containerized deployment with mirror acceleration |
-| **Auto-Update** | Version management with rollback support |
-| **Plugin & Hook System** | Extensible architecture with lifecycle hooks |
-| **Fast Mode** | Optimized output speed using the same model |
-| **Extended Thinking** | Extended reasoning mode for deeper analysis |
-| **Teams** | Team collaboration features |
-
 ## Why Claude Code Open?
 
-- **Open Source & Transparent** — Full MIT licensed source code. No black boxes, complete community-driven development.
-- **Web UI IDE Experience** — Not just a CLI. A complete browser-based IDE with Monaco editor, VS Code-style file tree, AI-enhanced code editing (hover tips, ask AI, code tour, heatmap decorations), Blueprint visualization, and Swarm multi-agent console.
-- **Multi-Agent Collaboration** — Blueprint system breaks complex tasks across multiple AI agents working in parallel, with E2E testing, visual comparison, and verification services.
-- **24/7 Automation** — Scheduled task daemon runs AI workflows automatically: natural language time config, file watching, multi-channel notifications (Desktop + Feishu), SQLite persistence.
-- **One-Click Install** — Single command for Windows/macOS/Linux. Auto-detects and installs missing dependencies (Node.js, Git, g++, make). Creates desktop shortcuts automatically.
-- **Self-Evolution** — The AI can modify its own source code, run TypeScript compilation checks, and hot-reload — enabling continuous self-improvement.
+| | Official Claude Code | Claude Code Open |
+|---|---|---|
+| **Price** | $20/month (Max plan required) | Free (bring your own API key) |
+| **Interface** | Terminal only | Terminal + **Web IDE** (Monaco editor, file tree, AI-enhanced editing) |
+| **Complex tasks** | Single agent | **Multi-agent Blueprint** system (parallel workers, task queue, auto-review) |
+| **Customization** | Closed source | Fully open source, **Self-Evolution** (AI modifies its own code) |
+| **Deployment** | Local only | Local, Docker, Cloud, **share via Proxy Server** |
+| **Integrations** | GitHub only | GitHub, Feishu, WeChat, MCP protocol, 37+ tools |
 
-## Quick Installation (Recommended)
-
-### Method 1: npm (Recommended)
-
-Requires [Node.js](https://nodejs.org/) >= 18 already installed.
+## Quick Start
 
 ```bash
+# Install globally
 npm install -g claude-code-open
+
+# Set your API key
+export ANTHROPIC_API_KEY="sk-..."  # or on Windows: $env:ANTHROPIC_API_KEY="sk-..."
+
+# CLI mode
+claude
+
+# Web IDE mode
+claude-web
 ```
 
-After install, run `claude` (CLI) or `claude-web` (Web UI). A desktop shortcut is created automatically on Windows/Linux.
+That's it. Open `http://localhost:3456` for the Web IDE.
 
-### Method 2: One-Click Installer
+### Other install methods
 
-For users who don't have Node.js or any dev tools installed. The script handles everything automatically.
+<details>
+<summary>One-click installer (no Node.js required)</summary>
 
-**Windows:**
-
-[![Windows Installer](https://img.shields.io/badge/Windows-Download%20Installer-blue?style=for-the-badge&logo=windows)](https://github.com/kill136/claude-code-open/releases/latest/download/install.bat)
-[![Gitee Mirror](https://img.shields.io/badge/Gitee-China%20Mirror-orange?style=for-the-badge&logo=gitee)](https://gitee.com/lubanbbs/claude-code-open/raw/private_web_ui/install.bat)
-
-Download `install.bat`, double-click to run. Done.
+**Windows:** Download [install.bat](https://github.com/kill136/claude-code-open/releases/latest/download/install.bat) and double-click.
 
 **macOS / Linux:**
-
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.sh | bash
 ```
 
-China mirror:
+**China mirror:**
 ```bash
 curl -fsSL https://gitee.com/lubanbbs/claude-code-open/raw/private_web_ui/install.sh | bash
 ```
+</details>
 
-The installer will: detect & install Node.js/Git, clone repo, build, create desktop shortcut, link global commands.
-
-### Method 3: Docker
+<details>
+<summary>Docker</summary>
 
 ```bash
-# Web UI
+# Web IDE
 docker run -it \
   -e ANTHROPIC_API_KEY=your-api-key \
   -p 3456:3456 \
@@ -137,258 +84,92 @@ docker run -it \
   -v ~/.claude:/root/.claude \
   claude-code-open
 ```
+</details>
 
-Build the image yourself: `docker build -t claude-code-open .` (China: add `--build-arg REGISTRY=docker.1ms.run`)
-
-### Configuration
-
-Set your API key:
+<details>
+<summary>From source</summary>
 
 ```bash
-# Environment variable
-export ANTHROPIC_API_KEY="sk-..."
+git clone https://github.com/kill136/claude-code-open.git
+cd claude-code-open
+npm install && npm run build
+node dist/cli.js        # CLI
+node dist/web-cli.js    # Web IDE
+```
+</details>
 
-# Or on Windows PowerShell
-$env:ANTHROPIC_API_KEY="sk-..."
+## Key Features
+
+### Web IDE
+
+A full browser-based IDE built with React + Monaco Editor + WebSocket:
+
+- **Monaco Editor** with multi-tab, syntax highlighting, AI hover tips
+- **VS Code-style file tree** with right-click context menus
+- **AI-enhanced editing** — select code and ask AI, code tour, heatmap decorations
+- **Real-time streaming** of AI responses via WebSocket
+- **Session management** — create, resume, fork, export
+- **Checkpoint & Rewind** — file snapshots and session time-travel
+
+<table>
+<tr>
+<td><img src="demo-screenshots/01-main.png" width="400" alt="Web IDE"></td>
+<td><img src="demo-screenshots/05-typing.png" width="400" alt="Real-time Streaming"></td>
+</tr>
+</table>
+
+### Blueprint Multi-Agent System
+
+Break complex tasks across multiple AI agents working in parallel:
+
+- **Smart Planner** — decomposes tasks into an execution plan
+- **Lead Agent** — coordinates workers, tracks progress
+- **Autonomous Workers** — independent execution with full tool access
+- **Task Queue** — priority-based scheduling with persistence
+- **Quality Reviewer** — automated review and verification
+
+<img src="demo-screenshots/02-blueprint.png" width="600" alt="Blueprint System">
+
+### Self-Evolution
+
+The AI can modify its own source code, run TypeScript compilation checks, and hot-reload:
+
+```
+You: "Add a new tool that queries weather data"
+Claude: *writes the tool, compiles, restarts itself, tool is now available*
 ```
 
-| Variable | Purpose |
-| --- | --- |
-| `ANTHROPIC_API_KEY` / `CLAUDE_API_KEY` | API authentication |
-| `ANTHROPIC_BASE_URL` | Custom API endpoint (default: `https://api.anthropic.com`) |
+### 37+ Built-in Tools
 
-## Usage
+| Category | Tools |
+|---|---|
+| File ops | Read, Write, Edit, MultiEdit, Glob, Grep |
+| Execution | Bash, background tasks, task output |
+| Web | WebFetch, WebSearch |
+| Code | NotebookEdit, LSP, Tree-sitter parsing |
+| Browser | Playwright-based automation |
+| Planning | Plan mode, Blueprint, sub-agents |
+| Memory | Semantic search, vector store, BM25 |
+| Integration | MCP protocol, Skills system |
+| Scheduling | Cron-like daemon, file watching, notifications |
 
-### CLI Mode
+### More
 
-```bash
-# Interactive mode
-npm run dev
-
-# Or run after building
-node dist/cli.js
-
-# With initial prompt
-node dist/cli.js "Hello, please analyze this project"
-
-# Print mode (non-interactive)
-node dist/cli.js -p "Explain this code"
-
-# Specify model (opus/sonnet/haiku)
-node dist/cli.js -m opus "Complex task"
-
-# Resume last session
-node dist/cli.js --resume
-
-# List sessions
-node dist/cli.js --list
-
-# Fork a session
-node dist/cli.js --fork <session-id>
-```
-
-### Web UI Mode
-
-```bash
-# Development mode
-npm run web
-
-# Production mode
-npm run web:start
-
-# Custom port and host
-npm run web -- -p 8080 -H 0.0.0.0
-
-# With ngrok public tunnel
-npm run web -- --ngrok
-
-# Self-evolution mode
-npm run web:evolve
-```
-
-### Proxy Server Mode
-
-Share your Claude subscription with other devices:
-
-```bash
-# Start proxy server
-npm run proxy
-# or after building
-node dist/proxy-cli.js --proxy-key my-secret
-
-# Client usage (on other devices)
-export ANTHROPIC_API_KEY="my-secret"
-export ANTHROPIC_BASE_URL="http://your-server-ip:8082"
-claude
-```
-
-### Feishu Bot Mode
-
-```bash
-# Start Feishu bot
-npm run feishu
-
-# Feishu bot with Web UI
-npm run feishu:webui
-```
-
-### WeChat Bot Mode
-
-```bash
-npm run wechat
-```
-
-## Web UI Features
-
-The Web UI is a full-featured browser-based IDE built with React, Express, and WebSocket:
-
-```bash
-npm run web
-# Open http://localhost:3456
-```
-
-**Core Features:**
-- **Monaco Editor** — Multi-tab code editing with syntax highlighting
-- **File Tree** — VS Code-style file browser with right-click context menus
-- **AI-Enhanced Editing** — Intelligent hover tips, select-to-ask AI, code tour, heatmap decorations
-- **Real-time WebSocket** — Live streaming of AI responses
-- **Session Management** — Create, resume, fork, and export sessions
-- **Blueprint Visualization** — Visual task decomposition and agent coordination
-- **Swarm Console** — Multi-agent monitoring with task tree, architecture flow graph
-- **Terminal Integration** — In-browser terminal panel
-- **Checkpoint & Rewind** — File snapshot management and session time-travel
-- **Continuous Development** — Cycle review, impact analysis, TDD panel
-- **Authentication** — OAuth and API key support
-- **Artifacts Panel** — Rich content rendering
-- **Debug Panel** — Development debugging tools
-
-## Blueprint Multi-Agent System
-
-Orchestrate complex tasks with multiple AI agents working in parallel:
-
-- **Smart Planner** — Intelligent task decomposition and planning (97KB of planning logic)
-- **Lead Agent** — Coordinates worker agents, tracks progress, auto-project-selection
-- **Autonomous Workers** — Independent task execution with full tool access
-- **Task Queue** — Priority-based task scheduling with persistence
-- **Task Reviewer** — Quality assurance and verification
-- **Real-time Coordinator** — Agent communication, synchronization, and conflict resolution
-- **Model Selector** — Adaptive model selection per task complexity
-- **E2E Test Agent** — End-to-end testing automation
-- **Environment Checker** — Runtime environment validation
-- **Visual Comparator** — Visual diff and comparison
-- **Verification Service** — Result verification pipeline
-
-## Scheduled Task Daemon
-
-A background daemon system for automated task execution:
-
-**Features:**
-- **Time-based Tasks** — Natural language scheduling ("tomorrow 3pm", "every day at 9am", "in 2 hours")
-- **File Watching** — Monitor file changes and trigger AI tasks automatically
-- **Multi-channel Notifications** — Desktop notifications and Feishu (Lark) messaging
-- **Persistent Storage** — SQLite-based task storage survives restarts
-- **Model Selection** — Choose different Claude models per task
-
-**Usage:**
-```bash
-# Start daemon
-claude daemon start
-
-# Schedule via conversation
-"Schedule a daily code review at 9am and notify me on Feishu"
-```
-
-**Task Types:** `once` (one-time), `interval` (recurring), `watch` (file monitoring)
-
-## Implemented Tools (37+)
-
-| Tool | Description |
-| --- | --- |
-| **File Operations** | |
-| Read | File reading with image/PDF/Notebook support + external modification detection |
-| Write | File writing with overwrite protection |
-| Edit | File editing (string replacement) |
-| MultiEdit | Batch file editing (atomic operations) |
-| **Search & Discovery** | |
-| Glob | File pattern matching |
-| Grep | Content search (ripgrep-based) |
-| **Execution** | |
-| Bash | Command execution with background & sandbox support |
-| BashHistory | Command history tracking |
-| TaskOutput | Get background command/agent output |
-| **Web Access** | |
-| WebFetch | Web page fetching with caching |
-| WebSearch | Server-side web search |
-| **Task Management** | |
-| TodoWrite | Task management with auto-reminder system |
-| Task | Sub-agents (explore, plan, guide, etc.) |
-| TaskStatus | Query task execution status |
-| ScheduleTask | Create/cancel/list scheduled tasks |
-| **Planning** | |
-| EnterPlanMode | Enter plan mode |
-| ExitPlanMode | Exit plan mode |
-| **Interaction** | |
-| AskUserQuestion | Ask user questions (multiSelect, options, validation) |
-| **Code Tools** | |
-| NotebookEdit | Jupyter Notebook cell editing |
-| NotebookWrite | Jupyter Notebook creation |
-| LSP | Language Server Protocol integration |
-| **Integration** | |
-| MCP Tools | ListMcpResources, ReadMcpResource, MCPSearch |
-| Skill | Skill system with args parameter |
-| **Browser** | |
-| Browser | Custom browser automation and control |
-| **Memory** | |
-| MemorySearch | Semantic memory search |
-| **Multi-Agent** | |
-| GenerateBlueprint | Generate task execution blueprints |
-| GenerateDesign | Generate design documents |
-| StartLeadAgent | Launch lead agent coordinator |
-| DispatchWorker | Dispatch autonomous worker agents |
-| SubmitReview | Submit quality reviews |
-| SubmitE2EResult | Submit E2E test results |
-| TriggerE2ETest | Trigger E2E testing |
-| UpdateTaskPlan | Update task execution plans |
-| **Advanced** | |
-| SelfEvolve | AI self-modification with safety checks |
-| StructuredOutput | Structured data output |
-| OutputPersistence | Persistent output storage |
-| Teammate | Team collaboration |
+- **Proxy Server** — share your API key across devices
+- **Multi-provider** — Anthropic, AWS Bedrock, Google Vertex AI
+- **Plugin & Hook system** — extend with custom logic
+- **i18n** — English and Chinese
+- **Feishu & WeChat bots** — messaging integrations
 
 ## Configuration
 
-Set up your API key:
-
-**Linux/macOS:**
-```bash
-export ANTHROPIC_API_KEY=your-api-key
-```
-
-**Windows PowerShell:**
-```powershell
-$env:ANTHROPIC_API_KEY="your-api-key"
-```
-
-### Environment Variables
-
 | Variable | Description | Default |
-| --- | --- | --- |
-| `ANTHROPIC_API_KEY` / `CLAUDE_API_KEY` | API Key | - |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | API key (required) | - |
 | `ANTHROPIC_BASE_URL` | Custom API endpoint | `https://api.anthropic.com` |
-| `CLAUDE_CODE_LANG` | Language (en/zh) | auto-detect |
-| `BASH_MAX_OUTPUT_LENGTH` | Max Bash output length | 30000 |
-| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | Max output tokens | 32000 |
-| `USE_BUILTIN_RIPGREP` | Use system ripgrep | false |
-
-### Multi-Provider Support
-
-- **Anthropic** — Direct API (default)
-- **AWS Bedrock** — Set `ANTHROPIC_BEDROCK=1` and configure AWS credentials
-- **Google Vertex AI** — Set `ANTHROPIC_VERTEX=1` and configure GCP credentials
+| `CLAUDE_CODE_LANG` | Language (`en`/`zh`) | auto-detect |
 
 ### MCP Protocol
-
-Full Model Context Protocol implementation:
 
 ```json
 // .claude/settings.json
@@ -403,214 +184,36 @@ Full Model Context Protocol implementation:
 }
 ```
 
-Supports stdio, HTTP, and SSE transports with auto-discovery.
-
-### Hooks System
-
-Execute custom scripts before/after tool calls:
-
-```json
-{
-  "hooks": [
-    {
-      "event": "PreToolUse",
-      "matcher": "Bash",
-      "command": "/path/to/script.sh",
-      "blocking": true
-    }
-  ]
-}
-```
-
-Events: `PreToolUse`, `PostToolUse`, `PrePromptSubmit`, `PostPromptSubmit`, `Notification`, `Stop`
-
-## Project Structure
-
-```
-src/
-├── cli.ts                  # CLI entry point (Commander.js)
-├── web-cli.ts              # Web UI entry point
-├── proxy-cli.ts            # Proxy server entry point
-├── feishu-cli.ts           # Feishu bot entry point
-├── wechat-cli.ts           # WeChat bot entry point
-├── index.ts                # Main export barrel
-│
-├── core/                   # Core engine
-│   ├── client.ts           # Anthropic API client (streaming, retry, cost)
-│   ├── session.ts          # Session state management
-│   ├── loop.ts             # Conversation orchestrator
-│   └── backgroundTasks.ts  # Async background task processing
-│
-├── tools/                  # 37+ tools (see tools table above)
-│
-├── web/                    # Web UI system
-│   ├── server/             # Express + WebSocket backend
-│   │   ├── websocket.ts    # WebSocket handler
-│   │   ├── conversation.ts # Conversation manager
-│   │   ├── session-manager.ts
-│   │   ├── auth-manager.ts # Authentication
-│   │   ├── routes/         # API routes
-│   │   └── handlers/       # Request handlers
-│   └── client/             # React frontend
-│       └── src/
-│           ├── components/
-│           │   ├── CodeView/        # Monaco editor + file tree + AI hooks
-│           │   ├── BlueprintSummaryCard/
-│           │   ├── continuous/      # Continuous dev panels
-│           │   ├── config/          # Settings panels
-│           │   └── ...              # 40+ UI components
-│           ├── hooks/      # Custom React hooks
-│           └── contexts/   # React contexts
-│
-├── blueprint/              # Blueprint multi-agent system (16 files)
-│   ├── smart-planner.ts    # Intelligent task planner
-│   ├── lead-agent.ts       # Lead agent coordinator
-│   ├── autonomous-worker.ts # Autonomous worker
-│   ├── task-queue.ts       # Task priority queue
-│   ├── task-reviewer.ts    # Quality reviewer
-│   ├── realtime-coordinator.ts # Real-time coordination
-│   ├── model-selector.ts   # Adaptive model selection
-│   ├── e2e-test-agent.ts   # E2E testing agent
-│   ├── verification-service.ts # Result verification
-│   ├── visual-comparator.ts # Visual diff
-│   └── ...
-│
-├── agents/                 # Specialized sub-agents
-│   ├── explore.ts          # Codebase exploration
-│   ├── plan.ts             # Implementation planning
-│   ├── guide.ts            # Documentation guide
-│   ├── parallel.ts         # Parallel execution
-│   ├── monitor.ts          # Monitoring agent
-│   └── resume.ts           # Session resume
-│
-├── memory/                 # Unified memory system
-│   ├── unified-memory.ts   # Memory manager
-│   ├── vector-store.ts     # Vector storage
-│   ├── bm25-engine.ts      # BM25 text search
-│   ├── chat-memory.ts      # Conversation memory
-│   ├── embedder.ts         # Embedding model
-│   └── intent-extractor.ts # Intent extraction
-│
-├── checkpoint/             # File snapshot management
-├── rewind/                 # Session time-travel
-├── updater/                # Auto-update system
-├── browser/                # Custom browser control
-├── chrome/                 # Chrome integration
-├── chrome-mcp/             # Chrome MCP bridge
-├── daemon/                 # Scheduled task daemon
-├── feishu/                 # Feishu (Lark) integration
-├── wechat/                 # WeChat integration
-├── i18n/                   # Internationalization (en, zh)
-├── teams/                  # Team management
-├── mcp/                    # MCP protocol (full implementation)
-├── permissions/            # Permission system
-├── session/                # Session persistence
-├── context/                # Context management & summarization
-├── config/                 # Configuration management
-├── models/                 # Model config (Anthropic/Bedrock/Vertex)
-├── hooks/                  # Hook system
-├── plugins/                # Plugin system
-├── commands/               # Slash commands
-├── auth/                   # Authentication (API Key + OAuth)
-├── parser/                 # Code parsing (Tree-sitter WASM)
-├── search/                 # Search (ripgrep integration)
-├── proxy/                  # Proxy server
-├── providers/              # Cloud providers
-├── fast-mode/              # Fast mode
-├── lsp/                    # Language Server Protocol
-├── git/                    # Git operations
-├── github/                 # GitHub integration
-├── sandbox/                # Sandbox execution
-├── security/               # Security constraints
-├── trust/                  # Trust verification
-├── ratelimit/              # Rate limiting
-├── rules/                  # Rule engine
-├── diagnostics/            # Diagnostic tools
-├── notifications/          # Notification system
-├── ui/                     # Terminal UI (Ink/React)
-├── streaming/              # Streaming I/O
-├── telemetry/              # Local telemetry
-├── types/                  # TypeScript definitions
-└── utils/                  # Utility functions
-```
-
-## Slash Commands
-
-| Command | Description |
-| --- | --- |
-| `/help` | Show help |
-| `/clear` | Clear conversation history |
-| `/status` | Show session status |
-| `/resume` | Resume a previous session |
-| `/context` | Show context usage |
-| `/compact` | Compress conversation history |
-| `/rename` | Rename current session |
-| `/export` | Export session (JSON/Markdown) |
-| `/transcript` | Export session transcript |
-| `/config` | View configuration |
-| `/tools` | List available tools |
-| `/model` | View/switch model |
-| `/fast` | Toggle fast mode |
-| `/exit` | Exit |
-
-## Testing
+## CLI Reference
 
 ```bash
-npm test                    # Run all tests (vitest)
-npm run test:unit           # Unit tests only
-npm run test:integration    # Integration tests
-npm run test:e2e            # End-to-end CLI tests
-npm run test:coverage       # Run with coverage report
-npm run test:watch          # Watch mode
-npm run test:ui             # Vitest UI
+claude                          # Interactive mode
+claude "Analyze this project"   # With initial prompt
+claude -p "Explain this code"   # Print mode (non-interactive)
+claude -m opus "Complex task"   # Specify model
+claude --resume                 # Resume last session
+claude-web                      # Web IDE
+claude-web -p 8080 -H 0.0.0.0  # Custom port and host
+claude-web --ngrok              # Public tunnel
+claude-web --evolve             # Self-evolution mode
 ```
-
-## Development
-
-```bash
-# Development mode (using tsx)
-npm run dev
-
-# Web UI development
-npm run web
-
-# Web UI with file watch
-npm run web:dev
-
-# Build
-npm run build
-
-# Type checking
-npx tsc --noEmit
-```
-
-## Tech Stack
-
-- **TypeScript** — Type safety
-- **Anthropic SDK** — API calls
-- **Ink + React** — Terminal UI
-- **Express + WebSocket** — Web backend
-- **React + Monaco Editor** — Web frontend
-- **Commander** — CLI framework
-- **Zod** — Schema validation
-- **Tree-sitter WASM** — Code parsing
-- **better-sqlite3** — Local database
-- **sharp** — Image processing
-- **ngrok** — Public tunnel
-- **Vitest** — Testing framework
 
 ## Community
 
-- **Website:** https://www.chatbi.site
-- **Discord:** [Join our Discord](https://discord.gg/bNyJKk6PVZ)
+- **Website:** [chatbi.site](https://www.chatbi.site)
+- **Discord:** [Join us](https://discord.gg/bNyJKk6PVZ)
 - **X (Twitter):** [@wangbingjie1989](https://x.com/wangbingjie1989)
+
+## Contributing
+
+PRs and issues are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## Acknowledgment
+
+This project is inspired by Anthropic's Claude Code CLI. It is an independent open-source reimplementation using public APIs. For the official version, see [@anthropic-ai/claude-code](https://www.npmjs.com/package/@anthropic-ai/claude-code).
 
 ## License
 
-This project is for educational purposes only. Original Claude Code is owned by Anthropic PBC.
-
----
-
-*This project is a reverse engineering study of obfuscated code and does not represent the official implementation.*
+MIT
 
 [中文版 README](README.zh-CN.md)
