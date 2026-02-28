@@ -262,5 +262,5 @@ npm run dev
 
 ## 参考文档
 
-- 详细分析: `/home/user/claude-code-open/docs/comparison/analysis/env-analysis.md`
+- 详细分析: `/home/user/axon/docs/comparison/analysis/env-analysis.md`
 - 官方源码: 基于 Axon v2.1.4 反编译分析

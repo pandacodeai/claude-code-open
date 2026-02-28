@@ -12,11 +12,11 @@
 ## Post 1: General AI/Dev Communities (English)
 
 ### Title / First Line
-**I built an open-source Claude Code with a full Web IDE and multi-agent system**
+**I built an open-source Axon with a full Web IDE and multi-agent system**
 
 ### Body
 
-Hey everyone! I've been working on an open-source AI coding platform called **Claude Code Open** - it started as a reverse-engineering study of Anthropic's Claude Code CLI but evolved into something much bigger.
+Hey everyone! I've been working on an open-source AI coding platform called **Axon** - it started as a reverse-engineering study of Anthropic's @anthropic-ai/claude-code but evolved into something much bigger.
 
 **What makes it different:**
 
@@ -32,7 +32,7 @@ Hey everyone! I've been working on an open-source AI coding platform called **Cl
 
 Everything runs locally. MIT licensed. No telemetry. Supports Anthropic API / AWS Bedrock / Google Vertex AI.
 
-- GitHub: https://github.com/kill136/claude-code-open
+- GitHub: https://github.com/kill136/axon
 - Live Demo: http://voicegpt.site:3456/
 - Website: https://www.chatbi.site
 - Discord: https://discord.gg/bNyJKk6PVZ
@@ -44,7 +44,7 @@ Would love your feedback!
 ## Post 2: Claude/Anthropic Specific Communities (English)
 
 ### Title / First Line
-**Open-source Claude Code alternative with Web UI - 37+ tools, multi-agent, runs locally**
+**Open-source Axon alternative with Web UI - 37+ tools, multi-agent, runs locally**
 
 ### Body
 
@@ -60,7 +60,7 @@ Built an open-source platform that extends what Claude Code can do:
 One-click install for Windows/macOS/Linux. Docker deployment. MIT licensed.
 
 Try the live demo: http://voicegpt.site:3456/
-GitHub: https://github.com/kill136/claude-code-open
+GitHub: https://github.com/kill136/axon
 
 Star it if you find it useful!
 
@@ -69,13 +69,13 @@ Star it if you find it useful!
 ## Post 3: Chinese Communities (中文)
 
 ### Title / First Line
-**开源了一个 Claude Code 替代品：Web IDE + 多智能体 + 37+ 工具，一键安装**
+**开源了一个 Axon：Web IDE + 多智能体 + 37+ 工具，一键安装**
 
 ### Body
 
-大家好！分享一个我做的开源项目 **Claude Code Open**，一个完整的 AI 编程平台。
+大家好！分享一个我做的开源项目 **Axon**，一个完整的 AI 编程平台。
 
-**和官方 Claude Code 的区别：**
+**和官方 @anthropic-ai/claude-code 的区别：**
 
 1. **有 Web IDE** — 浏览器打开就能用，Monaco 编辑器 + 文件树 + AI 辅助编辑，不需要终端
 2. **多智能体协作** — Blueprint 系统把复杂任务拆分给多个 AI Agent 并行处理
@@ -86,7 +86,7 @@ Star it if you find it useful!
 MIT 协议，完全开源，数据不出你的机器。
 
 在线体验：http://voicegpt.site:3456/
-GitHub：https://github.com/kill136/claude-code-open
+GitHub：https://github.com/kill136/axon
 Discord：https://discord.gg/bNyJKk6PVZ
 
 欢迎 Star 和反馈！
@@ -95,13 +95,13 @@ Discord：https://discord.gg/bNyJKk6PVZ
 
 ## Post 4: Short Version (for channels with character limits)
 
-**Claude Code Open** - Open-source AI coding platform with Web IDE, multi-agent system, 37+ tools.
+**Axon** - Open-source AI coding platform with Web IDE, multi-agent system, 37+ tools.
 
 Features: Browser IDE, Blueprint multi-agent, database client, scheduled tasks, self-evolution, MCP support.
 
 MIT licensed. One-click install. Runs locally.
 
-GitHub: https://github.com/kill136/claude-code-open
+GitHub: https://github.com/kill136/axon
 Demo: http://voicegpt.site:3456/
 
 ---

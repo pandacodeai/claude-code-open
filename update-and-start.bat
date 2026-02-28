@@ -4,11 +4,11 @@ setlocal enabledelayedexpansion
 
 echo.
 echo   +=============================================+
-echo   ^|       Claude Code Open - WebUI              ^|
+echo   ^|            Axon - WebUI                     ^|
 echo   +=============================================+
 echo.
 
-set "INSTALL_DIR=%USERPROFILE%\.claude-code-open"
+set "INSTALL_DIR=%USERPROFILE%\.axon"
 
 if not exist "%INSTALL_DIR%" (
     echo [ERROR] Installation directory not found: %INSTALL_DIR%
@@ -35,7 +35,7 @@ REM --- Show node version ---
 for /f "tokens=*" %%v in ('node -v 2^>nul') do echo [OK] Node.js %%v
 
 echo.
-echo [INFO] Starting Claude Code WebUI...
+echo [INFO] Starting Axon WebUI...
 echo.
 
 node_modules\.bin\tsx.cmd src\web-cli.ts --evolve -H 0.0.0.0

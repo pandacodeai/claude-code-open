@@ -1,36 +1,36 @@
 # ============================================
-# Claude Code Open - Windows One-Click Installer
+# Axon - Windows One-Click Installer
 #
 # Method 1 - Batch file (recommended, no policy issues):
 #   Double-click install.bat, or in cmd:
-#     curl -fsSL https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.bat -o install.bat && install.bat
+#     curl -fsSL https://raw.githubusercontent.com/kill136/axon/private_web_ui/install.bat -o install.bat && install.bat
 #
 # Method 2 - PowerShell (irm pipe, bypasses execution policy):
-#   irm https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/kill136/axon/private_web_ui/install.ps1 | iex
 #
 # Method 3 - PowerShell (explicit bypass):
 #   powershell -ExecutionPolicy Bypass -File install.ps1
 #
 # China mirrors (Gitee):
-#   curl -fsSL https://gitee.com/lubanbbs/claude-code-open/raw/private_web_ui/install.bat -o install.bat && install.bat
-#   irm https://gitee.com/lubanbbs/claude-code-open/raw/private_web_ui/install.ps1 | iex
+#   curl -fsSL https://gitee.com/lubanbbs/axon/raw/private_web_ui/install.bat -o install.bat && install.bat
+#   irm https://gitee.com/lubanbbs/axon/raw/private_web_ui/install.ps1 | iex
 # ============================================
 
 $ErrorActionPreference = "Stop"
 
-$RepoUrlGithub = "https://github.com/kill136/claude-code-open.git"
-$RepoUrlGitee  = "https://gitee.com/lubanbbs/claude-code-open.git"
+$RepoUrlGithub = "https://github.com/kill136/axon.git"
+$RepoUrlGitee  = "https://gitee.com/lubanbbs/axon.git"
 $RepoUrl       = ""  # Will be set by Detect-RepoUrl
-$DockerImage   = "wbj66/claude-code-open:latest"
-$InstallDir    = "$env:USERPROFILE\.claude-code-open"
+$DockerImage   = "wbj66/axon:latest"
+$InstallDir    = "$env:USERPROFILE\.axon"
 $NodeMajorRequired = 18
 $NodeMajorMax = 22  # LTS; native modules may lack prebuilds for newer versions
 
 function Write-Banner {
     Write-Host ""
     Write-Host "  +=============================================+" -ForegroundColor Cyan
-    Write-Host "  |        Claude Code Open Installer           |" -ForegroundColor Cyan
-    Write-Host "  |     github.com/kill136/claude-code-open     |" -ForegroundColor Cyan
+    Write-Host "  |             Axon Installer                  |" -ForegroundColor Cyan
+    Write-Host "  |        github.com/kill136/axon              |" -ForegroundColor Cyan
     Write-Host "  +=============================================+" -ForegroundColor Cyan
     Write-Host ""
 }
@@ -527,11 +527,11 @@ setlocal enabledelayedexpansion
 
 echo.
 echo   +=============================================+
-echo   ^|       Claude Code Open - WebUI              ^|
+echo   ^|            Axon - WebUI                     ^|
 echo   +=============================================+
 echo.
 
-set "INSTALL_DIR=%USERPROFILE%\.claude-code-open"
+set "INSTALL_DIR=%USERPROFILE%\.axon"
 
 if not exist "%INSTALL_DIR%" (
     echo [ERROR] Installation directory not found: %INSTALL_DIR%
@@ -601,7 +601,7 @@ if exist "%INSTALL_DIR%\.git" (
 )
 
 echo.
-echo [INFO] Starting Claude Code WebUI...
+echo [INFO] Starting Axon WebUI...
 echo.
 
 REM Use node.exe directly to invoke tsx (bypass .cmd shim which may use wrong node)
@@ -693,7 +693,7 @@ function New-DesktopShortcut {
     Write-Info "Creating desktop shortcut..."
 
     $DesktopPath = [Environment]::GetFolderPath("Desktop")
-    $ShortcutPath = Join-Path $DesktopPath "Claude Code WebUI.lnk"
+    $ShortcutPath = Join-Path $DesktopPath "Axon WebUI.lnk"
 
     try {
         $WshShell = New-Object -ComObject WScript.Shell
@@ -702,7 +702,7 @@ function New-DesktopShortcut {
         if ($Type -eq "npm") {
             $LauncherPath = Join-Path $env:USERPROFILE ".local\bin\claude-web-start.bat"
             $Shortcut.TargetPath = $LauncherPath
-            $Shortcut.Description = "Launch Claude Code Web Interface"
+            $Shortcut.Description = "Launch Axon Web Interface"
             $Shortcut.WorkingDirectory = "$env:USERPROFILE"
         }
         elseif ($Type -eq "docker") {
@@ -710,17 +710,17 @@ function New-DesktopShortcut {
             $BatContent = @"
 @echo off
 cd /d "%USERPROFILE%"
-echo Starting Claude Code WebUI...
+echo Starting Axon WebUI...
 echo Press Ctrl+C to stop the server
 echo.
 if defined ANTHROPIC_API_KEY (set "API_KEY_FLAG=-e ANTHROPIC_API_KEY=%ANTHROPIC_API_KEY%") else (set "API_KEY_FLAG=")
-docker run -it --rm -p 3456:3456 %API_KEY_FLAG% -v "%USERPROFILE%\.claude:/root/.claude" -v "%cd%:/workspace" $DockerImage
+docker run -it --rm -p 3456:3456 %API_KEY_FLAG% -v "%USERPROFILE%\.axon:/root/.axon" -v "%cd%:/workspace" $DockerImage
 pause
 "@
             Set-Content -Path $BatPath -Value $BatContent -Encoding ASCII
 
             $Shortcut.TargetPath = $BatPath
-            $Shortcut.Description = "Launch Claude Code Web Interface (Docker)"
+            $Shortcut.Description = "Launch Axon Web Interface (Docker)"
             $Shortcut.WorkingDirectory = "$env:USERPROFILE"
         }
 
@@ -891,7 +891,7 @@ This usually means the git clone was incomplete. Please try:
     Write-Host ""
     Write-Host "  Desktop Shortcut:" -ForegroundColor White
     Write-Host "    A shortcut has been created on your desktop" -ForegroundColor Cyan
-    Write-Host "    Double-click it to start Claude Code WebUI" -ForegroundColor Cyan
+    Write-Host "    Double-click it to start Axon WebUI" -ForegroundColor Cyan
     Write-Host ""
 }
 
@@ -910,11 +910,11 @@ function Install-Docker {
     $WrapperContent = @"
 @echo off
 set IMAGE_NAME=$DockerImage
-if not exist "%USERPROFILE%\.claude" mkdir "%USERPROFILE%\.claude"
+if not exist "%USERPROFILE%\.axon" mkdir "%USERPROFILE%\.axon"
 if defined ANTHROPIC_API_KEY (set "API_KEY_FLAG=-e ANTHROPIC_API_KEY=%ANTHROPIC_API_KEY%") else (set "API_KEY_FLAG=")
 docker run -it --rm ^
     %API_KEY_FLAG% ^
-    -v "%USERPROFILE%\.claude:/root/.claude" ^
+    -v "%USERPROFILE%\.axon:/root/.axon" ^
     -v "%cd%:/workspace" ^
     %IMAGE_NAME% %*
 "@
@@ -942,13 +942,13 @@ docker run -it --rm ^
     Write-Host ""
     Write-Host "  Desktop Shortcut:" -ForegroundColor White
     Write-Host "    A shortcut has been created on your desktop" -ForegroundColor Cyan
-    Write-Host "    Double-click it to start Claude Code WebUI" -ForegroundColor Cyan
+    Write-Host "    Double-click it to start Axon WebUI" -ForegroundColor Cyan
     Write-Host ""
 }
 
 # --- Uninstall ---
 function Uninstall {
-    Write-Info "Uninstalling Claude Code Open..."
+    Write-Info "Uninstalling Axon..."
 
     if (Test-Path $InstallDir) {
         Push-Location $InstallDir

@@ -320,7 +320,7 @@ expect(result).toBeDefined();
 
 ### ✅ Requirement 1: Create `tests/commands/` directory
 **Status**: Complete
-**Location**: `/home/user/claude-code-open/tests/commands/`
+**Location**: `/home/user/axon/tests/commands/`
 
 ### ✅ Requirement 2: Create 4 unit test files
 **Status**: Complete

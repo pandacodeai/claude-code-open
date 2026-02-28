@@ -4,7 +4,7 @@ setlocal enabledelayedexpansion
 
 echo.
 echo   +=============================================+
-echo   ^|     Claude Code Open - WebUI                ^|
+echo   ^|          Axon - WebUI                       ^|
 echo   +=============================================+
 echo.
 
@@ -30,7 +30,7 @@ if not exist "dist\web-cli.js" (
 )
 
 echo.
-echo [INFO] Starting Claude Code WebUI...
+echo [INFO] Starting Axon WebUI...
 echo [INFO] Open http://localhost:3456 in your browser
 echo [INFO] Press Ctrl+C to stop the server
 echo.

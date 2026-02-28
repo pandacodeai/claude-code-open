@@ -1,6 +1,6 @@
 @echo off
 rem ============================================
-rem Claude Code Open - Windows One-Click Installer
+rem Axon - Windows One-Click Installer
 rem This batch file bypasses PowerShell execution policy restrictions.
 rem
 rem Usage:
@@ -8,17 +8,17 @@ rem   Double-click this file, or run in cmd:
 rem     install.bat
 rem
 rem   Or one-liner from cmd (GitHub):
-rem     curl -fsSL https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.bat -o install.bat && install.bat
+rem     curl -fsSL https://raw.githubusercontent.com/kill136/axon/private_web_ui/install.bat -o install.bat && install.bat
 rem   Or one-liner from cmd (Gitee, for China):
-rem     curl -fsSL https://gitee.com/lubanbbs/claude-code-open/raw/private_web_ui/install.bat -o install.bat && install.bat
+rem     curl -fsSL https://gitee.com/lubanbbs/axon/raw/private_web_ui/install.bat -o install.bat && install.bat
 rem ============================================
 
 chcp 65001 >nul 2>&1
 
 echo.
 echo   +=============================================+
-echo   ^|        Claude Code Open Installer           ^|
-echo   ^|     github.com/kill136/claude-code-open     ^|
+echo   ^|             Axon Installer                  ^|
+echo   ^|        github.com/kill136/axon              ^|
 echo   +=============================================+
 echo.
 
@@ -39,7 +39,7 @@ set "PS1_TEMP=%TEMP%\claude-code-install.ps1"
 rem Detect network and download install.ps1 to temp file
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ^
     "$ErrorActionPreference = 'Stop'; " ^
-    "try { Invoke-WebRequest -Uri 'https://github.com' -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop | Out-Null; $url = 'https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.ps1' } catch { $url = 'https://gitee.com/lubanbbs/claude-code-open/raw/private_web_ui/install.ps1' }; " ^
+    "try { Invoke-WebRequest -Uri 'https://github.com' -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop | Out-Null; $url = 'https://raw.githubusercontent.com/kill136/axon/private_web_ui/install.ps1' } catch { $url = 'https://gitee.com/lubanbbs/axon/raw/private_web_ui/install.ps1' }; " ^
     "Write-Host \"[INFO] Downloading from $url\"; " ^
     "Invoke-WebRequest -Uri $url -OutFile '%PS1_TEMP%' -UseBasicParsing"
 

@@ -2,7 +2,7 @@
 
 ## Title
 
-Show HN: Claude Code Open – Open-source AI coding platform with Web IDE, multi-agent system, 37+ tools
+Show HN: Axon – Open-source AI coding platform with Web IDE, multi-agent system, 37+ tools
 
 ## Body
 
@@ -27,7 +27,7 @@ I've been working on an open-source AI coding platform that started as a reverse
 It's MIT licensed and runs entirely locally. Your data never leaves your machine.
 
 - Website: https://www.chatbi.site
-- GitHub: https://github.com/kill136/claude-code-open
+- GitHub: https://github.com/kill136/axon
 - Live Demo: http://voicegpt.site:3456/
 - Discord: https://discord.gg/bNyJKk6PVZ
 

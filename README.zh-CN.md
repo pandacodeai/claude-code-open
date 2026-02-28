@@ -1,9 +1,9 @@
-# Claude Code Open
+# Axon
 
-### 免费开源的 Claude Code，带 Web IDE、多智能体和自我进化
+### 免费开源的 Axon，带 Web IDE、多智能体和自我进化
 
 [![npm](https://img.shields.io/npm/v/claude-code-open?style=flat-square&color=CB3837)](https://www.npmjs.com/package/claude-code-open)
-[![GitHub Stars](https://img.shields.io/github/stars/kill136/claude-code-open?style=flat-square)](https://github.com/kill136/claude-code-open)
+[![GitHub Stars](https://img.shields.io/github/stars/kill136/axon?style=flat-square)](https://github.com/kill136/axon)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![Node](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-brightgreen?style=flat-square)](https://nodejs.org)
 [![Discord](https://img.shields.io/discord/1454020463486566432?style=flat-square&label=Discord&color=5865F2)](https://discord.gg/bNyJKk6PVZ)
@@ -13,16 +13,16 @@
 <div align="center">
 
 <a href="https://voicegpt.site">
-<img src="demo-screenshots/demo.gif" width="720" alt="Claude Code Open Demo">
+<img src="demo-screenshots/demo.gif" width="720" alt="Axon Demo">
 </a>
 
-<sub><a href="https://youtu.be/OQ29pIgp5AI">YouTube 观看</a> | <a href="https://github.com/kill136/claude-code-open/releases/download/v2.1.37/promo-video.mp4">下载视频</a> | <a href="https://voicegpt.site">在线体验</a></sub>
+<sub><a href="https://youtu.be/OQ29pIgp5AI">YouTube 观看</a> | <a href="https://github.com/kill136/axon/releases/download/v2.1.37/promo-video.mp4">下载视频</a> | <a href="https://voicegpt.site">在线体验</a></sub>
 
 </div>
 
-## 为什么选择 Claude Code Open？
+## 为什么选择 Axon？
 
-| | 官方 Claude Code | Claude Code Open |
+| | 官方 Claude Code | Axon |
 |---|---|---|
 | **价格** | $20/月 (需要 Max 订阅) | 免费（自备 API Key） |
 | **界面** | 仅终端 | 终端 + **Web IDE**（Monaco 编辑器、文件树、AI 增强编辑） |
@@ -35,16 +35,16 @@
 
 ```bash
 # 全局安装
-npm install -g claude-code-open
+npm install -g axon
 
 # 设置 API Key
 export ANTHROPIC_API_KEY="sk-..."  # Windows: $env:ANTHROPIC_API_KEY="sk-..."
 
 # CLI 模式
-claude
+axon
 
 # Web IDE 模式
-claude-web
+axon-web
 ```
 
 打开 `http://localhost:3456` 即可使用 Web IDE。
@@ -54,18 +54,18 @@ claude-web
 <details>
 <summary>一键安装（无需 Node.js）</summary>
 
-**Windows：** 下载 [install.bat](https://github.com/kill136/claude-code-open/releases/latest/download/install.bat) 双击运行。
+**Windows：** 下载 [install.bat](https://github.com/kill136/axon/releases/latest/download/install.bat) 双击运行。
 
-[Gitee 国内镜像](https://gitee.com/lubanbbs/claude-code-open/raw/private_web_ui/install.bat)
+[Gitee 国内镜像](https://gitee.com/lubanbbs/axon/raw/private_web_ui/install.bat)
 
 **macOS / Linux：**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kill136/axon/private_web_ui/install.sh | bash
 ```
 
 **国内镜像：**
 ```bash
-curl -fsSL https://gitee.com/lubanbbs/claude-code-open/raw/private_web_ui/install.sh | bash
+curl -fsSL https://gitee.com/lubanbbs/axon/raw/private_web_ui/install.sh | bash
 ```
 </details>
 
@@ -78,15 +78,15 @@ docker run -it \
   -e ANTHROPIC_API_KEY=your-api-key \
   -p 3456:3456 \
   -v $(pwd):/workspace \
-  -v ~/.claude:/root/.claude \
-  claude-code-open node /app/dist/web-cli.js --host 0.0.0.0
+  -v ~/.axon:/root/.axon \
+  wbj66/axon node /app/dist/web-cli.js --host 0.0.0.0
 
 # 仅 CLI
 docker run -it \
   -e ANTHROPIC_API_KEY=your-api-key \
   -v $(pwd):/workspace \
-  -v ~/.claude:/root/.claude \
-  claude-code-open
+  -v ~/.axon:/root/.axon \
+  wbj66/axon
 ```
 </details>
 
@@ -94,8 +94,8 @@ docker run -it \
 <summary>从源码构建</summary>
 
 ```bash
-git clone https://github.com/kill136/claude-code-open.git
-cd claude-code-open
+git clone https://github.com/kill136/axon.git
+cd axon
 npm install && npm run build
 node dist/cli.js        # CLI
 node dist/web-cli.js    # Web IDE
@@ -171,12 +171,12 @@ Claude：*编写工具代码，编译，重启自己，工具立即可用*
 |---|---|---|
 | `ANTHROPIC_API_KEY` | API 密钥（必填） | - |
 | `ANTHROPIC_BASE_URL` | 自定义 API 端点 | `https://api.anthropic.com` |
-| `CLAUDE_CODE_LANG` | 语言（`en`/`zh`） | 自动检测 |
+| `AXON_LANG` | 语言（`en`/`zh`） | 自动检测 |
 
 ### MCP 协议
 
 ```json
-// .claude/settings.json
+// .axon/settings.json
 {
   "mcpServers": {
     "filesystem": {
@@ -191,15 +191,15 @@ Claude：*编写工具代码，编译，重启自己，工具立即可用*
 ## CLI 参考
 
 ```bash
-claude                          # 交互模式
-claude "分析这个项目"              # 带初始 prompt
-claude -p "解释这段代码"           # 打印模式（非交互）
-claude -m opus "复杂任务"         # 指定模型
-claude --resume                 # 恢复上次会话
-claude-web                      # Web IDE
-claude-web -p 8080 -H 0.0.0.0  # 自定义端口
-claude-web --ngrok              # 公网隧道
-claude-web --evolve             # 自我进化模式
+axon                          # 交互模式
+axon "分析这个项目"              # 带初始 prompt
+axon -p "解释这段代码"           # 打印模式（非交互）
+axon -m opus "复杂任务"         # 指定模型
+axon --resume                 # 恢复上次会话
+axon-web                      # Web IDE
+axon-web -p 8080 -H 0.0.0.0  # 自定义端口
+axon-web --ngrok              # 公网隧道
+axon-web --evolve             # 自我进化模式
 ```
 
 ## 社区
@@ -215,7 +215,7 @@ claude-web --evolve             # 自我进化模式
 
 ## 致谢
 
-本项目灵感来自 Anthropic 的 Claude Code CLI，是基于公开 API 的独立开源重新实现。官方版本请见 [@anthropic-ai/claude-code](https://www.npmjs.com/package/@anthropic-ai/claude-code)。
+本项目灵感来自 Anthropic 的 @anthropic-ai/claude-code，是基于公开 API 的独立开源重新实现。官方版本请见 [@anthropic-ai/claude-code](https://www.npmjs.com/package/@anthropic-ai/claude-code)。
 
 ## 许可证
 

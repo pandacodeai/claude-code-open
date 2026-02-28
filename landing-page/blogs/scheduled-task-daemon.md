@@ -1,4 +1,4 @@
-# AI 自动化新境界：Claude Code Open 定时任务守护进程
+# AI 自动化新境界：Axon 定时任务守护进程
 
 ## 🤖 让 AI 成为你的 7×24 自动化助手
 
@@ -8,7 +8,7 @@
 - 每周五下午，AI 自动生成项目进度报告
 - 监控日志文件，异常时立即通过飞书通知你
 
-这不是科幻，这是 Claude Code Open 最新推出的**定时任务守护进程**能为你做的事情！
+这不是科幻，这是 Axon 最新推出的**定时任务守护进程**能为你做的事情！
 
 ## 🎯 核心能力：三大任务类型
 
@@ -174,7 +174,7 @@ parseTimeExpression("每周一早上10点")
   message: '代码审查报告已生成',
   sound: true,
   wait: true,  // 等待用户点击
-  appID: 'Claude Code Open'
+  appID: 'Axon'
 }
 ```
 
@@ -487,7 +487,7 @@ function getClaudeClient(model) {
 
 ## 🌟 与其他工具对比
 
-| 功能 | Claude Code Daemon | Cron | Jenkins | GitHub Actions |
+| 功能 | Axon Daemon | Cron | Jenkins | GitHub Actions |
 |------|-------------------|------|---------|----------------|
 | 自然语言配置 | ✅ | ❌ | ❌ | ❌ |
 | AI 任务执行 | ✅ | ❌ | ❌ | ❌ |
@@ -517,14 +517,14 @@ function getClaudeClient(model) {
 
 ## 🎯 立即开始
 
-1. **安装 Claude Code Open**（如果还没有）
+1. **安装 Axon**（如果还没有）
 
 ```bash
 # Windows
-irm https://raw.githubusercontent.com/kill136/claude-code-open/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/kill136/axon/main/install.ps1 | iex
 
 # macOS/Linux
-curl -fsSL https://raw.githubusercontent.com/kill136/claude-code-open/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kill136/axon/main/install.sh | bash
 ```
 
 2. **启动守护进程**
@@ -546,11 +546,11 @@ claude
 
 ---
 
-**Claude Code Open** - AI 驱动的智能自动化平台
+**Axon** - AI 驱动的智能自动化平台
 
 加入我们的社区：
 - **Discord**：[https://discord.gg/bNyJKk6PVZ](https://discord.gg/bNyJKk6PVZ)
-- **GitHub**：[https://github.com/kill136/claude-code-open](https://github.com/kill136/claude-code-open)
+- **GitHub**：[https://github.com/kill136/axon](https://github.com/kill136/axon)
 - **X (Twitter)**：[@wangbingjie1989](https://x.com/wangbingjie1989)
 
 *本文发布于 2025 年 2 月 13 日*

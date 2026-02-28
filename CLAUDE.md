@@ -4,7 +4,7 @@
 
 ## Project Overview
 
-This is an educational reverse-engineering project that recreates Claude Code CLI v2.1.4. It's a TypeScript-based terminal application that provides an AI assistant with 25+ tools for file operations, code analysis, web access, and system commands.
+This is an educational reverse-engineering project that recreates @anthropic-ai/claude-code v2.1.4. It's a TypeScript-based terminal application that provides an AI assistant with 25+ tools for file operations, code analysis, web access, and system commands.
 
 ## 铁律（每条都是硬性约束，没有例外）
 
@@ -47,7 +47,7 @@ This is an educational reverse-engineering project that recreates Claude Code CL
 - 违反此条 = 用业余方式做了本可以专业完成的事。
 
 ## 项目性质
-- 这是一个**复刻还原项目**，目标是还原 Claude Code CLI v2.1.4。
+- 这是一个**复刻还原项目**，目标是还原 @anthropic-ai/claude-code v2.1.4。
 - 唯一准则：**保持和官方一致**。不要"改进"，不要"优化"，不要"我觉得这样更好"。
 - 官方源码路径：`node_modules/@anthropic-ai/claude-code`（高度压缩混淆）。
 - 遇到解决不了的难题，直接 copy 官方实现的源码，第一性原理解决问题。
@@ -130,8 +130,8 @@ CLI Input → ConversationLoop → ClaudeClient (Anthropic API)
 
 ### Important Subsystems
 
-- **Session Management** (`src/session/`) - Persists conversations to `~/.claude/sessions/` with 30-day expiry
-- **Configuration** (`src/config/`) - Loads from `~/.claude/settings.json` and environment variables
+- **Session Management** (`src/session/`) - Persists conversations to `~/.axon/sessions/` with 30-day expiry
+- **Configuration** (`src/config/`) - Loads from `~/.axon/settings.json` and environment variables
 - **Context Management** (`src/context/`) - Token estimation, auto-summarization when hitting limits
 - **Hooks System** (`src/hooks/`) - Pre/post tool execution hooks for customization
 - **Plugin System** (`src/plugins/`) - Extensible plugin architecture
@@ -153,20 +153,20 @@ Tools communicate results back to the conversation loop, which feeds them to the
 
 ## Configuration
 
-### Locations (Linux/macOS: `~/.claude/`, Windows: `%USERPROFILE%\.claude\`)
+### Locations (Linux/macOS: `~/.axon/`, Windows: `%USERPROFILE%\.axon\`)
 
-- **API Key:** `ANTHROPIC_API_KEY` or `CLAUDE_API_KEY` env var, or `settings.json`
+- **API Key:** `ANTHROPIC_API_KEY` or `AXON_API_KEY` env var, or `settings.json`
 - **Sessions:** `sessions/` directory (JSON files, 30-day expiry)
 - **MCP Servers:** Defined in `settings.json`
-- **Skills:** `~/.claude/skills/` and `./.claude/commands/`
-- **Plugins:** `~/.claude/plugins/` and `./.claude/plugins/`
+- **Skills:** `~/.axon/skills/` and `./.axon/commands/`
+- **Plugins:** `~/.axon/plugins/` and `./.axon/plugins/`
 
 ### Key Environment Variables
 
-- `ANTHROPIC_API_KEY` / `CLAUDE_API_KEY` - API key for Claude
+- `ANTHROPIC_API_KEY` / `AXON_API_KEY` - API key for Claude
 - `USE_BUILTIN_RIPGREP` - Set to `1`/`true` to use system ripgrep instead of vendored
 - `BASH_MAX_OUTPUT_LENGTH` - Max Bash output length (default: 30000)
-- `CLAUDE_CODE_MAX_OUTPUT_TOKENS` - Max output tokens (default: 32000)
+- `AXON_MAX_OUTPUT_TOKENS` - Max output tokens (default: 32000)
 
 ### Windows-Specific Notes
 

@@ -4,7 +4,7 @@
 
 为 Claude Code 项目创建了完整的 CLI 参数解析单元测试，覆盖了所有在 `src/cli.ts` 中定义的命令行参数。
 
-**测试文件**: `/home/user/claude-code-open/tests/commands/cli-args.test.ts`
+**测试文件**: `/home/user/axon/tests/commands/cli-args.test.ts`
 **测试框架**: Vitest
 **测试日期**: 2025-12-28
 **测试结果**: ✅ **71/71 测试全部通过**
@@ -405,7 +405,7 @@ it('should reject invalid permission mode', () => {
 ✅ **测试方法清晰、可维护**
 ✅ **与现有测试套件良好集成**
 
-测试文件位置: `/home/user/claude-code-open/tests/commands/cli-args.test.ts`
+测试文件位置: `/home/user/axon/tests/commands/cli-args.test.ts`
 
 ---
 

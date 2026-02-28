@@ -8,7 +8,7 @@
 
 ---
 
-大家好，我最近开源了一个教育性项目 **Claude Code Open**，通过逆向工程的方式重新实现了 Claude Code CLI 的核心功能。
+大家好，我最近开源了一个教育性项目 **Axon**，通过逆向工程的方式重新实现了 Claude Code CLI 的核心功能。
 
 ### 为什么做这个项目？
 
@@ -34,8 +34,8 @@ Claude Code 是 Anthropic 官方推出的 AI 编程助手 CLI 工具，但官方
 ### 快速开始
 
 ```bash
-git clone https://github.com/kill136/claude-code-open.git
-cd claude-code && npm install
+git clone https://github.com/kill136/axon.git
+cd axon && npm install
 export ANTHROPIC_API_KEY=your-key
 npm run dev
 ```
@@ -43,7 +43,7 @@ npm run dev
 ### 相关链接
 
 - 🌐 官网：https://www.chatbi.site
-- 📦 GitHub：https://github.com/kill136/claude-code-open
+- 📦 GitHub：https://github.com/kill136/axon
 - 💬 Discord：https://discord.gg/bNyJKk6PVZ
 
 ---
@@ -60,7 +60,7 @@ npm run dev
 
 **正文：**
 
-分享一个我最近做的开源项目：**Claude Code Open**
+分享一个我最近做的开源项目：**Axon**
 
 这是一个通过逆向工程重新实现 Claude Code CLI 的教育性项目，用于学习 AI 编程助手的架构设计。
 
@@ -74,7 +74,7 @@ npm run dev
 **技术栈：** TypeScript, Anthropic SDK, React/Ink, Zod
 
 🌐 官网：https://www.chatbi.site
-📦 GitHub：https://github.com/kill136/claude-code-open
+📦 GitHub：https://github.com/kill136/axon
 
 纯学习项目，欢迎交流！
 
