@@ -21,6 +21,7 @@ __tests__/*
 demo-screenshots/video-frames/
 demo-screenshots/*.mp4
 demo-screenshots/*.gif
+!demo-screenshots/demo.gif
 
 # Skill template assets (large binary files)
 .claude/skills/promo-video/templates/

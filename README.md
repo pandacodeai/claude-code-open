@@ -13,8 +13,10 @@
 <div align="center">
 
 <a href="https://voicegpt.site">
-<img src="demo-screenshots/01-main.png" width="720" alt="Claude Code Open - Web IDE">
+<img src="demo-screenshots/demo.gif" width="720" alt="Claude Code Open Demo">
 </a>
+
+<sub><a href="https://github.com/kill136/claude-code-open/releases/download/v2.1.36/promo-video.mp4">Watch full video</a> | <a href="https://voicegpt.site">Try Live Demo</a></sub>
 
 </div>
 
