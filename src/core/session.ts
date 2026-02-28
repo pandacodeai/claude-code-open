@@ -82,8 +82,8 @@ export class Session {
   constructor(cwd: string = process.cwd()) {
     // 从环境变量读取配置目录
     this.configDir =
-      process.env.CLAUDE_CONFIG_DIR ||
-      path.join(os.homedir(), '.claude');
+      process.env.AXON_CONFIG_DIR ||
+      path.join(os.homedir(), '.axon');
 
     this.originalCwd = cwd;
 
@@ -572,7 +572,7 @@ ${modelUsageStr ? '\n模型使用统计:' + modelUsageStr : ''}
    */
   static load(sessionId: string): Session | null {
     // T145: 支持 CLAUDE_CONFIG_DIR 环境变量
-    const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+    const configDir = process.env.AXON_CONFIG_DIR || path.join(os.homedir(), '.axon');
     const sessionFile = path.join(configDir, 'sessions', `${sessionId}.json`);
 
     if (!fs.existsSync(sessionFile)) {
@@ -612,7 +612,7 @@ ${modelUsageStr ? '\n模型使用统计:' + modelUsageStr : ''}
    */
   static listSessions(): Array<{ id: string; startTime: number; cwd: string }> {
     // T145: 支持 CLAUDE_CONFIG_DIR 环境变量
-    const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+    const configDir = process.env.AXON_CONFIG_DIR || path.join(os.homedir(), '.axon');
     const sessionsDir = path.join(configDir, 'sessions');
 
     if (!fs.existsSync(sessionsDir)) {
@@ -641,7 +641,7 @@ ${modelUsageStr ? '\n模型使用统计:' + modelUsageStr : ''}
    * T149: 清理过期会话（默认 30 天）
    */
   static cleanupExpiredSessions(maxAgeDays: number = 30): number {
-    const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+    const configDir = process.env.AXON_CONFIG_DIR || path.join(os.homedir(), '.axon');
     const sessionsDir = path.join(configDir, 'sessions');
 
     if (!fs.existsSync(sessionsDir)) {

@@ -479,8 +479,8 @@ const changeListeners: Set<(result: KeybindingsLoadResult) => void> = new Set();
  * 获取 keybindings.json 文件路径
  */
 export function getKeybindingsPath(): string {
-  const configDir = process.env.CLAUDE_CONFIG_DIR ||
-    path.join(process.env.HOME || process.env.USERPROFILE || '~', '.claude');
+  const configDir = process.env.AXON_CONFIG_DIR ||
+    path.join(process.env.HOME || process.env.USERPROFILE || '~', '.axon');
   return path.join(configDir, 'keybindings.json');
 }
 

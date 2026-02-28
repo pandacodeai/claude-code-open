@@ -1195,9 +1195,9 @@ export class ClaudeClient {
           tools: apiTools,
           // 添加 tool_choice 参数（强制 AI 使用工具）
           ...(options?.toolChoice ? { tool_choice: options.toolChoice } : {}),
-          // 添加 betas 参数（官方 Claude Code 的关键）
+          // 添加 betas 参数（对齐原始参考实现）
           ...(betas.length > 0 ? { betas } : {}),
-          // 添加 metadata（官方 Claude Code 的 Ja 函数）
+          // 添加 metadata（对齐原始参考实现的 Ja 函数）
           metadata: buildMetadata(),
           // v2.1.31: 传递 temperature（如果配置了覆盖值）
           ...(this.temperature !== undefined ? { temperature: this.temperature } : {}),
@@ -1378,9 +1378,9 @@ export class ClaudeClient {
         tools: apiTools as any,
         // 添加 toolChoice 支持（强制 AI 调用特定工具）
         ...(options?.toolChoice ? { tool_choice: options.toolChoice } : {}),
-        // 添加 betas 参数（官方 Claude Code 的关键）
+        // 添加 betas 参数（对齐原始参考实现）
         ...(betas.length > 0 ? { betas } : {}),
-        // 添加 metadata（官方 Claude Code 的 Ja 函数）
+        // 添加 metadata（对齐原始参考实现的 Ja 函数）
         metadata: buildMetadata(),
         // v2.1.31: 传递 temperature 到 streaming 路径
         // 修复 temperatureOverride 在 streaming API 路径被静默忽略的问题
@@ -1754,12 +1754,12 @@ export function getDefaultClient(): ClaudeClient {
 
         if (oauthToken) {
           // 关键修复：检查是否有 user:inference scope
-          // 官方 Claude Code 在有此 scope 时直接使用 OAuth access token
+          // 对齐原始参考实现，在有此 scope 时直接使用 OAuth access token
           // 注意：auth.scope 或 auth.scopes 都可能存在
           const scopes = auth.scope || auth.scopes;
           if (hasInferenceScope(scopes)) {
             // 直接使用 OAuth access token 作为 authToken
-            // 这是官方 Claude Code 的做法
+            // 对齐原始参考实现的做法
             config.authToken = oauthToken;
           } else {
             // 没有 inference scope，需要使用创建的 API Key

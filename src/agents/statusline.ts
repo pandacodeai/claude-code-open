@@ -1,6 +1,6 @@
 /**
  * Statusline Setup Agent
- * 配置 Claude Code 状态行设置
+ * 配置 Axon 状态行设置
  */
 
 import * as fs from 'fs';

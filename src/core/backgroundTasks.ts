@@ -73,7 +73,7 @@ function ensureConvCleanupTimer(): void {
 // 获取任务输出目录
 function getTasksDir(): string {
   const homeDir = process.env.HOME || process.env.USERPROFILE || '/tmp';
-  const tasksDir = path.join(homeDir, '.claude', 'tasks', 'conversations');
+  const tasksDir = path.join(homeDir, '.axon', 'tasks', 'conversations');
 
   if (!fs.existsSync(tasksDir)) {
     fs.mkdirSync(tasksDir, { recursive: true });
