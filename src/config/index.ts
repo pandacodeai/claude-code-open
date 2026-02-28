@@ -251,7 +251,7 @@ const UserConfigSchema = z.object({
     autoSave: z.boolean().default(true),
     /** 自动保存间隔 (ms) */
     autoSaveIntervalMs: z.number().int().positive().default(30000),
-    /** 会话存储目录（默认: ~/.claude/sessions） */
+    /** 会话存储目录（默认: ~/.axon/sessions） */
     sessionDir: z.string().optional(),
     /** 最大会话数 */
     maxSessions: z.number().int().positive().default(100),
@@ -808,18 +808,18 @@ function compareVersions(v1: string, v2: string): number {
 // ============ 配置来源类型 ============
 // 官方优先级链（从低到高）:
 // 1. default (内置默认值)
-// 2. userSettings (~/.claude/settings.json)
-// 3. projectSettings (.claude/settings.json)
-// 4. localSettings (.claude/settings.local.json - 机器特定, 应添加到 .gitignore)
+// 2. userSettings (~/.axon/settings.json)
+// 3. projectSettings (.axon/settings.json)
+// 4. localSettings (.axon/settings.local.json - 机器特定, 应添加到 .gitignore)
 // 5. envSettings (环境变量)
 // 6. flagSettings (命令行标志)
 // 7. policySettings (企业策略 - 最高优先级，强制覆盖)
 
 export type ConfigSource =
   | 'default'           // 优先级 0 - 内置默认值
-  | 'userSettings'      // 优先级 1 - 用户全局配置 (~/.claude/settings.json)
-  | 'projectSettings'   // 优先级 2 - 项目配置 (.claude/settings.json)
-  | 'localSettings'     // 优先级 3 - 本地配置 (.claude/settings.local.json, 机器特定)
+  | 'userSettings'      // 优先级 1 - 用户全局配置 (~/.axon/settings.json)
+  | 'projectSettings'   // 优先级 2 - 项目配置 (.axon/settings.json)
+  | 'localSettings'     // 优先级 3 - 本地配置 (.axon/settings.local.json, 机器特定)
   | 'envSettings'       // 优先级 4 - 环境变量
   | 'flagSettings'      // 优先级 5 - 命令行标志
   | 'policySettings'    // 优先级 6 - 企业策略（最高优先级，强制覆盖用户设置）
@@ -894,10 +894,10 @@ export interface ConfigManagerOptions {
 
 export class ConfigManager {
   private globalConfigDir: string;
-  private userConfigFile: string;         // 用户配置 (~/.claude/settings.json)
-  private projectConfigFile: string;      // 项目配置 (.claude/settings.json)
-  private localConfigFile: string;        // 本地配置 (.claude/settings.local.json) - 官方命名
-  private policyConfigFile: string;       // 企业策略配置 (~/.claude/managed_settings.json)
+  private userConfigFile: string;         // 用户配置 (~/.axon/settings.json)
+  private projectConfigFile: string;      // 项目配置 (.axon/settings.json)
+  private localConfigFile: string;        // 本地配置 (.axon/settings.local.json) - 官方命名
+  private policyConfigFile: string;       // 企业策略配置 (~/.axon/managed_settings.json)
   private flagConfigFile?: string;        // 标志配置文件 (命令行指定的配置文件)
 
   private mergedConfig: UserConfig;
@@ -918,23 +918,23 @@ export class ConfigManager {
     const workingDir = options?.workingDirectory ?? process.cwd();
 
     // 全局配置目录
-    this.globalConfigDir = process.env.CLAUDE_CONFIG_DIR ||
-                           path.join(process.env.HOME || process.env.USERPROFILE || '~', '.claude');
+    this.globalConfigDir = process.env.AXON_CONFIG_DIR ||
+                           path.join(process.env.HOME || process.env.USERPROFILE || '~', '.axon');
 
-    // 用户配置文件 (~/.claude/settings.json)
+    // 用户配置文件 (~/.axon/settings.json)
     this.userConfigFile = path.join(this.globalConfigDir, 'settings.json');
 
-    // 企业策略配置文件 (~/.claude/managed_settings.json) - 官方命名
+    // 企业策略配置文件 (~/.axon/managed_settings.json) - 官方命名
     // 同时支持 policy.json 作为备选
     const managedSettingsPath = path.join(this.globalConfigDir, 'managed_settings.json');
     const policyJsonPath = path.join(this.globalConfigDir, 'policy.json');
     this.policyConfigFile = fs.existsSync(managedSettingsPath) ? managedSettingsPath : policyJsonPath;
 
-    // 项目配置文件 (.claude/settings.json)
-    this.projectConfigFile = path.join(workingDir, '.claude', 'settings.json');
+    // 项目配置文件 (.axon/settings.json)
+    this.projectConfigFile = path.join(workingDir, '.axon', 'settings.json');
 
-    // 本地配置文件 (.claude/settings.local.json) - 官方命名，应添加到 .gitignore
-    this.localConfigFile = path.join(workingDir, '.claude', 'settings.local.json');
+    // 本地配置文件 (.axon/settings.local.json) - 官方命名，应添加到 .gitignore
+    this.localConfigFile = path.join(workingDir, '.axon', 'settings.local.json');
 
     // 标志配置文件 (通过命令行 --settings 指定)
     this.flagConfigFile = options?.flagSettingsPath;
@@ -973,9 +973,9 @@ export class ConfigManager {
    *
    * 官方优先级链（从低到高）:
    * 1. default - 内置默认值
-   * 2. userSettings - 用户全局配置 (~/.claude/settings.json)
-   * 3. projectSettings - 项目配置 (.claude/settings.json)
-   * 4. localSettings - 本地配置 (.claude/settings.local.json)
+   * 2. userSettings - 用户全局配置 (~/.axon/settings.json)
+   * 3. projectSettings - 项目配置 (.axon/settings.json)
+   * 4. localSettings - 本地配置 (.axon/settings.local.json)
    * 5. envSettings - 环境变量
    * 6. flagSettings - 命令行标志
    * 7. policySettings - 企业策略（最高优先级，强制覆盖）

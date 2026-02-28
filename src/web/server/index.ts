@@ -58,22 +58,22 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<We
   errorWatcher.enable();
   logger.setErrorWatcher((entry) => errorWatcher.onError(entry));
 
-  // 设置 CLAUDE_CODE_ENTRYPOINT 环境变量（如果未设置）
+  // 设置 AXON_ENTRYPOINT 环境变量（如果未设置）
   // 官方 Claude Code 使用此变量标识启动入口点
   // WebUI 模式使用 'claude-vscode' 以匹配官方的 VSCode 扩展入口
-  if (!process.env.CLAUDE_CODE_ENTRYPOINT) {
-    process.env.CLAUDE_CODE_ENTRYPOINT = 'claude-vscode';
+  if (!process.env.AXON_ENTRYPOINT) {
+    process.env.AXON_ENTRYPOINT = 'claude-vscode';
   }
 
   // 定时任务由 WebScheduler 统一管理（稍后初始化）
 
   const {
-    port = parseInt(process.env.PORT || process.env.CLAUDE_WEB_PORT || '3456'),
-    host = process.env.CLAUDE_WEB_HOST || '0.0.0.0',
+    port = parseInt(process.env.PORT || process.env.AXON_WEB_PORT || '3456'),
+    host = process.env.AXON_WEB_HOST || '0.0.0.0',
     cwd = process.cwd(),
-    model = process.env.CLAUDE_MODEL || 'opus',
+    model = process.env.AXON_MODEL || 'opus',
     ngrok: enableNgrok = process.env.ENABLE_NGROK === 'true' || !!process.env.NGROK_AUTHTOKEN,
-    open: autoOpen = process.env.CLAUDE_WEB_NO_OPEN !== 'true',
+    open: autoOpen = process.env.AXON_WEB_NO_OPEN !== 'true',
   } = options;
 
   // 创建 Express 应用

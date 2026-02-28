@@ -49,8 +49,8 @@ export const BASH_MAX_OUTPUT_LENGTH: EnvVarValidator<number> = {
  * 默认: 32000
  * 最大: 64000
  */
-export const CLAUDE_CODE_MAX_OUTPUT_TOKENS: EnvVarValidator<number> = {
-  name: 'CLAUDE_CODE_MAX_OUTPUT_TOKENS',
+export const AXON_MAX_OUTPUT_TOKENS: EnvVarValidator<number> = {
+  name: 'AXON_MAX_OUTPUT_TOKENS',
   default: 32000,
   description: 'Maximum output tokens for Claude API',
   validate: (value) => {
@@ -109,8 +109,8 @@ export const ANTHROPIC_API_KEY: EnvVarValidator<string | undefined> = {
  * 默认: 3
  * 范围: 0-10
  */
-export const CLAUDE_CODE_MAX_RETRIES: EnvVarValidator<number> = {
-  name: 'CLAUDE_CODE_MAX_RETRIES',
+export const AXON_MAX_RETRIES: EnvVarValidator<number> = {
+  name: 'AXON_MAX_RETRIES',
   default: 3,
   description: 'Maximum number of retries for API calls',
   validate: (value) => {
@@ -147,8 +147,8 @@ export const CLAUDE_CODE_MAX_RETRIES: EnvVarValidator<number> = {
  * 最小: 1000 (1秒)
  * 最大: 600000 (10分钟)
  */
-export const CLAUDE_CODE_REQUEST_TIMEOUT: EnvVarValidator<number> = {
-  name: 'CLAUDE_CODE_REQUEST_TIMEOUT',
+export const AXON_REQUEST_TIMEOUT: EnvVarValidator<number> = {
+  name: 'AXON_REQUEST_TIMEOUT',
   default: 300000,
   description: 'Request timeout in milliseconds',
   validate: (value) => {
@@ -184,8 +184,8 @@ export const CLAUDE_CODE_REQUEST_TIMEOUT: EnvVarValidator<number> = {
  * 默认: 10
  * 范围: 1-100
  */
-export const CLAUDE_CODE_MAX_CONCURRENT_TASKS: EnvVarValidator<number> = {
-  name: 'CLAUDE_CODE_MAX_CONCURRENT_TASKS',
+export const AXON_MAX_CONCURRENT_TASKS: EnvVarValidator<number> = {
+  name: 'AXON_MAX_CONCURRENT_TASKS',
   default: 10,
   description: 'Maximum number of concurrent tasks',
   validate: (value) => {
@@ -341,12 +341,12 @@ export function createEnumValidator<T extends string>(
  */
 export const BUILTIN_VALIDATORS: EnvVarValidator[] = [
   BASH_MAX_OUTPUT_LENGTH,
-  CLAUDE_CODE_MAX_OUTPUT_TOKENS,
-  CLAUDE_CODE_MAX_RETRIES,
-  CLAUDE_CODE_REQUEST_TIMEOUT,
-  CLAUDE_CODE_MAX_CONCURRENT_TASKS,
-  createBooleanValidator('CLAUDE_CODE_ENABLE_TELEMETRY', false, 'Enable telemetry'),
-  createBooleanValidator('CLAUDE_CODE_USE_BEDROCK', false, 'Use AWS Bedrock'),
-  createBooleanValidator('CLAUDE_CODE_USE_VERTEX', false, 'Use Vertex AI'),
-  createBooleanValidator('CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING', false, 'Disable file checkpointing'),
+  AXON_MAX_OUTPUT_TOKENS,
+  AXON_MAX_RETRIES,
+  AXON_REQUEST_TIMEOUT,
+  AXON_MAX_CONCURRENT_TASKS,
+  createBooleanValidator('AXON_ENABLE_TELEMETRY', false, 'Enable telemetry'),
+  createBooleanValidator('AXON_USE_BEDROCK', false, 'Use AWS Bedrock'),
+  createBooleanValidator('AXON_USE_VERTEX', false, 'Use Vertex AI'),
+  createBooleanValidator('AXON_DISABLE_FILE_CHECKPOINTING', false, 'Disable file checkpointing'),
 ];

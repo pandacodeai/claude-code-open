@@ -74,7 +74,7 @@ function isPrivateIPv6(hostname: string): boolean {
  * 获取当前 Web UI 的端口号（用于自身 UI 白名单）
  */
 function getOwnWebPort(): number {
-  return parseInt(process.env.CLAUDE_WEB_PORT || '3456');
+  return parseInt(process.env.AXON_WEB_PORT || '3456');
 }
 
 /**
