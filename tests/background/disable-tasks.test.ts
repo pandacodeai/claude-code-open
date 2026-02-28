@@ -1,6 +1,6 @@
 /**
  * 后台任务禁用功能测试
- * 验证 CLAUDE_CODE_DISABLE_BACKGROUND_TASKS 环境变量
+ * 验证 AXON_DISABLE_BACKGROUND_TASKS 环境变量
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -22,7 +22,7 @@ describe('Background Tasks Disable Feature', () => {
 
   describe('BackgroundTaskManager', () => {
     it('应该正常初始化当环境变量未设置时', () => {
-      delete process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS;
+      delete process.env.AXON_DISABLE_BACKGROUND_TASKS;
 
       const manager = new BackgroundTaskManager();
 
@@ -34,7 +34,7 @@ describe('Background Tasks Disable Feature', () => {
     });
 
     it('应该禁用后台任务当环境变量设置为 "1"', () => {
-      process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS = '1';
+      process.env.AXON_DISABLE_BACKGROUND_TASKS = '1';
 
       const manager = new BackgroundTaskManager();
 
@@ -43,7 +43,7 @@ describe('Background Tasks Disable Feature', () => {
     });
 
     it('应该禁用后台任务当环境变量设置为 "true"', () => {
-      process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS = 'true';
+      process.env.AXON_DISABLE_BACKGROUND_TASKS = 'true';
 
       const manager = new BackgroundTaskManager();
 
@@ -51,7 +51,7 @@ describe('Background Tasks Disable Feature', () => {
     });
 
     it('cleanup() 应该安全处理禁用状态', () => {
-      process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS = '1';
+      process.env.AXON_DISABLE_BACKGROUND_TASKS = '1';
 
       const manager = new BackgroundTaskManager();
 
@@ -60,7 +60,7 @@ describe('Background Tasks Disable Feature', () => {
     });
 
     it('getStats() 应该返回 null 当禁用时', () => {
-      process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS = '1';
+      process.env.AXON_DISABLE_BACKGROUND_TASKS = '1';
 
       const manager = new BackgroundTaskManager();
       const stats = manager.getStats();
@@ -74,7 +74,7 @@ describe('Background Tasks Disable Feature', () => {
 
   describe('createBackgroundTask', () => {
     it('应该创建任务当环境变量未设置时', () => {
-      delete process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS;
+      delete process.env.AXON_DISABLE_BACKGROUND_TASKS;
 
       const task = createBackgroundTask('test task');
 
@@ -86,7 +86,7 @@ describe('Background Tasks Disable Feature', () => {
     });
 
     it('应该返回 null 当环境变量设置为 "1"', () => {
-      process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS = '1';
+      process.env.AXON_DISABLE_BACKGROUND_TASKS = '1';
 
       const task = createBackgroundTask('test task');
 
@@ -94,7 +94,7 @@ describe('Background Tasks Disable Feature', () => {
     });
 
     it('应该返回 null 当环境变量设置为 "true"', () => {
-      process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS = 'true';
+      process.env.AXON_DISABLE_BACKGROUND_TASKS = 'true';
 
       const task = createBackgroundTask('test task');
 

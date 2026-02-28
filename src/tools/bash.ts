@@ -314,7 +314,7 @@ function fixWindowsPathsForBash(command: string): string {
   if (!IS_WINDOWS) return command;
 
   // 匹配 Windows 驱动器路径：X:\ 后面跟着路径字符（字母、数字、下划线、点、横杠和反斜杠）
-  // 例如：F:\claude-code-open\tests\file.ts → F:/claude-code-open/tests/file.ts
+  // 例如：F:\axon\tests\file.ts → F:/axon/tests/file.ts
   // 注意：不匹配空格，因为空格在 bash 中是分词符。
   // 带空格的路径应该用引号括起来，引号内的反斜杠由 bash 自己处理。
   return command.replace(

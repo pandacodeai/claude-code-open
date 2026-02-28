@@ -29,7 +29,7 @@ function setup() {
   const testHome = os.tmpdir();
   process.env.HOME = testHome;
 
-  const claudeDir = path.join(testHome, '.claude', 'sessions');
+  const claudeDir = path.join(testHome, '.axon', 'sessions');
   fs.mkdirSync(claudeDir, { recursive: true });
 
   return () => {
@@ -341,7 +341,7 @@ const tests = [
   }),
 
   test('应该处理无效的会话文件', () => {
-    const claudeDir = path.join(process.env.HOME || '~', '.claude', 'sessions');
+    const claudeDir = path.join(process.env.HOME || '~', '.axon', 'sessions');
     const invalidFile = path.join(claudeDir, 'invalid.json');
 
     fs.writeFileSync(invalidFile, 'invalid json content');

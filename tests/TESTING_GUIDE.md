@@ -1,8 +1,8 @@
-# Claude Code Testing Guide
+# Axon Testing Guide
 
 ## Overview
 
-This guide covers the testing infrastructure for Claude Code CLI, focusing on the core module unit tests.
+This guide covers the testing infrastructure for Axon CLI, focusing on the core module unit tests.
 
 ## Directory Structure
 
@@ -136,7 +136,7 @@ node dist/tests/core/loop.test.js
 
 ### Success Output
 ```
-=== Claude Code Core Module Tests ===
+=== Axon Core Module Tests ===
 
 Running: loop
 ✓ should initialize with default options

@@ -32,7 +32,7 @@ describe('Language Configuration', () => {
     fs.mkdirSync(TEST_CONFIG_DIR, { recursive: true });
 
     // 设置测试配置目录
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
   });
 
   afterEach(() => {
@@ -83,8 +83,8 @@ describe('Language Configuration', () => {
   });
 
   describe('Environment Variable', () => {
-    it('should read language from CLAUDE_CODE_LANGUAGE env var', () => {
-      process.env.CLAUDE_CODE_LANGUAGE = 'chinese';
+    it('should read language from AXON_LANGUAGE env var', () => {
+      process.env.AXON_LANGUAGE = 'chinese';
 
       const manager = new ConfigManager();
       const config = manager.getAll();
@@ -100,7 +100,7 @@ describe('Language Configuration', () => {
       );
 
       // 设置环境变量
-      process.env.CLAUDE_CODE_LANGUAGE = 'chinese';
+      process.env.AXON_LANGUAGE = 'chinese';
 
       const manager = new ConfigManager();
       const config = manager.getAll();
@@ -206,7 +206,7 @@ describe('Language Configuration', () => {
     });
 
     it('should track language setting source from env var', () => {
-      process.env.CLAUDE_CODE_LANGUAGE = 'chinese';
+      process.env.AXON_LANGUAGE = 'chinese';
 
       const manager = new ConfigManager();
       const source = manager.getConfigSource('language');

@@ -156,7 +156,7 @@ export const ALL_COMMANDS: CompletionItem[] = [
   {
     value: '/init',
     label: '/init',
-    description: 'Initialize CLAUDE.md configuration file',
+    description: 'Initialize AXON.md configuration file',
     type: 'command',
     priority: 22
   },

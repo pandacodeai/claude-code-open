@@ -412,7 +412,7 @@
         <a href="index.html">首页</a>
         <a href="user-guide.html" style="color: var(--primary-light);">操作手册</a>
         <a href="http://voicegpt.site:3456/" target="_blank">在线体验</a>
-        <a href="https://github.com/kill136/claude-code-open" target="_blank">GitHub</a>
+        <a href="https://github.com/kill136/axon" target="_blank">GitHub</a>
         <a href="https://discord.gg/bNyJKk6PVZ" target="_blank">Discord</a>
     </div>
 </nav>
@@ -444,7 +444,7 @@
     <a href="#feat-schedule" class="sub-link">定时任务</a>
     <a href="#feat-slash" class="sub-link">斜杠命令</a>
     <a href="#advanced">进阶用法</a>
-    <a href="#adv-claude-md" class="sub-link">CLAUDE.md</a>
+    <a href="#adv-claude-md" class="sub-link">AXON.md</a>
     <a href="#adv-skills" class="sub-link">Skills 技能</a>
     <a href="#adv-mcp" class="sub-link">MCP 协议</a>
     <a href="#adv-hooks" class="sub-link">Hooks 钩子</a>
@@ -464,7 +464,7 @@
 
 <p>
     <a href="http://voicegpt.site:3456/" class="cta-btn" target="_blank">在线体验 Demo</a>
-    <a href="https://github.com/kill136/claude-code-open" class="cta-btn outline" target="_blank">GitHub 源码</a>
+    <a href="https://github.com/kill136/axon" class="cta-btn outline" target="_blank">GitHub 源码</a>
 </p>
 
 <!-- Section 1: Introduction -->
@@ -483,7 +483,7 @@
 
 <p>简单说：<strong>它是一个住在你电脑里的全栈工程师。</strong></p>
 
-<img src="https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/demo-screenshots/01-main.png" alt="Web UI 主界面" class="screenshot">
+<img src="https://raw.githubusercontent.com/kill136/axon/private_web_ui/demo-screenshots/01-main.png" alt="Web UI 主界面" class="screenshot">
 <p class="screenshot-caption">Web UI 主界面 — 集聊天、代码编辑、蓝图规划于一体</p>
 
 
@@ -498,8 +498,8 @@
     <div class="step-number">1</div>
     <div class="step-content">
         下载安装脚本：
-        <a href="https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.bat">install.bat</a>
-        （国内用户：<a href="https://gitee.com/lubanbbs/claude-code-open/raw/private_web_ui/install.bat">Gitee 镜像</a>）
+        <a href="https://raw.githubusercontent.com/kill136/axon/private_web_ui/install.bat">install.bat</a>
+        （国内用户：<a href="https://gitee.com/lubanbbs/axon/raw/private_web_ui/install.bat">Gitee 镜像</a>）
     </div>
 </div>
 
@@ -515,7 +515,7 @@
 
 <div class="step">
     <div class="step-number">4</div>
-    <div class="step-content">桌面出现 "Claude Code WebUI" 快捷方式，双击打开</div>
+    <div class="step-content">桌面出现 "Axon WebUI" 快捷方式，双击打开</div>
 </div>
 
 <div class="callout tip">
@@ -526,29 +526,29 @@
 <h3 id="install-mac">macOS / Linux 安装</h3>
 
 <p>一行命令搞定：</p>
-<pre><code>curl -fsSL https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.sh | bash</code></pre>
+<pre><code>curl -fsSL https://raw.githubusercontent.com/kill136/axon/private_web_ui/install.sh | bash</code></pre>
 
 <p>国内镜像加速：</p>
-<pre><code>curl -fsSL https://gitee.com/lubanbbs/claude-code-open/raw/private_web_ui/install.sh | bash</code></pre>
+<pre><code>curl -fsSL https://gitee.com/lubanbbs/axon/raw/private_web_ui/install.sh | bash</code></pre>
 
 <h3 id="install-docker">Docker 部署</h3>
 
 <pre><code># 构建镜像
-docker build -t claude-code-open .
+docker build -t axon .
 
 # 运行 Web UI
 docker run -it \
   -e ANTHROPIC_API_KEY=你的API密钥 \
   -p 3456:3456 \
   -v $(pwd):/workspace \
-  claude-code-open node /app/dist/web-cli.js --host 0.0.0.0</code></pre>
+  axon node /app/dist/web-cli.js --host 0.0.0.0</code></pre>
 
 <p>然后访问 <code>http://localhost:3456</code>。</p>
 
 <h3 id="install-manual">手动安装（开发者）</h3>
 
-<pre><code>git clone https://github.com/kill136/claude-code-open.git
-cd claude-code-open
+<pre><code>git clone https://github.com/kill136/axon.git
+cd axon
 npm install
 
 # 构建前端
@@ -612,7 +612,7 @@ $env:ANTHROPIC_API_KEY="sk-ant-你的密钥"
 set ANTHROPIC_API_KEY=sk-ant-你的密钥</code></pre>
 
 <h4>方式三：通过配置文件</h4>
-<pre><code>// ~/.claude/settings.json
+<pre><code>// ~/.axon/settings.json
 {
   "apiKey": "sk-ant-你的密钥"
 }</code></pre>
@@ -746,7 +746,7 @@ set ANTHROPIC_API_KEY=sk-ant-你的密钥</code></pre>
 
 <p>点击 <strong>"蓝图"</strong> 标签页进入蓝图系统。</p>
 
-<img src="https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/demo-screenshots/02-blueprint.png" alt="蓝图系统" class="screenshot">
+<img src="https://raw.githubusercontent.com/kill136/axon/private_web_ui/demo-screenshots/02-blueprint.png" alt="蓝图系统" class="screenshot">
 <p class="screenshot-caption">蓝图页面 — 可视化展示项目模块结构</p>
 
 <p><strong>什么是蓝图？</strong>蓝图是对项目的"全景扫描"——AI 分析你的整个代码库，识别出模块结构、业务流程和依赖关系。</p>
@@ -765,7 +765,7 @@ set ANTHROPIC_API_KEY=sk-ant-你的密钥</code></pre>
 
 <p>点击 <strong>"蜂群"</strong> 标签页进入蜂群面板。</p>
 
-<img src="https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/demo-screenshots/03-swarm.png" alt="蜂群系统" class="screenshot">
+<img src="https://raw.githubusercontent.com/kill136/axon/private_web_ui/demo-screenshots/03-swarm.png" alt="蜂群系统" class="screenshot">
 <p class="screenshot-caption">蜂群面板 — 多个 AI Agent 并行工作</p>
 
 <p><strong>什么是蜂群？</strong>当你有一个复杂的大任务（比如"帮我从零搭建一个电商后端"），单个 AI 处理太慢。蜂群系统会：</p>
@@ -828,9 +828,9 @@ set ANTHROPIC_API_KEY=sk-ant-你的密钥</code></pre>
 <!-- Section 6: Advanced -->
 <h2 id="advanced">六、进阶用法</h2>
 
-<h3 id="adv-claude-md">6.1 CLAUDE.md 项目规则</h3>
+<h3 id="adv-claude-md">6.1 AXON.md 项目规则</h3>
 
-<p>在项目根目录创建 <code>CLAUDE.md</code> 文件，写入你的项目规则和约束。AI 每次启动都会自动读取这个文件。</p>
+<p>在项目根目录创建 <code>AXON.md</code> 文件，写入你的项目规则和约束。AI 每次启动都会自动读取这个文件。</p>
 
 <p><strong>这是最强大的配置手段</strong>——相当于给 AI 员工一份"工作手册"。</p>
 
@@ -850,7 +850,7 @@ set ANTHROPIC_API_KEY=sk-ant-你的密钥</code></pre>
 
 <div class="callout warning">
     <strong>关键理解</strong>
-    每次新对话，AI 都是全新实例（没有记忆）。CLAUDE.md 是唯一跨对话持久生效的"规则约束"。
+    每次新对话，AI 都是全新实例（没有记忆）。AXON.md 是唯一跨对话持久生效的"规则约束"。
 </div>
 
 <h3 id="adv-skills">6.2 Skills 技能系统</h3>
@@ -864,7 +864,7 @@ set ANTHROPIC_API_KEY=sk-ant-你的密钥</code></pre>
     <li><code>/skill-hub</code> — 搜索和安装社区技能</li>
 </ul>
 
-<p><strong>创建自定义 Skill：</strong>在 <code>.claude/skills/my-skill/SKILL.md</code> 创建文件：</p>
+<p><strong>创建自定义 Skill：</strong>在 <code>.axon/skills/my-skill/SKILL.md</code> 创建文件：</p>
 
 <pre><code>---
 description: "自动化部署到测试环境"
@@ -882,7 +882,7 @@ user-invocable: true
 
 <h3 id="adv-mcp">6.3 MCP 协议扩展</h3>
 
-<p>MCP (Model Context Protocol) 让 AI 能连接外部工具和服务。编辑 <code>~/.claude/settings.json</code>：</p>
+<p>MCP (Model Context Protocol) 让 AI 能连接外部工具和服务。编辑 <code>~/.axon/settings.json</code>：</p>
 
 <pre><code>{
   "mcpServers": {
@@ -1002,7 +1002,7 @@ node dist/cli.js --list</code></pre>
 
 <div class="faq-item">
     <h4>Q: AI 修改了不该改的文件</h4>
-    <p>使用"询问"权限模式；在 CLAUDE.md 中明确写入"禁止修改 xxx"；使用 Git 随时 <code>git checkout -- .</code> 回滚。</p>
+    <p>使用"询问"权限模式；在 AXON.md 中明确写入"禁止修改 xxx"；使用 Git 随时 <code>git checkout -- .</code> 回滚。</p>
 </div>
 
 
@@ -1010,13 +1010,13 @@ node dist/cli.js --list</code></pre>
 <h2 id="help">九、获取帮助</h2>
 
 <p>
-    <a href="https://github.com/kill136/claude-code-open/issues" class="cta-btn" target="_blank">提交 Issue</a>
+    <a href="https://github.com/kill136/axon/issues" class="cta-btn" target="_blank">提交 Issue</a>
     <a href="https://discord.gg/bNyJKk6PVZ" class="cta-btn outline" target="_blank">加入 Discord</a>
     <a href="http://voicegpt.site:3456/" class="cta-btn outline" target="_blank">在线体验</a>
 </p>
 
 <ul>
-    <li><strong>GitHub</strong>: <a href="https://github.com/kill136/claude-code-open" target="_blank">github.com/kill136/claude-code-open</a></li>
+    <li><strong>GitHub</strong>: <a href="https://github.com/kill136/axon" target="_blank">github.com/kill136/axon</a></li>
     <li><strong>Discord</strong>: <a href="https://discord.gg/bNyJKk6PVZ" target="_blank">discord.gg/bNyJKk6PVZ</a></li>
     <li><strong>官网</strong>: <a href="https://www.chatbi.site" target="_blank">chatbi.site</a></li>
     <li><strong>Twitter</strong>: <a href="https://x.com/wangbingjie1989" target="_blank">@wangbingjie1989</a></li>

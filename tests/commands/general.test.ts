@@ -373,7 +373,7 @@ describe('Version Command', () => {
     const result = versionCommand.execute(ctx);
 
     expect(result.success).toBe(true);
-    expect(ctx.ui.addMessage).toHaveBeenCalledWith('assistant', expect.stringMatching(/Claude Code v\d+\.\d+\.\d+/));
+    expect(ctx.ui.addMessage).toHaveBeenCalledWith('assistant', expect.stringMatching(/Axon v\d+\.\d+\.\d+/));
   });
 });
 

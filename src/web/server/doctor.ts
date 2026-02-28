@@ -418,7 +418,7 @@ async function checkConfigurationFiles(): Promise<DiagnosticResult> {
       required: false
     },
     {
-      path: path.join(process.cwd(), 'CLAUDE.md'),
+      path: path.join(process.cwd(), 'AXON.md'),
       name: '项目指令',
       required: false
     },

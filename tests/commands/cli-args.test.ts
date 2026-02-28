@@ -15,7 +15,7 @@ function parseArgs(args: string[]): any {
 
   program
     .name('claude')
-    .description('Claude Code - starts an interactive session by default')
+    .description('Axon - starts an interactive session by default')
     .version('2.1.4-test', '-v, --version', 'Output the version number');
 
   program

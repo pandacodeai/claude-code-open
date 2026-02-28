@@ -62,7 +62,7 @@ describe('Config Loading Integration', () => {
       createTestConfig(env, globalConfig);
 
       // Project config
-      const projectConfigDir = path.join(env.projectDir, '.claude');
+      const projectConfigDir = path.join(env.projectDir, '.axon');
       fs.mkdirSync(projectConfigDir, { recursive: true });
       const projectConfigPath = path.join(projectConfigDir, 'settings.json');
       fs.writeFileSync(
@@ -95,8 +95,8 @@ describe('Config Loading Integration', () => {
       createTestConfig(env, globalConfig);
 
       // Set environment variables
-      process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '16384';
-      process.env.CLAUDE_CODE_USE_BEDROCK = 'true';
+      process.env.AXON_MAX_OUTPUT_TOKENS = '16384';
+      process.env.AXON_USE_BEDROCK = 'true';
 
       const config = new ConfigManager(env.configDir);
       const loaded = config.getAll();
@@ -105,8 +105,8 @@ describe('Config Loading Integration', () => {
       expect(loaded.useBedrock).toBe(true);
 
       // Cleanup
-      delete process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS;
-      delete process.env.CLAUDE_CODE_USE_BEDROCK;
+      delete process.env.AXON_MAX_OUTPUT_TOKENS;
+      delete process.env.AXON_USE_BEDROCK;
     });
   });
 
@@ -427,8 +427,8 @@ describe('Config Loading Integration', () => {
 
   describe('Environment Variable Parsing', () => {
     it('should parse boolean environment variables', () => {
-      process.env.CLAUDE_CODE_VERBOSE = 'true';
-      process.env.CLAUDE_CODE_USE_BEDROCK = 'false';
+      process.env.AXON_VERBOSE = 'true';
+      process.env.AXON_USE_BEDROCK = 'false';
 
       const config = new ConfigManager(env.configDir);
       const loaded = config.getAll();
@@ -436,13 +436,13 @@ describe('Config Loading Integration', () => {
       expect(loaded.verbose).toBe(true);
       expect(loaded.useBedrock).toBe(false);
 
-      delete process.env.CLAUDE_CODE_VERBOSE;
-      delete process.env.CLAUDE_CODE_USE_BEDROCK;
+      delete process.env.AXON_VERBOSE;
+      delete process.env.AXON_USE_BEDROCK;
     });
 
     it('should parse numeric environment variables', () => {
-      process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '32768';
-      process.env.CLAUDE_CODE_TEMPERATURE = '0.5';
+      process.env.AXON_MAX_OUTPUT_TOKENS = '32768';
+      process.env.AXON_TEMPERATURE = '0.5';
 
       const config = new ConfigManager(env.configDir);
       const loaded = config.getAll();
@@ -450,12 +450,12 @@ describe('Config Loading Integration', () => {
       expect(loaded.maxTokens).toBe(32768);
       expect(loaded.temperature).toBe(0.5);
 
-      delete process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS;
-      delete process.env.CLAUDE_CODE_TEMPERATURE;
+      delete process.env.AXON_MAX_OUTPUT_TOKENS;
+      delete process.env.AXON_TEMPERATURE;
     });
 
     it('should handle invalid environment variable values', () => {
-      process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = 'not-a-number';
+      process.env.AXON_MAX_OUTPUT_TOKENS = 'not-a-number';
 
       const config = new ConfigManager(env.configDir);
       const loaded = config.getAll();
@@ -463,7 +463,7 @@ describe('Config Loading Integration', () => {
       // Should fall back to default
       expect(loaded.maxTokens).toBe(8192);
 
-      delete process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS;
+      delete process.env.AXON_MAX_OUTPUT_TOKENS;
     });
   });
 });

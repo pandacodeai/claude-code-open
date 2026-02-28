@@ -2,7 +2,7 @@
 
 ### 免费开源的 Axon，带 Web IDE、多智能体和自我进化
 
-[![npm](https://img.shields.io/npm/v/claude-code-open?style=flat-square&color=CB3837)](https://www.npmjs.com/package/claude-code-open)
+[![npm](https://img.shields.io/npm/v/axon?style=flat-square&color=CB3837)](https://www.npmjs.com/package/axon)
 [![GitHub Stars](https://img.shields.io/github/stars/kill136/axon?style=flat-square)](https://github.com/kill136/axon)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![Node](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-brightgreen?style=flat-square)](https://nodejs.org)
@@ -22,7 +22,7 @@
 
 ## 为什么选择 Axon？
 
-| | 官方 Claude Code | Axon |
+| | 官方 Axon | Axon |
 |---|---|---|
 | **价格** | $20/月 (需要 Max 订阅) | 免费（自备 API Key） |
 | **界面** | 仅终端 | 终端 + **Web IDE**（Monaco 编辑器、文件树、AI 增强编辑） |

@@ -407,7 +407,7 @@ class ErrorWatcher {
       if (fs.existsSync(pkgPath)) {
         try {
           const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-          if (pkg.name === 'claude-code-open') return dir;
+          if (pkg.name === 'axon') return dir;
         } catch { /* continue */ }
       }
       const parent = path.dirname(dir);

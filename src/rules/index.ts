@@ -1,5 +1,5 @@
 /**
- * CLAUDE.md and Project Rules Parser
+ * AXON.md and Project Rules Parser
  * Parse project instructions and rules
  */
 
@@ -153,7 +153,7 @@ export function parseClaudeMd(filePath: string): AxonMdSection[] {
 }
 
 /**
- * Extract rules from CLAUDE.md sections
+ * Extract rules from AXON.md sections
  */
 export function extractRules(sections: AxonMdSection[]): ProjectRules {
   const rules: ProjectRules = {};
@@ -269,7 +269,7 @@ export function loadProjectRules(projectDir?: string): ProjectRules {
   const dir = projectDir || process.cwd();
   let rules: ProjectRules = {};
 
-  // Load CLAUDE.md
+  // Load AXON.md
   const claudeMdPath = findClaudeMd(dir);
   if (claudeMdPath) {
     const sections = parseClaudeMd(claudeMdPath);
@@ -388,7 +388,7 @@ export function generateSystemPromptAddition(rules: ProjectRules): string {
 }
 
 /**
- * Create default CLAUDE.md template
+ * Create default AXON.md template
  */
 export function createClaudeMdTemplate(): string {
   return `# Project Instructions
@@ -424,14 +424,14 @@ Add your project-specific instructions here. Claude will follow these when worki
 }
 
 /**
- * Initialize CLAUDE.md in current directory
+ * Initialize AXON.md in current directory
  */
 export function initClaudeMd(dir?: string): string {
   const targetDir = dir || process.cwd();
-  const filePath = path.join(targetDir, 'CLAUDE.md');
+  const filePath = path.join(targetDir, 'AXON.md');
 
   if (fs.existsSync(filePath)) {
-    throw new Error('CLAUDE.md already exists');
+    throw new Error('AXON.md already exists');
   }
 
   const template = createClaudeMdTemplate();

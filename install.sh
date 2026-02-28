@@ -918,7 +918,7 @@ install_docker() {
 
     cat > "$WRAPPER" << 'WRAPPER_EOF'
 #!/bin/bash
-IMAGE_NAME="wbj66/claude-code-open:latest"
+IMAGE_NAME="wbj66/axon:latest"
 mkdir -p ~/.axon
 exec docker run -it --rm \
     ${ANTHROPIC_API_KEY:+-e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"} \
@@ -981,7 +981,7 @@ ensure_path_in_shellrc() {
 
 # --- Uninstall ---
 uninstall() {
-    info "Uninstalling Claude Code Open..."
+    info "Uninstalling Axon..."
 
     if [ -d "$INSTALL_DIR" ]; then
         cd "$INSTALL_DIR" && npm unlink 2>/dev/null || true

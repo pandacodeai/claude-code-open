@@ -41,7 +41,7 @@ import type { Message } from '../../src/types/index.js';
 
 // 测试环境配置
 const TEST_HOME = path.join(os.tmpdir(), 'claude-test-' + Date.now());
-const TEST_SESSIONS_DIR = path.join(TEST_HOME, '.claude', 'sessions');
+const TEST_SESSIONS_DIR = path.join(TEST_HOME, '.axon', 'sessions');
 const TEST_CWD = os.tmpdir();
 
 // 保存原始环境

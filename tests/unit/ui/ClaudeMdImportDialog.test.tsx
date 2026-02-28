@@ -1,5 +1,5 @@
 /**
- * CLAUDE.md 导入审批对话框测试
+ * AXON.md 导入审批对话框测试
  * v2.1.6 新增
  */
 
@@ -27,36 +27,36 @@ describe('ClaudeMdImportDialog', () => {
   });
 
   describe('scanClaudeMdFiles', () => {
-    it('should find project CLAUDE.md file', () => {
+    it('should find project AXON.md file', () => {
       // Setup mock
       vi.mocked(fs.existsSync).mockImplementation((p: fs.PathLike) => {
         const pathStr = String(p);
-        return pathStr === path.join(mockCwd, 'CLAUDE.md');
+        return pathStr === path.join(mockCwd, 'AXON.md');
       });
       vi.mocked(fs.statSync).mockReturnValue({
         size: 100,
         mtime: new Date(),
       } as fs.Stats);
-      vi.mocked(fs.readFileSync).mockReturnValue('# Project CLAUDE.md\n\nSome content');
+      vi.mocked(fs.readFileSync).mockReturnValue('# Project AXON.md\n\nSome content');
       vi.mocked(fs.readdirSync).mockReturnValue([]);
 
       const files = scanClaudeMdFiles(mockCwd);
 
       expect(files).toHaveLength(1);
       expect(files[0].source).toBe('project');
-      expect(files[0].path).toBe(path.join(mockCwd, 'CLAUDE.md'));
+      expect(files[0].path).toBe(path.join(mockCwd, 'AXON.md'));
     });
 
-    it('should detect .claude/CLAUDE.md', () => {
+    it('should detect .claude/AXON.md', () => {
       vi.mocked(fs.existsSync).mockImplementation((p: fs.PathLike) => {
         const pathStr = String(p);
-        return pathStr === path.join(mockCwd, '.claude', 'CLAUDE.md');
+        return pathStr === path.join(mockCwd, '.axon', 'AXON.md');
       });
       vi.mocked(fs.statSync).mockReturnValue({
         size: 200,
         mtime: new Date(),
       } as fs.Stats);
-      vi.mocked(fs.readFileSync).mockReturnValue('# .claude CLAUDE.md\n');
+      vi.mocked(fs.readFileSync).mockReturnValue('# .claude AXON.md\n');
       vi.mocked(fs.readdirSync).mockReturnValue([]);
 
       const files = scanClaudeMdFiles(mockCwd);
@@ -83,10 +83,10 @@ describe('ClaudeMdImportDialog', () => {
       expect(files[0].source).toBe('local');
     });
 
-    it('should detect global user CLAUDE.md', () => {
+    it('should detect global user AXON.md', () => {
       vi.mocked(fs.existsSync).mockImplementation((p: fs.PathLike) => {
         const pathStr = String(p);
-        return pathStr === path.join(mockHomeDir, '.claude', 'CLAUDE.md');
+        return pathStr === path.join(mockHomeDir, '.axon', 'AXON.md');
       });
       vi.mocked(fs.statSync).mockReturnValue({
         size: 150,
@@ -104,7 +104,7 @@ describe('ClaudeMdImportDialog', () => {
     it('should detect rules in .claude/rules/', () => {
       vi.mocked(fs.existsSync).mockImplementation((p: fs.PathLike) => {
         const pathStr = String(p);
-        return pathStr === path.join(mockCwd, '.claude', 'rules');
+        return pathStr === path.join(mockCwd, '.axon', 'rules');
       });
       vi.mocked(fs.statSync).mockReturnValue({
         size: 100,
@@ -113,7 +113,7 @@ describe('ClaudeMdImportDialog', () => {
       vi.mocked(fs.readFileSync).mockReturnValue('# Rule content');
       vi.mocked(fs.readdirSync).mockImplementation((p) => {
         const pathStr = String(p);
-        if (pathStr === path.join(mockCwd, '.claude', 'rules')) {
+        if (pathStr === path.join(mockCwd, '.axon', 'rules')) {
           return ['typescript.md', 'react.md'] as unknown as fs.Dirent[];
         }
         return [] as unknown as fs.Dirent[];
@@ -127,7 +127,7 @@ describe('ClaudeMdImportDialog', () => {
     it('should validate file size limit (40KB)', () => {
       vi.mocked(fs.existsSync).mockImplementation((p: fs.PathLike) => {
         const pathStr = String(p);
-        return pathStr === path.join(mockCwd, 'CLAUDE.md');
+        return pathStr === path.join(mockCwd, 'AXON.md');
       });
       vi.mocked(fs.statSync).mockReturnValue({
         size: 50 * 1024, // 50KB - exceeds limit
@@ -145,13 +145,13 @@ describe('ClaudeMdImportDialog', () => {
     it('should extract @include references', () => {
       vi.mocked(fs.existsSync).mockImplementation((p: fs.PathLike) => {
         const pathStr = String(p);
-        return pathStr === path.join(mockCwd, 'CLAUDE.md');
+        return pathStr === path.join(mockCwd, 'AXON.md');
       });
       vi.mocked(fs.statSync).mockReturnValue({
         size: 200,
         mtime: new Date(),
       } as fs.Stats);
-      vi.mocked(fs.readFileSync).mockReturnValue(`# Project CLAUDE.md
+      vi.mocked(fs.readFileSync).mockReturnValue(`# Project AXON.md
 
 See @./docs/style-guide.md for style guidelines.
 Also check @~/shared/common-rules.md for shared rules.
@@ -169,10 +169,10 @@ Also check @~/shared/common-rules.md for shared rules.
   describe('File source identification', () => {
     it('should correctly identify all source types', () => {
       const sourceTypes: Array<{ path: string; expectedSource: string }> = [
-        { path: path.join(mockCwd, 'CLAUDE.md'), expectedSource: 'project' },
-        { path: path.join(mockCwd, '.claude', 'CLAUDE.md'), expectedSource: 'project-dir' },
+        { path: path.join(mockCwd, 'AXON.md'), expectedSource: 'project' },
+        { path: path.join(mockCwd, '.axon', 'AXON.md'), expectedSource: 'project-dir' },
         { path: path.join(mockCwd, 'CLAUDE.local.md'), expectedSource: 'local' },
-        { path: path.join(mockHomeDir, '.claude', 'CLAUDE.md'), expectedSource: 'user-global' },
+        { path: path.join(mockHomeDir, '.axon', 'AXON.md'), expectedSource: 'user-global' },
       ];
 
       sourceTypes.forEach(({ path: filePath, expectedSource }) => {

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Complete integration testing framework for Claude Code CLI with 3 comprehensive test suites covering tool chains, session flows, and configuration loading.
+Complete integration testing framework for Axon CLI with 3 comprehensive test suites covering tool chains, session flows, and configuration loading.
 
 ## Implementation Summary
 
@@ -174,7 +174,7 @@ tests/integration/
 #### Configuration Sources Priority
 - Default configuration
 - Global configuration (settings.json)
-- Project configuration (.claude/settings.json)
+- Project configuration (.axon/settings.json)
 - Environment variables
 - Correct precedence handling
 
@@ -406,7 +406,7 @@ npm run test:coverage
 
 ## Conclusion
 
-The integration test framework provides a solid foundation for testing Claude Code CLI. It covers the three main subsystems (tools, sessions, config) with realistic scenarios, comprehensive assertions, and excellent maintainability.
+The integration test framework provides a solid foundation for testing Axon CLI. It covers the three main subsystems (tools, sessions, config) with realistic scenarios, comprehensive assertions, and excellent maintainability.
 
 The framework is:
 - **Production-ready**: Can be run in CI/CD pipelines

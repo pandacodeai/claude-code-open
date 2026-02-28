@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>手机远程编程：Claude Code 移动端工作原理 | Axon</title>
+    <title>手机远程编程：Axon 移动端工作原理 | Axon</title>
     <meta name="description" content="通过 Tailscale 零配置组网 + PWA 原生体验，在手机上远程操控你的 AI 开发环境。深度解析 Axon WebUI 移动端的架构设计与技术实现。">
     <link rel="canonical" href="https://www.chatbi.site/mobile-blog">
     
@@ -19,14 +19,14 @@
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://www.chatbi.site/mobile-blog">
-    <meta property="og:title" content="手机远程编程：Claude Code 移动端工作原理 | Axon">
+    <meta property="og:title" content="手机远程编程：Axon 移动端工作原理 | Axon">
     <meta property="og:description" content="通过 Tailscale 零配置组网 + PWA 原生体验，在手机上远程操控你的 AI 开发环境。">
     <meta property="og:image" content="https://www.chatbi.site/og-image.png">
     
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="https://www.chatbi.site/mobile-blog">
-    <meta name="twitter:title" content="手机远程编程：Claude Code 移动端工作原理 | Claude Code Open">
+    <meta name="twitter:title" content="手机远程编程：Axon 移动端工作原理 | Axon">
     <meta name="twitter:description" content="通过 Tailscale 零配置组网 + PWA 原生体验，在手机上远程操控你的 AI 开发环境。">
     <meta name="twitter:image" content="https://www.chatbi.site/og-image.png">
     
@@ -35,17 +35,17 @@
     {
         "@context": "https://schema.org",
         "@type": "Article",
-        "headline": "手机远程编程：Claude Code 移动端工作原理",
-        "description": "通过 Tailscale 零配置组网 + PWA 原生体验，在手机上远程操控你的 AI 开发环境。深度解析 Claude Code WebUI 移动端的架构设计与技术实现。",
+        "headline": "手机远程编程：Axon 移动端工作原理",
+        "description": "通过 Tailscale 零配置组网 + PWA 原生体验，在手机上远程操控你的 AI 开发环境。深度解析 Axon WebUI 移动端的架构设计与技术实现。",
         "datePublished": "2026-02-13",
         "dateModified": "2026-02-14",
         "author": {
             "@type": "Organization",
-            "name": "Claude Code Team"
+            "name": "Axon Team"
         },
         "publisher": {
             "@type": "Organization",
-            "name": "Claude Code Open"
+            "name": "Axon"
         }
     }
     </script>
@@ -171,19 +171,19 @@
 
     <header class="blog-hero">
         <span class="blog-tag">MOBILE</span>
-        <h1><span class="gradient-text">Claude Code, 随身携带</span></h1>
-        <p class="meta">2026-02-13 &middot; 6 min read &middot; Claude Code Team</p>
+        <h1><span class="gradient-text">Axon, 随身携带</span></h1>
+        <p class="meta">2026-02-13 &middot; 6 min read &middot; Axon Team</p>
     </header>
 
     <article class="article-body">
 
         <div class="callout">
-            <p><strong>TL;DR</strong> &mdash; 在电脑上启动 Claude Code WebUI，手机通过 Tailscale 访问，添加到主屏幕就是一个全功能 AI 编程助手。无需安装 App，无需公网 IP，端到端加密。</p>
+            <p><strong>TL;DR</strong> &mdash; 在电脑上启动 Axon WebUI，手机通过 Tailscale 访问，添加到主屏幕就是一个全功能 AI 编程助手。无需安装 App，无需公网 IP，端到端加密。</p>
         </div>
 
-        <p>Claude Code 是一个运行在终端的 AI 编程助手，拥有 35+ 工具，能读写文件、执行命令、搜索代码。但终端意味着你必须坐在电脑前。</p>
+        <p>Axon 是一个运行在终端的 AI 编程助手，拥有 35+ 工具，能读写文件、执行命令、搜索代码。但终端意味着你必须坐在电脑前。</p>
 
-        <p>WebUI 改变了这一点。它把 Claude Code 的全部能力暴露为一个 Web 界面 &mdash; 然后我们做了一件事：<strong>让这个 Web 界面在手机上也很好用</strong>。</p>
+        <p>WebUI 改变了这一点。它把 Axon 的全部能力暴露为一个 Web 界面 &mdash; 然后我们做了一件事：<strong>让这个 Web 界面在手机上也很好用</strong>。</p>
 
         <h2>工作原理</h2>
 
@@ -193,7 +193,7 @@
             <div class="arch-box">
                 <div class="icon">&#x1f4bb;</div>
                 <div class="label">开发机</div>
-                <div class="detail">Claude Code Server</div>
+                <div class="detail">Axon Server</div>
             </div>
             <div class="arch-arrow">
                 <div class="proto">WebSocket</div>
@@ -230,7 +230,7 @@
             </div>
 <pre><span class="gn">$</span> claude-code <span class="yw">--web --host</span> 0.0.0.0
 
-&#x1f310; Claude Code WebUI 已启动
+&#x1f310; Axon WebUI 已启动
    地址:      <span class="cy">http://localhost:3456</span>
    WebSocket: <span class="cy">ws://localhost:3456/ws</span>
    模型:      <span class="yw">opus</span>
@@ -293,7 +293,7 @@
                     <div class="phone-screen">
                         <div class="p-header">
                             <div class="p-dot"></div>
-                            <div class="p-title">Claude Code</div>
+                            <div class="p-title">Axon</div>
                             <div class="p-model">opus</div>
                         </div>
                         <div class="p-chat">

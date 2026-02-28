@@ -1060,7 +1060,7 @@ describe('Session Command Integration Tests', () => {
     if (result2.success) {
       expect(fs.existsSync(mdPath)).toBe(true);
       const content = fs.readFileSync(mdPath, 'utf-8');
-      expect(content).toContain('# Claude Code Session Export');
+      expect(content).toContain('# Axon Session Export');
       fs.unlinkSync(mdPath);
     }
   });

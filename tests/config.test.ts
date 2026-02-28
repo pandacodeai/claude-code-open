@@ -12,7 +12,7 @@ import * as os from 'os';
 const TEST_CONFIG_DIR = path.join(os.tmpdir(), 'claude-test-config');
 const TEST_GLOBAL_CONFIG = path.join(TEST_CONFIG_DIR, 'settings.json');
 const TEST_PROJECT_DIR = path.join(os.tmpdir(), 'claude-test-project');
-const TEST_PROJECT_CONFIG = path.join(TEST_PROJECT_DIR, '.claude', 'settings.json');
+const TEST_PROJECT_CONFIG = path.join(TEST_PROJECT_DIR, '.axon', 'settings.json');
 
 // 清理测试环境
 function cleanup() {
@@ -28,7 +28,7 @@ function cleanup() {
 function setup() {
   cleanup();
   fs.mkdirSync(TEST_CONFIG_DIR, { recursive: true });
-  fs.mkdirSync(path.join(TEST_PROJECT_DIR, '.claude'), { recursive: true });
+  fs.mkdirSync(path.join(TEST_PROJECT_DIR, '.axon'), { recursive: true });
 }
 
 // 测试结果统计
@@ -65,8 +65,8 @@ function assertEqual<T>(actual: T, expected: T, message: string) {
 
 const tests = [
   test('默认配置应该正确加载', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
     const config = manager.getAll();
@@ -77,12 +77,12 @@ const tests = [
     assertEqual(config.temperature, 1, '默认温度应为 1');
     assertEqual(config.theme, 'auto', '默认主题应为 auto');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
   }),
 
   test('配置验证应该拦截无效值', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
 
@@ -98,7 +98,7 @@ const tests = [
       );
     }
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
   }),
 
   test('配置合并应该遵循正确优先级', () => {
@@ -123,10 +123,10 @@ const tests = [
       })
     );
 
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
     const originalCwd = process.cwd();
 
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
     process.chdir(TEST_PROJECT_DIR);
 
     const manager = new ConfigManager();
@@ -137,7 +137,7 @@ const tests = [
     assertEqual(config.verbose, true, '项目配置的 verbose 应该覆盖全局配置');
     assertEqual(config.maxTokens, 8192, '未被项目配置覆盖的值应该使用全局配置');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
     process.chdir(originalCwd);
     cleanup();
   }),
@@ -155,14 +155,14 @@ const tests = [
     );
 
     const originalEnv = {
-      CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR,
-      CLAUDE_CODE_MAX_OUTPUT_TOKENS: process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS,
-      CLAUDE_CODE_USE_BEDROCK: process.env.CLAUDE_CODE_USE_BEDROCK
+      AXON_CONFIG_DIR: process.env.AXON_CONFIG_DIR,
+      AXON_MAX_OUTPUT_TOKENS: process.env.AXON_MAX_OUTPUT_TOKENS,
+      AXON_USE_BEDROCK: process.env.AXON_USE_BEDROCK
     };
 
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
-    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '16384';
-    process.env.CLAUDE_CODE_USE_BEDROCK = 'true';
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_MAX_OUTPUT_TOKENS = '16384';
+    process.env.AXON_USE_BEDROCK = 'true';
 
     const manager = new ConfigManager();
     const config = manager.getAll();
@@ -170,9 +170,9 @@ const tests = [
     assertEqual(config.maxTokens, 16384, '环境变量应该覆盖配置文件');
     assertEqual(config.useBedrock, true, '环境变量应该覆盖配置文件');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = originalEnv.CLAUDE_CODE_MAX_OUTPUT_TOKENS;
-    process.env.CLAUDE_CODE_USE_BEDROCK = originalEnv.CLAUDE_CODE_USE_BEDROCK;
+    process.env.AXON_CONFIG_DIR = originalEnv.AXON_CONFIG_DIR;
+    process.env.AXON_MAX_OUTPUT_TOKENS = originalEnv.AXON_MAX_OUTPUT_TOKENS;
+    process.env.AXON_USE_BEDROCK = originalEnv.AXON_USE_BEDROCK;
     cleanup();
   }),
 
@@ -188,8 +188,8 @@ const tests = [
       })
     );
 
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
     const config = manager.getAll();
@@ -199,13 +199,13 @@ const tests = [
     assertEqual(config.enableAutoSave, true, 'autoSave 应该迁移为 enableAutoSave');
     assertEqual(config.version, '2.1.4', '版本号应该更新');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
     cleanup();
   }),
 
   test('配置导出应该正确掩码敏感信息', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
 
@@ -236,12 +236,12 @@ const tests = [
     assert(server.env.API_KEY.includes('***'), 'API_KEY 环境变量应该被掩码');
     assertEqual(server.env.LOG_LEVEL, 'info', '非敏感环境变量不应被掩码');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
   }),
 
   test('配置导入应该验证数据', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
 
@@ -269,12 +269,12 @@ const tests = [
     assertEqual(config.model, 'opus', '导入的配置应该生效');
     assertEqual(config.maxTokens, 16384, '导入的配置应该生效');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
   }),
 
   test('MCP 服务器配置应该正确验证', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
 
@@ -316,12 +316,12 @@ const tests = [
       );
     }
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
   }),
 
   test('配置重置应该恢复默认值', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
 
@@ -338,7 +338,7 @@ const tests = [
     assertEqual(config.maxTokens, 8192, '重置后应该恢复默认令牌数');
     assertEqual(config.verbose, false, '重置后应该恢复默认 verbose 值');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
   }),
 
   test('配置验证应该返回详细错误', () => {
@@ -354,8 +354,8 @@ const tests = [
       })
     );
 
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
     const validation = manager.validate();
@@ -365,7 +365,7 @@ const tests = [
     const config = manager.getAll();
     assertEqual(config.model, 'sonnet', '无效配置应该降级为默认值');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
     cleanup();
   })
 ];

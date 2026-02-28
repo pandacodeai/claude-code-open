@@ -48,7 +48,7 @@ Would love your feedback!
 
 ### Body
 
-Built an open-source platform that extends what Claude Code can do:
+Built an open-source platform that extends what Axon can do:
 
 - **Browser-based IDE** instead of terminal-only - Monaco editor, file tree, inline AI code review
 - **Multi-agent orchestration** - Blueprint system breaks complex projects across parallel AI agents

@@ -2,11 +2,11 @@
 
 ## 概述
 
-本测试套件全面测试了 Claude Code 项目的会话管理功能，包括核心 Session 类、SessionManager 类以及相关的 Resume 和 Cleanup 功能。
+本测试套件全面测试了 Axon 项目的会话管理功能，包括核心 Session 类、SessionManager 类以及相关的 Resume 和 Cleanup 功能。
 
 ## 测试文件
 
-- **主测试文件**: `/home/user/claude-code-open/tests/session/manager.test.ts`
+- **主测试文件**: `/home/user/axon/tests/session/manager.test.ts`
 - **测试框架**: Vitest
 - **总测试数**: 69 个测试
 - **通过测试**: 65 个 ✅
@@ -159,7 +159,7 @@ Duration    1.12s
 根据 `FEATURE_TESTING_CHECKLIST.md`，以下功能已完全测试：
 
 1. ✅ **会话创建** - UUID 生成和初始化
-2. ✅ **会话持久化** - 保存到 ~/.claude/sessions/
+2. ✅ **会话持久化** - 保存到 ~/.axon/sessions/
 3. ✅ **会话恢复** - --resume 支持
 4. ✅ **会话列表** - 列出所有会话
 5. ✅ **会话过期清理** - 30 天过期机制
@@ -257,9 +257,9 @@ npm run test:integration -- tests/integration/session-flow.test.ts
 
 ## 相关文档
 
-- [FEATURE_TESTING_CHECKLIST.md](/home/user/claude-code-open/FEATURE_TESTING_CHECKLIST.md)
-- [会话管理源码](/home/user/claude-code-open/src/session/)
-- [核心 Session 类](/home/user/claude-code-open/src/core/session.ts)
+- [FEATURE_TESTING_CHECKLIST.md](/home/user/axon/FEATURE_TESTING_CHECKLIST.md)
+- [会话管理源码](/home/user/axon/src/session/)
+- [核心 Session 类](/home/user/axon/src/core/session.ts)
 - [Vitest 文档](https://vitest.dev/)
 
 ## 联系方式

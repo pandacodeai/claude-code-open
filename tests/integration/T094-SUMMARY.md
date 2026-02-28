@@ -322,7 +322,7 @@ Potential additions for future tasks:
 
 The T094 integration testing framework is **COMPLETE** and ready for use. It provides:
 
-- ✅ Solid foundation for testing Claude Code CLI
+- ✅ Solid foundation for testing Axon CLI
 - ✅ 46 comprehensive test cases
 - ✅ Reusable utilities and mock system
 - ✅ Excellent documentation
@@ -333,23 +333,23 @@ The framework covers the three main subsystems (tools, sessions, config) with re
 
 ## Files Created
 
-1. `/home/user/claude-code-open/tests/integration/index.ts`
-2. `/home/user/claude-code-open/tests/integration/setup.ts`
-3. `/home/user/claude-code-open/tests/integration/helpers.ts`
-4. `/home/user/claude-code-open/tests/integration/README.md`
-5. `/home/user/claude-code-open/tests/integration/IMPLEMENTATION.md`
-6. `/home/user/claude-code-open/tests/integration/T094-SUMMARY.md`
-7. `/home/user/claude-code-open/tests/integration/fixtures/sample-code.ts`
-8. `/home/user/claude-code-open/tests/integration/fixtures/sample-config.json`
-9. `/home/user/claude-code-open/tests/integration/fixtures/sample-session.json`
-10. `/home/user/claude-code-open/tests/integration/tool-chain.test.ts`
-11. `/home/user/claude-code-open/tests/integration/session-flow.test.ts`
-12. `/home/user/claude-code-open/tests/integration/config-load.test.ts`
-13. `/home/user/claude-code-open/vitest.config.ts`
+1. `/home/user/axon/tests/integration/index.ts`
+2. `/home/user/axon/tests/integration/setup.ts`
+3. `/home/user/axon/tests/integration/helpers.ts`
+4. `/home/user/axon/tests/integration/README.md`
+5. `/home/user/axon/tests/integration/IMPLEMENTATION.md`
+6. `/home/user/axon/tests/integration/T094-SUMMARY.md`
+7. `/home/user/axon/tests/integration/fixtures/sample-code.ts`
+8. `/home/user/axon/tests/integration/fixtures/sample-config.json`
+9. `/home/user/axon/tests/integration/fixtures/sample-session.json`
+10. `/home/user/axon/tests/integration/tool-chain.test.ts`
+11. `/home/user/axon/tests/integration/session-flow.test.ts`
+12. `/home/user/axon/tests/integration/config-load.test.ts`
+13. `/home/user/axon/vitest.config.ts`
 
 ## Files Modified
 
-1. `/home/user/claude-code-open/package.json` - Added test scripts and vitest dependencies
+1. `/home/user/axon/package.json` - Added test scripts and vitest dependencies
 
 ---
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Test runner script for Claude Code core modules
+# Test runner script for Axon core modules
 # Usage: ./tests/run-tests.sh [test-name]
 
 set -e

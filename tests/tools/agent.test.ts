@@ -24,7 +24,7 @@ describe('TaskTool', () => {
 
   beforeEach(() => {
     taskTool = new TaskTool();
-    agentsDir = path.join(os.homedir(), '.claude', 'agents');
+    agentsDir = path.join(os.homedir(), '.axon', 'agents');
   });
 
   afterEach(() => {
@@ -277,7 +277,7 @@ describe('TaskTool', () => {
         const { default: fs } = await import('fs');
         const { default: path } = await import('path');
         const { default: os } = await import('os');
-        const agentsDir = path.join(os.homedir(), '.claude', 'agents');
+        const agentsDir = path.join(os.homedir(), '.axon', 'agents');
         if (!fs.existsSync(agentsDir)) {
           fs.mkdirSync(agentsDir, { recursive: true });
         }
@@ -409,7 +409,7 @@ describe('TaskTool', () => {
         const { default: fs } = await import('fs');
         const { default: path } = await import('path');
         const { default: os } = await import('os');
-        const agentsDir = path.join(os.homedir(), '.claude', 'agents');
+        const agentsDir = path.join(os.homedir(), '.axon', 'agents');
         if (!fs.existsSync(agentsDir)) {
           fs.mkdirSync(agentsDir, { recursive: true });
         }

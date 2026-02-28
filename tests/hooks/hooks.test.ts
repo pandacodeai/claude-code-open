@@ -852,7 +852,7 @@ describe('Hooks System', () => {
     });
 
     it('should load project hooks from .claude directory', () => {
-      const claudeDir = path.join(testDir, '.claude');
+      const claudeDir = path.join(testDir, '.axon');
       const hooksDir = path.join(claudeDir, 'hooks');
       fs.mkdirSync(hooksDir, { recursive: true });
 

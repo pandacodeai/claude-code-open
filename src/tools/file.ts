@@ -47,7 +47,7 @@ import { fromMsysPath } from '../utils/platform.js';
  * @returns 绝对路径
  */
 function resolveFilePath(filePath: string): string {
-  // 处理 MSYS/Git Bash 路径格式：/f/claude-code-open → F:/claude-code-open
+  // 处理 MSYS/Git Bash 路径格式：/f/axon → F:/axon
   // 子 agent 从 Bash 输出中拿到的路径可能是 MSYS 格式，Node.js fs 不认识
   filePath = fromMsysPath(filePath);
 

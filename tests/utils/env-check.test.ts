@@ -71,45 +71,45 @@ describe('env-check', () => {
 
   describe('isBackgroundTasksDisabled', () => {
     it('应该返回 false 当环境变量未设置时', () => {
-      delete process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS;
+      delete process.env.AXON_DISABLE_BACKGROUND_TASKS;
       expect(isBackgroundTasksDisabled()).toBe(false);
     });
 
     it('应该返回 true 当环境变量设置为 "1"', () => {
-      process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS = '1';
+      process.env.AXON_DISABLE_BACKGROUND_TASKS = '1';
       expect(isBackgroundTasksDisabled()).toBe(true);
     });
 
     it('应该返回 true 当环境变量设置为 "true"', () => {
-      process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS = 'true';
+      process.env.AXON_DISABLE_BACKGROUND_TASKS = 'true';
       expect(isBackgroundTasksDisabled()).toBe(true);
     });
 
     it('应该返回 true 当环境变量设置为 "yes"', () => {
-      process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS = 'yes';
+      process.env.AXON_DISABLE_BACKGROUND_TASKS = 'yes';
       expect(isBackgroundTasksDisabled()).toBe(true);
     });
 
     it('应该返回 true 当环境变量设置为 "on"', () => {
-      process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS = 'on';
+      process.env.AXON_DISABLE_BACKGROUND_TASKS = 'on';
       expect(isBackgroundTasksDisabled()).toBe(true);
     });
 
     it('应该返回 false 当环境变量设置为 "0"', () => {
-      process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS = '0';
+      process.env.AXON_DISABLE_BACKGROUND_TASKS = '0';
       expect(isBackgroundTasksDisabled()).toBe(false);
     });
 
     it('应该返回 false 当环境变量设置为 "false"', () => {
-      process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS = 'false';
+      process.env.AXON_DISABLE_BACKGROUND_TASKS = 'false';
       expect(isBackgroundTasksDisabled()).toBe(false);
     });
 
     it('应该不区分大小写', () => {
-      process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS = 'TRUE';
+      process.env.AXON_DISABLE_BACKGROUND_TASKS = 'TRUE';
       expect(isBackgroundTasksDisabled()).toBe(true);
 
-      process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS = 'YES';
+      process.env.AXON_DISABLE_BACKGROUND_TASKS = 'YES';
       expect(isBackgroundTasksDisabled()).toBe(true);
     });
   });

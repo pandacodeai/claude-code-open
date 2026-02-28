@@ -12,12 +12,12 @@ import { ConfigManager } from '../../src/config/index.js';
 // ============ 测试环境设置 ============
 
 const TEST_ROOT = path.join(os.tmpdir(), `claude-test-config-cmd-${Date.now()}`);
-const TEST_CONFIG_DIR = path.join(TEST_ROOT, '.claude');
+const TEST_CONFIG_DIR = path.join(TEST_ROOT, '.axon');
 const TEST_PROJECT_DIR = path.join(TEST_ROOT, 'project');
 
 const USER_SETTINGS = path.join(TEST_CONFIG_DIR, 'settings.json');
-const PROJECT_SETTINGS = path.join(TEST_PROJECT_DIR, '.claude', 'settings.json');
-const LOCAL_SETTINGS = path.join(TEST_PROJECT_DIR, '.claude', 'settings.local.json');
+const PROJECT_SETTINGS = path.join(TEST_PROJECT_DIR, '.axon', 'settings.json');
+const LOCAL_SETTINGS = path.join(TEST_PROJECT_DIR, '.axon', 'settings.local.json');
 
 // 清理和初始化
 function cleanup() {
@@ -29,7 +29,7 @@ function cleanup() {
 function setup() {
   cleanup();
   fs.mkdirSync(TEST_CONFIG_DIR, { recursive: true });
-  fs.mkdirSync(path.join(TEST_PROJECT_DIR, '.claude'), { recursive: true });
+  fs.mkdirSync(path.join(TEST_PROJECT_DIR, '.axon'), { recursive: true });
 }
 
 // 环境变量备份
@@ -38,7 +38,7 @@ let originalEnv: NodeJS.ProcessEnv;
 beforeEach(() => {
   setup();
   originalEnv = { ...process.env };
-  process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+  process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 });
 
 afterEach(() => {
@@ -494,7 +494,7 @@ describe('Config Persistence', () => {
 
     manager.saveProject({ model: 'opus' });
 
-    const projectConfigPath = path.join(newProjectDir, '.claude', 'settings.json');
+    const projectConfigPath = path.join(newProjectDir, '.axon', 'settings.json');
     expect(fs.existsSync(projectConfigPath)).toBe(true);
   });
 
@@ -527,9 +527,9 @@ describe('Environment Variable Override', () => {
     expect(manager.getApiKey()).toBe('sk-ant-test-key-123');
   });
 
-  it('应该使用 CLAUDE_API_KEY 作为备用', () => {
+  it('应该使用 AXON_API_KEY 作为备用', () => {
     delete process.env.ANTHROPIC_API_KEY;
-    process.env.CLAUDE_API_KEY = 'sk-claude-test-key-456';
+    process.env.AXON_API_KEY = 'sk-claude-test-key-456';
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -543,7 +543,7 @@ describe('Environment Variable Override', () => {
       maxTokens: 8192,
     }));
 
-    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '32768';
+    process.env.AXON_MAX_OUTPUT_TOKENS = '32768';
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -553,8 +553,8 @@ describe('Environment Variable Override', () => {
   });
 
   it('应该解析布尔类型环境变量', () => {
-    process.env.CLAUDE_CODE_ENABLE_TELEMETRY = 'true';
-    process.env.CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING = '1';
+    process.env.AXON_ENABLE_TELEMETRY = 'true';
+    process.env.AXON_DISABLE_FILE_CHECKPOINTING = '1';
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -567,8 +567,8 @@ describe('Environment Variable Override', () => {
   });
 
   it('应该解析数字类型环境变量', () => {
-    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '16384';
-    process.env.CLAUDE_CODE_MAX_RETRIES = '10';
+    process.env.AXON_MAX_OUTPUT_TOKENS = '16384';
+    process.env.AXON_MAX_RETRIES = '10';
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -581,7 +581,7 @@ describe('Environment Variable Override', () => {
   });
 
   it('应该忽略无效的环境变量值', () => {
-    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = 'invalid-number';
+    process.env.AXON_MAX_OUTPUT_TOKENS = 'invalid-number';
 
     // 可能会打印警告
     const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -599,7 +599,7 @@ describe('Environment Variable Override', () => {
   });
 
   it('应该支持 Bedrock 配置环境变量', () => {
-    process.env.CLAUDE_CODE_USE_BEDROCK = 'true';
+    process.env.AXON_USE_BEDROCK = 'true';
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -1032,7 +1032,7 @@ describe('Config Path', () => {
     const paths = manager.getConfigPaths();
 
     expect(paths.projectSettings).toBeDefined();
-    expect(paths.projectSettings).toContain('.claude');
+    expect(paths.projectSettings).toContain('.axon');
     expect(paths.projectSettings).toContain('settings.json');
   });
 

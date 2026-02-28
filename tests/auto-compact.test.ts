@@ -56,8 +56,8 @@ describe('Auto Compact Framework', () => {
       expect(threshold).toBeLessThanOrEqual(Math.floor(availableInput * 0.8));
     });
 
-    it('should respect CLAUDE_CODE_MAX_OUTPUT_TOKENS', () => {
-      process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '32000';
+    it('should respect AXON_MAX_OUTPUT_TOKENS', () => {
+      process.env.AXON_MAX_OUTPUT_TOKENS = '32000';
       const model = 'claude-opus-4-5-20251101';
 
       const maxOutput = getMaxOutputTokens(model);
@@ -143,7 +143,7 @@ describe('Auto Compact Framework', () => {
     });
 
     it('should calculate max output tokens with env override', () => {
-      process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '32000';
+      process.env.AXON_MAX_OUTPUT_TOKENS = '32000';
       const model = 'claude-opus-4-5-20251101';
 
       const result = getMaxOutputTokens(model);
@@ -151,7 +151,7 @@ describe('Auto Compact Framework', () => {
     });
 
     it('should not exceed default max with env override', () => {
-      process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '100000';
+      process.env.AXON_MAX_OUTPUT_TOKENS = '100000';
       const model = 'claude-opus-4-5-20251101';
 
       const result = getMaxOutputTokens(model);

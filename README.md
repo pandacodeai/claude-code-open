@@ -2,7 +2,7 @@
 
 ### Free & Open Source Axon with Web IDE, Multi-Agent, and Self-Evolution
 
-[![npm](https://img.shields.io/npm/v/claude-code-open?style=flat-square&color=CB3837)](https://www.npmjs.com/package/claude-code-open)
+[![npm](https://img.shields.io/npm/v/axon?style=flat-square&color=CB3837)](https://www.npmjs.com/package/axon)
 [![GitHub Stars](https://img.shields.io/github/stars/kill136/axon?style=flat-square)](https://github.com/kill136/axon)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![Node](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-brightgreen?style=flat-square)](https://nodejs.org)
@@ -22,7 +22,7 @@
 
 ## Why Axon?
 
-| | Official Claude Code | Axon |
+| | Official Axon | Axon |
 |---|---|---|
 | **Price** | $20/month (Max plan required) | Free (bring your own API key) |
 | **Interface** | Terminal only | Terminal + **Web IDE** (Monaco editor, file tree, AI-enhanced editing) |

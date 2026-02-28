@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AXON.md
 
 
 
@@ -125,7 +125,7 @@ CLI Input → ConversationLoop → ClaudeClient (Anthropic API)
                 ↓                      ↓
            ToolRegistry           Session State
                 ↓                      ↓
-          Tool Execution    Session Persistence (~/.claude/sessions/)
+          Tool Execution    Session Persistence (~/.axon/sessions/)
 ```
 
 ### Important Subsystems

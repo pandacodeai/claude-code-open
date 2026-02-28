@@ -358,11 +358,11 @@ The test suite successfully validates:
 
 ## Files Generated
 
-1. `/home/user/claude-code-open/tests/mcp/mock-server.ts` (11KB)
-2. `/home/user/claude-code-open/tests/mcp/integration.test.ts` (25KB)
-3. `/home/user/claude-code-open/tests/mcp/advanced.test.ts` (16KB)
-4. `/home/user/claude-code-open/tests/mcp/README.md` (7.9KB)
-5. `/home/user/claude-code-open/tests/mcp/TEST_RESULTS.md` (this file)
+1. `/home/user/axon/tests/mcp/mock-server.ts` (11KB)
+2. `/home/user/axon/tests/mcp/integration.test.ts` (25KB)
+3. `/home/user/axon/tests/mcp/advanced.test.ts` (16KB)
+4. `/home/user/axon/tests/mcp/README.md` (7.9KB)
+5. `/home/user/axon/tests/mcp/TEST_RESULTS.md` (this file)
 
 **Total Test Code**: ~52KB of comprehensive test coverage
 

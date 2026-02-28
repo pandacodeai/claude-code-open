@@ -47,7 +47,7 @@
 ### 8. 禁用选项
 ```bash
 # 通过环境变量禁用
-export CLAUDE_CODE_DISABLE_TELEMETRY=1
+export AXON_DISABLE_TELEMETRY=1
 # 或
 export DISABLE_TELEMETRY=true
 ```
@@ -314,7 +314,7 @@ clearTelemetryData();
 
 ```bash
 # 禁用遥测
-CLAUDE_CODE_DISABLE_TELEMETRY=1
+AXON_DISABLE_TELEMETRY=1
 
 # 或使用通用变量
 DISABLE_TELEMETRY=true

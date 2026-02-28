@@ -61,7 +61,7 @@ function cleanupPersistedFiles(projectDir: string) {
   }
 
   // 清理任务树文件
-  const taskTreesDir = path.join(os.homedir(), '.claude', 'task-trees');
+  const taskTreesDir = path.join(os.homedir(), '.axon', 'task-trees');
   if (fs.existsSync(taskTreesDir)) {
     const files = fs.readdirSync(taskTreesDir);
     for (const file of files) {

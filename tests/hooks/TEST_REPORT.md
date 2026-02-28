@@ -1,6 +1,6 @@
 # Hooks System Test Report
 
-**Project:** Claude Code Open - Hooks System
+**Project:** Axon - Hooks System
 **Test Date:** 2025-12-28
 **Framework:** Vitest 4.0.16
 **Test File:** tests/hooks/hooks.test.ts
@@ -311,7 +311,7 @@ Breakdown:
 - Use URL hooks for remote services
 - Configure proper timeouts
 - Use matchers for targeted hooks
-- Load hooks from .claude/settings.json
+- Load hooks from .axon/settings.json
 
 ⚠️ **Considerations:**
 - Test blocking hooks carefully
@@ -366,7 +366,7 @@ The hooks system test suite provides **comprehensive coverage** of all hook func
 
 **Status:** READY FOR PRODUCTION
 
-The hooks system is well-tested and ready for use in the Claude Code CLI. All critical functionality has been validated through automated tests.
+The hooks system is well-tested and ready for use in the Axon CLI. All critical functionality has been validated through automated tests.
 
 ---
 
@@ -399,5 +399,5 @@ npm run test:watch tests/hooks/hooks.test.ts
 ---
 
 **Report Generated:** 2025-12-28
-**Test Engineer:** Claude Code AI Assistant
+**Test Engineer:** Axon AI Assistant
 **Status:** ✅ APPROVED

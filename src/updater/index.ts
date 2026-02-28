@@ -99,7 +99,7 @@ export class UpdateManager extends EventEmitter {
       autoInstall: config.autoInstall ?? false,
       channel: config.channel || 'stable',
       registryUrl: config.registryUrl || 'https://registry.npmjs.org',
-      packageName: config.packageName || 'claude-code-open',
+      packageName: config.packageName || 'axon',
     };
 
     // 从 package.json 读取当前版本

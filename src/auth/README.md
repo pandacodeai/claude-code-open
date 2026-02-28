@@ -248,7 +248,7 @@ const OAUTH_ENDPOINTS = {
 
 `initAuth()` 按以下优先级检查认证：
 
-1. 环境变量（`ANTHROPIC_API_KEY` 或 `CLAUDE_API_KEY`）
+1. 环境变量（`ANTHROPIC_API_KEY` 或 `AXON_API_KEY`）
 2. 凭证文件（`~/.axon/credentials.json`）
 3. OAuth Token（`~/.axon/auth.json`，加密存储）
 

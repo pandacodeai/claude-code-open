@@ -2,7 +2,7 @@
 
 ## 测试概述
 
-为 Claude Code 项目创建了完整的 CLI 参数解析单元测试，覆盖了所有在 `src/cli.ts` 中定义的命令行参数。
+为 Axon 项目创建了完整的 CLI 参数解析单元测试，覆盖了所有在 `src/cli.ts` 中定义的命令行参数。
 
 **测试文件**: `/home/user/axon/tests/commands/cli-args.test.ts`
 **测试框架**: Vitest

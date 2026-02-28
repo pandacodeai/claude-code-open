@@ -105,7 +105,7 @@ describe('Login Command', () => {
     originalApiKey = process.env.ANTHROPIC_API_KEY;
     // 清除环境变量以测试未认证状态
     delete process.env.ANTHROPIC_API_KEY;
-    delete process.env.CLAUDE_API_KEY;
+    delete process.env.AXON_API_KEY;
   });
 
   afterEach(() => {
@@ -144,7 +144,7 @@ describe('Login Command', () => {
     const result = await loginCommand.execute(ctx);
 
     expect(result.success).toBe(true);
-    expect(ctx.ui.addMessage).toHaveBeenCalledWith('assistant', expect.stringContaining('Claude Code Login'));
+    expect(ctx.ui.addMessage).toHaveBeenCalledWith('assistant', expect.stringContaining('Axon Login'));
 
     const message = (ctx.ui.addMessage as any).mock.calls[0][1];
     expect(message).toMatch(/Login Methods/);
@@ -246,8 +246,8 @@ describe('Login Command', () => {
     expect(ctx.ui.setShowLoginScreen || ctx.ui.addMessage).toHaveBeenCalled();
   });
 
-  it('should detect alternative CLAUDE_API_KEY environment variable', async () => {
-    process.env.CLAUDE_API_KEY = 'sk-ant-test-key-456';
+  it('should detect alternative AXON_API_KEY environment variable', async () => {
+    process.env.AXON_API_KEY = 'sk-ant-test-key-456';
 
     const ctx = createMockContext([]);
     const result = await loginCommand.execute(ctx);
@@ -262,7 +262,7 @@ describe('Login Command', () => {
     const result = await loginCommand.execute(ctx);
 
     expect(result.success).toBe(true);
-    expect(ctx.ui.addMessage).toHaveBeenCalledWith('assistant', expect.stringContaining('Claude Code Login'));
+    expect(ctx.ui.addMessage).toHaveBeenCalledWith('assistant', expect.stringContaining('Axon Login'));
   });
 
   it('should handle -h flag', async () => {
@@ -270,7 +270,7 @@ describe('Login Command', () => {
     const result = await loginCommand.execute(ctx);
 
     expect(result.success).toBe(true);
-    expect(ctx.ui.addMessage).toHaveBeenCalledWith('assistant', expect.stringContaining('Claude Code Login'));
+    expect(ctx.ui.addMessage).toHaveBeenCalledWith('assistant', expect.stringContaining('Axon Login'));
   });
 });
 
@@ -307,7 +307,7 @@ describe('Logout Command', () => {
 
   it('should show activity when logging out', async () => {
     delete process.env.ANTHROPIC_API_KEY;
-    delete process.env.CLAUDE_API_KEY;
+    delete process.env.AXON_API_KEY;
 
     const ctx = createMockContext([]);
     const result = await logoutCommand.execute(ctx);
@@ -539,7 +539,7 @@ describe('Extra Usage Command', () => {
 
   it('should handle subscription users', () => {
     delete process.env.ANTHROPIC_API_KEY;
-    delete process.env.CLAUDE_API_KEY;
+    delete process.env.AXON_API_KEY;
 
     const ctx = createMockContext(['status']);
     extraUsageCommand.execute(ctx);
@@ -757,7 +757,7 @@ describe('API Key Validation Scenarios', () => {
 
   it('should handle no authentication', async () => {
     delete process.env.ANTHROPIC_API_KEY;
-    delete process.env.CLAUDE_API_KEY;
+    delete process.env.AXON_API_KEY;
 
     const ctx = createMockContext([]);
     const result = await loginCommand.execute(ctx);

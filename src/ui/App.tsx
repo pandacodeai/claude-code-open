@@ -45,7 +45,7 @@ import { VERSION_FULL } from '../version.js';
 // 信任管理模块 - 修复 v2.1.3 home 目录信任问题
 import { trustManager, initializeTrustManager } from '../trust/index.js';
 import { TrustDialog, useTrustDialog } from './components/TrustDialog.js';
-// CLAUDE.md 导入审批对话框 - v2.1.6 新增
+// AXON.md 导入审批对话框 - v2.1.6 新增
 import { AxonMdImportDialog, scanAxonMdFiles, type AxonMdFile, type AxonMdApprovalResult } from './components/AxonMdImportDialog.js';
 import { useAxonMdImport } from './hooks/useAxonMdImport.js';
 // v2.1.7: 终端标题 spinner - 避免标题抖动
@@ -267,7 +267,7 @@ export const App: React.FC<AppProps> = ({
     TrustDialogComponent,
   } = useTrustDialog(process.cwd());
 
-  // CLAUDE.md 导入审批状态 - v2.1.6 新增
+  // AXON.md 导入审批状态 - v2.1.6 新增
   const axonMdImport = useAxonMdImport(process.cwd());
   const [showAxonMdDialog, setShowAxonMdDialog] = useState(false);
 
@@ -537,21 +537,21 @@ export const App: React.FC<AppProps> = ({
     setShowAxonMdDialog(false);
 
     if (result.approved) {
-      addMessage('assistant', `Imported ${result.approvedFiles.length} CLAUDE.md file(s).\n\nProject instructions have been loaded.`);
-      addActivity(`Imported ${result.approvedFiles.length} CLAUDE.md files`);
+      addMessage('assistant', `Imported ${result.approvedFiles.length} AXON.md file(s).\n\nProject instructions have been loaded.`);
+      addActivity(`Imported ${result.approvedFiles.length} AXON.md files`);
     } else {
       addActivity(t('ui.claudeMdDeclined'));
     }
   }, [axonMdImport, addMessage, addActivity]);
 
-  // 处理 CLAUDE.md 导入取消
+  // 处理 AXON.md 导入取消
   const handleAxonMdCancel = useCallback(() => {
     setShowAxonMdDialog(false);
     axonMdImport.skipApproval();
     addActivity(t('ui.claudeMdSkipped'));
   }, [axonMdImport, addActivity]);
 
-  // 检查是否需要显示 CLAUDE.md 导入对话框
+  // 检查是否需要显示 AXON.md 导入对话框
   useEffect(() => {
     // 只在信任目录后且有待审批文件时显示
     if (directoryTrusted && axonMdImport.needsApproval && !axonMdImport.loading) {
@@ -1079,7 +1079,7 @@ export const App: React.FC<AppProps> = ({
         {/* 信任对话框 - 修复 v2.1.3 home 目录信任问题 */}
         {TrustDialogComponent}
 
-        {/* CLAUDE.md 导入审批对话框 - v2.1.6 新增 */}
+        {/* AXON.md 导入审批对话框 - v2.1.6 新增 */}
         {showAxonMdDialog && (
           <AxonMdImportDialog
             files={axonMdImport.pendingFiles}

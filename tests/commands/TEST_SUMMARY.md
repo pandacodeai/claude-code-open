@@ -10,7 +10,7 @@
 
 ## Overview
 
-Successfully created comprehensive unit tests for the Claude Code command system with **138 passing tests** covering all major command categories.
+Successfully created comprehensive unit tests for the Axon command system with **138 passing tests** covering all major command categories.
 
 ## Test Files Created
 

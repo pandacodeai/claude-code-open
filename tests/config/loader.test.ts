@@ -1,7 +1,7 @@
 /**
  * 配置加载器测试（完整版）
  *
- * 测试所有配置来源、优先级、环境变量、CLAUDE.md解析等功能
+ * 测试所有配置来源、优先级、环境变量、AXON.md解析等功能
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -12,17 +12,17 @@ import * as os from 'os';
 
 // 测试配置目录
 const TEST_ROOT = path.join(os.tmpdir(), `claude-test-config-${Date.now()}`);
-const TEST_CONFIG_DIR = path.join(TEST_ROOT, '.claude');
+const TEST_CONFIG_DIR = path.join(TEST_ROOT, '.axon');
 const TEST_PROJECT_DIR = path.join(TEST_ROOT, 'project');
 
 // 配置文件路径
 const USER_SETTINGS = path.join(TEST_CONFIG_DIR, 'settings.json');
-const PROJECT_SETTINGS = path.join(TEST_PROJECT_DIR, '.claude', 'settings.json');
-const LOCAL_SETTINGS = path.join(TEST_PROJECT_DIR, '.claude', 'settings.local.json');
+const PROJECT_SETTINGS = path.join(TEST_PROJECT_DIR, '.axon', 'settings.json');
+const LOCAL_SETTINGS = path.join(TEST_PROJECT_DIR, '.axon', 'settings.local.json');
 const POLICY_SETTINGS = path.join(TEST_CONFIG_DIR, 'managed_settings.json');
 const FLAG_SETTINGS = path.join(TEST_ROOT, 'flag-settings.json');
-const CLAUDE_MD = path.join(TEST_PROJECT_DIR, 'CLAUDE.md');
-const USER_CLAUDE_MD = path.join(TEST_CONFIG_DIR, 'CLAUDE.md');
+const CLAUDE_MD = path.join(TEST_PROJECT_DIR, 'AXON.md');
+const USER_CLAUDE_MD = path.join(TEST_CONFIG_DIR, 'AXON.md');
 
 // 清理和初始化
 function cleanup() {
@@ -34,7 +34,7 @@ function cleanup() {
 function setup() {
   cleanup();
   fs.mkdirSync(TEST_CONFIG_DIR, { recursive: true });
-  fs.mkdirSync(path.join(TEST_PROJECT_DIR, '.claude'), { recursive: true });
+  fs.mkdirSync(path.join(TEST_PROJECT_DIR, '.axon'), { recursive: true });
 }
 
 // 环境变量备份
@@ -75,8 +75,8 @@ describe('配置优先级系统', () => {
     }));
 
     // 4. 环境变量（覆盖 maxTokens）
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
-    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '32768';
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_MAX_OUTPUT_TOKENS = '32768';
 
     // 5. 标志配置（覆盖 temperature）
     fs.writeFileSync(FLAG_SETTINGS, JSON.stringify({
@@ -116,7 +116,7 @@ describe('配置优先级系统', () => {
       },
     }));
 
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -135,7 +135,7 @@ describe('配置优先级系统', () => {
       verbose: false,
     }));
 
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -156,7 +156,7 @@ describe('配置优先级系统', () => {
 
 describe('环境变量解析', () => {
   it('应该正确解析 API 密钥环境变量', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
     process.env.ANTHROPIC_API_KEY = 'sk-ant-test-key-123';
 
     const manager = new ConfigManager({
@@ -166,9 +166,9 @@ describe('环境变量解析', () => {
     expect(manager.getApiKey()).toBe('sk-ant-test-key-123');
   });
 
-  it('应该支持 CLAUDE_API_KEY 作为备用', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
-    process.env.CLAUDE_API_KEY = 'sk-claude-test-key-456';
+  it('应该支持 AXON_API_KEY 作为备用', () => {
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_API_KEY = 'sk-claude-test-key-456';
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -178,9 +178,9 @@ describe('环境变量解析', () => {
   });
 
   it('应该正确解析布尔类型环境变量', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
-    process.env.CLAUDE_CODE_ENABLE_TELEMETRY = 'true';
-    process.env.CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING = '1';
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_ENABLE_TELEMETRY = 'true';
+    process.env.AXON_DISABLE_FILE_CHECKPOINTING = '1';
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -193,9 +193,9 @@ describe('环境变量解析', () => {
   });
 
   it('应该正确解析数字类型环境变量', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
-    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '16384';
-    process.env.CLAUDE_CODE_MAX_RETRIES = '5';
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_MAX_OUTPUT_TOKENS = '16384';
+    process.env.AXON_MAX_RETRIES = '5';
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -208,8 +208,8 @@ describe('环境变量解析', () => {
   });
 
   it('应该支持 Bedrock 和 Vertex 环境变量', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
-    process.env.CLAUDE_CODE_USE_BEDROCK = 'true';
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_USE_BEDROCK = 'true';
 
     const manager1 = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -219,8 +219,8 @@ describe('环境变量解析', () => {
     expect(manager1.getAll().apiProvider).toBe('bedrock');
 
     // 重置环境
-    delete process.env.CLAUDE_CODE_USE_BEDROCK;
-    process.env.CLAUDE_CODE_USE_VERTEX = 'true';
+    delete process.env.AXON_USE_BEDROCK;
+    process.env.AXON_USE_VERTEX = 'true';
 
     const manager2 = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -231,9 +231,9 @@ describe('环境变量解析', () => {
   });
 
   it('应该支持调试和日志环境变量', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
-    process.env.CLAUDE_CODE_DEBUG_LOGS_DIR = '/tmp/logs';
-    process.env.CLAUDE_CODE_AGENT_ID = 'test-agent-123';
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_DEBUG_LOGS_DIR = '/tmp/logs';
+    process.env.AXON_AGENT_ID = 'test-agent-123';
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -246,8 +246,8 @@ describe('环境变量解析', () => {
   });
 
   it('应该支持遥测配置环境变量', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
-    process.env.CLAUDE_CODE_OTEL_SHUTDOWN_TIMEOUT_MS = '5000';
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_OTEL_SHUTDOWN_TIMEOUT_MS = '5000';
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -259,7 +259,7 @@ describe('环境变量解析', () => {
   });
 
   it('应该支持代理配置环境变量', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
     process.env.HTTP_PROXY = 'http://proxy.example.com:8080';
     process.env.HTTPS_PROXY = 'https://proxy.example.com:8443';
 
@@ -274,9 +274,9 @@ describe('环境变量解析', () => {
   });
 
   it('应该正确处理无效的环境变量值', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
-    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = 'invalid-number';
-    process.env.CLAUDE_CODE_ENABLE_TELEMETRY = 'invalid-bool';
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_MAX_OUTPUT_TOKENS = 'invalid-number';
+    process.env.AXON_ENABLE_TELEMETRY = 'invalid-bool';
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -290,11 +290,11 @@ describe('环境变量解析', () => {
   });
 });
 
-// ============ 3. CLAUDE.md 解析测试 ============
+// ============ 3. AXON.md 解析测试 ============
 
-describe('CLAUDE.md 解析', () => {
-  it('应该正确解析项目级 CLAUDE.md', () => {
-    const content = `# CLAUDE.md
+describe('AXON.md 解析', () => {
+  it('应该正确解析项目级 AXON.md', () => {
+    const content = `# AXON.md
 
 This is a test project.
 
@@ -314,7 +314,7 @@ This is a test project.
     expect(info.path).toBe(CLAUDE_MD);
   });
 
-  it('应该正确注入 CLAUDE.md 到系统提示', () => {
+  it('应该正确注入 AXON.md 到系统提示', () => {
     const content = '# Test Project\n\nUse TypeScript.';
     fs.writeFileSync(CLAUDE_MD, content);
 
@@ -328,7 +328,7 @@ This is a test project.
     expect(injected).toContain('IMPORTANT: this context may or may not be relevant');
   });
 
-  it('应该处理不存在的 CLAUDE.md', () => {
+  it('应该处理不存在的 AXON.md', () => {
     const parser = new ClaudeMdParser(TEST_PROJECT_DIR);
     const info = parser.parse();
 
@@ -336,13 +336,13 @@ This is a test project.
     expect(info.content).toBe('');
   });
 
-  it('应该验证 CLAUDE.md 格式', () => {
+  it('应该验证 AXON.md 格式', () => {
     // 空文件
     fs.writeFileSync(CLAUDE_MD, '');
     const parser1 = new ClaudeMdParser(TEST_PROJECT_DIR);
     const result1 = parser1.validate();
     expect(result1.valid).toBe(true);
-    expect(result1.warnings).toContain('CLAUDE.md 文件为空');
+    expect(result1.warnings).toContain('AXON.md 文件为空');
 
     // 无标题
     fs.writeFileSync(CLAUDE_MD, 'No headings here');
@@ -358,7 +358,7 @@ This is a test project.
     expect(result3.warnings.some(w => w.includes('过大'))).toBe(true);
   });
 
-  it('应该获取 CLAUDE.md 统计信息', () => {
+  it('应该获取 AXON.md 统计信息', () => {
     const content = 'Line 1\nLine 2\nLine 3';
     fs.writeFileSync(CLAUDE_MD, content);
 
@@ -378,11 +378,11 @@ This is a test project.
     expect(fs.existsSync(CLAUDE_MD)).toBe(true);
 
     const content = fs.readFileSync(CLAUDE_MD, 'utf-8');
-    expect(content).toContain('# CLAUDE.md');
+    expect(content).toContain('# AXON.md');
     expect(content).toContain('## Project Overview');
   });
 
-  it('应该支持更新 CLAUDE.md', () => {
+  it('应该支持更新 AXON.md', () => {
     fs.writeFileSync(CLAUDE_MD, 'Old content');
 
     const parser = new ClaudeMdParser(TEST_PROJECT_DIR);
@@ -408,8 +408,8 @@ describe('配置来源追踪', () => {
       verbose: true,
     }));
 
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
-    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '16384';
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_MAX_OUTPUT_TOKENS = '16384';
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -427,7 +427,7 @@ describe('配置来源追踪', () => {
       model: 'opus',
     }));
 
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -440,7 +440,7 @@ describe('配置来源追踪', () => {
   });
 
   it('应该列出所有配置来源及其状态', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
     fs.writeFileSync(USER_SETTINGS, JSON.stringify({ model: 'sonnet' }));
 
     const manager = new ConfigManager({
@@ -455,7 +455,7 @@ describe('配置来源追踪', () => {
   });
 
   it('应该列出所有可能的配置来源', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -489,7 +489,7 @@ describe('配置来源追踪', () => {
       maxTokens: 16384,
     }));
 
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -520,7 +520,7 @@ describe('企业策略配置', () => {
       },
     }));
 
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -539,7 +539,7 @@ describe('企业策略配置', () => {
       },
     }));
 
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -555,7 +555,7 @@ describe('企业策略配置', () => {
       disabledFeatures: ['telemetry', 'autoSave'],
     }));
 
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -573,7 +573,7 @@ describe('企业策略配置', () => {
       },
     }));
 
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -604,7 +604,7 @@ describe('企业策略配置', () => {
 
 describe('配置验证', () => {
   it('应该验证有效的配置', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -616,7 +616,7 @@ describe('配置验证', () => {
   });
 
   it('应该拦截无效的模型名称', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -632,7 +632,7 @@ describe('配置验证', () => {
   });
 
   it('应该拦截无效的数值范围', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -655,7 +655,7 @@ describe('配置验证', () => {
 
 describe('本地配置 (settings.local.json)', () => {
   it('应该保存和加载本地配置', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -679,7 +679,7 @@ describe('本地配置 (settings.local.json)', () => {
   });
 
   it('应该自动添加 settings.local.json 到 .gitignore', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -706,8 +706,8 @@ describe('本地配置 (settings.local.json)', () => {
       verbose: true,
     }));
 
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
-    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '32768';
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_MAX_OUTPUT_TOKENS = '32768';
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -725,7 +725,7 @@ describe('本地配置 (settings.local.json)', () => {
 
 describe('配置备份和恢复', () => {
   it('应该在保存前自动备份配置', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     // 创建初始配置
     fs.writeFileSync(USER_SETTINGS, JSON.stringify({ model: 'sonnet' }));
@@ -746,7 +746,7 @@ describe('配置备份和恢复', () => {
   });
 
   it('应该列出可用的备份', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     fs.writeFileSync(USER_SETTINGS, JSON.stringify({ model: 'sonnet' }));
 
@@ -762,7 +762,7 @@ describe('配置备份和恢复', () => {
   });
 
   it('应该从备份恢复配置', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     // 创建初始配置并保存
     const manager1 = new ConfigManager({
@@ -790,7 +790,7 @@ describe('配置备份和恢复', () => {
 
 describe('配置导出和导入', () => {
   it('应该导出配置并掩码敏感信息', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -806,7 +806,7 @@ describe('配置导出和导入', () => {
   });
 
   it('应该导出配置不掩码（如果指定）', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -821,7 +821,7 @@ describe('配置导出和导入', () => {
   });
 
   it('应该导入有效的配置', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -844,7 +844,7 @@ describe('配置导出和导入', () => {
   });
 
   it('应该拒绝无效的配置导入', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -864,7 +864,7 @@ describe('配置导出和导入', () => {
 
 describe('配置热重载', () => {
   it('应该监听配置文件变化并重新加载', async () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     fs.writeFileSync(USER_SETTINGS, JSON.stringify({ model: 'sonnet' }));
 
@@ -907,7 +907,7 @@ describe('配置热重载', () => {
 
 describe('MCP 服务器配置', () => {
   it('应该添加 MCP 服务器', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -926,7 +926,7 @@ describe('MCP 服务器配置', () => {
   });
 
   it('应该验证 MCP 服务器配置', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -941,7 +941,7 @@ describe('MCP 服务器配置', () => {
   });
 
   it('应该更新和删除 MCP 服务器', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -979,7 +979,7 @@ describe('配置迁移', () => {
       model: 'claude-3-opus',
     }));
 
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -995,7 +995,7 @@ describe('配置迁移', () => {
       autoSave: true,
     }));
 
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -1010,7 +1010,7 @@ describe('配置迁移', () => {
 
 describe('配置路径获取', () => {
   it('应该获取所有配置文件路径', () => {
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager({
       workingDirectory: TEST_PROJECT_DIR,
@@ -1019,7 +1019,7 @@ describe('配置路径获取', () => {
     const paths = manager.getConfigPaths();
 
     expect(paths.userSettings).toContain('settings.json');
-    expect(paths.projectSettings).toContain('.claude');
+    expect(paths.projectSettings).toContain('.axon');
     expect(paths.localSettings).toContain('settings.local.json');
     expect(paths.policySettings).toBeDefined();
     expect(paths.globalConfigDir).toBe(TEST_CONFIG_DIR);
