@@ -266,7 +266,7 @@ export class SelfEvolveTool extends BaseTool<SelfEvolveInput, ToolResult> {
       if (fs.existsSync(pkgPath)) {
         try {
           const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-          if (pkg.name === 'axon-code-open') {
+          if (pkg.name === 'axon') {
             return dir;
           }
         } catch {
