@@ -49,7 +49,7 @@ export async function setupE2ETest(testName: string): Promise<E2ETestContext> {
   process.env.AXON_CONFIG_DIR = configDir;
   process.env.HOME = homeDir;
   process.env.USERPROFILE = homeDir; // Windows 支持
-  process.env.CLAUDE_SESSION_DIR = sessionDir;
+  process.env.AXON_SESSION_DIR = sessionDir;
 
   // 禁用真实 API 调用
   delete process.env.ANTHROPIC_API_KEY;

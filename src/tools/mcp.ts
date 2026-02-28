@@ -422,6 +422,13 @@ async function doConnect(name: string, server: McpServerState, retry: boolean): 
 
         server.process = proc;
 
+        // 防止 EPIPE 等 stdin 错误使进程崩溃
+        proc.stdin?.on('error', (err: NodeJS.ErrnoException) => {
+          if (err.code !== 'EPIPE') {
+            console.error(`MCP server ${name} stdin error:`, err);
+          }
+        });
+
         // 监听进程错误和退出
         let processExited = false;
         let processError: Error | null = null;
@@ -641,7 +648,7 @@ async function sendMcpMessage(
         server.process.stdout.on('data', onData);
 
         try {
-          if (!server.process?.stdin) {
+          if (!server.process?.stdin || !server.process.stdin.writable) {
             clearTimeout(timeoutHandle);
             server.process?.stdout?.removeListener('data', onData);
             reject(new Error(`MCP server ${serverName} stdin not available`));

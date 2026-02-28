@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ConfigManager, ClaudeMdParser } from '../../src/config/index.js';
+import { ConfigManager, AxonMdParser } from '../../src/config/index.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -306,7 +306,7 @@ This is a test project.
 
     fs.writeFileSync(CLAUDE_MD, content);
 
-    const parser = new ClaudeMdParser(TEST_PROJECT_DIR);
+    const parser = new AxonMdParser(TEST_PROJECT_DIR);
     const info = parser.parse();
 
     expect(info.exists).toBe(true);
@@ -318,7 +318,7 @@ This is a test project.
     const content = '# Test Project\n\nUse TypeScript.';
     fs.writeFileSync(CLAUDE_MD, content);
 
-    const parser = new ClaudeMdParser(TEST_PROJECT_DIR);
+    const parser = new AxonMdParser(TEST_PROJECT_DIR);
     const basePrompt = 'You are a helpful assistant.';
     const injected = parser.injectIntoSystemPrompt(basePrompt);
 
@@ -329,7 +329,7 @@ This is a test project.
   });
 
   it('应该处理不存在的 AXON.md', () => {
-    const parser = new ClaudeMdParser(TEST_PROJECT_DIR);
+    const parser = new AxonMdParser(TEST_PROJECT_DIR);
     const info = parser.parse();
 
     expect(info.exists).toBe(false);
@@ -339,21 +339,21 @@ This is a test project.
   it('应该验证 AXON.md 格式', () => {
     // 空文件
     fs.writeFileSync(CLAUDE_MD, '');
-    const parser1 = new ClaudeMdParser(TEST_PROJECT_DIR);
+    const parser1 = new AxonMdParser(TEST_PROJECT_DIR);
     const result1 = parser1.validate();
     expect(result1.valid).toBe(true);
     expect(result1.warnings).toContain('AXON.md 文件为空');
 
     // 无标题
     fs.writeFileSync(CLAUDE_MD, 'No headings here');
-    const parser2 = new ClaudeMdParser(TEST_PROJECT_DIR);
+    const parser2 = new AxonMdParser(TEST_PROJECT_DIR);
     const result2 = parser2.validate();
     expect(result2.warnings).toContain('建议使用 Markdown 标题组织内容');
 
     // 过大文件
     const largeContent = 'x'.repeat(60000);
     fs.writeFileSync(CLAUDE_MD, largeContent);
-    const parser3 = new ClaudeMdParser(TEST_PROJECT_DIR);
+    const parser3 = new AxonMdParser(TEST_PROJECT_DIR);
     const result3 = parser3.validate();
     expect(result3.warnings.some(w => w.includes('过大'))).toBe(true);
   });
@@ -362,7 +362,7 @@ This is a test project.
     const content = 'Line 1\nLine 2\nLine 3';
     fs.writeFileSync(CLAUDE_MD, content);
 
-    const parser = new ClaudeMdParser(TEST_PROJECT_DIR);
+    const parser = new AxonMdParser(TEST_PROJECT_DIR);
     const stats = parser.getStats();
 
     expect(stats).not.toBeNull();
@@ -371,7 +371,7 @@ This is a test project.
   });
 
   it('应该支持创建默认模板', () => {
-    const parser = new ClaudeMdParser(TEST_PROJECT_DIR);
+    const parser = new AxonMdParser(TEST_PROJECT_DIR);
     const result = parser.create();
 
     expect(result).toBe(true);
@@ -385,7 +385,7 @@ This is a test project.
   it('应该支持更新 AXON.md', () => {
     fs.writeFileSync(CLAUDE_MD, 'Old content');
 
-    const parser = new ClaudeMdParser(TEST_PROJECT_DIR);
+    const parser = new AxonMdParser(TEST_PROJECT_DIR);
     const newContent = '# New Content\n\nUpdated.';
     const result = parser.update(newContent);
 
@@ -691,7 +691,7 @@ describe('本地配置 (settings.local.json)', () => {
 
     if (fs.existsSync(gitignorePath)) {
       const content = fs.readFileSync(gitignorePath, 'utf-8');
-      expect(content).toContain('.claude/settings.local.json');
+      expect(content).toContain('.axon/settings.local.json');
     }
   });
 

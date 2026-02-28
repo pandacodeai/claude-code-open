@@ -234,8 +234,8 @@ describe('EditTool', () => {
 
   beforeEach(() => {
     // Disable file read requirement for unit tests
-    originalEnv = process.env.CLAUDE_EDIT_REQUIRE_READ;
-    process.env.CLAUDE_EDIT_REQUIRE_READ = 'false';
+    originalEnv = process.env.AXON_EDIT_REQUIRE_READ;
+    process.env.AXON_EDIT_REQUIRE_READ = 'false';
 
     editTool = new EditTool();
     testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'edit-test-'));
@@ -245,9 +245,9 @@ describe('EditTool', () => {
   afterEach(() => {
     // Restore original environment variable
     if (originalEnv !== undefined) {
-      process.env.CLAUDE_EDIT_REQUIRE_READ = originalEnv;
+      process.env.AXON_EDIT_REQUIRE_READ = originalEnv;
     } else {
-      delete process.env.CLAUDE_EDIT_REQUIRE_READ;
+      delete process.env.AXON_EDIT_REQUIRE_READ;
     }
 
     if (fs.existsSync(testDir)) {

@@ -45,8 +45,8 @@ describe('Auto Compact Framework', () => {
       expect(result).toBe(false);
     });
 
-    it('should respect CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', () => {
-      process.env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = '80';
+    it('should respect AXON_AUTOCOMPACT_PCT_OVERRIDE', () => {
+      process.env.AXON_AUTOCOMPACT_PCT_OVERRIDE = '80';
       const model = 'claude-sonnet-4-5-20250929';
 
       const threshold = calculateAutoCompactThreshold(model);
@@ -194,7 +194,7 @@ describe('Auto Compact Framework', () => {
     });
 
     it('should respect percentage override', () => {
-      process.env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = '80';
+      process.env.AXON_AUTOCOMPACT_PCT_OVERRIDE = '80';
       const model = 'claude-sonnet-4-5-20250929';
 
       const threshold = calculateAutoCompactThreshold(model);
@@ -206,7 +206,7 @@ describe('Auto Compact Framework', () => {
     });
 
     it('should clamp percentage override to original threshold', () => {
-      process.env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = '120'; // 超过 100%
+      process.env.AXON_AUTOCOMPACT_PCT_OVERRIDE = '120'; // 超过 100%
       const model = 'claude-sonnet-4-5-20250929';
 
       const threshold = calculateAutoCompactThreshold(model);
@@ -216,7 +216,7 @@ describe('Auto Compact Framework', () => {
     });
 
     it('should handle 50% override', () => {
-      process.env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = '50';
+      process.env.AXON_AUTOCOMPACT_PCT_OVERRIDE = '50';
       const model = 'claude-sonnet-4-5-20250929';
 
       const threshold = calculateAutoCompactThreshold(model);
@@ -227,7 +227,7 @@ describe('Auto Compact Framework', () => {
     });
 
     it('should ignore invalid percentage values', () => {
-      process.env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = 'invalid';
+      process.env.AXON_AUTOCOMPACT_PCT_OVERRIDE = 'invalid';
       const model = 'claude-sonnet-4-5-20250929';
 
       const threshold = calculateAutoCompactThreshold(model);
@@ -237,7 +237,7 @@ describe('Auto Compact Framework', () => {
     });
 
     it('should ignore negative percentage values', () => {
-      process.env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = '-10';
+      process.env.AXON_AUTOCOMPACT_PCT_OVERRIDE = '-10';
       const model = 'claude-sonnet-4-5-20250929';
 
       const threshold = calculateAutoCompactThreshold(model);
@@ -247,7 +247,7 @@ describe('Auto Compact Framework', () => {
     });
 
     it('should ignore zero percentage', () => {
-      process.env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = '0';
+      process.env.AXON_AUTOCOMPACT_PCT_OVERRIDE = '0';
       const model = 'claude-sonnet-4-5-20250929';
 
       const threshold = calculateAutoCompactThreshold(model);
@@ -562,7 +562,7 @@ describe('Auto Compact Framework', () => {
     });
 
     it('should respect custom threshold via percentage', () => {
-      process.env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = '60';
+      process.env.AXON_AUTOCOMPACT_PCT_OVERRIDE = '60';
       const model = 'claude-sonnet-4-5-20250929';
 
       // 60% 阈值 = (200000 - 64000) * 0.6 = 81600 tokens = 326400 字符
@@ -675,12 +675,12 @@ describe('Integration Test Scenarios', () => {
     expect(shouldAutoCompact(messages, model)).toBe(false);
 
     // 场景 3：同时设置禁用和自定义阈值（禁用优先）
-    process.env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = '50';
+    process.env.AXON_AUTOCOMPACT_PCT_OVERRIDE = '50';
     expect(shouldAutoCompact(messages, model)).toBe(false);
 
     // 场景 4：只有自定义阈值
     delete process.env.DISABLE_COMPACT;
-    process.env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = '90';
+    process.env.AXON_AUTOCOMPACT_PCT_OVERRIDE = '90';
     const shouldCompactWithCustom = shouldAutoCompact(messages, model);
     expect(typeof shouldCompactWithCustom).toBe('boolean');
   });

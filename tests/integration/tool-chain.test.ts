@@ -21,17 +21,17 @@ describe('Tool Chain Integration', () => {
   beforeAll(async () => {
     env = await setupTestEnvironment();
     // Disable file read requirement for tests
-    originalEnv = process.env.CLAUDE_EDIT_REQUIRE_READ;
-    process.env.CLAUDE_EDIT_REQUIRE_READ = 'false';
+    originalEnv = process.env.AXON_EDIT_REQUIRE_READ;
+    process.env.AXON_EDIT_REQUIRE_READ = 'false';
   });
 
   afterAll(async () => {
     await cleanupTestEnvironment(env);
     // Restore original environment variable
     if (originalEnv !== undefined) {
-      process.env.CLAUDE_EDIT_REQUIRE_READ = originalEnv;
+      process.env.AXON_EDIT_REQUIRE_READ = originalEnv;
     } else {
-      delete process.env.CLAUDE_EDIT_REQUIRE_READ;
+      delete process.env.AXON_EDIT_REQUIRE_READ;
     }
   });
 

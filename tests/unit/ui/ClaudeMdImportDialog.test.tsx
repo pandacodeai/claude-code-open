@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { scanClaudeMdFiles, type ClaudeMdFile } from '../../../src/ui/components/ClaudeMdImportDialog.js';
+import { scanAxonMdFiles, type AxonMdFile } from '../../../src/ui/components/AxonMdImportDialog.js';
 
 // Mock fs module
 vi.mock('fs');
@@ -26,7 +26,7 @@ describe('ClaudeMdImportDialog', () => {
     vi.restoreAllMocks();
   });
 
-  describe('scanClaudeMdFiles', () => {
+  describe('scanAxonMdFiles', () => {
     it('should find project AXON.md file', () => {
       // Setup mock
       vi.mocked(fs.existsSync).mockImplementation((p: fs.PathLike) => {
@@ -40,7 +40,7 @@ describe('ClaudeMdImportDialog', () => {
       vi.mocked(fs.readFileSync).mockReturnValue('# Project AXON.md\n\nSome content');
       vi.mocked(fs.readdirSync).mockReturnValue([]);
 
-      const files = scanClaudeMdFiles(mockCwd);
+      const files = scanAxonMdFiles(mockCwd);
 
       expect(files).toHaveLength(1);
       expect(files[0].source).toBe('project');
@@ -59,7 +59,7 @@ describe('ClaudeMdImportDialog', () => {
       vi.mocked(fs.readFileSync).mockReturnValue('# .claude AXON.md\n');
       vi.mocked(fs.readdirSync).mockReturnValue([]);
 
-      const files = scanClaudeMdFiles(mockCwd);
+      const files = scanAxonMdFiles(mockCwd);
 
       expect(files).toHaveLength(1);
       expect(files[0].source).toBe('project-dir');
@@ -77,7 +77,7 @@ describe('ClaudeMdImportDialog', () => {
       vi.mocked(fs.readFileSync).mockReturnValue('# Local settings');
       vi.mocked(fs.readdirSync).mockReturnValue([]);
 
-      const files = scanClaudeMdFiles(mockCwd);
+      const files = scanAxonMdFiles(mockCwd);
 
       expect(files).toHaveLength(1);
       expect(files[0].source).toBe('local');
@@ -95,7 +95,7 @@ describe('ClaudeMdImportDialog', () => {
       vi.mocked(fs.readFileSync).mockReturnValue('# Global settings');
       vi.mocked(fs.readdirSync).mockReturnValue([]);
 
-      const files = scanClaudeMdFiles(mockCwd);
+      const files = scanAxonMdFiles(mockCwd);
 
       expect(files).toHaveLength(1);
       expect(files[0].source).toBe('user-global');
@@ -119,7 +119,7 @@ describe('ClaudeMdImportDialog', () => {
         return [] as unknown as fs.Dirent[];
       });
 
-      const files = scanClaudeMdFiles(mockCwd);
+      const files = scanAxonMdFiles(mockCwd);
 
       expect(files.filter(f => f.source === 'rules')).toHaveLength(2);
     });
@@ -136,7 +136,7 @@ describe('ClaudeMdImportDialog', () => {
       vi.mocked(fs.readFileSync).mockReturnValue('# Large file');
       vi.mocked(fs.readdirSync).mockReturnValue([]);
 
-      const files = scanClaudeMdFiles(mockCwd);
+      const files = scanAxonMdFiles(mockCwd);
 
       expect(files).toHaveLength(1);
       expect(files[0].validationError).toBe('File exceeds 40KB limit');
@@ -158,7 +158,7 @@ Also check @~/shared/common-rules.md for shared rules.
 `);
       vi.mocked(fs.readdirSync).mockReturnValue([]);
 
-      const files = scanClaudeMdFiles(mockCwd);
+      const files = scanAxonMdFiles(mockCwd);
 
       expect(files).toHaveLength(1);
       expect(files[0].includes).toContain('./docs/style-guide.md');
@@ -181,7 +181,7 @@ Also check @~/shared/common-rules.md for shared rules.
         vi.mocked(fs.readFileSync).mockReturnValue('# Content');
         vi.mocked(fs.readdirSync).mockReturnValue([]);
 
-        const files = scanClaudeMdFiles(mockCwd);
+        const files = scanAxonMdFiles(mockCwd);
         const file = files.find(f => f.path === filePath);
 
         expect(file?.source).toBe(expectedSource);

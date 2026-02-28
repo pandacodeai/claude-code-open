@@ -534,7 +534,7 @@ describe('Background Process Lifecycle', () => {
     expect(fileMatch).toBeTruthy();
     if (fileMatch) {
       const filePath = fileMatch[1];
-      expect(filePath).toContain('.claude/background');
+      expect(filePath).toContain('.axon/background');
       const shellId = startResult.bash_id || startResult.shell_id;
       if (shellId) {
         expect(filePath).toContain(shellId);

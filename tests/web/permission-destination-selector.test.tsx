@@ -61,21 +61,21 @@ describe('PERMISSION_DESTINATIONS', () => {
     const project = PERMISSION_DESTINATIONS.find((d) => d.id === 'project');
     expect(project).toBeDefined();
     expect(project?.label).toBe('This project');
-    expect(project?.path).toBe('.claude/settings.json');
+    expect(project?.path).toBe('.axon/settings.json');
   });
 
   it('should include global destination', () => {
     const global = PERMISSION_DESTINATIONS.find((d) => d.id === 'global');
     expect(global).toBeDefined();
     expect(global?.label).toBe('All projects');
-    expect(global?.path).toBe('~/.claude/settings.json');
+    expect(global?.path).toBe('~/.axon/settings.json');
   });
 
   it('should include team destination', () => {
     const team = PERMISSION_DESTINATIONS.find((d) => d.id === 'team');
     expect(team).toBeDefined();
     expect(team?.label).toBe('Shared with team');
-    expect(team?.path).toBe('.claude/settings.local.json');
+    expect(team?.path).toBe('.axon/settings.local.json');
   });
 
   it('should include session destination', () => {
@@ -189,9 +189,9 @@ describe('PermissionDestinationSelector', () => {
       />
     );
 
-    expect(screen.getByText('.claude/settings.json')).toBeInTheDocument();
-    expect(screen.getByText('~/.claude/settings.json')).toBeInTheDocument();
-    expect(screen.getByText('.claude/settings.local.json')).toBeInTheDocument();
+    expect(screen.getByText('.axon/settings.json')).toBeInTheDocument();
+    expect(screen.getByText('~/.axon/settings.json')).toBeInTheDocument();
+    expect(screen.getByText('.axon/settings.local.json')).toBeInTheDocument();
   });
 
   it('should hide descriptions in compact mode', () => {
@@ -204,7 +204,7 @@ describe('PermissionDestinationSelector', () => {
     );
 
     // 描述应该不可见
-    expect(screen.queryByText(/Save to .claude\/settings.json/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Save to .axon\/settings.json/)).not.toBeInTheDocument();
   });
 
   it('should respond to keyboard navigation', () => {
