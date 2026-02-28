@@ -592,7 +592,7 @@ https://github.com/anthropics/axon/blob/main/CHANGELOG.md`;
  */
 async function fetchChangelog(): Promise<string> {
   // 如果设置了禁止非必要流量的环境变量，返回空字符串
-  if (process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC) {
+  if (process.env.AXON_DISABLE_NONESSENTIAL_TRAFFIC) {
     return '';
   }
 
@@ -715,11 +715,11 @@ export const vimCommand: SlashCommand = {
 
     // 从环境变量或配置中获取当前 Vim 模式状态
     // 官方实现使用运行时状态，这里使用环境变量模拟
-    const currentVimMode = process.env.CLAUDE_CODE_VIM_MODE === 'true';
+    const currentVimMode = process.env.AXON_VIM_MODE === 'true';
 
     if (subcommand === 'on') {
       // 启用 Vim 键绑定
-      process.env.CLAUDE_CODE_VIM_MODE = 'true';
+      process.env.AXON_VIM_MODE = 'true';
 
       const response = `Vim Mode: Enabled
 
@@ -745,7 +745,7 @@ To disable Vim mode, use: /vim off`;
       return { success: true };
     } else if (subcommand === 'off') {
       // 禁用 Vim 键绑定
-      process.env.CLAUDE_CODE_VIM_MODE = 'false';
+      process.env.AXON_VIM_MODE = 'false';
 
       const response = `Vim Mode: Disabled
 
@@ -759,7 +759,7 @@ To re-enable Vim mode, use: /vim on`;
     } else if (!subcommand) {
       // 切换状态
       const newState = !currentVimMode;
-      process.env.CLAUDE_CODE_VIM_MODE = String(newState);
+      process.env.AXON_VIM_MODE = String(newState);
 
       const response = `Vim Mode: ${newState ? 'Enabled' : 'Disabled'}
 
@@ -801,7 +801,7 @@ export const ideCommand: SlashCommand = {
     const subcommand = args[0]?.toLowerCase();
 
     // 检测 IDE 环境变量
-    const ideType = process.env.CLAUDE_IDE || process.env.VSCODE_PID ? 'vscode' :
+    const ideType = process.env.AXON_IDE || process.env.VSCODE_PID ? 'vscode' :
                     process.env.CURSOR_SESSION_ID ? 'cursor' : null;
     const ideConnected = !!ideType;
     const workspacePath = config.cwd;
@@ -846,11 +846,11 @@ export const ideCommand: SlashCommand = {
 
       // 支持的 IDE
       statusText += `Supported IDEs\n`;
-      statusText += `  • VS Code - Set CLAUDE_IDE=vscode\n`;
-      statusText += `  • Cursor - Set CLAUDE_IDE=cursor\n`;
-      statusText += `  • JetBrains - Set CLAUDE_IDE=jetbrains\n`;
-      statusText += `  • Vim/Neovim - Set CLAUDE_IDE=vim\n`;
-      statusText += `  • Emacs - Set CLAUDE_IDE=emacs\n`;
+      statusText += `  • VS Code - Set AXON_IDE=vscode\n`;
+      statusText += `  • Cursor - Set AXON_IDE=cursor\n`;
+      statusText += `  • JetBrains - Set AXON_IDE=jetbrains\n`;
+      statusText += `  • Vim/Neovim - Set AXON_IDE=vim\n`;
+      statusText += `  • Emacs - Set AXON_IDE=emacs\n`;
       statusText += '\n';
 
       // 使用说明
@@ -861,7 +861,7 @@ export const ideCommand: SlashCommand = {
       statusText += '\n';
 
       if (!ideConnected) {
-        statusText += `Tip: Set the CLAUDE_IDE environment variable to enable IDE-specific features.`;
+        statusText += `Tip: Set the AXON_IDE environment variable to enable IDE-specific features.`;
       }
 
       ctx.ui.addMessage('assistant', statusText);
@@ -888,7 +888,7 @@ Example: /ide connect vscode`;
       }
 
       // 设置 IDE 环境变量
-      process.env.CLAUDE_IDE = requestedIde;
+      process.env.AXON_IDE = requestedIde;
 
       const response = `IDE Connected: ${requestedIde}
 
@@ -899,23 +899,23 @@ Connection established successfully.
 
 IDE-specific features are now available.
 
-Note: This setting is for the current session only. To make it permanent, set the CLAUDE_IDE environment variable in your shell configuration.
+Note: This setting is for the current session only. To make it permanent, set the AXON_IDE environment variable in your shell configuration.
 
 Example (bash/zsh):
-  export CLAUDE_IDE=${requestedIde}`;
+  export AXON_IDE=${requestedIde}`;
 
       ctx.ui.addMessage('assistant', response);
       ctx.ui.addActivity(`Connected to ${requestedIde}`);
       return { success: true };
     } else if (subcommand === 'disconnect') {
       // 断开 IDE 连接
-      if (!ideConnected && !process.env.CLAUDE_IDE) {
+      if (!ideConnected && !process.env.AXON_IDE) {
         ctx.ui.addMessage('assistant', 'No IDE connection to disconnect.');
         return { success: true };
       }
 
-      const previousIde = process.env.CLAUDE_IDE || ideType;
-      delete process.env.CLAUDE_IDE;
+      const previousIde = process.env.AXON_IDE || ideType;
+      delete process.env.AXON_IDE;
 
       const response = `IDE Disconnected
 

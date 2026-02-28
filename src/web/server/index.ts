@@ -47,7 +47,7 @@ export interface WebServerResult {
 }
 
 export async function startWebServer(options: WebServerOptions = {}): Promise<WebServerResult> {
-  // 初始化运行时日志系统 — 拦截所有 console 输出并持久化到 ~/.claude/runtime.log
+  // 初始化运行时日志系统 — 拦截所有 console 输出并持久化到 ~/.axon/runtime.log
   logger.init({
     interceptConsole: true,
     minLevel: 'info',

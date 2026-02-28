@@ -18,7 +18,7 @@ import { generateAISummary, type SummarizerClient } from '../context/summarizer.
 // 摘要缓存目录
 const SUMMARIES_DIR = path.join(
   os.homedir(),
-  '.claude',
+  '.axon',
   'sessions',
   'summaries'
 );

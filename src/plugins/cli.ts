@@ -12,7 +12,7 @@ import { escapePathForShell, isWindows } from '../utils/platform.js';
  */
 export function createPluginCommand(): Command {
   const pluginCommand = new Command('plugin');
-  pluginCommand.description('Manage Claude Code plugins');
+  pluginCommand.description('Manage Axon plugins');
 
   // claude plugin validate <path> - 官方命令，验证插件清单
   pluginCommand

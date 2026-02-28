@@ -297,7 +297,7 @@ const en = {
   'axonmd.externalWarning': 'Warning: External file references require explicit approval.',
   // Source labels
   'axonmd.source.project': 'Project',
-  'axonmd.source.projectDir': 'Project/.claude',
+  'axonmd.source.projectDir': 'Project/.axon',
   'axonmd.source.local': 'Local',
   'axonmd.source.userGlobal': 'User Global',
   'axonmd.source.rules': 'Rules',
@@ -335,7 +335,7 @@ const en = {
   'message.you': 'You',
   'message.system': 'System',
   'message.error': 'Error',
-  'message.claude': 'Claude',
+  'message.axon': 'Claude',
   'message.toolResult': 'Tool Result',
   'message.copyHint': 'Press Cmd+A to select and copy',
 
@@ -382,7 +382,7 @@ const en = {
   'file.binaryNotSupported': 'Cannot read binary file type: .{{ext}}. This file type is not supported.',
   'file.readError': 'Error reading file: {{error}}',
   'file.imageReadError': 'Error reading image: {{error}}',
-  'file.pdfNotEnabled': 'PDF support is not enabled. Set CLAUDE_PDF_SUPPORT=true to enable.',
+  'file.pdfNotEnabled': 'PDF support is not enabled. Set AXON_PDF_SUPPORT=true to enable.',
   'file.pdfTooLarge': 'This PDF has {{count}} pages, which is too many to read at once. Use the pages parameter to read specific page ranges (e.g., pages: "1-5"). Maximum {{max}} pages per request.',
   'file.pdfReadError': 'Error reading PDF: {{error}}',
   'file.svgReadError': 'Error reading SVG: {{error}}',
@@ -470,7 +470,7 @@ const en = {
   'planmode.exitFailed': 'Failed to exit plan mode: {{error}}',
 
   // team.ts - TeamCreate
-  'team.notEnabled': 'Agent Teams feature is not enabled. Set CLAUDE_CODE_ENABLE_AGENT_TEAMS=true to enable.',
+  'team.notEnabled': 'Agent Teams feature is not enabled. Set AXON_ENABLE_AGENT_TEAMS=true to enable.',
   'team.alreadyInTeam': 'Already in a team. Use TeamDelete to clean up the current team first.',
   'team.tmuxCurrentSession': '\nTmux: Using current session for teammate panes.',
   'team.tmuxCreatedSession': '\nTmux: Created session "claude-team-{{teamName}}" for teammate panes.',
@@ -510,7 +510,7 @@ const en = {
   'team.planRejected': 'Plan rejected for {{recipient}}: {{reason}}',
 
   // agent-teams.ts - TeammateTool
-  'agentTeams.notEnabled': 'Agent Teams feature is not enabled. Set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 to enable.',
+  'agentTeams.notEnabled': 'Agent Teams feature is not enabled. Set AXON_EXPERIMENTAL_AGENT_TEAMS=1 to enable.',
   'agentTeams.unknownOperation': 'Unknown operation: {{operation}}. Use \'spawnTeam\' or \'cleanup\'.',
   'agentTeams.teamNameRequired': 'team_name is required for spawnTeam operation',
   'agentTeams.teamAlreadyExists': 'Team \'{{teamName}}\' already exists. Use \'cleanup\' first to remove it.',
@@ -839,7 +839,7 @@ const en = {
   'createTool.invalidName': 'Skill name must start with a letter and contain only letters, numbers, hyphens, and underscores.',
 
   // ============ TaskV2 ============
-  'taskV2.disabled': 'Task management system is disabled. Set CLAUDE_CODE_ENABLE_TASKS=true to enable.',
+  'taskV2.disabled': 'Task management system is disabled. Set AXON_ENABLE_TASKS=true to enable.',
   'taskV2.notFound': 'Task not found',
   'taskV2.created': 'Created task #{{id}}: {{subject}}',
   'taskV2.noTasks': 'No tasks found.',

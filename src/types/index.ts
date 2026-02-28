@@ -1,5 +1,5 @@
 /**
- * Claude Code 类型定义入口文件
+ * Axon 类型定义入口文件
  * Type definitions entry point for Claude Code
  *
  * 这个文件是类型系统的统一入口，从各个模块化类型文件重新导出

@@ -1,6 +1,6 @@
 /**
  * Chrome MCP 工具定义
- * 与官方 Claude Code 保持一致的 17 个工具
+ * 与官方参考实现保持一致的 17 个工具
  */
 
 export interface McpTool {

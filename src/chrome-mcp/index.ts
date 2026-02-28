@@ -1,5 +1,5 @@
 /**
- * Chrome MCP 模块 - 与官方 Claude Code Chrome 扩展集成
+ * Chrome MCP 模块 - 与官方 Chrome 扩展集成
  *
  * 完全对齐官方实现，复用官方 Chrome 扩展
  *
@@ -18,7 +18,7 @@
  * │      ↕                                          │               │
  * │  MCP Server ←───────────────────────────────────┘               │
  * │      ↕ stdio                                                    │
- * │  Claude Code CLI (主进程)                                        │
+ * │  Axon CLI (主进程)                                        │
  * │                                                                 │
  * └─────────────────────────────────────────────────────────────────┘
  */
@@ -128,7 +128,7 @@ export interface ChromeIntegrationConfig {
  *
  * 与官方实现一致，检查以下条件：
  * 1. --chrome 命令行参数
- * 2. CLAUDE_CODE_ENABLE_CFC 环境变量
+ * 2. AXON_ENABLE_CFC 环境变量
  * 3. claudeInChromeDefaultEnabled 配置
  *
  * @param cliChromeFlag 命令行 --chrome 参数值
@@ -145,7 +145,7 @@ export function shouldEnableChromeIntegration(cliChromeFlag?: boolean): boolean 
   }
 
   // 检查环境变量
-  const envValue = process.env.CLAUDE_CODE_ENABLE_CFC;
+  const envValue = process.env.AXON_ENABLE_CFC;
   if (envValue === '1' || envValue === 'true') {
     return true;
   }
@@ -155,7 +155,7 @@ export function shouldEnableChromeIntegration(cliChromeFlag?: boolean): boolean 
 
   // 检查配置文件
   try {
-    const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+    const settingsPath = path.join(os.homedir(), '.axon', 'settings.json');
     if (fs.existsSync(settingsPath)) {
       const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
       if (typeof settings.claudeInChromeDefaultEnabled === 'boolean') {
@@ -214,7 +214,7 @@ export async function getChromeIntegrationConfig(cliChromeFlag?: boolean): Promi
 export async function enableChromeIntegration(): Promise<ChromeIntegrationConfig | null> {
   // 保存配置
   try {
-    const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+    const settingsPath = path.join(os.homedir(), '.axon', 'settings.json');
     let settings: Record<string, unknown> = {};
 
     try {
@@ -245,7 +245,7 @@ export async function enableChromeIntegration(): Promise<ChromeIntegrationConfig
  */
 export function disableChromeIntegration(): void {
   try {
-    const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+    const settingsPath = path.join(os.homedir(), '.axon', 'settings.json');
     let settings: Record<string, unknown> = {};
 
     try {

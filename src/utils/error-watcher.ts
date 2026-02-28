@@ -317,7 +317,7 @@ class ErrorWatcher {
 
   private appendRepairLog(record: RepairRecord, pattern: ErrorPattern, sourceContext: string): void {
     try {
-      const logDir = path.join(os.homedir(), '.claude');
+      const logDir = path.join(os.homedir(), '.axon');
       if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
 
       const logPath = path.join(logDir, 'error-watcher.jsonl');
@@ -345,7 +345,7 @@ class ErrorWatcher {
       const projectRoot = this.findProjectRoot();
       if (!projectRoot) return;
 
-      const claudeDir = path.join(os.homedir(), '.claude');
+      const claudeDir = path.join(os.homedir(), '.axon');
       const sanitized = projectRoot.replace(/[<>:"|?*]/g, '-').replace(/[\\/]+/g, '-').toLowerCase();
       const projectDir = path.join(claudeDir, 'memory', 'projects', sanitized);
 

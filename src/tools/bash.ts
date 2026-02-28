@@ -461,7 +461,7 @@ export function isShellId(id: string): boolean {
 // 获取任务输出文件路径（使用官方的 tasks 目录）
 export function getTaskOutputPath(taskId: string): string {
   const homeDir = process.env.HOME || process.env.USERPROFILE || '/tmp';
-  const tasksDir = path.join(homeDir, '.claude', 'tasks');
+  const tasksDir = path.join(homeDir, '.axon', 'tasks');
 
   // 确保目录存在
   if (!fs.existsSync(tasksDir)) {
@@ -540,7 +540,7 @@ export function cleanupStaleTasks(): { cleaned: number; errors: number } {
   const homeDir = process.env.HOME || process.env.USERPROFILE || '/tmp';
 
   for (const subDir of ['tasks', path.join('tasks', 'conversations')]) {
-    const dir = path.join(homeDir, '.claude', subDir);
+    const dir = path.join(homeDir, '.axon', subDir);
     if (!fs.existsSync(dir)) continue;
 
     try {

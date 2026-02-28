@@ -1,6 +1,6 @@
 /**
  * Hooks 系统单元测试
- * 基于官方 Claude Code CLI v2.1.4 逆向分析
+ * 基于 Anthropic 官方 CLI v2.1.4 逆向分析
  */
 
 import * as assert from 'assert';

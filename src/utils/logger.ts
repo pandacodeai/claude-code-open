@@ -6,7 +6,7 @@
  *   2. process.stderr.write（过滤掉终端控制码和纯 UI 输出）
  *   3. 程序化 API：logger.error/warn/info/debug
  *
- * 日志文件：~/.claude/runtime.log（JSONL，自动轮转）
+ * 日志文件：~/.axon/runtime.log（JSONL，自动轮转）
  * 轮转策略：单文件 2MB，保留 5 个历史文件，总上限 ~12MB
  */
 
@@ -30,7 +30,7 @@ export interface LogEntry {
 }
 
 export interface LoggerConfig {
-  /** 日志文件路径，默认 ~/.claude/runtime.log */
+  /** 日志文件路径，默认 ~/.axon/runtime.log */
   logFile?: string;
   /** 单文件最大字节数，默认 2MB */
   maxFileSize?: number;
@@ -53,8 +53,8 @@ const LOG_LEVELS: Record<LogLevel, number> = {
   error: 3,
 };
 
-const CLAUDE_DIR = path.join(os.homedir(), '.claude');
-const DEFAULT_LOG_FILE = path.join(CLAUDE_DIR, 'runtime.log');
+const AXON_DIR = path.join(os.homedir(), '.axon');
+const DEFAULT_LOG_FILE = path.join(AXON_DIR, 'runtime.log');
 const DEFAULT_MAX_SIZE = 2 * 1024 * 1024; // 2MB
 const DEFAULT_MAX_FILES = 5;
 

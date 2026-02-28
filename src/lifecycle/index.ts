@@ -1,6 +1,6 @@
 /**
  * 生命周期事件管理器
- * 基于官方 Claude Code CLI v2.1.4 的生命周期系统
+ * 基于 Anthropic 官方 CLI v2.1.4 的生命周期系统
  *
  * 生命周期事件分为两个级别：
  * 1. CLI 级别 - 整个 CLI 进程的生命周期
@@ -81,7 +81,7 @@ class LifecycleManager {
     this.eventHistory.push({ event, timestamp, data });
 
     // 调试输出
-    if (this.debugMode || process.env.CLAUDE_DEBUG?.includes('lifecycle')) {
+    if (this.debugMode || process.env.AXON_DEBUG?.includes('lifecycle')) {
       console.error(`[Lifecycle] ${event}${data ? ` (${JSON.stringify(data)})` : ''}`);
     }
 

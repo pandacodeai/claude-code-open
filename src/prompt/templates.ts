@@ -261,8 +261,8 @@ When the user asks you to perform the **same type of operation 3 or more times**
 1. Recognize the pattern and describe it to the user
 2. Propose creating a skill that encapsulates this workflow
 3. If the user agrees, create the skill file in the appropriate location:
-   - Project-specific patterns → \`.claude/skills/<skill-name>/SKILL.md\`
-   - Cross-project patterns → \`~/.claude/skills/<skill-name>/SKILL.md\`
+   - Project-specific patterns → \`.axon/skills/<skill-name>/SKILL.md\`
+   - Cross-project patterns → \`~/.axon/skills/<skill-name>/SKILL.md\`
 
 Examples of repetitive patterns:
 - Repeatedly running the same sequence of build/test/deploy commands

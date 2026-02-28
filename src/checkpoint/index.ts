@@ -79,7 +79,7 @@ export interface CheckpointStats {
 }
 
 // Checkpoint storage directory
-const CHECKPOINT_DIR = path.join(os.homedir(), '.claude', 'checkpoints');
+const CHECKPOINT_DIR = path.join(os.homedir(), '.axon', 'checkpoints');
 const MAX_CHECKPOINTS_PER_FILE = 100;
 const CHECKPOINT_RETENTION_DAYS = 30;
 const DEFAULT_AUTO_CHECKPOINT_INTERVAL = 5; // Create checkpoint every 5 edits

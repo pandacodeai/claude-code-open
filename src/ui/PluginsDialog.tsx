@@ -900,9 +900,9 @@ export function PluginsDialog({
   const [error, setError] = useState<string | undefined>();
 
   const homeDir = os.homedir();
-  const pluginDir = path.join(homeDir, '.claude', 'plugins');
-  const projectPluginDir = path.join(cwd, '.claude', 'plugins');
-  const settingsPath = path.join(homeDir, '.claude', 'settings.json');
+  const pluginDir = path.join(homeDir, '.axon', 'plugins');
+  const projectPluginDir = path.join(cwd, '.axon', 'plugins');
+  const settingsPath = path.join(homeDir, '.axon', 'settings.json');
 
   // 加载数据
   useEffect(() => {
@@ -958,7 +958,7 @@ export function PluginsDialog({
       }
       setInstalledPlugins(installed);
 
-      // === 2. 读取 marketplaces（从 ~/.claude/plugins/marketplaces/） ===
+      // === 2. 读取 marketplaces（从 ~/.axon/plugins/marketplaces/） ===
       const marketplaceList: Marketplace[] = [];
       const marketplacesDir = path.join(pluginDir, 'marketplaces');
 

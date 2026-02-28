@@ -39,8 +39,8 @@ export function getUserTempDirName(): string {
  */
 export function getBaseTempDir(): string {
   // 环境变量优先
-  if (process.env.CLAUDE_CODE_TMPDIR) {
-    return process.env.CLAUDE_CODE_TMPDIR;
+  if (process.env.AXON_TMPDIR) {
+    return process.env.AXON_TMPDIR;
   }
 
   // Windows 使用系统临时目录

@@ -57,11 +57,11 @@ function parseValue(value: string): any {
  */
 function getConfigPath(scope: 'global' | 'local' = 'global'): string {
   if (scope === 'global') {
-    const configDir = process.env.CLAUDE_CONFIG_DIR ||
-                      path.join(os.homedir(), '.claude');
+    const configDir = process.env.AXON_CONFIG_DIR ||
+                      path.join(os.homedir(), '.axon');
     return path.join(configDir, 'settings.json');
   } else {
-    return path.join(process.cwd(), '.claude', 'settings.json');
+    return path.join(process.cwd(), '.axon', 'settings.json');
   }
 }
 
@@ -530,7 +530,7 @@ function configMcp(action: string, name?: string, config?: string): void {
  */
 export function createConfigCommand(): Command {
   const configCommand = new Command('config')
-    .description('Manage Claude Code configuration');
+    .description('Manage Axon configuration');
 
   // config list
   configCommand

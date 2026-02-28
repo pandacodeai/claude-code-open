@@ -152,11 +152,11 @@ export class ToolPermissionManager {
 
   constructor(configDir?: string) {
     this.configDir = configDir ||
-                     process.env.CLAUDE_CONFIG_DIR ||
-                     path.join(process.env.HOME || '~', '.claude');
+                     process.env.AXON_CONFIG_DIR ||
+                     path.join(process.env.HOME || '~', '.axon');
 
     this.globalPermissionsFile = path.join(this.configDir, 'tool-permissions.json');
-    this.projectPermissionsFile = path.join(process.cwd(), '.claude', 'tool-permissions.json');
+    this.projectPermissionsFile = path.join(process.cwd(), '.axon', 'tool-permissions.json');
 
     // 加载权限配置
     this.loadPermissions();

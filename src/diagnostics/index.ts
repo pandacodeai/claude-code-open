@@ -327,7 +327,7 @@ async function checkApiConnectivity(): Promise<DiagnosticCheck> {
  * Check file permissions
  */
 async function checkFilePermissions(): Promise<DiagnosticCheck> {
-  const claudeDir = path.join(os.homedir(), '.claude');
+  const claudeDir = path.join(os.homedir(), '.axon');
   const issues: string[] = [];
 
   // Check if .claude directory exists and is writable
@@ -436,9 +436,9 @@ async function checkDiskSpace(): Promise<DiagnosticCheck> {
  */
 async function checkConfigurationFiles(): Promise<DiagnosticCheck> {
   const files: { path: string; name: string; required: boolean }[] = [
-    { path: path.join(os.homedir(), '.claude', 'settings.json'), name: 'Global settings', required: false },
-    { path: path.join(process.cwd(), '.claude', 'settings.local.json'), name: 'Local settings', required: false },
-    { path: path.join(process.cwd(), 'CLAUDE.md'), name: 'Project instructions', required: false },
+    { path: path.join(os.homedir(), '.axon', 'settings.json'), name: 'Global settings', required: false },
+    { path: path.join(process.cwd(), '.axon', 'settings.local.json'), name: 'Local settings', required: false },
+    { path: path.join(process.cwd(), 'AXON.md'), name: 'Project instructions', required: false },
   ];
 
   const found: string[] = [];
@@ -485,7 +485,7 @@ async function checkConfigurationFiles(): Promise<DiagnosticCheck> {
  * Check MCP servers
  */
 async function checkMCPServers(): Promise<DiagnosticCheck> {
-  const mcpConfigPath = path.join(os.homedir(), '.claude', 'mcp.json');
+  const mcpConfigPath = path.join(os.homedir(), '.axon', 'mcp.json');
 
   if (!fs.existsSync(mcpConfigPath)) {
     return {
@@ -608,7 +608,7 @@ export function formatDiagnosticReport(report: DiagnosticReport, options: Diagno
   const lines: string[] = [];
 
   lines.push('╭─────────────────────────────────────────────╮');
-  lines.push('│           Claude Code Diagnostics          │');
+  lines.push('│           Axon Diagnostics          │');
   lines.push('╰─────────────────────────────────────────────╯');
   lines.push('');
   lines.push(`  Version:  ${report.version}`);
@@ -662,7 +662,7 @@ export function formatDiagnosticReport(report: DiagnosticReport, options: Diagno
  */
 async function checkPermissionSettings(): Promise<DiagnosticCheck> {
   try {
-    const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+    const settingsPath = path.join(os.homedir(), '.axon', 'settings.json');
     if (!fs.existsSync(settingsPath)) {
       return {
         name: 'Permission Settings',
@@ -777,7 +777,7 @@ async function checkSSLCertificates(): Promise<DiagnosticCheck> {
  * Check session directory
  */
 async function checkSessionDirectory(): Promise<DiagnosticCheck> {
-  const sessionDir = path.join(os.homedir(), '.claude', 'sessions');
+  const sessionDir = path.join(os.homedir(), '.axon', 'sessions');
 
   try {
     if (!fs.existsSync(sessionDir)) {
@@ -818,7 +818,7 @@ async function checkSessionDirectory(): Promise<DiagnosticCheck> {
  * Check cache directory
  */
 async function checkCacheDirectory(): Promise<DiagnosticCheck> {
-  const cacheDir = path.join(os.homedir(), '.claude', 'cache');
+  const cacheDir = path.join(os.homedir(), '.axon', 'cache');
 
   try {
     if (!fs.existsSync(cacheDir)) {
@@ -1033,14 +1033,14 @@ export async function autoFixIssues(report: DiagnosticReport): Promise<{
         // Attempt to fix specific issues
         if (check.name === 'File Permissions') {
           // Create .claude directory if missing
-          const claudeDir = path.join(os.homedir(), '.claude');
+          const claudeDir = path.join(os.homedir(), '.axon');
           if (!fs.existsSync(claudeDir)) {
             fs.mkdirSync(claudeDir, { recursive: true, mode: 0o755 });
             fixed.push(`Created ${claudeDir} directory`);
           }
         } else if (check.name === 'Session Directory') {
           // Create session directory
-          const sessionDir = path.join(os.homedir(), '.claude', 'sessions');
+          const sessionDir = path.join(os.homedir(), '.axon', 'sessions');
           if (!fs.existsSync(sessionDir)) {
             fs.mkdirSync(sessionDir, { recursive: true, mode: 0o755 });
             fixed.push(`Created ${sessionDir} directory`);

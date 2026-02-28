@@ -25,11 +25,11 @@ function resolveLocale(language?: string): string {
 
 /**
  * 从系统环境和操作系统语言检测 locale
- * 优先级：CLAUDE_CODE_LANG > LC_ALL > LC_MESSAGES > LANG > OS locale
+ * 优先级：AXON_LANG > LC_ALL > LC_MESSAGES > LANG > OS locale
  */
 function detectSystemLocale(): string {
   // 1. 环境变量（Linux/macOS 常见，Windows 上用户也可手动设置）
-  const envLang = process.env.CLAUDE_CODE_LANG
+  const envLang = process.env.AXON_LANG
     || process.env.LC_ALL
     || process.env.LC_MESSAGES
     || process.env.LANG

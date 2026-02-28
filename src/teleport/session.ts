@@ -1,6 +1,6 @@
 /**
  * 远程会话管理
- * 通过 WebSocket 连接到远程 Claude Code 会话
+ * 通过 WebSocket 连接到远程 Axon 会话
  */
 
 import { EventEmitter } from 'events';

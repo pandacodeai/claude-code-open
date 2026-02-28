@@ -493,7 +493,7 @@ export const debugCommand: SlashCommand = {
     debugInfo += `Model\n`;
     debugInfo += `  Name: ${config.modelDisplayName}\n`;
     debugInfo += `  API Type: ${config.apiType}\n`;
-    debugInfo += `  API Key: ${process.env.ANTHROPIC_API_KEY ? 'set' : process.env.CLAUDE_API_KEY ? 'set (CLAUDE_API_KEY)' : 'not set'}\n\n`;
+    debugInfo += `  API Key: ${process.env.ANTHROPIC_API_KEY ? 'set' : process.env.AXON_API_KEY ? 'set (AXON_API_KEY)' : 'not set'}\n\n`;
 
     // 模型使用分布
     if (stats.modelUsage && Object.keys(stats.modelUsage).length > 0) {

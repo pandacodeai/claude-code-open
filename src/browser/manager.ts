@@ -28,7 +28,7 @@ import { getProfile, ensureCleanExit, decorateProfile } from './profiles.js';
 import { ensureChromeExtensionRelayServer, stopChromeExtensionRelayServer } from './extension-relay.js';
 import { resolveRelayAuthToken } from './extension-relay-auth.js';
 
-const CONFIG_DIR = path.join(os.homedir(), '.claude');
+const CONFIG_DIR = path.join(os.homedir(), '.axon');
 const CDP_PORT_RANGE_START = 9222;
 const CDP_PORT_RANGE_END = 9322;
 
@@ -86,11 +86,11 @@ async function findAvailableCdpPort(preferredPort?: number): Promise<number> {
 
 /**
  * Kill orphan Chrome processes from previous interrupted sessions.
- * Looks for chrome.exe processes with --user-data-dir pointing to .claude/browser.
+ * Looks for chrome.exe processes with --user-data-dir pointing to .axon/browser.
  */
 async function killOrphanChromes(): Promise<void> {
   try {
-    const browserDir = path.join(os.homedir(), '.claude', 'browser').replace(/\\/g, '\\\\');
+    const browserDir = path.join(os.homedir(), '.axon', 'browser').replace(/\\/g, '\\\\');
     let pids: number[] = [];
 
     if (process.platform === 'win32') {
@@ -99,7 +99,7 @@ async function killOrphanChromes(): Promise<void> {
         { encoding: 'utf-8', timeout: 5000, windowsHide: true }
       );
       for (const line of output.split('\n')) {
-        if (line.includes('.claude') && line.includes('browser') && line.includes('--remote-debugging-')) {
+        if (line.includes('.axon') && line.includes('browser') && line.includes('--remote-debugging-')) {
           const pidMatch = line.match(/,(\d+)\s*$/);
           if (pidMatch) pids.push(parseInt(pidMatch[1], 10));
         }
@@ -112,7 +112,7 @@ async function killOrphanChromes(): Promise<void> {
       // Unix: pgrep + ps
       try {
         const output = execSync(
-          `ps aux | grep -E 'chrome.*\\.claude.browser.*--remote-debugging-' | grep -v grep`,
+          `ps aux | grep -E 'chrome.*\\.axon.browser.*--remote-debugging-' | grep -v grep`,
           { encoding: 'utf-8', timeout: 5000 }
         );
         for (const line of output.trim().split('\n')) {

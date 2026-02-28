@@ -69,7 +69,7 @@ export const mcpCommand: SlashCommand = {
     const homeDir = os.homedir();
     const userConfigFile = path.join(homeDir, '.claude.json');
     const projectConfigFile = path.join(ctx.config.cwd, '.mcp.json');
-    const localConfigFile = path.join(homeDir, '.claude', 'settings.json');
+    const localConfigFile = path.join(homeDir, '.axon', 'settings.json');
 
     const loadConfig = (file: string): any => {
       if (fs.existsSync(file)) {
@@ -357,7 +357,7 @@ Available servers: ${Object.keys(allServers).join(', ') || 'none'}`);
 
         try {
           // 读取禁用列表
-          const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+          const settingsPath = path.join(os.homedir(), '.axon', 'settings.json');
           const settings = fs.existsSync(settingsPath)
             ? JSON.parse(fs.readFileSync(settingsPath, 'utf-8'))
             : {};
@@ -414,7 +414,7 @@ Available servers: ${Object.keys(allServers).join(', ') || 'none'}`);
 
         try {
           // 读取禁用列表
-          const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+          const settingsPath = path.join(os.homedir(), '.axon', 'settings.json');
           const settings = fs.existsSync(settingsPath)
             ? JSON.parse(fs.readFileSync(settingsPath, 'utf-8'))
             : {};
@@ -518,7 +518,7 @@ Available agent types:
   - general-purpose: General-purpose agent for complex tasks
   - Explore: Fast agent for exploring codebases
   - Plan: Software architect agent for planning
-  - claude-code-guide: Agent for Axon documentation
+  - axon-guide: Agent for Axon documentation
 
 Usage:
   /agents list           - List all agents
@@ -880,7 +880,7 @@ Usage:
 
 Configuration:
   • Settings > Tools > Axon
-  • Or edit .idea/claude-code.xml
+  • Or edit .idea/axon.xml
 
 External Terminal:
   If using external terminal, type /ide after launching claude.
@@ -976,7 +976,7 @@ export const chromeCommand: SlashCommand = {
       };
     } catch (error) {
       // 如果 JSX 组件加载失败，回退到静态显示
-      const configFile = path.join(os.homedir(), '.claude', 'settings.json');
+      const configFile = path.join(os.homedir(), '.axon', 'settings.json');
       let chromeEnabled = false;
 
       if (fs.existsSync(configFile)) {
@@ -1042,8 +1042,8 @@ export const pluginCommand: SlashCommand = {
     const action = args[0];
     const subAction = args[1];
 
-    const pluginDir = path.join(os.homedir(), '.claude', 'plugins');
-    const projectPluginDir = path.join(ctx.config.cwd, '.claude', 'plugins');
+    const pluginDir = path.join(os.homedir(), '.axon', 'plugins');
+    const projectPluginDir = path.join(ctx.config.cwd, '.axon', 'plugins');
 
     // 如果没有参数，显示交互式 UI（官方 local-jsx 模式）
     if (!action) {
@@ -1083,7 +1083,7 @@ Usage:
   /plugin marketplace add <source>
 
 Examples:
-  /plugin marketplace add anthropics/claude-code
+  /plugin marketplace add anthropics/axon
   /plugin marketplace add git@github.com:owner/repo.git
   /plugin marketplace add https://example.com/marketplace.json
   /plugin marketplace add ./path/to/marketplace
@@ -1152,8 +1152,8 @@ In the official Axon, use the interactive UI to manage marketplaces.`);
           ctx.ui.addMessage('assistant', `Plugin Marketplaces
 
 Official Marketplace:
-  • anthropics/claude-code - Official Axon plugins
-    URL: https://github.com/anthropics/claude-code.git
+  • anthropics/axon - Official Axon plugins
+    URL: https://github.com/anthropics/axon.git
 
 Community Marketplaces:
   Add community marketplaces with:
@@ -1365,7 +1365,7 @@ Plugin Directories:
 
 Quick Start:
   1. Add official marketplace:
-     /plugin marketplace add anthropics/claude-code
+     /plugin marketplace add anthropics/axon
 
   2. Install a plugin:
      /plugin install frontend-design@claude-code-plugins
@@ -1431,7 +1431,7 @@ Install via:
 Install:
   npm install -g @anthropic/mcp-server-filesystem
 
-Configure in ~/.claude/settings.json:
+Configure in ~/.axon/settings.json:
 {
   "mcpServers": {
     "filesystem": {
@@ -1446,7 +1446,7 @@ Configure in ~/.claude/settings.json:
 Install:
   npm install -g @anthropic/mcp-server-github
 
-Configure in ~/.claude/settings.json:
+Configure in ~/.axon/settings.json:
 {
   "mcpServers": {
     "github": {
@@ -1475,7 +1475,7 @@ export const installGithubAppCommand: SlashCommand = {
 
     // GitHub Actions 工作流模板 URL
     const GITHUB_APP_URL = 'https://github.com/apps/claude';
-    const CLAUDE_ACTION_REPO = 'https://github.com/anthropics/claude-code-action';
+    const CLAUDE_ACTION_REPO = 'https://github.com/anthropics/axon-action';
 
     const githubAppInfo = `╭─ Set up Claude GitHub Actions ─────────────────────╮
 │                                                     │
@@ -1532,7 +1532,7 @@ export const installGithubAppCommand: SlashCommand = {
 │          issues: write                              │
 │        steps:                                       │
 │          - uses: actions/checkout@v4                │
-│          - uses: anthropics/claude-code-action@v1   │
+│          - uses: anthropics/axon-action@v1   │
 │            with:                                    │
 │              anthropic_api_key: \\                  │
 │                \${{ secrets.ANTHROPIC_API_KEY }}    │
@@ -1556,7 +1556,7 @@ export const installGithubAppCommand: SlashCommand = {
 │          pull-requests: write                       │
 │        steps:                                       │
 │          - uses: actions/checkout@v4                │
-│          - uses: anthropics/claude-code-action@v1   │
+│          - uses: anthropics/axon-action@v1   │
 │            with:                                    │
 │              anthropic_api_key: \\                  │
 │                \${{ secrets.ANTHROPIC_API_KEY }}    │
@@ -1644,7 +1644,7 @@ export const installSlackAppCommand: SlashCommand = {
   category: 'tools',
   execute: (ctx: CommandContext): CommandResult => {
     // 检查 Slack 配置
-    const configFile = path.join(os.homedir(), '.claude', 'settings.json');
+    const configFile = path.join(os.homedir(), '.axon', 'settings.json');
     let slackConfigured = false;
     let webhookUrl = '';
 

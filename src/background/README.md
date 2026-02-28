@@ -157,8 +157,8 @@ const result = await promiseWithTimeout(
 负责保存和恢复后台任务状态到磁盘。
 
 **核心功能：**
-- 任务状态持久化 (保存到 ~/.claude/background-tasks/)
-- Agent 状态持久化 (保存到 ~/.claude/agents/)
+- 任务状态持久化 (保存到 ~/.axon/background-tasks/)
+- Agent 状态持久化 (保存到 ~/.axon/agents/)
 - 自动过期清理 (默认24小时)
 - 导入/导出功能
 
@@ -168,7 +168,7 @@ const result = await promiseWithTimeout(
 import { PersistenceManager } from './background/index.js';
 
 const persistence = new PersistenceManager({
-  storageDir: '~/.claude/background-tasks',
+  storageDir: '~/.axon/background-tasks',
   autoRestore: true,
   expiryTime: 86400000, // 24 hours
 });

@@ -4,7 +4,7 @@
  * 
  * 参照 task-storage.ts 的设计模式：
  * - 每个目标存储为独立 JSON 文件
- * - 存储路径：~/.claude/goals/{projectHash}/goal-{id}.json
+ * - 存储路径：~/.axon/goals/{projectHash}/goal-{id}.json
  * - 水位线递增 ID
  */
 
@@ -83,7 +83,7 @@ const idCounters = new Map<string, number>();
  * 获取目标存储根目录
  */
 function getGoalsRootDir(): string {
-  return join(homedir(), '.claude', 'goals');
+  return join(homedir(), '.axon', 'goals');
 }
 
 /**
@@ -99,7 +99,7 @@ function sanitizeProjectPath(projectPath: string): string {
 
 /**
  * 获取指定项目的目标存储目录
- * 返回 ~/.claude/goals/{projectHash}/
+ * 返回 ~/.axon/goals/{projectHash}/
  */
 export function getGoalsDir(projectPath: string): string {
   return join(getGoalsRootDir(), sanitizeProjectPath(projectPath));

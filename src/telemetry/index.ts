@@ -10,7 +10,7 @@
  * - 隐私保护 (不收集敏感信息)
  * - 本地存储 (离线模式)
  * - 批量上报
- * - 禁用选项 (CLAUDE_CODE_DISABLE_TELEMETRY)
+ * - 禁用选项 (AXON_DISABLE_TELEMETRY)
  */
 
 import * as fs from 'fs';
@@ -87,7 +87,7 @@ export interface TelemetryConfig {
 }
 
 // 遥测配置
-const TELEMETRY_DIR = path.join(os.homedir(), '.claude', 'telemetry');
+const TELEMETRY_DIR = path.join(os.homedir(), '.axon', 'telemetry');
 const METRICS_FILE = path.join(TELEMETRY_DIR, 'metrics.json');
 const EVENTS_FILE = path.join(TELEMETRY_DIR, 'events.jsonl');
 const ERRORS_FILE = path.join(TELEMETRY_DIR, 'errors.jsonl');
@@ -102,8 +102,8 @@ const DEFAULT_BATCH_SIZE = 100;
 
 // 检查环境变量
 const TELEMETRY_DISABLED =
-  process.env.CLAUDE_CODE_DISABLE_TELEMETRY === '1' ||
-  process.env.CLAUDE_CODE_DISABLE_TELEMETRY === 'true' ||
+  process.env.AXON_DISABLE_TELEMETRY === '1' ||
+  process.env.AXON_DISABLE_TELEMETRY === 'true' ||
   process.env.DISABLE_TELEMETRY === '1' ||
   process.env.DISABLE_TELEMETRY === 'true';
 
@@ -830,7 +830,7 @@ export function disableTelemetry(): void {
 export function enableTelemetry(): void {
   if (TELEMETRY_DISABLED) {
     console.warn(
-      'Telemetry is disabled via environment variable CLAUDE_CODE_DISABLE_TELEMETRY'
+      'Telemetry is disabled via environment variable AXON_DISABLE_TELEMETRY'
     );
     return;
   }

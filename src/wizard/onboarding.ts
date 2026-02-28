@@ -119,7 +119,7 @@ async function askApiKey(rl: readline.Interface): Promise<string | null> {
     return null;
   } else {
     console.log(chalk.gray('\nNo problem! You can use the built-in proxy (limited features).'));
-    console.log(chalk.gray('You can add your API key later in ~/.claude/settings.json\n'));
+    console.log(chalk.gray('You can add your API key later in ~/.axon/settings.json\n'));
     return null;
   }
 }
@@ -168,7 +168,7 @@ function showCompletion(config: { apiKey: string | null; model: string }): void 
   console.log(chalk.cyan('  • Type /help to see available commands'));
   console.log(chalk.cyan('  • Type /skill to manage skills'));
   console.log(chalk.cyan('  • Start chatting to use Claude Code!\n'));
-  console.log(chalk.gray('Configuration saved to: ~/.claude/settings.json\n'));
+  console.log(chalk.gray('Configuration saved to: ~/.axon/settings.json\n'));
 }
 
 /**
@@ -196,7 +196,7 @@ export async function runOnboardingWizard(): Promise<void> {
     showCompletion({ apiKey, model });
     
     // 创建 .onboarded 标志文件
-    const claudeDir = path.join(os.homedir(), '.claude');
+    const claudeDir = path.join(os.homedir(), '.axon');
     const onboardedFile = path.join(claudeDir, '.onboarded');
     
     if (!fs.existsSync(claudeDir)) {
@@ -219,6 +219,6 @@ export async function runOnboardingWizard(): Promise<void> {
  * 检查是否已完成首次设置
  */
 export function isOnboarded(): boolean {
-  const onboardedFile = path.join(os.homedir(), '.claude', '.onboarded');
+  const onboardedFile = path.join(os.homedir(), '.axon', '.onboarded');
   return fs.existsSync(onboardedFile);
 }

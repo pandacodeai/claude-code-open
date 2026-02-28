@@ -30,7 +30,7 @@ export interface TeamMember {
 }
 
 /**
- * 团队配置（存储在 ~/.claude/teams/{team-name}.json）
+ * 团队配置（存储在 ~/.axon/teams/{team-name}.json）
  */
 export interface TeamConfig {
   /** 团队名称 */

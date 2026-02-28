@@ -126,7 +126,7 @@ export class AgentStateManager {
   private storageDir: string;
 
   constructor(storageDir?: string) {
-    this.storageDir = storageDir || path.join(os.homedir(), '.claude', 'agents');
+    this.storageDir = storageDir || path.join(os.homedir(), '.axon', 'agents');
     this.ensureStorageDir();
   }
 

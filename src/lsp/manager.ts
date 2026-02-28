@@ -190,8 +190,8 @@ function loadLSPConfigFile(workspaceRoot: string): LSPServerConfig[] {
   const configs: LSPServerConfig[] = [];
   const searchPaths = [
     path.join(workspaceRoot, '.lsp.json'),
-    path.join(workspaceRoot, '.claude', 'lsp.json'),
-    path.join(os.homedir(), '.claude', 'lsp.json'),
+    path.join(workspaceRoot, '.axon', 'lsp.json'),
+    path.join(os.homedir(), '.axon', 'lsp.json'),
   ];
 
   for (const configPath of searchPaths) {

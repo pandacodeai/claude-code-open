@@ -549,7 +549,7 @@ export const thinkBackCommand: SlashCommand = {
   category: 'utility',
   execute: (ctx: CommandContext): CommandResult => {
     // 收集会话统计
-    const sessionsDir = path.join(os.homedir(), '.claude', 'sessions');
+    const sessionsDir = path.join(os.homedir(), '.axon', 'sessions');
     let totalSessions = 0;
     let totalMessages = 0;
     const toolUsage: Record<string, number> = {};
@@ -648,7 +648,7 @@ export const thinkbackPlayCommand: SlashCommand = {
   category: 'utility',
   execute: (ctx: CommandContext): CommandResult => {
     // 收集统计数据
-    const sessionsDir = path.join(os.homedir(), '.claude', 'sessions');
+    const sessionsDir = path.join(os.homedir(), '.axon', 'sessions');
     let totalSessions = 0;
     let totalMessages = 0;
 

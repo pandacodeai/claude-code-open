@@ -1328,7 +1328,7 @@ Usage:
 
   private fileBackup = new FileBackup();
   /** 是否强制要求先读取文件（可通过环境变量配置） */
-  private requireFileRead: boolean = process.env.CLAUDE_EDIT_REQUIRE_READ !== 'false';
+  private requireFileRead: boolean = process.env.AXON_EDIT_REQUIRE_READ !== 'false';
 
   getInputSchema(): ToolDefinition['inputSchema'] {
     return {

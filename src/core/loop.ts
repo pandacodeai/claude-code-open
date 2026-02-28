@@ -142,12 +142,12 @@ interface DebugLogEntry {
  */
 function writeDebugLogEntry(entry: DebugLogEntry): void {
   // 只有在 DEBUG 模式下才记录
-  if (!process.env.DEBUG && !process.env.CLAUDE_CODE_DEBUG) {
+  if (!process.env.DEBUG && !process.env.AXON_DEBUG) {
     return;
   }
 
   try {
-    const logDir = path.join(os.homedir(), '.claude', 'logs');
+    const logDir = path.join(os.homedir(), '.axon', 'logs');
     if (!fs.existsSync(logDir)) {
       fs.mkdirSync(logDir, { recursive: true });
     }
@@ -408,7 +408,7 @@ function truncateOutput(content: string, maxSize: number): { preview: string; ha
  * 处理超大输出：保存到文件 + 返回头尾预览 + 提示用 offset/limit 读取
  *
  * 对齐官方实现（aO6 函数）：
- * - 超大 tool result 保存到 ~/.claude/tasks/ 文件
+ * - 超大 tool result 保存到 ~/.axon/tasks/ 文件
  * - 返回文件路径和格式提示，模型可用 Read 工具的 offset/limit 分段读取
  * - 不丢失信息，只是改变了访问方式
  *
@@ -796,7 +796,7 @@ export function getMaxOutputTokens(model: string): number {
   }
 
   // 环境变量可以覆盖（但不能超过默认最大值）
-  const envMax = process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS;
+  const envMax = process.env.AXON_MAX_OUTPUT_TOKENS;
   if (envMax) {
     const parsed = parseInt(envMax, 10);
     if (!isNaN(parsed)) {
@@ -830,7 +830,7 @@ export function calculateAutoCompactThreshold(model: string): number {
   const threshold = availableInput - vH0;
 
   // 环境变量可以覆盖百分比
-  const override = process.env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE;
+  const override = process.env.AXON_AUTOCOMPACT_PCT_OVERRIDE;
   if (override) {
     const pct = parseFloat(override);
     if (!isNaN(pct) && pct > 0 && pct <= 100) {

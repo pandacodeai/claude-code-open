@@ -2,7 +2,7 @@
  * AXON.md 解析器
  *
  * 解析项目根目录的 AXON.md 文件，并注入到系统提示中
- * 这是官方 Claude Code 的核心特性之一
+ * 这是官方参考实现的核心特性之一
  *
  * v2.1.2 新增功能:
  * - @include 指令支持：可以引用其他文件的内容
@@ -82,7 +82,7 @@ export class AxonMdParser {
    * 设置额外目录 (v2.1.20+)
    *
    * 用于从 --add-dir 参数加载额外目录
-   * 需要设置 CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 才能生效
+   * 需要设置 AXON_ADDITIONAL_DIRECTORIES_AXON_MD=1 才能生效
    */
   setAdditionalDirectories(directories: string[]): void {
     this.additionalDirectories = directories;
@@ -92,7 +92,7 @@ export class AxonMdParser {
    * 检查是否启用额外目录 AXON.md 加载 (v2.1.20+)
    */
   private isAdditionalAxonMdEnabled(): boolean {
-    const envValue = process.env.CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD;
+    const envValue = process.env.AXON_ADDITIONAL_DIRECTORIES_AXON_MD;
     return envValue === '1' || envValue === 'true';
   }
 
@@ -426,7 +426,7 @@ ${info.content}
   static createTemplate(projectName: string, projectType?: string): string {
     return `# AXON.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Axon (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 

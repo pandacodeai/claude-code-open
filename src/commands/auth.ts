@@ -1,6 +1,6 @@
 /**
  * 认证命令 - login, logout, upgrade, passes, etc.
- * 基于官方 Claude Code 源码实现
+ * 基于 Anthropic 官方源码实现
  */
 
 import type { SlashCommand, CommandContext, CommandResult } from './types.js';
@@ -68,7 +68,7 @@ Current status: ${authStatus}`);
 
     // help 时显示详细帮助
     if (method === 'help' || method === '-h' || method === '--help') {
-      const loginInfo = `╭─ Claude Code Login ────────────────────────────────╮
+      const loginInfo = `╭─ Axon Login ────────────────────────────────╮
 │                                                    │
 │  Current Status: ${authStatus.padEnd(32)}│
 │                                                    │
@@ -96,8 +96,8 @@ Current status: ${authStatus}`);
 │                                                    │
 │  Environment Variables:                            │
 │    ANTHROPIC_API_KEY       Primary API key         │
-│    CLAUDE_API_KEY          Alternative API key     │
-│    CLAUDE_CODE_OAUTH_TOKEN OAuth token             │
+│    AXON_API_KEY          Alternative API key     │
+│    AXON_OAUTH_TOKEN OAuth token             │
 │                                                    │
 │  Files:                                            │
 │    ~/.axon/credentials.json   API keys           │
@@ -118,7 +118,7 @@ Current status: ${authStatus}`);
       const apiKeyInfo = `API Key Setup
 
 API keys provide usage-based billing and are the recommended method
-for developers using Claude Code.
+for developers using Axon.
 
 Steps:
 
@@ -198,7 +198,7 @@ Authentication Details:
 Credentials saved to:
   ~/.axon/auth.json
 
-You can now use Claude Code with your OAuth credentials.
+You can now use Axon with your OAuth credentials.
 
 Current Status: Authenticated (OAuth)
 
@@ -223,7 +223,7 @@ For immediate use, please try:
   /setup-token         Quick API key setup
 
 Alternative OAuth Setup:
-  1. If you have official Claude Code CLI, use that for OAuth
+  1. If you have official Axon CLI, use that for OAuth
   2. Then copy ~/.axon/auth.json to this installation
 
 Current Status: ${authStatus}`;
@@ -355,7 +355,7 @@ To upgrade:
   1. Visit https://claude.ai/settings
   2. Select your desired plan
   3. Complete payment
-  4. Restart Claude Code to use your new limits
+  4. Restart Axon to use your new limits
 
 API Pricing (platform.axon.com):
   • Pay per token used
@@ -387,15 +387,15 @@ export const passesCommand: SlashCommand = {
   execute: (ctx: CommandContext): CommandResult => {
     const passesInfo = `Guest Passes
 
-Guest passes let you share Claude Code with friends and colleagues.
+Guest passes let you share Axon with friends and colleagues.
 
 Status: Feature available for Max subscribers
 
 How it works:
   1. Max subscribers get 3 guest passes
-  2. Each pass gives 1 week of Claude Code access
+  2. Each pass gives 1 week of Axon access
   3. Share via email or link
-  4. Recipients get full Claude Code features for 7 days
+  4. Recipients get full Axon features for 7 days
 
 To check your passes:
   • Requires Max subscription
@@ -406,11 +406,11 @@ To check your passes:
 To redeem a pass:
   • Click the shared link
   • Sign in or create a Claude account
-  • Start using Claude Code immediately
+  • Start using Axon immediately
 
 Pass Details:
   • Duration: 7 days from activation
-  • Features: Full Claude Code access
+  • Features: Full Axon access
   • Limit: 3 active passes per Max subscriber
   • Renewal: Passes refresh monthly
 
@@ -422,7 +422,7 @@ Sharing a Pass:
 
 Note: This is an educational project and does not have access to
 official Claude.ai pass generation. For actual passes, use the
-official Claude Code installation from:
+official installation from:
   https://code.axon.com`;
 
     ctx.ui.addMessage('assistant', passesInfo);
@@ -534,7 +534,7 @@ After enabling:
   • You'll be notified when approaching limits
 
 Note: This educational project cannot enable extra usage directly.
-Please use the official Claude Code CLI or web interface.`
+Please use the official Axon CLI or web interface.`
 }`;
 
         ctx.ui.addMessage('assistant', enableInfo);
@@ -587,7 +587,7 @@ To re-enable:
   Run: /extra-usage enable
 
 Note: This educational project cannot disable extra usage directly.
-Please use the official Claude Code CLI or web interface.`
+Please use the official Axon CLI or web interface.`
 }`;
 
         ctx.ui.addMessage('assistant', disableInfo);

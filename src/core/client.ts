@@ -217,7 +217,7 @@ class FallbackTriggeredError extends Error {
 // system prompt 的第一个 block 必须以下列字符串之一开头：
 // - "You are Axon, an AI-powered coding assistant."
 // - "You are a Claude agent, built on Anthropic's Claude Agent SDK."
-const CLAUDE_CODE_BETA = 'claude-code-20250219';           // tFA
+const AXON_BETA = 'claude-code-20250219';           // tFA
 const OAUTH_BETA = 'oauth-2025-04-20';                     // zE
 const THINKING_BETA = 'interleaved-thinking-2025-05-14';   // eFA
 const CONTEXT_1M_BETA = 'context-1m-2025-08-07';           // xZ1
@@ -247,13 +247,13 @@ type ProviderType = 'firstParty' | 'anthropic' | 'bedrock' | 'vertex' | 'foundry
  * 通过环境变量检测使用的云服务商
  */
 function getProviderType(): ProviderType {
-  if (process.env.CLAUDE_CODE_USE_BEDROCK === 'true' || process.env.CLAUDE_CODE_USE_BEDROCK === '1') {
+  if (process.env.AXON_USE_BEDROCK === 'true' || process.env.AXON_USE_BEDROCK === '1') {
     return 'bedrock';
   }
-  if (process.env.CLAUDE_CODE_USE_VERTEX === 'true' || process.env.CLAUDE_CODE_USE_VERTEX === '1') {
+  if (process.env.AXON_USE_VERTEX === 'true' || process.env.AXON_USE_VERTEX === '1') {
     return 'vertex';
   }
-  if (process.env.CLAUDE_CODE_USE_FOUNDRY === 'true' || process.env.CLAUDE_CODE_USE_FOUNDRY === '1') {
+  if (process.env.AXON_USE_FOUNDRY === 'true' || process.env.AXON_USE_FOUNDRY === '1') {
     return 'foundry';
   }
   // v2.1.29: 默认使用 'firstParty' 表示直接使用 Anthropic API
@@ -281,7 +281,7 @@ function isEnvEnabled(value: string | undefined): boolean {
  *
  * 只有以下情况才启用实验性 betas：
  * 1. Provider 是 firstParty 或 foundry
- * 2. 且未设置 CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1
+ * 2. 且未设置 AXON_DISABLE_EXPERIMENTAL_BETAS=1
  *
  * 这是 v2.1.29 修复 beta header 验证错误的关键：
  * Bedrock 和 Vertex 网关用户不会获得实验性 betas
@@ -291,7 +291,7 @@ function isExperimentalBetasEnabled(): boolean {
   if (provider !== 'firstParty' && provider !== 'foundry') {
     return false;
   }
-  return !isEnvEnabled(process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS);
+  return !isEnvEnabled(process.env.AXON_DISABLE_EXPERIMENTAL_BETAS);
 }
 
 /**
@@ -335,7 +335,7 @@ function supportsWebSearch(model: string): boolean {
 // 官方有三种身份标识，根据不同场景使用
 const AXON_IDENTITY = "You are Axon, an AI-powered coding assistant.";
 const AXON_AGENT_SDK_IDENTITY = "You are Axon, an AI-powered coding assistant, running within the Claude Agent SDK.";
-const CLAUDE_AGENT_IDENTITY = "You are a Claude agent, built on Anthropic's Claude Agent SDK.";
+const AXON_AGENT_IDENTITY = "You are a Claude agent, built on Anthropic's Claude Agent SDK.";
 
 /**
  * 检查 system prompt 是否包含有效的 Axon 身份标识
@@ -346,7 +346,7 @@ function hasValidIdentity(systemPrompt?: string | Array<{type: string; text: str
   if (typeof systemPrompt === 'string') {
     return systemPrompt.startsWith(AXON_IDENTITY) ||
            systemPrompt.startsWith(AXON_AGENT_SDK_IDENTITY) ||
-           systemPrompt.startsWith(CLAUDE_AGENT_IDENTITY);
+           systemPrompt.startsWith(AXON_AGENT_IDENTITY);
   }
 
   if (Array.isArray(systemPrompt) && systemPrompt.length > 0) {
@@ -354,7 +354,7 @@ function hasValidIdentity(systemPrompt?: string | Array<{type: string; text: str
     if (firstBlock?.type === 'text' && firstBlock?.text) {
       return firstBlock.text.startsWith(AXON_IDENTITY) ||
              firstBlock.text.startsWith(AXON_AGENT_SDK_IDENTITY) ||
-             firstBlock.text.startsWith(CLAUDE_AGENT_IDENTITY);
+             firstBlock.text.startsWith(AXON_AGENT_IDENTITY);
     }
   }
 
@@ -424,9 +424,9 @@ function formatSystemPrompt(
   } else if (systemPrompt.startsWith(AXON_AGENT_SDK_IDENTITY)) {
     identityToUse = AXON_AGENT_SDK_IDENTITY;
     remainingText = systemPrompt.slice(AXON_AGENT_SDK_IDENTITY.length).trim();
-  } else if (systemPrompt.startsWith(CLAUDE_AGENT_IDENTITY)) {
-    identityToUse = CLAUDE_AGENT_IDENTITY;
-    remainingText = systemPrompt.slice(CLAUDE_AGENT_IDENTITY.length).trim();
+  } else if (systemPrompt.startsWith(AXON_AGENT_IDENTITY)) {
+    identityToUse = AXON_AGENT_IDENTITY;
+    remainingText = systemPrompt.slice(AXON_AGENT_IDENTITY.length).trim();
   } else {
     return [
       { type: 'text', text: AXON_IDENTITY, cache_control: { type: 'ephemeral' } },
@@ -577,13 +577,13 @@ function buildMetadata(accountUuid?: string): { user_id: string } {
  *
  * 重要发现：
  * - claude-code-20250219 beta 需要与特定的 system prompt 配合使用
- * - system prompt 必须以 AXON_IDENTITY 或 CLAUDE_AGENT_IDENTITY 开头
+ * - system prompt 必须以 AXON_IDENTITY 或 AXON_AGENT_IDENTITY 开头
  * - 只有满足这个条件，OAuth token 才能使用 sonnet/opus 模型
  *
  * v2.1.29 修复：
  * - 完全重写以对齐官方实现
  * - 对于 Bedrock/Vertex 网关用户，不添加实验性 betas
- * - 支持 CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1 完全禁用实验性 betas
+ * - 支持 AXON_DISABLE_EXPERIMENTAL_BETAS=1 完全禁用实验性 betas
  * - 添加 structured-outputs beta 支持
  */
 function buildBetas(model: string, isOAuth: boolean, fastMode?: boolean): string[] {
@@ -594,7 +594,7 @@ function buildBetas(model: string, isOAuth: boolean, fastMode?: boolean): string
 
   // 1. 非 haiku 模型添加 claude-code beta（官方: if(!K)q.push(tFA)）
   if (!isHaiku) {
-    betas.push(CLAUDE_CODE_BETA);
+    betas.push(AXON_BETA);
   }
 
   // 2. OAuth 订阅用户添加 oauth beta（官方: if(O7())q.push(zE)）
@@ -615,8 +615,8 @@ function buildBetas(model: string, isOAuth: boolean, fastMode?: boolean): string
 
   // 5. structured outputs beta（官方需要 feature flag tengu_tool_pear）
   // 由于我们没有 Anthropic 的 feature flag 系统，默认不启用
-  // 通过环境变量 CLAUDE_CODE_ENABLE_STRUCTURED_OUTPUTS=1 手动启用
-  if (supportsStructuredOutputs(model) && isEnvEnabled(process.env.CLAUDE_CODE_ENABLE_STRUCTURED_OUTPUTS)) {
+  // 通过环境变量 AXON_ENABLE_STRUCTURED_OUTPUTS=1 手动启用
+  if (supportsStructuredOutputs(model) && isEnvEnabled(process.env.AXON_ENABLE_STRUCTURED_OUTPUTS)) {
     betas.push(STRUCTURED_OUTPUTS_BETA);
   }
 
@@ -750,8 +750,8 @@ export class ClaudeClient {
 
     // 构建默认 headers（与官方 Anthropic API 完全一致）
     // 官方 User-Agent 格式: claude-cli/${VERSION} (external, ${ENTRYPOINT}${agent-sdk})
-    const entrypoint = process.env.CLAUDE_CODE_ENTRYPOINT || 'claude-vscode';
-    const agentSdkVersion = process.env.CLAUDE_AGENT_SDK_VERSION;
+    const entrypoint = process.env.AXON_ENTRYPOINT || 'claude-vscode';
+    const agentSdkVersion = process.env.AXON_AGENT_SDK_VERSION;
     const agentSdkSuffix = agentSdkVersion ? `, agent-sdk/${agentSdkVersion}` : '';
 
     const defaultHeaders: Record<string, string> = {
@@ -816,8 +816,8 @@ export class ClaudeClient {
     // 使用21000作为安全默认值（留有余量）
     this.maxTokens = config.maxTokens || Math.min(21000, capabilities.maxOutputTokens);
 
-    // 对标官方 V39: 默认 10 次重试，可通过 CLAUDE_CODE_MAX_RETRIES 覆盖
-    const envRetries = parseInt(process.env.CLAUDE_CODE_MAX_RETRIES || '', 10);
+    // 对标官方 V39: 默认 10 次重试，可通过 AXON_MAX_RETRIES 覆盖
+    const envRetries = parseInt(process.env.AXON_MAX_RETRIES || '', 10);
     this.maxRetries = config.maxRetries ?? (!isNaN(envRetries) ? envRetries : DEFAULT_MAX_RETRIES);
     this.retryDelay = config.retryDelay ?? DEFAULT_RETRY_BASE_DELAY;
 

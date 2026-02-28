@@ -1,7 +1,7 @@
 /**
  * 内置环境变量验证器
  *
- * 基于官方 Claude Code 的验证规则
+ * 基于官方的验证规则
  */
 
 import type { EnvVarValidator } from '../validator.js';

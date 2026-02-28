@@ -2,7 +2,7 @@
 
 ## 概述
 
-这是一个完整的 OAuth 2.0 认证系统实现，基于官方 Claude Code CLI 的逆向工程，支持所有标准 OAuth 流程。
+这是一个完整的 OAuth 2.0 认证系统实现，基于官方 Axon CLI 的逆向工程，支持所有标准 OAuth 流程。
 
 ## 功能特性
 
@@ -55,7 +55,7 @@ const auth = await startAuthorizationCodeFlow('claude.ai');
 2. 用户在浏览器中授权
 3. 回调到本地服务器（localhost:9876）
 4. 交换授权码获取 Token
-5. 加密保存到 ~/.claude/auth.json
+5. 加密保存到 ~/.axon/auth.json
 
 ### 2. Device Code Flow
 
@@ -205,8 +205,8 @@ const OAUTH_ENDPOINTS = {
 
 ### 文件存储位置
 
-- **OAuth Token**: `~/.claude/auth.json`（加密存储）
-- **API Key**: `~/.claude/credentials.json`（明文存储，仅用于向后兼容）
+- **OAuth Token**: `~/.axon/auth.json`（加密存储）
+- **API Key**: `~/.axon/credentials.json`（明文存储，仅用于向后兼容）
 - **加密密钥**: 基于主机名和用户名生成（`os.hostname() + os.userInfo().username`）
 
 ### 加密机制
@@ -249,8 +249,8 @@ const OAUTH_ENDPOINTS = {
 `initAuth()` 按以下优先级检查认证：
 
 1. 环境变量（`ANTHROPIC_API_KEY` 或 `CLAUDE_API_KEY`）
-2. 凭证文件（`~/.claude/credentials.json`）
-3. OAuth Token（`~/.claude/auth.json`，加密存储）
+2. 凭证文件（`~/.axon/credentials.json`）
+3. OAuth Token（`~/.axon/auth.json`，加密存储）
 
 ## 类型定义
 
@@ -406,7 +406,7 @@ await switchAccount('claude.ai');
 ### 加密错误
 
 如果解密失败（例如更换机器）：
-1. 删除 `~/.claude/auth.json`
+1. 删除 `~/.axon/auth.json`
 2. 重新登录
 
 ### 端口占用
@@ -426,8 +426,8 @@ await switchAccount('claude.ai');
 - ⚠️ clientId 可能不同于官方值
 
 如需使用官方 OAuth，请：
-1. 使用官方 Claude Code CLI
-2. 或从官方 CLI 复制 `~/.claude/auth.json`
+1. 使用官方 Axon CLI
+2. 或从官方 CLI 复制 `~/.axon/auth.json`
 
 ## Help Improve Claude 设置 (v2.1.4)
 

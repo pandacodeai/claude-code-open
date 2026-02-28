@@ -944,9 +944,9 @@ export async function initializeSkills(): Promise<void> {
   if (skillsLoaded) return;
 
   const homeDir = process.env.HOME || process.env.USERPROFILE || '';
-  const claudeDir = path.join(homeDir, '.claude');
+  const claudeDir = path.join(homeDir, '.axon');
   const cwd = getCurrentCwd();
-  const projectDir = path.join(cwd, '.claude');
+  const projectDir = path.join(cwd, '.axon');
 
   // 清空注册表
   skillRegistry.clear();
@@ -1304,10 +1304,10 @@ Important:
     // 如果没有占位符则追加 ARGUMENTS: 部分
     skillContent = substituteArguments(skillContent, args, true, skill.argumentNames || []);
 
-    // v2.1.9: 替换 ${CLAUDE_SESSION_ID} 占位符
-    // 官网实现：M = M.replace(/\$\{CLAUDE_SESSION_ID\}/g, H0())
+    // v2.1.9: 替换 ${AXON_SESSION_ID} 占位符
+    // 官网实现：M = M.replace(/\$\{AXON_SESSION_ID\}/g, H0())
     const sessionId = process.env.AXON_SESSION_ID || '';
-    skillContent = skillContent.replace(/\$\{CLAUDE_SESSION_ID\}/g, sessionId);
+    skillContent = skillContent.replace(/\$\{AXON_SESSION_ID\}/g, sessionId);
 
     // 记录已调用的 skill（对齐官网 KP0）
     recordInvokedSkill(skill.skillName, skill.filePath, skillContent);

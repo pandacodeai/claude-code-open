@@ -102,7 +102,7 @@ export class SwarmLogDB {
         '原始错误: ' + e.message
       );
     });
-    const defaultPath = path.join(os.homedir(), '.claude', 'swarm-logs.db');
+    const defaultPath = path.join(os.homedir(), '.axon', 'swarm-logs.db');
     const actualPath = dbPath || defaultPath;
     const dir = path.dirname(actualPath);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });

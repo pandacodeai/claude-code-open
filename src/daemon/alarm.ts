@@ -6,7 +6,7 @@
  * - 没有活跃会话时，走后台 executor 执行
  *
  * 活跃会话标记：
- * - 主会话启动时写入 ~/.claude/active-session.json
+ * - 主会话启动时写入 ~/.axon/active-session.json
  * - 关闭时删除
  * - 通过 PID 存活检测避免僵尸标记
  */
@@ -20,9 +20,9 @@ import * as os from 'os';
 // 路径常量
 // ============================================================================
 
-const CLAUDE_DIR = path.join(os.homedir(), '.claude');
-const ALARM_DIR = path.join(CLAUDE_DIR, 'alarm-signals');
-const ACTIVE_SESSION_FILE = path.join(CLAUDE_DIR, 'active-session.json');
+const AXON_DIR = path.join(os.homedir(), '.axon');
+const ALARM_DIR = path.join(AXON_DIR, 'alarm-signals');
+const ACTIVE_SESSION_FILE = path.join(AXON_DIR, 'active-session.json');
 
 // ============================================================================
 // 闹钟信号
@@ -103,7 +103,7 @@ export interface ActiveSessionInfo {
  * 注册活跃会话（主会话启动时调用）
  */
 export function writeActiveSession(info: ActiveSessionInfo): void {
-  ensureDir(CLAUDE_DIR);
+  ensureDir(AXON_DIR);
   fs.writeFileSync(ACTIVE_SESSION_FILE, JSON.stringify(info, null, 2), 'utf-8');
 }
 

@@ -80,7 +80,7 @@ export class AttachmentManager {
    */
   private recordTelemetry(event: string, data: Record<string, any>): void {
     // 遥测记录 (可以集成外部遥测服务)
-    if (process.env.CLAUDE_CODE_DEBUG) {
+    if (process.env.AXON_DEBUG) {
       console.debug(`[Telemetry] ${event}:`, data);
     }
   }

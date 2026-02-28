@@ -8,7 +8,7 @@
  * - T323-T326: 已在 index.ts 实现
  * - T327-T329: Prompt Caching 支持
  * - T330: MCP URI 管理
- * - T331: CLAUDE.md 文件解析
+ * - T331: AXON.md 文件解析
  * - T332: @ 文件提及处理
  */
 
@@ -468,10 +468,10 @@ export function collapseToolReferences(message: Message): Message {
   return message;
 }
 
-// ============ T331: CLAUDE.md 文件解析 ============
+// ============ T331: AXON.md 文件解析 ============
 
 /**
- * CLAUDE.md 配置
+ * AXON.md 配置
  */
 export interface ClaudeMdConfig {
   content: string;
@@ -479,12 +479,12 @@ export interface ClaudeMdConfig {
 }
 
 /**
- * 解析 CLAUDE.md 文件
+ * 解析 AXON.md 文件
  */
 export async function parseClaudeMd(cwd: string): Promise<ClaudeMdConfig | null> {
   const possiblePaths = [
-    path.join(cwd, 'CLAUDE.md'),
-    path.join(cwd, '.claude', 'CLAUDE.md'),
+    path.join(cwd, 'AXON.md'),
+    path.join(cwd, '.axon', 'AXON.md'),
   ];
 
   for (const filePath of possiblePaths) {
@@ -547,7 +547,7 @@ function extractFileReferences(text: string, cwd: string): string[] {
 }
 
 /**
- * 注入 CLAUDE.md 到系统提示
+ * 注入 AXON.md 到系统提示
  */
 export async function injectClaudeMd(
   systemPrompt: string,
@@ -561,7 +561,7 @@ export async function injectClaudeMd(
 
   const parts = [systemPrompt];
 
-  parts.push('\n\n## Project-Specific Instructions (CLAUDE.md)\n');
+  parts.push('\n\n## Project-Specific Instructions (AXON.md)\n');
   parts.push(config.content);
 
   // 如果有引用的文件，读取并添加
@@ -755,7 +755,7 @@ export interface EnhancedContextManager {
   // 引用折叠
   collapseToolReferences: typeof collapseToolReferences;
 
-  // CLAUDE.md
+  // AXON.md
   injectClaudeMd: typeof injectClaudeMd;
 
   // @ 提及

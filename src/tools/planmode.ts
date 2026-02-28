@@ -63,7 +63,7 @@ export function getCurrentPlanId(): string | null {
 export function setPlanMode(active: boolean, planFile?: string, planId?: string): void {
   if (active) {
     // v2.1.31: 防御性检查 - 确保 getCurrentCwd() 返回有效值
-    // 修复当 ~/.claude.json 缺少默认字段时进入 plan mode 的崩溃
+    // 修复当 ~/.axon.json 缺少默认字段时进入 plan mode 的崩溃
     let safeCwd: string;
     try {
       safeCwd = getCurrentCwd() || process.cwd();

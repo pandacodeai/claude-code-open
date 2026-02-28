@@ -4194,7 +4194,7 @@ interface RecentProject {
  */
 function getClaudeConfigDir(): string {
   const homeDir = os.homedir();
-  return path.join(homeDir, '.claude');
+  return path.join(homeDir, '.axon');
 }
 
 /**
@@ -4217,7 +4217,7 @@ function generateProjectId(projectPath: string): string {
  */
 function isProjectEmpty(projectPath: string): boolean {
   const ignoredDirs = new Set([
-    'node_modules', '.git', '.svn', '.hg', '.claude', '.vscode', '.idea',
+    'node_modules', '.git', '.svn', '.hg', '.axon', '.vscode', '.idea',
     '__pycache__', '.cache', 'dist', 'build', 'target', 'out', '.next',
     'coverage', '.nyc_output', 'vendor', 'Pods', '.gradle', 'bin', 'obj'
   ]);

@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-const HISTORY_FILE = path.join(os.homedir(), '.claude', 'command_history.json');
+const HISTORY_FILE = path.join(os.homedir(), '.axon', 'command_history.json');
 const MAX_HISTORY_SIZE = 1000;
 
 export interface HistoryEntry {

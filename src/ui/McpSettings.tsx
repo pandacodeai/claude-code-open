@@ -565,7 +565,7 @@ export function McpSettings({
   const homeDir = os.homedir();
   const userConfigPath = path.join(homeDir, '.claude.json');
   const projectConfigPath = path.join(cwd, '.mcp.json');
-  const localConfigPath = path.join(homeDir, '.claude', 'settings.json');
+  const localConfigPath = path.join(homeDir, '.axon', 'settings.json');
 
   // 加载服务器配置
   useEffect(() => {

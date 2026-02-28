@@ -1,6 +1,6 @@
 /**
  * Daemon 配置加载
- * 从 .claude/daemon.yml（项目级）和 ~/.claude/daemon.yml（用户级）加载配置
+ * 从 .axon/daemon.yml（项目级）和 ~/.axon/daemon.yml（用户级）加载配置
  */
 
 import * as fs from 'fs';
@@ -35,7 +35,7 @@ const CronRuleSchema = z.object({
 
 const DaemonSettingsSchema = z.object({
   maxConcurrent: z.number().default(2),
-  logFile: z.string().default('.claude/daemon.log'),
+  logFile: z.string().default('.axon/daemon.log'),
   workingDir: z.string().default('.'),
   model: z.string().default('sonnet'),
   permissionMode: z.string().default('dontAsk'),
@@ -100,9 +100,9 @@ function mergeConfigs(base: Record<string, any>, override: Record<string, any>):
  * @returns 合并后的配置
  */
 export function loadDaemonConfig(cwd?: string): DaemonConfig {
-  const userConfigPath = path.join(os.homedir(), '.claude', 'daemon.yml');
+  const userConfigPath = path.join(os.homedir(), '.axon', 'daemon.yml');
   const projectConfigPath = cwd
-    ? path.join(cwd, '.claude', 'daemon.yml')
+    ? path.join(cwd, '.axon', 'daemon.yml')
     : null;
 
   let merged: Record<string, any> = {};

@@ -18,8 +18,8 @@ import { Notifier } from './notifier.js';
 // 路径常量
 // ============================================================================
 
-const CLAUDE_DIR = path.join(os.homedir(), '.claude');
-const PID_FILE = path.join(CLAUDE_DIR, 'daemon.pid');
+const AXON_DIR = path.join(os.homedir(), '.axon');
+const PID_FILE = path.join(AXON_DIR, 'daemon.pid');
 
 // ============================================================================
 // 状态类型
@@ -289,8 +289,8 @@ function readPid(): number | null {
 }
 
 function writePid(): void {
-  if (!fs.existsSync(CLAUDE_DIR)) {
-    fs.mkdirSync(CLAUDE_DIR, { recursive: true });
+  if (!fs.existsSync(AXON_DIR)) {
+    fs.mkdirSync(AXON_DIR, { recursive: true });
   }
   fs.writeFileSync(PID_FILE, String(process.pid), 'utf-8');
 }

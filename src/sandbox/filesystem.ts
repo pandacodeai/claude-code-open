@@ -440,7 +440,7 @@ export function createDefaultPolicy(cwd?: string): FilesystemPolicy {
         description: 'System temporary directory',
       },
       {
-        pattern: path.join(homeDir, '.claude', '**'),
+        pattern: path.join(homeDir, '.axon', '**'),
         operations: ['read', 'write'],
         description: 'Claude configuration directory',
       },

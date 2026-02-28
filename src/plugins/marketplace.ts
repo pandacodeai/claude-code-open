@@ -2,10 +2,10 @@
  * 插件市场管理 - 还原官方 CLI 实现
  *
  * 架构对应关系：
- *   配置文件: ~/.claude/known_marketplaces.json
- *   缓存目录: ~/.claude/marketplaces/{name}/
+ *   配置文件: ~/.axon/known_marketplaces.json
+ *   缓存目录: ~/.axon/marketplaces/{name}/
  *   插件清单: {cache}/.claude-plugin/marketplace.json
- *   插件缓存: ~/.claude/cache/{marketplace}/{name}/{version}/
+ *   插件缓存: ~/.axon/cache/{marketplace}/{name}/{version}/
  *
  * pluginId 格式: "plugin-name@marketplace-name"
  */
@@ -83,7 +83,7 @@ function getGitEnv(): NodeJS.ProcessEnv {
 }
 
 function getConfigDir(): string {
-  return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+  return process.env.AXON_CONFIG_DIR || path.join(os.homedir(), '.axon');
 }
 
 // ============ 解析 pluginId (对应官方 ho 函数) ============
@@ -102,27 +102,27 @@ export function makePluginId(name: string, marketplace: string): string {
 
 // ============ 路径函数 (对应官方) ============
 
-/** ~/.claude/known_marketplaces.json */
+/** ~/.axon/known_marketplaces.json */
 function getKnownMarketplacesPath(): string {
   return path.join(getConfigDir(), 'known_marketplaces.json');
 }
 
-/** ~/.claude/marketplaces/ */
+/** ~/.axon/marketplaces/ */
 function getMarketplacesCacheDir(): string {
   return path.join(getConfigDir(), 'marketplaces');
 }
 
-/** ~/.claude/cache/ */
+/** ~/.axon/cache/ */
 function getPluginCacheDir(): string {
   return path.join(getConfigDir(), 'cache');
 }
 
-/** ~/.claude/installed_plugins.json */
+/** ~/.axon/installed_plugins.json */
 function getInstalledPluginsPath(): string {
   return path.join(getConfigDir(), 'installed_plugins.json');
 }
 
-/** 生成插件版本化缓存路径: ~/.claude/cache/{marketplace}/{name}/{version}/ */
+/** 生成插件版本化缓存路径: ~/.axon/cache/{marketplace}/{name}/{version}/ */
 function getPluginVersionedPath(pluginId: string, version: string): string {
   const { name, marketplace } = parsePluginId(pluginId);
   const marketplaceSafe = (marketplace || 'unknown').replace(/[^a-zA-Z0-9\-_]/g, '-');

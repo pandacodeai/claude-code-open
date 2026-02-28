@@ -75,8 +75,8 @@ export class FileHistoryManager {
       snapshots: [],
     };
 
-    // 备份目录：~/.claude/file-history/<sessionId>/
-    const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+    // 备份目录：~/.axon/file-history/<sessionId>/
+    const configDir = process.env.AXON_CONFIG_DIR || path.join(os.homedir(), '.axon');
     this.backupDir = path.join(configDir, 'file-history', sessionId);
 
     // 确保备份目录存在

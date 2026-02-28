@@ -1,9 +1,9 @@
 /**
  * MCP 插件适配器
- * 将 MCP 服务器的能力适配到 Claude Code 的现有系统
+ * 将 MCP 服务器的能力适配到 Axon 的现有系统
  *
  * 功能：
- * - MCP 工具 → Claude Code 工具
+ * - MCP 工具 → Axon 工具
  * - MCP 资源 → 上下文数据
  * - MCP 提示 → 系统提示
  * - 与 ToolRegistry 和插件系统集成
@@ -110,7 +110,7 @@ export type ResourcesChangedCallback = (serverName: string, resources: McpResour
 // ============ 工具转换函数 ============
 
 /**
- * 从 MCP 工具创建 Claude Code 工具定义
+ * 从 MCP 工具创建 Axon 工具定义
  */
 export function createToolFromMcp(mcpTool: McpToolDefinition, serverName: string): ToolDefinition {
   return {
@@ -134,10 +134,10 @@ interface JSONSchema {
 }
 
 /**
- * 将 MCP 的 JSON Schema 转换为 Claude Code 的工具参数格式
+ * 将 MCP 的 JSON Schema 转换为 Axon 的工具参数格式
  */
 export function convertMcpArgs(mcpSchema: JSONSchema): ToolDefinition['inputSchema'] {
-  // MCP 使用标准 JSON Schema，Claude Code 也使用 JSON Schema
+  // MCP 使用标准 JSON Schema，Axon 也使用 JSON Schema
   // 大多数情况下可以直接使用，但需要确保格式正确
   return {
     type: 'object',

@@ -19,7 +19,7 @@ import {
 import { t } from '../../i18n/index.js';
 
 // 官方 claude 颜色
-const CLAUDE_COLOR = '#D77757';
+const AXON_COLOR = '#D77757';
 
 // 权限快捷模式类型 - 官方 v2.1.2
 export type QuickPermissionMode = 'default' | 'acceptEdits' | 'plan';
@@ -1192,7 +1192,7 @@ export const Input: React.FC<InputProps> = ({
                 >
                   {/* v2.1.6: 显示图标 */}
                   {icon && <Text>{icon} </Text>}
-                  <Text color={CLAUDE_COLOR} bold={index === selectedCompletionIndex}>
+                  <Text color={AXON_COLOR} bold={index === selectedCompletionIndex}>
                     {item.label}
                   </Text>
                   {item.aliases && item.aliases.length > 0 && (

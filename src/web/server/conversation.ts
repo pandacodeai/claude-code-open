@@ -683,10 +683,10 @@ export class ConversationManager {
   private getDisabledMcpServers(): string[] {
     try {
       const homeDir = process.env.HOME || process.env.USERPROFILE || '~';
-      const globalDir = process.env.CLAUDE_CONFIG_DIR || path.join(homeDir, '.claude');
+      const globalDir = process.env.AXON_CONFIG_DIR || path.join(homeDir, '.axon');
       const configPaths = [
-        path.join(this.cwd, '.claude', 'settings.local.json'),
-        path.join(this.cwd, '.claude', 'settings.json'),
+        path.join(this.cwd, '.axon', 'settings.local.json'),
+        path.join(this.cwd, '.axon', 'settings.json'),
         path.join(globalDir, 'settings.json'),
       ];
       for (const configPath of configPaths) {
@@ -2188,7 +2188,7 @@ export class ConversationManager {
     if (!isDaemonRunning()) {
       try {
         const { spawn } = await import('child_process');
-        const claudeDir = path.join(os.homedir(), '.claude');
+        const claudeDir = path.join(os.homedir(), '.axon');
         if (!fs.existsSync(claudeDir)) fs.mkdirSync(claudeDir, { recursive: true });
         const logPath = path.join(claudeDir, 'daemon.log');
         const logFd = fs.openSync(logPath, 'a');
@@ -3480,7 +3480,7 @@ export class ConversationManager {
       prompt += '\n\n' + codebaseContext;
     }
 
-    // 注入用户自定义提示词片段（~/.claude/prompt-snippets/）
+    // 注入用户自定义提示词片段（~/.axon/prompt-snippets/）
     try {
       const { prepend, append } = promptSnippetsManager.getInjectionTexts();
       if (prepend) {
@@ -4623,12 +4623,12 @@ Guidelines:
   private updateDisabledMcpServers(name: string, enabled: boolean): void {
     try {
       const homeDir = process.env.HOME || process.env.USERPROFILE || '~';
-      const globalDir = process.env.CLAUDE_CONFIG_DIR || path.join(homeDir, '.claude');
+      const globalDir = process.env.AXON_CONFIG_DIR || path.join(homeDir, '.axon');
 
       // 找到当前实际生效的配置文件（与 getDisabledMcpServers 一致的搜索顺序）
       const candidates = [
-        path.join(this.cwd, '.claude', 'settings.local.json'),
-        path.join(this.cwd, '.claude', 'settings.json'),
+        path.join(this.cwd, '.axon', 'settings.local.json'),
+        path.join(this.cwd, '.axon', 'settings.json'),
         path.join(globalDir, 'settings.json'),
       ];
 
@@ -4720,9 +4720,9 @@ Guidelines:
     }
 
     // 2. 从 installed_plugins.json 读取通过 marketplace 安装的插件
-    //    (对应官方 Xj 函数，读取 ~/.claude/plugins/installed_plugins.json)
+    //    (对应官方 Xj 函数，读取 ~/.axon/plugins/installed_plugins.json)
     try {
-      const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+      const configDir = process.env.AXON_CONFIG_DIR || path.join(os.homedir(), '.axon');
       const installedPath = path.join(configDir, 'plugins', 'installed_plugins.json');
 
       console.log(`[ConversationManager] Checking installed_plugins.json at: ${installedPath}`);
@@ -4748,7 +4748,7 @@ Guidelines:
           if (!installPath || !fs.existsSync(installPath)) {
             const marketplace = pluginId.includes('@') ? pluginId.split('@')[1] : '';
             const cacheDir = path.join(
-              process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'),
+              process.env.AXON_CONFIG_DIR || path.join(os.homedir(), '.axon'),
               'plugins', 'cache', marketplace, name
             );
             if (fs.existsSync(cacheDir)) {

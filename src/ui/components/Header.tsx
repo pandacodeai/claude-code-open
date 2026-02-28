@@ -9,7 +9,7 @@ import { isDemoMode } from '../../utils/env-check.js';
 import { t } from '../../i18n/index.js';
 
 // 官方 claude 颜色 (clawd_body)
-const CLAUDE_COLOR = '#D77757'; // rgb(215,119,87)
+const AXON_COLOR = '#D77757'; // rgb(215,119,87)
 
 /**
  * PR 审核状态类型
@@ -149,7 +149,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
     return (
       <Box marginBottom={1} paddingX={1} justifyContent="space-between">
         <Box>
-          <Text color={CLAUDE_COLOR} bold>
+          <Text color={AXON_COLOR} bold>
             Axon
           </Text>
           <Text dimColor> v{version}</Text>
@@ -199,14 +199,14 @@ export const Header: React.FC<HeaderProps> = React.memo(({
     <Box
       flexDirection="column"
       borderStyle="round"
-      borderColor={isPlanMode ? 'magenta' : CLAUDE_COLOR}
+      borderColor={isPlanMode ? 'magenta' : AXON_COLOR}
       paddingX={2}
       paddingY={1}
     >
       {/* 标题行 */}
       <Box justifyContent="space-between">
         <Box>
-          <Text color={CLAUDE_COLOR} bold>
+          <Text color={AXON_COLOR} bold>
             Axon
           </Text>
           <Text dimColor> v{version}</Text>

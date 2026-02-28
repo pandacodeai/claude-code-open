@@ -193,7 +193,7 @@ export class NotificationManager extends EventEmitter {
         child_process.exec(`notify-send -u ${urgency} "${notification.title}" "${notification.message}"`);
       } else if (platform === 'win32') {
         // Windows (PowerShell)
-        const ps = `[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null; $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); $textNodes = $template.GetElementsByTagName("text"); $textNodes.Item(0).AppendChild($template.CreateTextNode("${notification.title}")); $textNodes.Item(1).AppendChild($template.CreateTextNode("${notification.message}")); $toast = [Windows.UI.Notifications.ToastNotification]::new($template); [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("Claude Code").Show($toast)`;
+        const ps = `[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null; $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); $textNodes = $template.GetElementsByTagName("text"); $textNodes.Item(0).AppendChild($template.CreateTextNode("${notification.title}")); $textNodes.Item(1).AppendChild($template.CreateTextNode("${notification.message}")); $toast = [Windows.UI.Notifications.ToastNotification]::new($template); [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("Axon").Show($toast)`;
         child_process.exec(`powershell -command "${ps}"`);
       }
     } catch {

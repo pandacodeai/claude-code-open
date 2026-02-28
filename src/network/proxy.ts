@@ -30,26 +30,26 @@ export function loadMTLSConfig(): MTLSConfig {
   const config: MTLSConfig = {};
 
   // 加载客户端证书
-  if (process.env.CLAUDE_CODE_CLIENT_CERT) {
+  if (process.env.AXON_CLIENT_CERT) {
     try {
-      config.cert = fs.readFileSync(process.env.CLAUDE_CODE_CLIENT_CERT, { encoding: 'utf8' });
+      config.cert = fs.readFileSync(process.env.AXON_CLIENT_CERT, { encoding: 'utf8' });
     } catch (err) {
       console.error(`mTLS: Failed to load client certificate: ${err}`);
     }
   }
 
   // 加载客户端私钥
-  if (process.env.CLAUDE_CODE_CLIENT_KEY) {
+  if (process.env.AXON_CLIENT_KEY) {
     try {
-      config.key = fs.readFileSync(process.env.CLAUDE_CODE_CLIENT_KEY, { encoding: 'utf8' });
+      config.key = fs.readFileSync(process.env.AXON_CLIENT_KEY, { encoding: 'utf8' });
     } catch (err) {
       console.error(`mTLS: Failed to load client key: ${err}`);
     }
   }
 
   // 私钥密码
-  if (process.env.CLAUDE_CODE_CLIENT_KEY_PASSPHRASE) {
-    config.passphrase = process.env.CLAUDE_CODE_CLIENT_KEY_PASSPHRASE;
+  if (process.env.AXON_CLIENT_KEY_PASSPHRASE) {
+    config.passphrase = process.env.AXON_CLIENT_KEY_PASSPHRASE;
   }
 
   return config;

@@ -447,7 +447,7 @@ export class TaskManager {
       const loopOptions: LoopOptions = {
         model: resolvedModel,
         maxTurns: agentDef.maxTurns || 100,
-        verbose: process.env.CLAUDE_VERBOSE === 'true',
+        verbose: process.env.AXON_VERBOSE === 'true',
         permissionMode: agentDef.permissionMode || 'default',
         allowedTools: effectiveTools,
         workingDir: task.workingDirectory,

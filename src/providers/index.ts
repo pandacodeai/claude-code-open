@@ -209,12 +209,12 @@ export function getProviderInfo(config: ProviderConfig): ProviderInfo {
  * 获取 Anthropic API 配置（支持环境变量回退）
  */
 function getAnthropicApiConfig(config: ProviderConfig): { apiKey: string; baseURL: string } {
-  const apiKey = config.apiKey || process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
+  const apiKey = config.apiKey || process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY;
   const baseURL = config.baseUrl || process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com';
   
   if (!apiKey) {
     throw new Error(
-      'Anthropic API key is required. Set ANTHROPIC_API_KEY or CLAUDE_API_KEY environment variable, or provide apiKey in config.'
+      'Anthropic API key is required. Set ANTHROPIC_API_KEY or AXON_API_KEY environment variable, or provide apiKey in config.'
     );
   }
   

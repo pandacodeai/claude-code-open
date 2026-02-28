@@ -23,7 +23,7 @@ import {
 import { createVertexAIClient, VERTEX_MODELS } from './vertex.js';
 
 // Configuration file path
-const getConfigFile = () => path.join(os.homedir(), '.claude', 'settings.json');
+const getConfigFile = () => path.join(os.homedir(), '.axon', 'settings.json');
 
 // Read configuration
 const readConfig = (): Record<string, any> => {
@@ -209,9 +209,9 @@ Examples:
       // Set environment hints
       switch (providerName) {
         case 'bedrock':
-          config.CLAUDE_CODE_USE_BEDROCK = 'true';
-          delete config.CLAUDE_CODE_USE_VERTEX;
-          delete config.CLAUDE_CODE_USE_FOUNDRY;
+          config.AXON_USE_BEDROCK = 'true';
+          delete config.AXON_USE_VERTEX;
+          delete config.AXON_USE_FOUNDRY;
           console.log(
             chalk.yellow(
               '\n⚠ Remember to set AWS credentials:\n' +
@@ -222,9 +222,9 @@ Examples:
           );
           break;
         case 'vertex':
-          config.CLAUDE_CODE_USE_VERTEX = 'true';
-          delete config.CLAUDE_CODE_USE_BEDROCK;
-          delete config.CLAUDE_CODE_USE_FOUNDRY;
+          config.AXON_USE_VERTEX = 'true';
+          delete config.AXON_USE_BEDROCK;
+          delete config.AXON_USE_FOUNDRY;
           console.log(
             chalk.yellow(
               '\n⚠ Remember to set Vertex AI credentials:\n' +
@@ -234,9 +234,9 @@ Examples:
           );
           break;
         case 'foundry':
-          config.CLAUDE_CODE_USE_FOUNDRY = 'true';
-          delete config.CLAUDE_CODE_USE_BEDROCK;
-          delete config.CLAUDE_CODE_USE_VERTEX;
+          config.AXON_USE_FOUNDRY = 'true';
+          delete config.AXON_USE_BEDROCK;
+          delete config.AXON_USE_VERTEX;
           console.log(
             chalk.yellow(
               '\n⚠ Remember to set Foundry API key:\n' + '  - ANTHROPIC_FOUNDRY_API_KEY\n'
@@ -244,9 +244,9 @@ Examples:
           );
           break;
         default:
-          delete config.CLAUDE_CODE_USE_BEDROCK;
-          delete config.CLAUDE_CODE_USE_VERTEX;
-          delete config.CLAUDE_CODE_USE_FOUNDRY;
+          delete config.AXON_USE_BEDROCK;
+          delete config.AXON_USE_VERTEX;
+          delete config.AXON_USE_FOUNDRY;
           console.log(
             chalk.yellow('\n⚠ Remember to set API key:\n' + '  - ANTHROPIC_API_KEY\n')
           );
@@ -516,15 +516,15 @@ Examples:
         console.log(chalk.cyan('Environment Variables:'));
         const envVars = [
           'ANTHROPIC_API_KEY',
-          'CLAUDE_API_KEY',
-          'CLAUDE_CODE_USE_BEDROCK',
+          'AXON_API_KEY',
+          'AXON_USE_BEDROCK',
           'AWS_REGION',
           'AWS_ACCESS_KEY_ID',
           'AWS_BEDROCK_MODEL',
-          'CLAUDE_CODE_USE_VERTEX',
+          'AXON_USE_VERTEX',
           'ANTHROPIC_VERTEX_PROJECT_ID',
           'GOOGLE_APPLICATION_CREDENTIALS',
-          'CLAUDE_CODE_USE_FOUNDRY',
+          'AXON_USE_FOUNDRY',
           'ANTHROPIC_FOUNDRY_API_KEY',
         ];
 

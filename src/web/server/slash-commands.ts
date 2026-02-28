@@ -190,7 +190,7 @@ const statusCommand: SlashCommand = {
   category: 'general',
   execute: (ctx: ExtendedCommandContext): CommandResult => {
     const history = ctx.conversationManager.getHistory(ctx.sessionId);
-    const apiKeySet = !!(process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY);
+    const apiKeySet = !!(process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY);
 
     let message = 'Claude Code WebUI 状态\n\n';
     message += '会话信息:\n';
@@ -293,7 +293,7 @@ const configCommand: SlashCommand = {
   description: '显示当前配置',
   category: 'config',
   execute: (ctx: ExtendedCommandContext): CommandResult => {
-    const apiKeySet = !!(process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY);
+    const apiKeySet = !!(process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY);
     let message = '当前配置\n\n';
     message += `会话 ID: ${ctx.sessionId}\n`;
     message += `模型: ${ctx.model}\n`;
@@ -635,7 +635,7 @@ const pluginCommand: SlashCommand = {
       try {
         const plugins = await conversationManager.listPlugins();
         if (plugins.length === 0) {
-          return { success: true, message: '没有安装插件。\n\n插件安装在: ~/.claude/plugins/', dialogType: 'text' };
+          return { success: true, message: '没有安装插件。\n\n插件安装在: ~/.axon/plugins/', dialogType: 'text' };
         }
 
         let message = '插件列表\n\n';

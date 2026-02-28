@@ -299,7 +299,7 @@ const zh: Record<LocaleKeys, string> = {
   'axonmd.externalWarning': '警告：外部文件引用需要明确批准。',
   // Source labels
   'axonmd.source.project': '项目',
-  'axonmd.source.projectDir': '项目/.claude',
+  'axonmd.source.projectDir': '项目/.axon',
   'axonmd.source.local': '本地',
   'axonmd.source.userGlobal': '用户全局',
   'axonmd.source.rules': '规则',
@@ -337,7 +337,7 @@ const zh: Record<LocaleKeys, string> = {
   'message.you': '你',
   'message.system': '系统',
   'message.error': '错误',
-  'message.claude': 'Claude',
+  'message.axon': 'Claude',
   'message.toolResult': '工具结果',
   'message.copyHint': '按 Cmd+A 全选并复制',
 
@@ -384,7 +384,7 @@ const zh: Record<LocaleKeys, string> = {
   'file.binaryNotSupported': '无法读取二进制文件类型：.{{ext}}。不支持此文件类型。',
   'file.readError': '读取文件出错：{{error}}',
   'file.imageReadError': '读取图片出错：{{error}}',
-  'file.pdfNotEnabled': '未启用 PDF 支持。请设置 CLAUDE_PDF_SUPPORT=true 来启用。',
+  'file.pdfNotEnabled': '未启用 PDF 支持。请设置 AXON_PDF_SUPPORT=true 来启用。',
   'file.pdfTooLarge': '此 PDF 有 {{count}} 页，一次性读取页数过多。请使用 pages 参数指定页面范围（如 pages: "1-5"）。每次请求最多 {{max}} 页。',
   'file.pdfReadError': '读取 PDF 出错：{{error}}',
   'file.svgReadError': '读取 SVG 出错：{{error}}',
@@ -598,7 +598,7 @@ const zh: Record<LocaleKeys, string> = {
   'cli.github.openPr': '  3. 创建 PR 来测试集成',
 
   // team.ts - TeamCreate
-  'team.notEnabled': 'Agent Teams 功能未启用。请设置 CLAUDE_CODE_ENABLE_AGENT_TEAMS=true 来启用。',
+  'team.notEnabled': 'Agent Teams 功能未启用。请设置 AXON_ENABLE_AGENT_TEAMS=true 来启用。',
   'team.alreadyInTeam': '已在团队中。请先使用 TeamDelete 清理当前团队。',
   'team.tmuxCurrentSession': '\nTmux：使用当前会话作为队友面板。',
   'team.tmuxCreatedSession': '\nTmux：已创建会话 "claude-team-{{teamName}}" 作为队友面板。',
@@ -638,7 +638,7 @@ const zh: Record<LocaleKeys, string> = {
   'team.planRejected': '{{recipient}} 的计划被拒绝：{{reason}}',
 
   // agent-teams.ts - TeammateTool
-  'agentTeams.notEnabled': 'Agent Teams 功能未启用。请设置 CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 来启用。',
+  'agentTeams.notEnabled': 'Agent Teams 功能未启用。请设置 AXON_EXPERIMENTAL_AGENT_TEAMS=1 来启用。',
   'agentTeams.unknownOperation': '未知操作：{{operation}}。请使用 \'spawnTeam\' 或 \'cleanup\'。',
   'agentTeams.teamNameRequired': 'spawnTeam 操作需要 team_name 参数',
   'agentTeams.teamAlreadyExists': '团队 \'{{teamName}}\' 已存在。请先使用 \'cleanup\' 移除。',
@@ -841,7 +841,7 @@ const zh: Record<LocaleKeys, string> = {
   'createTool.invalidName': '技能名称必须以字母开头，只能包含字母、数字、连字符和下划线。',
 
   // ============ TaskV2 ============
-  'taskV2.disabled': '任务管理系统已禁用。设置 CLAUDE_CODE_ENABLE_TASKS=true 以启用。',
+  'taskV2.disabled': '任务管理系统已禁用。设置 AXON_ENABLE_TASKS=true 以启用。',
   'taskV2.notFound': '任务未找到',
   'taskV2.created': '已创建任务 #{{id}}：{{subject}}',
   'taskV2.noTasks': '没有找到任务。',

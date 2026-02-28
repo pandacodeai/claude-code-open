@@ -1020,7 +1020,7 @@ export const transcriptCommand: SlashCommand = {
 
       // 标题
       lines.push('=' .repeat(80));
-      lines.push('CLAUDE CODE CONVERSATION TRANSCRIPT');
+      lines.push('AXON CONVERSATION TRANSCRIPT');
       lines.push('='.repeat(80));
       lines.push('');
 

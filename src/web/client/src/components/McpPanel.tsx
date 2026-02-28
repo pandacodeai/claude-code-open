@@ -786,7 +786,7 @@ export function McpPanel({ onClose, onSendMessage, addMessageHandler }: McpPanel
         </div>
         <div className="mcp-config-item">
           <span>• Local config (private to you in this project):</span>
-          <span className="mcp-config-path">~/.claude/settings.json</span>
+          <span className="mcp-config-path">~/.axon/settings.json</span>
         </div>
       </div>
 

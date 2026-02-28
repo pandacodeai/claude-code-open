@@ -326,12 +326,12 @@ program
 
     // 调试模式
     if (options.debug) {
-      process.env.CLAUDE_DEBUG = options.debug === true ? '*' : options.debug;
+      process.env.AXON_DEBUG = options.debug === true ? '*' : options.debug;
     }
 
     // Solo 模式 - 禁用后台进程和并行执行
     if (options.solo) {
-      process.env.CLAUDE_SOLO_MODE = 'true';
+      process.env.AXON_SOLO_MODE = 'true';
     }
 
     // v2.1.33: 将 settings.json 中配置的环境变量应用到 process.env
@@ -582,11 +582,11 @@ program
         const { connectToRemoteSession, validateSessionRepository } = await import('./teleport/index.js');
 
         // 获取远程服务器 URL（可以从环境变量或配置获取）
-        const ingressUrl = process.env.CLAUDE_TELEPORT_URL;
-        const authToken = process.env.CLAUDE_TELEPORT_TOKEN;
+        const ingressUrl = process.env.AXON_TELEPORT_URL;
+        const authToken = process.env.AXON_TELEPORT_TOKEN;
 
         if (!ingressUrl) {
-          console.log(chalk.yellow('Warning: No CLAUDE_TELEPORT_URL environment variable set.'));
+          console.log(chalk.yellow('Warning: No AXON_TELEPORT_URL environment variable set.'));
           console.log(chalk.gray('Attempting to connect using local session...'));
 
           // 尝试从本地加载会话
@@ -993,14 +993,14 @@ async function runTextInterface(
       if (!isDaemonRunning()) {
         const store = new TaskStore();
         const hasTasks = store.listTasks().length > 0;
-        const hasConfig = daemonFs.existsSync(daemonPath.join(process.cwd(), '.claude', 'daemon.yml'))
-          || daemonFs.existsSync(daemonPath.join((await import('os')).homedir(), '.claude', 'daemon.yml'));
+        const hasConfig = daemonFs.existsSync(daemonPath.join(process.cwd(), '.axon', 'daemon.yml'))
+          || daemonFs.existsSync(daemonPath.join((await import('os')).homedir(), '.axon', 'daemon.yml'));
 
         if (hasTasks || hasConfig) {
           // 后台启动 daemon（fork 子进程），stdout/stderr 重定向到日志文件
           const { spawn } = await import('child_process');
           const daemonOs = await import('os');
-          const claudeDir = daemonPath.join(daemonOs.homedir(), '.claude');
+          const claudeDir = daemonPath.join(daemonOs.homedir(), '.axon');
           if (!daemonFs.existsSync(claudeDir)) {
             daemonFs.mkdirSync(claudeDir, { recursive: true });
           }
@@ -1522,7 +1522,7 @@ mcpCommand
     console.log(chalk.bold('\n🔄 Resetting project MCP server choices\n'));
 
     try {
-      const projectMcpFile = path.join(process.cwd(), '.claude', '.mcp.json');
+      const projectMcpFile = path.join(process.cwd(), '.axon', '.mcp.json');
 
       if (fs.existsSync(projectMcpFile)) {
         fs.unlinkSync(projectMcpFile);
@@ -1533,7 +1533,7 @@ mcpCommand
       }
 
       // 同时清除项目配置中的禁用服务器列表
-      const projectSettingsFile = path.join(process.cwd(), '.claude', 'settings.json');
+      const projectSettingsFile = path.join(process.cwd(), '.axon', 'settings.json');
       if (fs.existsSync(projectSettingsFile)) {
         try {
           const settings = JSON.parse(fs.readFileSync(projectSettingsFile, 'utf-8'));
@@ -2089,9 +2089,9 @@ program
     console.log(chalk.bold('\n🔐 Axon Login\n'));
 
     // 检查当前认证状态
-    const hasApiKey = !!(process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY);
-    const hasCredentials = fs.existsSync(path.join(os.homedir(), '.claude', 'credentials.json'));
-    const hasOAuthToken = fs.existsSync(path.join(os.homedir(), '.claude', 'auth.json'));
+    const hasApiKey = !!(process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY);
+    const hasCredentials = fs.existsSync(path.join(os.homedir(), '.axon', 'credentials.json'));
+    const hasOAuthToken = fs.existsSync(path.join(os.homedir(), '.axon', 'auth.json'));
 
     let authStatus = 'Not authenticated';
     if (hasApiKey) {
@@ -2134,7 +2134,7 @@ program
       console.log('2. Set the API key (choose one method):\n');
       console.log('   a) Environment variable (recommended):');
       console.log(chalk.gray('      export ANTHROPIC_API_KEY=sk-ant-your-key-here\n'));
-      console.log('   b) Direct setup (stores in ~/.claude/credentials.json):');
+      console.log('   b) Direct setup (stores in ~/.axon/credentials.json):');
       console.log(chalk.gray('      claude setup-token\n'));
       console.log('3. Verify:');
       console.log(chalk.gray('   claude doctor\n'));
@@ -2224,7 +2224,7 @@ program
     }
 
     // 清除存储的 API key
-    const credentialsFile = path.join(os.homedir(), '.claude', 'credentials.json');
+    const credentialsFile = path.join(os.homedir(), '.axon', 'credentials.json');
     if (fs.existsSync(credentialsFile)) {
       try {
         fs.unlinkSync(credentialsFile);
@@ -2235,7 +2235,7 @@ program
     }
 
     // 清除配置文件中的会话信息
-    const configFile = path.join(os.homedir(), '.claude', 'settings.json');
+    const configFile = path.join(os.homedir(), '.axon', 'settings.json');
     if (fs.existsSync(configFile)) {
       try {
         const config = JSON.parse(fs.readFileSync(configFile, 'utf-8'));
@@ -2280,9 +2280,9 @@ program
     console.log(`\n${t('cli.auth.toCompletelyRemove')}\n`);
     console.log(t('cli.auth.removeEnvVars'));
     console.log(chalk.gray('   unset ANTHROPIC_API_KEY'));
-    console.log(chalk.gray('   unset CLAUDE_API_KEY\n'));
+    console.log(chalk.gray('   unset AXON_API_KEY\n'));
     console.log(t('cli.auth.verifyCleared'));
-    console.log(chalk.gray('   ls -la ~/.claude/\n'));
+    console.log(chalk.gray('   ls -la ~/.axon/\n'));
     console.log(t('cli.auth.toLoginAgain'));
     console.log(chalk.gray('  claude login              Show login options'));
     console.log(chalk.gray('  claude login --api-key    Setup with API key'));
@@ -2302,9 +2302,9 @@ apiCommand
     const query = queryParts.join(' ');
 
     // 获取 API key
-    const apiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
+    const apiKey = process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY;
     if (!apiKey) {
-      const credentialsFile = path.join(os.homedir(), '.claude', 'credentials.json');
+      const credentialsFile = path.join(os.homedir(), '.axon', 'credentials.json');
       if (fs.existsSync(credentialsFile)) {
         try {
           const creds = JSON.parse(fs.readFileSync(credentialsFile, 'utf-8'));
@@ -2403,9 +2403,9 @@ apiCommand
     console.log(chalk.bold(`\n🧪 ${t('cli.api.testingConnection')}\n`));
 
     // 获取 API key
-    const apiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
+    const apiKey = process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY;
     if (!apiKey) {
-      const credentialsFile = path.join(os.homedir(), '.claude', 'credentials.json');
+      const credentialsFile = path.join(os.homedir(), '.axon', 'credentials.json');
       if (fs.existsSync(credentialsFile)) {
         try {
           const creds = JSON.parse(fs.readFileSync(credentialsFile, 'utf-8'));
@@ -2488,13 +2488,13 @@ tokensCommand
   .action(() => {
     console.log(chalk.bold('\n🔑 API Token Status\n'));
 
-    const envKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
-    const credentialsFile = path.join(os.homedir(), '.claude', 'credentials.json');
+    const envKey = process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY;
+    const credentialsFile = path.join(os.homedir(), '.axon', 'credentials.json');
     const hasFileKey = fs.existsSync(credentialsFile);
 
     if (envKey) {
       console.log(chalk.green('✓ Environment Variable:'), `${envKey.substring(0, 20)}...`);
-      console.log(`  Source: ${process.env.ANTHROPIC_API_KEY ? 'ANTHROPIC_API_KEY' : 'CLAUDE_API_KEY'}\n`);
+      console.log(`  Source: ${process.env.ANTHROPIC_API_KEY ? 'ANTHROPIC_API_KEY' : 'AXON_API_KEY'}\n`);
     } else {
       console.log(chalk.gray('✗ Environment Variable: Not set\n'));
     }
@@ -2505,7 +2505,7 @@ tokensCommand
         const fileKey = creds.apiKey || creds.api_key;
         if (fileKey) {
           console.log(chalk.green('✓ File Token:'), `${fileKey.substring(0, 20)}...`);
-          console.log('  Location: ~/.claude/credentials.json\n');
+          console.log('  Location: ~/.axon/credentials.json\n');
         } else {
           console.log(chalk.yellow('✗ File Token: File exists but no key found\n'));
         }
@@ -2525,25 +2525,25 @@ tokensCommand
 
     console.log('Priority Order:');
     console.log('  1. ANTHROPIC_API_KEY (environment)');
-    console.log('  2. CLAUDE_API_KEY (environment)');
-    console.log('  3. ~/.claude/credentials.json (file)\n');
+    console.log('  2. AXON_API_KEY (environment)');
+    console.log('  3. ~/.axon/credentials.json (file)\n');
   });
 
 tokensCommand
   .command('clear')
   .description('Clear stored API token')
   .action(() => {
-    const credentialsFile = path.join(os.homedir(), '.claude', 'credentials.json');
+    const credentialsFile = path.join(os.homedir(), '.axon', 'credentials.json');
 
     if (fs.existsSync(credentialsFile)) {
       try {
         fs.unlinkSync(credentialsFile);
         console.log(chalk.green('\n✅ Cleared stored API token\n'));
-        console.log('Removed: ~/.claude/credentials.json\n');
+        console.log('Removed: ~/.axon/credentials.json\n');
         console.log('Note: Environment variables are still set if you have them.');
         console.log('To clear environment variables:');
         console.log(chalk.gray('  unset ANTHROPIC_API_KEY'));
-        console.log(chalk.gray('  unset CLAUDE_API_KEY\n'));
+        console.log(chalk.gray('  unset AXON_API_KEY\n'));
       } catch (error) {
         console.log(chalk.red(`\n❌ Error clearing token: ${error}\n`));
       }
@@ -2551,7 +2551,7 @@ tokensCommand
       console.log(chalk.yellow('\nNo stored token file found.\n'));
       console.log('If you have environment variables set:');
       console.log(chalk.gray('  unset ANTHROPIC_API_KEY'));
-      console.log(chalk.gray('  unset CLAUDE_API_KEY\n'));
+      console.log(chalk.gray('  unset AXON_API_KEY\n'));
     }
   });
 
@@ -2874,12 +2874,12 @@ function getDisabledMcpServers(): string[] {
   try {
     // 尝试从 settings.local.json 读取
     const homeDir = process.env.HOME || process.env.USERPROFILE || '~';
-    const globalDir = process.env.CLAUDE_CONFIG_DIR || path.join(homeDir, '.claude');
+    const globalDir = process.env.AXON_CONFIG_DIR || path.join(homeDir, '.axon');
 
     // 读取顺序：local -> project -> global
     const configPaths = [
-      path.join(process.cwd(), '.claude', 'settings.local.json'),
-      path.join(process.cwd(), '.claude', 'settings.json'),
+      path.join(process.cwd(), '.axon', 'settings.local.json'),
+      path.join(process.cwd(), '.axon', 'settings.json'),
       path.join(globalDir, 'settings.json'),
     ];
 
@@ -2977,7 +2977,7 @@ async function handleSlashCommand(input: string, loop: ConversationLoop): Promis
       console.log('  /review            - Review a pull request');
       console.log('  /feedback          - Submit feedback (alias: bug)');
       console.log('  /pr-comments       - Get comments from a GitHub PR');
-      console.log('  /init              - Initialize a new CLAUDE.md file');
+      console.log('  /init              - Initialize a new AXON.md file');
       console.log('  /think-back        - Your 2025 Axon Year in Review');
       console.log('  /thinkback-play    - Play the thinkback animation');
       console.log('  /insights          - Generate session analysis report');
@@ -3010,11 +3010,11 @@ async function handleSlashCommand(input: string, loop: ConversationLoop): Promis
       console.log(`  Node.js: ${chalk.green(process.version)}`);
       console.log(`  Platform: ${chalk.green(process.platform)}`);
       console.log(`  Arch: ${chalk.green(process.arch)}`);
-      const apiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
+      const apiKey = process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY;
       console.log(`  API Key: ${apiKey ? chalk.green('configured') : chalk.red('not set')}`);
       console.log(`  Working Dir: ${chalk.green(process.cwd())}`);
-      const claudeMd = fs.existsSync(path.join(process.cwd(), 'CLAUDE.md'));
-      console.log(`  CLAUDE.md: ${claudeMd ? chalk.green('found') : chalk.gray('not found')}`);
+      const claudeMd = fs.existsSync(path.join(process.cwd(), 'AXON.md'));
+      console.log(`  AXON.md: ${claudeMd ? chalk.green('found') : chalk.gray('not found')}`);
       console.log();
       break;
     }
@@ -3228,7 +3228,7 @@ async function handleSlashCommand(input: string, loop: ConversationLoop): Promis
 
     case 'hooks': {
       console.log(chalk.bold('\nHook Management:\n'));
-      console.log('  Hooks are configured in ~/.claude/settings.json');
+      console.log('  Hooks are configured in ~/.axon/settings.json');
       console.log(chalk.gray('  Available hook points: PreToolUse, PostToolUse, Notification'));
       console.log(chalk.gray('\n  Example in settings.json:'));
       console.log(chalk.gray('  { "hooks": { "PreToolUse": [{ "matcher": "*", "command": "..." }] } }\n'));
@@ -3253,7 +3253,7 @@ async function handleSlashCommand(input: string, loop: ConversationLoop): Promis
     }
 
     case 'keybindings': {
-      const keybindingsPath = path.join(os.homedir(), '.claude', 'keybindings.json');
+      const keybindingsPath = path.join(os.homedir(), '.axon', 'keybindings.json');
       console.log(chalk.bold('\nKeybindings:\n'));
       console.log(`  Config file: ${chalk.cyan(keybindingsPath)}`);
       console.log(chalk.gray('\n  Edit the file to customize keybindings.\n'));
@@ -3320,7 +3320,7 @@ async function handleSlashCommand(input: string, loop: ConversationLoop): Promis
 
     case 'skills': {
       console.log(chalk.bold('\nAvailable Skills:\n'));
-      console.log(chalk.gray('  Skills are loaded from ~/.claude/skills/ and .claude/commands/'));
+      console.log(chalk.gray('  Skills are loaded from ~/.axon/skills/ and .axon/commands/'));
       console.log(chalk.gray('  Use /skills to list or invoke skills.\n'));
       break;
     }
@@ -3352,7 +3352,7 @@ async function handleSlashCommand(input: string, loop: ConversationLoop): Promis
     // === Integration ===
     case 'mcp': {
       console.log(chalk.bold('\nMCP Server Management:\n'));
-      console.log('  MCP servers are configured in ~/.claude/settings.json');
+      console.log('  MCP servers are configured in ~/.axon/settings.json');
       console.log(chalk.gray('\n  Use the WebUI for interactive MCP management.'));
       console.log(chalk.gray('  Or edit settings.json directly.\n'));
       break;
@@ -3363,8 +3363,8 @@ async function handleSlashCommand(input: string, loop: ConversationLoop): Promis
     case 'marketplace': {
       console.log(chalk.bold('\nAgent Management:\n'));
       console.log('  Custom agents are loaded from:');
-      console.log(`    User:    ${chalk.cyan('~/.claude/agents/*.md')}`);
-      console.log(`    Project: ${chalk.cyan('.claude/agents/*.md')}`);
+      console.log(`    User:    ${chalk.cyan('~/.axon/agents/*.md')}`);
+      console.log(`    Project: ${chalk.cyan('.axon/agents/*.md')}`);
       console.log(chalk.gray('\n  Create .md files with frontmatter to define agents.\n'));
       break;
     }
@@ -3421,7 +3421,7 @@ async function handleSlashCommand(input: string, loop: ConversationLoop): Promis
     case 'login': {
       const loginSubCmd = args[0]?.toLowerCase();
       if (loginSubCmd === 'status') {
-        const loginApiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
+        const loginApiKey = process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY;
         if (loginApiKey) {
           console.log(chalk.green(`\nAuthenticated (API key: ${loginApiKey.slice(0, 10)}...)\n`));
         } else {
@@ -3476,12 +3476,12 @@ async function handleSlashCommand(input: string, loop: ConversationLoop): Promis
     }
 
     case 'init': {
-      const claudeMdPath = path.join(process.cwd(), 'CLAUDE.md');
+      const claudeMdPath = path.join(process.cwd(), 'AXON.md');
       if (fs.existsSync(claudeMdPath)) {
-        console.log(chalk.yellow(`\nCLAUDE.md already exists at ${claudeMdPath}\n`));
+        console.log(chalk.yellow(`\nAXON.md already exists at ${claudeMdPath}\n`));
       } else {
-        fs.writeFileSync(claudeMdPath, `# CLAUDE.md\n\n## Project Overview\n\nDescribe your project here.\n\n## Development Commands\n\n\`\`\`bash\n# Add your development commands here\n\`\`\`\n`, 'utf-8');
-        console.log(chalk.green(`\nCreated CLAUDE.md at ${claudeMdPath}\n`));
+        fs.writeFileSync(claudeMdPath, `# AXON.md\n\n## Project Overview\n\nDescribe your project here.\n\n## Development Commands\n\n\`\`\`bash\n# Add your development commands here\n\`\`\`\n`, 'utf-8');
+        console.log(chalk.green(`\nCreated AXON.md at ${claudeMdPath}\n`));
       }
       break;
     }
@@ -3525,7 +3525,7 @@ program
 // 错误处理
 process.on('uncaughtException', (err) => {
   console.error(chalk.red('Uncaught Exception:'), err.message);
-  if (process.env.CLAUDE_DEBUG) {
+  if (process.env.AXON_DEBUG) {
     console.error(chalk.red('Stack trace:'), err.stack);
   }
   safeExit(1);
@@ -3533,7 +3533,7 @@ process.on('uncaughtException', (err) => {
 
 process.on('unhandledRejection', (reason: any) => {
   console.error(chalk.red('Unhandled Rejection:'), reason?.message || reason);
-  if (process.env.CLAUDE_DEBUG && reason?.stack) {
+  if (process.env.AXON_DEBUG && reason?.stack) {
     console.error(chalk.red('Stack trace:'), reason.stack);
   }
 });

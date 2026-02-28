@@ -31,7 +31,7 @@ export interface SigningKey {
 }
 
 // Storage paths
-const SIGNING_DIR = path.join(os.homedir(), '.claude', 'signing');
+const SIGNING_DIR = path.join(os.homedir(), '.axon', 'signing');
 const KEYS_FILE = path.join(SIGNING_DIR, 'keys.json');
 const SIGNATURES_FILE = path.join(SIGNING_DIR, 'signatures.json');
 

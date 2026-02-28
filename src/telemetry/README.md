@@ -7,7 +7,7 @@
 ### 1. 匿名使用统计
 - 自动生成匿名用户 ID（基于机器信息哈希）
 - 不收集任何个人身份信息
-- 本地存储在 `~/.claude/telemetry/anonymous_id`
+- 本地存储在 `~/.axon/telemetry/anonymous_id`
 
 ### 2. 错误报告 (Opt-in)
 - 详细的错误堆栈跟踪
@@ -34,7 +34,7 @@
 - 不收集用户代码内容
 
 ### 6. 本地存储 (离线模式)
-- 所有数据本地存储在 `~/.claude/telemetry/`
+- 所有数据本地存储在 `~/.axon/telemetry/`
 - 支持离线工作
 - 自动限制文件大小
 
@@ -54,10 +54,10 @@ export DISABLE_TELEMETRY=true
 
 ## 数据存储
 
-所有遥测数据存储在 `~/.claude/telemetry/` 目录：
+所有遥测数据存储在 `~/.axon/telemetry/` 目录：
 
 ```
-~/.claude/telemetry/
+~/.axon/telemetry/
 ├── anonymous_id         # 匿名用户 ID
 ├── config.json         # 遥测配置
 ├── metrics.json        # 聚合指标
@@ -322,7 +322,7 @@ DISABLE_TELEMETRY=true
 
 ## 配置文件示例
 
-`~/.claude/telemetry/config.json`:
+`~/.axon/telemetry/config.json`:
 
 ```json
 {

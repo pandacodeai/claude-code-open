@@ -2,7 +2,7 @@
  * Daemon 结构化运行日志
  * 每个任务独立一个 JSONL 文件，参考 OpenClaw 的 run-log.ts
  *
- * 文件路径: ~/.claude/daemon-runs/<taskId>.jsonl
+ * 文件路径: ~/.axon/daemon-runs/<taskId>.jsonl
  * 每行一个 JSON 对象，自动裁剪防止文件过大
  */
 
@@ -39,7 +39,7 @@ export interface RunLogEntry {
 // 路径
 // ============================================================================
 
-const RUNS_DIR = path.join(os.homedir(), '.claude', 'daemon-runs');
+const RUNS_DIR = path.join(os.homedir(), '.axon', 'daemon-runs');
 
 /** 获取任务的运行日志文件路径 */
 export function resolveRunLogPath(taskId: string): string {

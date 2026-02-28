@@ -1,6 +1,6 @@
 /**
  * API 子命令 - query, models, usage, test, tokens
- * 基于官方 Claude Code 源码实现
+ * 基于 Anthropic 官方源码实现
  */
 
 import type { SlashCommand, CommandContext, CommandResult } from './types.js';

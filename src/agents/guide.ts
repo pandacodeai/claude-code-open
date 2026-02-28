@@ -699,7 +699,7 @@ https://github.com/anthropics/claude-code/issues`;
    */
   private findRelatedTopics(category: string): string[] {
     const relatedMap: Record<string, string[]> = {
-      'claude-code': [
+      'axon': [
         'Hooks and Automation',
         'Slash Commands (Skills)',
         'MCP Server Configuration',

@@ -97,7 +97,7 @@ export const PS1_ESCAPE_MAPPINGS: Record<string, string> = {
 
 /**
  * Statusline 代理
- * 负责配置和管理 Claude Code 的状态行设置
+ * 负责配置和管理 Axon 的状态行设置
  */
 export class StatuslineAgent {
   private configDir: string;
@@ -106,7 +106,7 @@ export class StatuslineAgent {
 
   constructor() {
     // 初始化配置目录
-    this.configDir = path.join(os.homedir(), '.claude');
+    this.configDir = path.join(os.homedir(), '.axon');
     this.settingsFile = path.join(this.configDir, 'settings.json');
     this.scriptsDir = this.configDir;
 
@@ -498,7 +498,7 @@ export type StatuslineTemplate = 'minimal' | 'standard' | 'detailed' | 'custom';
 
 // ============ Agent 系统提示词 ============
 
-export const STATUSLINE_AGENT_SYSTEM_PROMPT = `You are a status line setup agent for Claude Code. Your job is to create or update the statusLine command in the user's Claude Code settings.
+export const STATUSLINE_AGENT_SYSTEM_PROMPT = `You are a status line setup agent for Axon. Your job is to create or update the statusLine command in the user's Axon settings.
 
 When asked to convert the user's shell PS1 configuration, follow these steps:
 1. Read the user's shell configuration files in this order of preference:
@@ -543,7 +543,7 @@ How to use the statusLine command:
        "current_dir": "string",  // Current working directory path
        "project_dir": "string"   // Project root directory path
      },
-     "version": "string",        // Claude Code app version (e.g., "1.0.71")
+     "version": "string",        // Axon app version (e.g., "1.0.71")
      "output_style": {
        "name": "string",         // Output style name (e.g., "default", "Explanatory", "Learning")
      },
@@ -571,10 +571,10 @@ How to use the statusLine command:
    To calculate context window percentage, use current_usage (current context) not the cumulative totals:
    - input=$(cat); usage=$(echo "$input" | jq '.context_window.current_usage'); if [ "$usage" != "null" ]; then current=$(echo "$usage" | jq '.input_tokens + .cache_creation_input_tokens + .cache_read_input_tokens'); size=$(echo "$input" | jq '.context_window.context_window_size'); pct=$((current * 100 / size)); printf '%d%% context' "$pct"; fi
 
-2. For longer commands, you can save a new file in the user's ~/.claude directory, e.g.:
-   - ~/.claude/statusline-command.sh and reference that file in the settings.
+2. For longer commands, you can save a new file in the user's ~/.axon directory, e.g.:
+   - ~/.axon/statusline-command.sh and reference that file in the settings.
 
-3. Update the user's ~/.claude/settings.json with:
+3. Update the user's ~/.axon/settings.json with:
    {
      "statusLine": {
        "type": "command",
@@ -582,7 +582,7 @@ How to use the statusLine command:
      }
    }
 
-4. If ~/.claude/settings.json is a symlink, update the target file instead.
+4. If ~/.axon/settings.json is a symlink, update the target file instead.
 
 Guidelines:
 - Preserve existing settings when updating
@@ -596,7 +596,7 @@ Guidelines:
 
 export const STATUSLINE_AGENT_CONFIG = {
   agentType: 'statusline-setup',
-  whenToUse: 'Use this agent to configure the user\'s Claude Code status line setting.',
+  whenToUse: 'Use this agent to configure the user\'s Axon status line setting.',
   tools: ['Read', 'Edit'],
   source: 'built-in',
   baseDir: 'built-in',

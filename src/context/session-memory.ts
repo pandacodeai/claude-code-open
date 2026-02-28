@@ -1,8 +1,8 @@
 /**
  * Session Memory 模块
  *
- * 实现官方 Claude Code 的 session-memory 功能
- * 将对话摘要写入 ~/.claude/projects/{sanitized-project-path}/{session-id}/session-memory/summary.md
+ * 实现官方的 session-memory 功能
+ * 将对话摘要写入 ~/.axon/projects/{sanitized-project-path}/{session-id}/session-memory/summary.md
  *
  * 基于官方源码实现，feature flag 写死为启用
  */
@@ -18,10 +18,10 @@ import { estimateTokens } from '../utils/token-estimate.js';
 
 /**
  * 获取项目基础目录
- * 官方: QV(o1()) -> ~/.claude/projects/{sanitized-project-path}
+ * 官方: QV(o1()) -> ~/.axon/projects/{sanitized-project-path}
  */
 function getProjectBaseDir(projectPath: string): string {
-  const claudeDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+  const claudeDir = process.env.AXON_CONFIG_DIR || path.join(os.homedir(), '.axon');
   const sanitizedPath = sanitizeProjectPath(projectPath);
   return path.join(claudeDir, 'projects', sanitizedPath);
 }
@@ -46,7 +46,7 @@ function sanitizeProjectPath(projectPath: string): string {
 
 /**
  * 获取 session memory 目录
- * 官方: lz1() -> ~/.claude/projects/{path}/{session-id}/session-memory/
+ * 官方: lz1() -> ~/.axon/projects/{path}/{session-id}/session-memory/
  */
 export function getSessionMemoryDir(projectPath: string, sessionId: string): string {
   return path.join(getProjectBaseDir(projectPath), sessionId, 'session-memory');
@@ -54,7 +54,7 @@ export function getSessionMemoryDir(projectPath: string, sessionId: string): str
 
 /**
  * 获取 summary.md 文件路径
- * 官方: VhA() -> ~/.claude/projects/{path}/{session-id}/session-memory/summary.md
+ * 官方: VhA() -> ~/.axon/projects/{path}/{session-id}/session-memory/summary.md
  */
 export function getSummaryPath(projectPath: string, sessionId: string): string {
   return path.join(getSessionMemoryDir(projectPath, sessionId), 'summary.md');
@@ -143,7 +143,7 @@ CRITICAL RULES FOR EDITING:
 - It's OK to skip updating a section if there are no substantial new insights to add. Do not add filler content like "No info yet", just leave sections blank/unedited if appropriate.
 - Write DETAILED, INFO-DENSE content for each section - include specifics like file paths, function names, error messages, exact commands, technical details, etc.
 - For "Key results", include the complete, exact output the user requested (e.g., full table, full answer, etc.)
-- Do not include information that's already in the CLAUDE.md files included in the context
+- Do not include information that's already in the AXON.md files included in the context
 - Keep each section under ~${MAX_SECTION_TOKENS} tokens/words - if a section is approaching this limit, condense it by cycling out less important details while preserving the most critical information
 - Focus on actionable, specific information that would help someone understand or recreate the work discussed in the conversation
 - IMPORTANT: Always update "Current State" to reflect the most recent work - this is critical for continuity after compaction
@@ -310,7 +310,7 @@ export function writeSessionMemory(projectPath: string, sessionId: string, conte
  */
 function loadTemplate(projectPath: string): string | null {
   try {
-    const claudeDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+    const claudeDir = process.env.AXON_CONFIG_DIR || path.join(os.homedir(), '.axon');
     const customTemplatePath = path.join(claudeDir, 'session-memory', 'config', 'template.md');
 
     if (fs.existsSync(customTemplatePath)) {

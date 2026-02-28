@@ -240,7 +240,7 @@ assistant: Clients are marked as failed in the \`connectToServer\` function in s
     const selfDir = path.dirname(fileURLToPath(import.meta.url));  // prompt/ 或 dist/prompt/
     const srcRoot = path.resolve(selfDir, '..');                    // src/ 或 dist/
     const codeProjectRoot = path.resolve(srcRoot, '..');            // 项目根目录
-    const claudeConfigDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+    const claudeConfigDir = process.env.AXON_CONFIG_DIR || path.join(os.homedir(), '.axon');
 
     // 从 NotebookManager 获取精确的记忆文件路径
     const notebookMgr = getNotebookManager();
@@ -279,7 +279,7 @@ Your runtime source code is located at the following paths. You can Read these f
 ${memoryPaths}
 
 ### Self-Evolve (自我进化)
-${process.env.CLAUDE_EVOLVE_ENABLED === '1' ? `- Status: ENABLED (running with --evolve flag)
+${process.env.AXON_EVOLVE_ENABLED === '1' ? `- Status: ENABLED (running with --evolve flag)
 - You can modify your own source code and call the SelfEvolve tool to restart with the new code
 - Flow: Edit .ts files → SelfEvolve({ reason: "..." }) → tsc check → auto-restart → session restored
 - Evolve log: ${claudeConfigDir}/evolve-log.jsonl

@@ -79,7 +79,7 @@ To upgrade Axon, run one of these commands:
     npx @anthropic-ai/claude-code@latest
 
   Homebrew (macOS):
-    brew upgrade claude-code
+    brew upgrade axon
 
 Changelog: https://github.com/anthropics/claude-code/releases
 
@@ -170,15 +170,15 @@ Current Settings:
 
 Data Handling:
 
-  • Conversations are stored locally in ~/.claude/sessions/
+  • Conversations are stored locally in ~/.axon/sessions/
   • Sessions expire after 30 days by default
   • API calls go directly to Anthropic's servers
   • No data is shared with third parties
 
 Environment Variables:
 
-  CLAUDE_CODE_DISABLE_TELEMETRY=1    Disable all telemetry
-  CLAUDE_CODE_DISABLE_LOGGING=1      Disable command logging
+  AXON_DISABLE_TELEMETRY=1    Disable all telemetry
+  AXON_DISABLE_LOGGING=1      Disable command logging
 
 To modify settings:
 
@@ -418,7 +418,7 @@ The Axon Slack App enables:
 Installation Steps:
 
   1. Visit the Slack App Directory:
-     https://slack.com/apps/claude-code
+     https://slack.com/apps/axon
 
   2. Click "Add to Slack"
 

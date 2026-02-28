@@ -23,7 +23,7 @@ import { appendFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 
-const LOG_FILE = join(homedir(), '.claude', 'native-host.log');
+const LOG_FILE = join(homedir(), '.axon', 'native-host.log');
 
 /**
  * 日志输出到 stderr 和文件（Native Messaging 使用 stdout）

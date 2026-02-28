@@ -9,7 +9,7 @@ import * as path from 'path';
 import * as os from 'os';
 
 // 获取配置目录
-const getConfigDir = () => path.join(os.homedir(), '.claude');
+const getConfigDir = () => path.join(os.homedir(), '.axon');
 const getConfigFile = () => path.join(getConfigDir(), 'settings.json');
 
 // 确保配置目录存在
@@ -819,7 +819,7 @@ export const memoryCommand: SlashCommand = {
     const { args, config } = ctx;
 
     // Memory 文件位置
-    const sessionMemoryDir = path.join(os.homedir(), '.claude', 'session-memory');
+    const sessionMemoryDir = path.join(os.homedir(), '.axon', 'session-memory');
     const claudeMdPath = path.join(config.cwd, 'AXON.md');
     const globalClaudeMd = path.join(os.homedir(), '.axon', 'AXON.md');
 
@@ -1508,7 +1508,7 @@ export const initCommand: SlashCommand = {
   execute: (ctx: CommandContext): CommandResult => {
     const { config } = ctx;
     const claudeMdPath = path.join(config.cwd, 'AXON.md');
-    const claudeDir = path.join(config.cwd, '.claude');
+    const claudeDir = path.join(config.cwd, '.axon');
     const commandsDir = path.join(claudeDir, 'commands');
     const gitignorePath = path.join(config.cwd, '.gitignore');
 
@@ -1682,7 +1682,7 @@ export const privacySettingsCommand: SlashCommand = {
 
     // 清除所有会话数据
     if (action === 'clear-sessions') {
-      const sessionsDir = path.join(os.homedir(), '.claude', 'sessions');
+      const sessionsDir = path.join(os.homedir(), '.axon', 'sessions');
 
       if (!fs.existsSync(sessionsDir)) {
         ctx.ui.addMessage('assistant', 'No sessions directory found. Nothing to clear.');

@@ -591,7 +591,7 @@ function getEnvConfig(): Partial<UserConfig> {
 
   // ===== UI/UX 扩展 =====
   if (process.env.AXON_DISABLE_ATTACHMENTS ||
-      process.env.AXON_DISABLE_CLAUDE_MDS ||
+      process.env.AXON_DISABLE_AXON_MDS ||
       process.env.AXON_DISABLE_FEEDBACK_SURVEY ||
       process.env.AXON_DISABLE_TERMINAL_TITLE ||
       process.env.AXON_ENABLE_TOKEN_USAGE_ATTACHMENT ||
@@ -602,7 +602,7 @@ function getEnvConfig(): Partial<UserConfig> {
       process.env.ENABLE_INCREMENTAL_TUI) {
     (config as any).ui = {
       disableAttachments: parseEnvBoolean(process.env.AXON_DISABLE_ATTACHMENTS),
-      disableClaudeMds: parseEnvBoolean(process.env.AXON_DISABLE_CLAUDE_MDS),
+      disableAxonMds: parseEnvBoolean(process.env.AXON_DISABLE_AXON_MDS),
       disableFeedbackSurvey: parseEnvBoolean(process.env.AXON_DISABLE_FEEDBACK_SURVEY),
       disableTerminalTitle: parseEnvBoolean(process.env.AXON_DISABLE_TERMINAL_TITLE),
       enableTokenUsageAttachment: parseEnvBoolean(process.env.AXON_ENABLE_TOKEN_USAGE_ATTACHMENT),
@@ -1006,7 +1006,7 @@ export class ConfigManager {
       this.debugLog('Loaded enterprise policy defaults');
     }
 
-    // 3. 用户配置 (~/.claude/settings.json) (优先级 1)
+    // 3. 用户配置 (~/.axon/settings.json) (优先级 1)
     const userConfigExists = fs.existsSync(this.userConfigFile);
     this.loadedSources.push({
       source: 'userSettings',
@@ -1023,7 +1023,7 @@ export class ConfigManager {
       }
     }
 
-    // 4. 项目配置 (.claude/settings.json) (优先级 2)
+    // 4. 项目配置 (.axon/settings.json) (优先级 2)
     const projectConfigExists = fs.existsSync(this.projectConfigFile);
     this.loadedSources.push({
       source: 'projectSettings',
@@ -1040,7 +1040,7 @@ export class ConfigManager {
       }
     }
 
-    // 5. 本地配置 (.claude/settings.local.json) (优先级 3)
+    // 5. 本地配置 (.axon/settings.local.json) (优先级 3)
     const localConfigExists = fs.existsSync(this.localConfigFile);
     this.loadedSources.push({
       source: 'localSettings',
@@ -1342,7 +1342,7 @@ export class ConfigManager {
   }
 
   /**
-   * 保存到本地配置文件 (.claude/settings.local.json)
+   * 保存到本地配置文件 (.axon/settings.local.json)
    * 此文件应添加到 .gitignore，用于机器特定的配置
    */
   saveLocal(config: Partial<UserConfig>): void {
@@ -1395,8 +1395,8 @@ export class ConfigManager {
       }
 
       const patterns = [
-        '.claude/settings.local.json',
-        '# Claude Code local settings (machine-specific)',
+        '.axon/settings.local.json',
+        '# Axon local settings (machine-specific)',
       ];
 
       const linesToAdd: string[] = [];
@@ -1967,7 +1967,7 @@ export {
 export const ENV_VARS = {
   // API 配置
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-  CLAUDE_API_KEY: process.env.CLAUDE_API_KEY,
+  AXON_API_KEY: process.env.AXON_API_KEY,
   AXON_OAUTH_TOKEN: process.env.AXON_OAUTH_TOKEN,
 
   // 后端选择

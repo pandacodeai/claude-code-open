@@ -612,10 +612,10 @@ export function initializeCustomAgents(): void {
     allCustom.push(...userAgents);
   }
 
-  // 3. 项目级 agents (.claude/agents/)
+  // 3. 项目级 agents (.axon/agents/)
   try {
     const cwd = getCurrentCwd();
-    const projectAgentsDir = path.join(cwd, '.claude', 'agents');
+    const projectAgentsDir = path.join(cwd, '.axon', 'agents');
     if (fs.existsSync(projectAgentsDir)) {
       const projectAgents = loadAgentsFromDirectory(projectAgentsDir, 'projectSettings');
       allCustom.push(...projectAgents);
@@ -1377,7 +1377,7 @@ Note: The "Agent Teams" feature (TeammateTool, SendMessage, spawnTeam) is not av
       const loopOptions: LoopOptions = {
         model: resolvedModel,
         maxTurns: 100,  // 限制最大轮次以避免无限循环
-        verbose: process.env.CLAUDE_VERBOSE === 'true',
+        verbose: process.env.AXON_VERBOSE === 'true',
         permissionMode: agentDef.permissionMode || 'default',
         // 根据代理定义限制工具访问
         allowedTools: effectiveTools,

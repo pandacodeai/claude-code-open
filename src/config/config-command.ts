@@ -56,7 +56,7 @@ export class ConfigCommand {
       output += this.displayBackups();
     }
 
-    // CLAUDE.md 信息
+    // AXON.md 信息
     output += this.displayClaudeMd();
 
     output += '\n' + '='.repeat(60) + '\n';

@@ -88,7 +88,7 @@ export class Session {
     this.originalCwd = cwd;
 
     // 从环境变量读取 Session ID，或生成新 ID
-    const sessionId = process.env.CLAUDE_CODE_SESSION_ID || randomUUID();
+    const sessionId = process.env.AXON_SESSION_ID || randomUUID();
 
     // 初始化 Session 状态
     this.state = {
@@ -108,8 +108,8 @@ export class Session {
     };
 
     // 从环境变量读取父会话 ID（用于 fork）
-    if (process.env.CLAUDE_CODE_PARENT_SESSION_ID) {
-      (this.state as any).parentId = process.env.CLAUDE_CODE_PARENT_SESSION_ID;
+    if (process.env.AXON_PARENT_SESSION_ID) {
+      (this.state as any).parentId = process.env.AXON_PARENT_SESSION_ID;
     }
 
     // 确保配置目录存在
@@ -180,14 +180,14 @@ export class Session {
    * 获取访问令牌（从环境变量）
    */
   getAccessToken(): string | undefined {
-    return process.env.CLAUDE_CODE_SESSION_ACCESS_TOKEN;
+    return process.env.AXON_SESSION_ACCESS_TOKEN;
   }
 
   /**
    * 获取 SSE 端口（从环境变量）
    */
   getSsePort(): number | undefined {
-    const port = process.env.CLAUDE_CODE_SSE_PORT;
+    const port = process.env.AXON_SSE_PORT;
     return port ? parseInt(port, 10) : undefined;
   }
 
@@ -195,15 +195,15 @@ export class Session {
    * 是否跳过提示历史（从环境变量）
    */
   shouldSkipPromptHistory(): boolean {
-    return process.env.CLAUDE_CODE_SKIP_PROMPT_HISTORY === 'true' ||
-           process.env.CLAUDE_CODE_SKIP_PROMPT_HISTORY === '1';
+    return process.env.AXON_SKIP_PROMPT_HISTORY === 'true' ||
+           process.env.AXON_SKIP_PROMPT_HISTORY === '1';
   }
 
   /**
    * 获取停止后延迟退出时间（从环境变量，单位：ms）
    */
   getExitAfterStopDelay(): number | undefined {
-    const delay = process.env.CLAUDE_CODE_EXIT_AFTER_STOP_DELAY;
+    const delay = process.env.AXON_EXIT_AFTER_STOP_DELAY;
     return delay ? parseInt(delay, 10) : undefined;
   }
 
@@ -211,7 +211,7 @@ export class Session {
    * 获取父会话 ID（从 state 或环境变量）
    */
   getParentSessionId(): string | undefined {
-    return (this.state as any).parentId || process.env.CLAUDE_CODE_PARENT_SESSION_ID;
+    return (this.state as any).parentId || process.env.AXON_PARENT_SESSION_ID;
   }
 
   /**
@@ -571,7 +571,7 @@ ${modelUsageStr ? '\n模型使用统计:' + modelUsageStr : ''}
    * T147: 从文件加载会话（修复元数据恢复 bug）
    */
   static load(sessionId: string): Session | null {
-    // T145: 支持 CLAUDE_CONFIG_DIR 环境变量
+    // T145: 支持 AXON_CONFIG_DIR 环境变量
     const configDir = process.env.AXON_CONFIG_DIR || path.join(os.homedir(), '.axon');
     const sessionFile = path.join(configDir, 'sessions', `${sessionId}.json`);
 
@@ -611,7 +611,7 @@ ${modelUsageStr ? '\n模型使用统计:' + modelUsageStr : ''}
    * T148: 列出所有会话
    */
   static listSessions(): Array<{ id: string; startTime: number; cwd: string }> {
-    // T145: 支持 CLAUDE_CONFIG_DIR 环境变量
+    // T145: 支持 AXON_CONFIG_DIR 环境变量
     const configDir = process.env.AXON_CONFIG_DIR || path.join(os.homedir(), '.axon');
     const sessionsDir = path.join(configDir, 'sessions');
 

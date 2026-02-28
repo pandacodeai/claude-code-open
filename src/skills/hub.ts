@@ -58,8 +58,8 @@ function getSkillHubUrl(): string {
   }
 
   // 从环境变量获取
-  if (process.env.CLAUDE_SKILL_HUB_URL) {
-    return process.env.CLAUDE_SKILL_HUB_URL;
+  if (process.env.AXON_SKILL_HUB_URL) {
+    return process.env.AXON_SKILL_HUB_URL;
   }
 
   // 默认 GitHub raw URL
@@ -172,8 +172,8 @@ export async function installSkill(skillId: string): Promise<void> {
     });
   }
 
-  // 保存到 ~/.claude/skills/{skillId}/SKILL.md
-  const skillsDir = path.join(os.homedir(), '.claude', 'skills', skillId);
+  // 保存到 ~/.axon/skills/{skillId}/SKILL.md
+  const skillsDir = path.join(os.homedir(), '.axon', 'skills', skillId);
 
   if (!fs.existsSync(skillsDir)) {
     fs.mkdirSync(skillsDir, { recursive: true });
@@ -274,7 +274,7 @@ export async function publishSkill(skillPath: string): Promise<string> {
  * @returns skill 列表
  */
 export function listInstalledSkills(): SkillInfo[] {
-  const skillsDir = path.join(os.homedir(), '.claude', 'skills');
+  const skillsDir = path.join(os.homedir(), '.axon', 'skills');
 
   if (!fs.existsSync(skillsDir)) {
     return [];
