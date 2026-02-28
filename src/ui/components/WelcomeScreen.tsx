@@ -1,6 +1,6 @@
 /**
  * WelcomeScreen 组件
- * 仿官方 Claude Code 的欢迎界面
+ * 仿官方 Axon 的欢迎界面
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -169,7 +169,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   };
 
   // 构建标题
-  const borderTitle = ` Claude Code v${version} `;
+  const borderTitle = ` Axon v${version} `;
 
   return (
     <Box
@@ -180,7 +180,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     >
       {/* 顶部标题 */}
       <Box paddingLeft={1}>
-        <Text color={claudeColor}> Claude Code</Text>
+        <Text color={claudeColor}> Axon</Text>
         <Text dimColor> v{version}</Text>
       </Box>
 

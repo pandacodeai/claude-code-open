@@ -26,7 +26,7 @@ interface TrustDialogVariant {
 
 /**
  * 信任对话框变体
- * 与官方 Claude Code 一致
+ * 与官方 Axon 一致
  */
 function getTrustDialogVariants(): Record<string, TrustDialogVariant> {
   return {

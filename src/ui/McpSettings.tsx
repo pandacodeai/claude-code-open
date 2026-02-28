@@ -1,6 +1,6 @@
 /**
  * MCP 设置 UI 组件
- * 完全对齐官方 Claude Code 的交互式界面
+ * 完全对齐官方 Axon 的交互式界面
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';

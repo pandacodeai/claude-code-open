@@ -17,7 +17,7 @@
  *
  * 参考:
  * - https://sw.kovidgoyal.net/kitty/keyboard-protocol/
- * - 官方 Claude Code v2.1.6 实现
+ * - 官方 Axon v2.1.6 实现
  */
 
 /**

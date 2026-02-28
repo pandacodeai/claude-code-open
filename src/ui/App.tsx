@@ -1,6 +1,6 @@
 /**
  * 主应用组�?
- * 使用 Ink 渲染 CLI 界面 - 仿官�?Claude Code
+ * 使用 Ink 渲染 CLI 界面 - 仿官�?Axon
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';

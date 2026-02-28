@@ -1,6 +1,6 @@
 /**
  * 插件管理 UI 组件
- * 完全对齐官方 Claude Code 的交互式界面
+ * 完全对齐官方 Axon 的交互式界面
  *
  * 功能：
  * - Discover: 发现可用插件（从 Marketplace 获取）

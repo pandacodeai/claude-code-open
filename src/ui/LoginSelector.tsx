@@ -1,6 +1,6 @@
 /**
  * 登录方法选择器组件
- * 复刻官方 Claude Code 的登录选择界面
+ * 复刻官方 Axon 的登录选择界面
  */
 
 import React, { useState, useEffect } from 'react';
@@ -59,7 +59,7 @@ export function LoginSelector({ onSelect }: LoginSelectorProps): React.ReactElem
     <Box flexDirection="column" paddingY={1}>
       <Box marginBottom={1}>
         <Text>
-          Claude Code can be used with your Claude subscription or billed based on API usage through your Console account.
+          Axon can be used with your Claude subscription or billed based on API usage through your Console account.
         </Text>
       </Box>
 
@@ -98,13 +98,13 @@ export function LoginSelector({ onSelect }: LoginSelectorProps): React.ReactElem
  * 如果用户已经有认证凭据,则不需要
  *
  * 支持以下认证方式（跳过登录选择器）：
- * 1. ANTHROPIC_API_KEY 或 CLAUDE_API_KEY 环境变量
+ * 1. ANTHROPIC_API_KEY 或 AXON_API_KEY 环境变量
  * 2. ANTHROPIC_AUTH_TOKEN 环境变量（OAuth token）
  * 3. ANTHROPIC_BASE_URL + 上述任一认证方式（第三方API服务）
  */
 export function shouldShowLoginSelector(): boolean {
   // 检查环境变量中的 API key
-  const hasEnvKey = !!(process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY);
+  const hasEnvKey = !!(process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY);
   if (hasEnvKey) {
     return false;
   }
@@ -117,7 +117,7 @@ export function shouldShowLoginSelector(): boolean {
   }
 
   // 检查文件系统中的凭据
-  const claudeDir = path.join(os.homedir(), '.claude');
+  const claudeDir = path.join(os.homedir(), '.axon');
 
   // 检查 credentials.json (API key)
   const credentialsFile = path.join(claudeDir, 'credentials.json');
@@ -166,12 +166,12 @@ export function shouldShowLoginSelector(): boolean {
  * 获取当前认证状态描述
  */
 export function getAuthStatusMessage(): string {
-  const hasEnvKey = !!(process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY);
+  const hasEnvKey = !!(process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY);
   if (hasEnvKey) {
     return t('auth.envVar');
   }
 
-  const claudeDir = path.join(os.homedir(), '.claude');
+  const claudeDir = path.join(os.homedir(), '.axon');
 
   const credentialsFile = path.join(claudeDir, 'credentials.json');
   if (fs.existsSync(credentialsFile)) {

@@ -2,7 +2,7 @@
  * StylePool - 样式池
  * 用于缓存和复用 ANSI 样式代码
  *
- * 从官方 Claude Code 源码逆向工程提取 (原名: Wl1)
+ * 从官方 Axon 源码逆向工程提取 (原名: Wl1)
  */
 
 export class StylePool {

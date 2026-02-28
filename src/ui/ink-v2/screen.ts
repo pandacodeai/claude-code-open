@@ -2,7 +2,7 @@
  * Screen - 屏幕缓冲区
  * 用于管理终端屏幕的字符和样式
  *
- * 从官方 Claude Code 源码逆向工程提取 (原名: dNA)
+ * 从官方 Axon 源码逆向工程提取 (原名: dNA)
  */
 
 import type { Cell, Region, ClipRegion, ScreenData, Position } from './types.js';

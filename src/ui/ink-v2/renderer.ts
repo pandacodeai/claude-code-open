@@ -2,7 +2,7 @@
  * Renderer - 渲染日志类
  * 负责计算帧之间的差异并生成渲染操作
  *
- * 从官方 Claude Code 源码逆向工程提取 (原名: zl1)
+ * 从官方 Axon 源码逆向工程提取 (原名: zl1)
  */
 
 import type { RenderOp, FrameData, RendererOptions, ScreenData, Position, Cell, IStylePool } from './types.js';

@@ -1,6 +1,6 @@
 /**
  * Header 组件
- * 仿官方 Claude Code 的头部样式
+ * 仿官方 Axon 的头部样式
  */
 
 import React, { useState, useEffect } from 'react';
@@ -150,7 +150,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
       <Box marginBottom={1} paddingX={1} justifyContent="space-between">
         <Box>
           <Text color={CLAUDE_COLOR} bold>
-            Claude Code
+            Axon
           </Text>
           <Text dimColor> v{version}</Text>
           {isPlanMode && (
@@ -207,7 +207,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
       <Box justifyContent="space-between">
         <Box>
           <Text color={CLAUDE_COLOR} bold>
-            Claude Code
+            Axon
           </Text>
           <Text dimColor> v{version}</Text>
           {hasUpdate && latestVersion && (
@@ -286,7 +286,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
           <Text color="green">
             🎉 {t('header.newVersionAvailable')}
           </Text>
-          <Text color="green" bold> npm install -g claude-code-open</Text>
+          <Text color="green" bold> npm install -g axon</Text>
         </Box>
       )}
     </Box>

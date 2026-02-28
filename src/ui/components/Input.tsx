@@ -1,6 +1,6 @@
 /**
  * Input 组件
- * 用户输入框 - 仿官方 Claude Code 风格
+ * 用户输入框 - 仿官方 Axon 风格
  * 支持斜杠命令、文件路径、@mention 自动补全
  *
  * v2.1.6: 添加 Kitty 键盘协议支持
@@ -60,7 +60,7 @@ export const Input: React.FC<InputProps> = ({
   const [completionType, setCompletionType] = useState<'command' | 'file' | 'mention' | 'directory' | 'bash-history' | 'none'>('none');
 
   // Vim 模式支持
-  const [vimModeEnabled, setVimModeEnabled] = useState(process.env.CLAUDE_CODE_VIM_MODE === 'true');
+  const [vimModeEnabled, setVimModeEnabled] = useState(process.env.AXON_VIM_MODE === 'true');
   const [vimNormalMode, setVimNormalMode] = useState(vimModeEnabled);
   const [undoStack, setUndoStack] = useState<Array<{ value: string; cursor: number }>>([]);
   const [lastDeletedText, setLastDeletedText] = useState('');
@@ -93,7 +93,7 @@ export const Input: React.FC<InputProps> = ({
   // 监听环境变量变化（通过轮询检测）
   useEffect(() => {
     const checkVimMode = () => {
-      const newVimMode = process.env.CLAUDE_CODE_VIM_MODE === 'true';
+      const newVimMode = process.env.AXON_VIM_MODE === 'true';
       if (newVimMode !== vimModeEnabled) {
         setVimModeEnabled(newVimMode);
         setVimNormalMode(newVimMode); // 启用时默认进入 Normal 模式

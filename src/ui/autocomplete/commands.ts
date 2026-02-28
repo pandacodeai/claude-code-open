@@ -5,7 +5,7 @@
 import type { CompletionItem } from './types.js';
 import { getAllSkills } from '../../tools/skill.js';
 
-// 所有可用命令列表 (基于官方 Claude Code v2.1.4)
+// 所有可用命令列表 (基于官方 Axon v2.1.4)
 export const ALL_COMMANDS: CompletionItem[] = [
   {
     value: '/add-dir ',
@@ -32,7 +32,7 @@ export const ALL_COMMANDS: CompletionItem[] = [
   {
     value: '/chrome ',
     label: '/chrome',
-    description: 'Claude in Chrome (Beta) settings',
+    description: 'Axon in Chrome (Beta) settings',
     type: 'command',
     priority: 40
   },
@@ -97,7 +97,7 @@ export const ALL_COMMANDS: CompletionItem[] = [
   {
     value: '/exit',
     label: '/exit',
-    description: 'Exit Claude Code',
+    description: 'Exit Axon',
     type: 'command',
     aliases: ['quit', 'q'],
     priority: 3
@@ -119,7 +119,7 @@ export const ALL_COMMANDS: CompletionItem[] = [
   {
     value: '/feedback ',
     label: '/feedback',
-    description: 'Send feedback about Claude Code',
+    description: 'Send feedback about Axon',
     type: 'command',
     priority: 35
   },
@@ -170,7 +170,7 @@ export const ALL_COMMANDS: CompletionItem[] = [
   {
     value: '/install-github-app',
     label: '/install-github-app',
-    description: 'Install Claude Code GitHub App for CI/CD',
+    description: 'Install Axon GitHub App for CI/CD',
     type: 'command',
     aliases: ['github-app'],
     priority: 51
@@ -178,7 +178,7 @@ export const ALL_COMMANDS: CompletionItem[] = [
   {
     value: '/install-slack-app',
     label: '/install-slack-app',
-    description: 'Install Claude Code Slack App for notifications',
+    description: 'Install Axon Slack App for notifications',
     type: 'command',
     aliases: ['slack-app'],
     priority: 52
@@ -337,7 +337,7 @@ export const ALL_COMMANDS: CompletionItem[] = [
   {
     value: '/stats',
     label: '/stats',
-    description: 'Show your Claude Code usage statistics',
+    description: 'Show your Axon usage statistics',
     type: 'command',
     priority: 15
   },
@@ -387,7 +387,7 @@ export const ALL_COMMANDS: CompletionItem[] = [
   {
     value: '/think-back',
     label: '/think-back',
-    description: 'Your Claude Code Year in Review',
+    description: 'Your Axon Year in Review',
     type: 'command',
     aliases: ['thinkback', 'year-review'],
     priority: 48
@@ -410,7 +410,7 @@ export const ALL_COMMANDS: CompletionItem[] = [
   {
     value: '/upgrade',
     label: '/upgrade',
-    description: 'Upgrade Claude Code to latest version',
+    description: 'Upgrade Axon to latest version',
     type: 'command',
     priority: 57
   },

@@ -1,6 +1,6 @@
 /**
  * Chrome 设置 UI 组件
- * 对齐官方 Claude Code 的交互式界面
+ * 对齐官方 Axon 的交互式界面
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -50,7 +50,7 @@ export function ChromeSettings({ onDone }: ChromeSettingsProps): React.ReactElem
           const fs = await import('fs');
           const path = await import('path');
           const os = await import('os');
-          const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+          const settingsPath = path.join(os.homedir(), '.axon', 'settings.json');
           if (fs.existsSync(settingsPath)) {
             const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
             setEnabledByDefault(settings.claudeInChromeDefaultEnabled || false);
@@ -157,7 +157,7 @@ export function ChromeSettings({ onDone }: ChromeSettingsProps): React.ReactElem
           const fs = await import('fs');
           const path = await import('path');
           const os = await import('os');
-          const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+          const settingsPath = path.join(os.homedir(), '.axon', 'settings.json');
           let settings: Record<string, unknown> = {};
           if (fs.existsSync(settingsPath)) {
             settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
@@ -195,7 +195,7 @@ export function ChromeSettings({ onDone }: ChromeSettingsProps): React.ReactElem
   if (loading) {
     return (
       <Box flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={1}>
-        <Text bold color="yellow">Claude in Chrome (Beta)</Text>
+        <Text bold color="yellow">Axon in Chrome (Beta)</Text>
         <Text dimColor>Loading...</Text>
       </Box>
     );
@@ -209,12 +209,12 @@ export function ChromeSettings({ onDone }: ChromeSettingsProps): React.ReactElem
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={1} paddingY={0}>
-      <Text bold color="yellow"> Claude in Chrome (Beta)</Text>
+      <Text bold color="yellow"> Axon in Chrome (Beta)</Text>
       <Text> </Text>
 
       <Text>
-        Claude in Chrome works with the Chrome extension to let you control your browser directly from
-        Claude Code. Navigate websites, fill forms, capture screenshots, record GIFs, and debug with
+        Axon in Chrome works with the Chrome extension to let you control your browser directly from
+        Axon. Navigate websites, fill forms, capture screenshots, record GIFs, and debug with
         console logs and network requests.
       </Text>
       <Text> </Text>
@@ -245,9 +245,9 @@ export function ChromeSettings({ onDone }: ChromeSettingsProps): React.ReactElem
       <Text> </Text>
       <Text>
         <Text bold>Usage: </Text>
-        <Text dimColor>claude --chrome</Text>
+        <Text dimColor>axon --chrome</Text>
         <Text> or </Text>
-        <Text dimColor>claude --no-chrome</Text>
+        <Text dimColor>axon --no-chrome</Text>
       </Text>
 
       {extensionInstalled && (

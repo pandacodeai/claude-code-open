@@ -33,7 +33,7 @@ export const BackgroundTasksPanel: React.FC<BackgroundTasksPanelProps> = ({
   tasks,
   isVisible,
 }) => {
-  // 检查环境变量：CLAUDE_CODE_DISABLE_BACKGROUND_TASKS
+  // 检查环境变量：AXON_DISABLE_BACKGROUND_TASKS
   if (isBackgroundTasksDisabled()) {
     return null;
   }
