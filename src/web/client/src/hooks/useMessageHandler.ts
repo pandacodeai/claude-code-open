@@ -966,13 +966,13 @@ export function useMessageHandler({
           break;
 
         case 'design_image_generated': {
-          const designPayload = payload as { imageUrl: string; projectName: string; style: string; generatedText?: string };
+          const designPayload = payload as { imageUrl: string; title?: string; style?: string; generatedText?: string };
           if (designPayload.imageUrl) {
             const designContent: ChatContent = {
               type: 'design_image',
               imageUrl: designPayload.imageUrl,
-              projectName: designPayload.projectName || '',
-              style: designPayload.style || 'modern',
+              title: designPayload.title,
+              style: designPayload.style,
               generatedText: designPayload.generatedText,
             };
 

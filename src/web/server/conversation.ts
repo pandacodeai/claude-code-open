@@ -2816,47 +2816,41 @@ export class ConversationManager {
         }
       }
 
-      // 拦截 GenerateDesign 工具 - 使用 Gemini 生成 UI 设计图
-      if (toolUse.name === 'GenerateDesign') {
+      // 拦截 GenerateImage 工具 - 使用 Gemini 生成任意类型图片
+      if (toolUse.name === 'GenerateImage') {
         const input = toolUse.input as any;
 
         try {
-          console.log(`[Tool] GenerateDesign: 开始生成设计图 - ${input.projectName}`);
+          const { prompt, style } = input;
+          console.log(`[Tool] GenerateImage: 开始生成图片 - ${prompt.substring(0, 50)}...`);
 
-          const result = await geminiImageService.generateDesign({
-            projectName: input.projectName,
-            projectDescription: input.projectDescription,
-            requirements: input.requirements || [],
-            constraints: input.constraints,
-            techStack: input.techStack,
-            style: input.style,
-          });
+          const result = await geminiImageService.generateImage(prompt, style);
 
           if (!result.success) {
-            const error = result.error || '设计图生成失败';
+            const error = result.error || '图片生成失败';
             callbacks.onToolResult?.(toolUse.id, false, undefined, error);
             return { success: false, error };
           }
 
-          // 通过 WebSocket 发送设计图给前端显示
+          // 通过 WebSocket 发送图片给前端显示
           if (state.ws && state.ws.readyState === 1) {
             state.ws.send(JSON.stringify({
               type: 'design_image_generated',
               payload: {
                 imageUrl: result.imageUrl,
-                projectName: input.projectName,
-                style: input.style || 'modern',
+                title: prompt.substring(0, 50),
+                style: style || '',
                 generatedText: result.generatedText,
               },
             }));
           }
 
-          const output = `UI 设计图已生成并发送给用户预览。${result.generatedText ? `\n\n设计说明: ${result.generatedText}` : ''}\n\n用户可以在聊天界面中查看设计预览图。`;
+          const output = `图片已生成并发送给用户预览。${result.generatedText ? `\n\n描述: ${result.generatedText}` : ''}\n\n用户可以在聊天界面中查看生成的图片。`;
           callbacks.onToolResult?.(toolUse.id, true, output);
           return { success: true, output };
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          console.error(`[Tool] GenerateDesign 执行失败:`, errorMessage);
+          console.error(`[Tool] GenerateImage 执行失败:`, errorMessage);
           callbacks.onToolResult?.(toolUse.id, false, undefined, errorMessage);
           return { success: false, error: errorMessage };
         }
@@ -3438,7 +3432,7 @@ export class ConversationManager {
       prompt += '\n\n' + config.appendPrompt;
     }
 
-    // 注入 WebUI 专属工具引导（GenerateDesign 等）
+    // 注入 WebUI 专属工具引导（GenerateImage 等）
     const webuiToolGuidance = this.buildWebuiToolGuidance();
     if (webuiToolGuidance) {
       prompt += '\n\n' + webuiToolGuidance;
@@ -3513,7 +3507,7 @@ export class ConversationManager {
 
   /**
    * 构建 WebUI 专属工具引导指令
-   * 让 Agent 知道何时应主动调用 WebUI 专属工具（如 GenerateDesign）
+   * 让 Agent 知道何时应主动调用 WebUI 专属工具（如 GenerateImage）
    */
   private buildWebuiToolGuidance(): string | null {
     const sections: string[] = [];
@@ -3573,26 +3567,27 @@ export class ConversationManager {
    - TaskPlan 模式：直接用 StartLeadAgent(taskPlan) 传入任务列表（适合中等复杂度任务）
 4. **向用户汇报** — 执行完成后向用户报告成功/失败情况和关键结果`);
 
-    // GenerateDesign 工具引导（需要 GEMINI_API_KEY）
+    // GenerateImage 工具引导（需要 GEMINI_API_KEY）
     const hasGeminiKey = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
     if (hasGeminiKey) {
-      sections.push(`# UI 设计图生成（GenerateDesign 工具）
+      sections.push(`# Image Generation (GenerateImage Tool)
 
-你拥有一个强大的 GenerateDesign 工具，可以调用 Gemini AI 实时生成 UI 设计图/界面原型图。
+You have access to a powerful GenerateImage tool that can generate any type of image using Gemini AI.
 
-## 主动调用时机
-在以下场景中，你应该**主动**调用 GenerateDesign 工具，无需等待用户明确要求：
+## When to Call This Tool
+Call GenerateImage tool in the following scenarios:
 
-1. **需求讨论阶段**：当用户描述了一个项目的核心功能和界面需求后，主动生成设计图帮助用户可视化
-2. **项目启动阶段**：当你收集到足够的项目信息（名称、描述、至少2-3个核心需求）时，主动提议并生成设计预览
-3. **方案确认阶段**：当用户对 UI 布局、页面结构进行讨论时，生成设计图辅助沟通
-4. **用户提到"界面"、"设计"、"UI"、"页面"、"原型"等关键词时**
+1. **User requests an image**: When user explicitly asks to generate, create, or visualize something
+2. **Visualization needs**: When visual content would significantly enhance understanding (UI mockups, diagrams, illustrations, etc.)
+3. **Design discussions**: When discussing UI layouts, page structures, or visual concepts
+4. **Conceptual clarity**: When an image would help clarify abstract ideas or technical concepts
+5. **Any scenario requiring visual output**: Charts, mockups, wireframes, illustrations, architectural diagrams, etc.
 
-## 调用策略
-- 在收集到项目名称、描述和至少2个核心需求后，就应该调用此工具
-- 不要等到所有需求都明确后才调用——早期预览有助于用户校准方向
-- 如果用户对生成的设计图提出修改意见，可以调整参数后再次调用
-- 生成设计图后，继续与用户讨论细节和改进方向`);
+## Calling Strategy
+- Use clear, detailed prompts describing what image to generate
+- Include style hints when relevant (e.g., "modern minimalist UI", "hand-drawn diagram", "photorealistic")
+- Can be called multiple times to refine or generate different variations
+- After generating, discuss the result with the user and offer to adjust if needed`);
     }
 
     if (sections.length === 0) {

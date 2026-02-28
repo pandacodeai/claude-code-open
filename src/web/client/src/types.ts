@@ -106,8 +106,8 @@ export type ChatContent =
     | {
       type: 'design_image';
       imageUrl: string;
-      projectName: string;
-      style: string;
+      title?: string;
+      style?: string;
       generatedText?: string;
     };
 

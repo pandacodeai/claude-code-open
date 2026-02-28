@@ -128,7 +128,7 @@ const en: Translations = {
   'message.compactBoundaryHint': '(Ctrl+O for history)',
   'message.compactSummary': 'Compact summary',
   'message.compactSummaryHint': '(Ctrl+O to expand)',
-  'message.designImage': 'UI Design - {{name}}',
+  'message.designImage': 'Generated Image',
   'message.showMore': 'Show more',
   'message.showLess': 'Show less',
 
@@ -957,7 +957,7 @@ const en: Translations = {
 
   // CompactMessage
   'compact.blueprint': 'Blueprint: {{name}} ({{count}} modules)',
-  'compact.design': 'Design: {{name}} ({{style}})',
+  'compact.design': 'Generated Image',
   'compact.impact': 'Impact Analysis ({{level}} risk)',
   'compact.progress': 'Progress: {{phase}} ({{percent}}%)',
   'compact.regressionPassed': 'Regression: Passed',
@@ -1279,7 +1279,7 @@ const zh: Translations = {
   'message.compactBoundaryHint': '(Ctrl+O for history)',
   'message.compactSummary': 'Compact summary',
   'message.compactSummaryHint': '(Ctrl+O to expand)',
-  'message.designImage': 'UI Design - {{name}}',
+  'message.designImage': 'Generated Image',
   'message.showMore': 'Show more',
   'message.showLess': 'Show less',
   // UserQuestionDialog
@@ -2072,7 +2072,7 @@ const zh: Translations = {
   'thinking.expandHint': '（点击展开）',
   // CompactMessage
   'compact.blueprint': '蓝图: {{name}} ({{count}} 个模块)',
-  'compact.design': '设计: {{name}} ({{style}})',
+  'compact.design': '生成的图片',
   'compact.impact': '影响分析 ({{level}} 风险)',
   'compact.progress': '进度: {{phase}} ({{percent}}%)',
   'compact.regressionPassed': '回归测试: 通过',
