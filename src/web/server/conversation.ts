@@ -681,7 +681,7 @@ export class ConversationManager {
     // 自动激活已连接的 Connector MCP Servers
     // 避免重复注册：检查 serverName 是否已在上面的 mcpServerConfigs 中
     try {
-      const { connectorManager } = await import('../connectors/index.js');
+      const { connectorManager } = await import('./connectors/index.js');
       const connectors = connectorManager.listConnectors();
       
       for (const connector of connectors) {
@@ -752,7 +752,7 @@ export class ConversationManager {
    * 用于 OAuth 连接成功后自动启动对应的 MCP Server
    */
   async activateConnectorMcp(connectorId: string): Promise<{ success: boolean; tools: string[] }> {
-    const { connectorManager } = await import('../connectors/index.js');
+    const { connectorManager } = await import('./connectors/index.js');
 
     try {
       // 刷新 token（如果需要）
@@ -802,7 +802,7 @@ export class ConversationManager {
    * 用于断开连接时清理对应的 MCP Server
    */
   async deactivateConnectorMcp(connectorId: string): Promise<void> {
-    const { connectorManager } = await import('../connectors/index.js');
+    const { connectorManager } = await import('./connectors/index.js');
 
     try {
       const mcpConfig = connectorManager.getMcpServerConfig(connectorId);
@@ -831,7 +831,7 @@ export class ConversationManager {
    * 用于前端显示工具数量等信息
    */
   getMcpToolsForConnector(connectorId: string): string[] {
-    const { connectorManager } = require('../connectors/index.js');
+    const { connectorManager } = require('./connectors/index.js');
 
     try {
       const mcpConfig = connectorManager.getMcpServerConfig(connectorId);
