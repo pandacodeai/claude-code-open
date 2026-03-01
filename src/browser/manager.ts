@@ -195,6 +195,43 @@ function resolveUserDataDir(profileName: string = 'default'): string {
   return path.join(CONFIG_DIR, 'browser', profileName, 'user-data');
 }
 
+/**
+ * Remove stale claude-ext-* extension entries from Chrome's Secure Preferences.
+ * Each Browser start() creates a new temp extension dir via loadUnpacked.
+ * Chrome persists every loaded extension in Secure Preferences, so after many
+ * sessions dozens of stale entries accumulate. On next launch Chrome tries to
+ * re-load all of them, showing multiple "debugging this browser" banners.
+ */
+function purgeStaleExtensions(userDataDir: string): void {
+  const secPrefsPath = path.join(userDataDir, 'Default', 'Secure Preferences');
+  try {
+    if (!fs.existsSync(secPrefsPath)) return;
+    const raw = fs.readFileSync(secPrefsPath, 'utf-8');
+    const prefs = JSON.parse(raw);
+    const settings = prefs?.extensions?.settings;
+    if (!settings || typeof settings !== 'object') return;
+
+    let removed = 0;
+    for (const [extId, extData] of Object.entries(settings)) {
+      if (typeof extData === 'object' && extData !== null) {
+        const extPath = (extData as Record<string, unknown>).path;
+        if (typeof extPath === 'string' && /claude-ext-\d+/.test(extPath)) {
+          delete settings[extId];
+          removed++;
+        }
+      }
+    }
+
+    if (removed > 0) {
+      fs.writeFileSync(secPrefsPath, JSON.stringify(prefs), 'utf-8');
+      console.log(`[BrowserManager] Purged ${removed} stale extension entries from Secure Preferences`);
+    }
+  } catch (err) {
+    // Non-fatal: if we can't clean up, Chrome will just show extra banners
+    console.warn('[BrowserManager] Failed to purge stale extensions:', err);
+  }
+}
+
 // --- connectOverCDP with caching + auto-reconnect ---
 
 async function connectBrowser(cdpUrl: string): Promise<CachedConnection> {
@@ -584,6 +621,13 @@ export class BrowserManager {
         // Chrome may still be holding it; ignore
       }
     }
+
+    // --- Purge stale extension entries from Chrome's Secure Preferences ---
+    // Each start() creates a new temp extension dir via loadUnpacked, but Chrome
+    // remembers all previously loaded extensions in Secure Preferences. Over time
+    // this accumulates dozens of stale entries pointing to deleted temp dirs,
+    // causing Chrome to show multiple "debugging" banners on launch.
+    purgeStaleExtensions(userDataDir);
 
     // --- Start relay server ---
     const relayPort = cdpPort + 1;

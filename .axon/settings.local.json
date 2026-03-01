@@ -142,6 +142,11 @@
   },
   "disabledMcpServers": [
     "claude-in-chrome",
-    "email"
+    "email",
+    "server1",
+    "server2",
+    "update-test",
+    "api-server",
+    "web-api"
   ]
 }

@@ -84,14 +84,21 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<We
   // 这样可以避免与 Vite HMR WebSocket 冲突
   const wss = new WebSocketServer({ noServer: true });
 
-  // 手动处理 HTTP upgrade 事件，只将 /ws 路径的请求转发给我们的 WebSocket 服务器
+  // 端口转发模块（反向代理 /proxy/:port/* → localhost:<port>）
+  const { handleProxyUpgrade } = await import('./routes/port-forward.js');
+
+  // 手动处理 HTTP upgrade 事件
   server.on('upgrade', (request, socket, head) => {
     const { pathname } = new URL(request.url || '', `http://${request.headers.host}`);
 
     if (pathname === '/ws') {
+      // Axon WebSocket 连接
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit('connection', ws, request);
       });
+    } else if (pathname.startsWith('/proxy/')) {
+      // 端口转发 WebSocket 升级
+      handleProxyUpgrade(request, socket as any, head);
     }
     // 其他路径（如 Vite HMR）由 Vite 处理，不需要在这里处理
   });
@@ -176,6 +183,10 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<We
   // 定时任务管理 API 路由
   const scheduleRouter = await import('./routes/schedule-api.js');
   app.use('/api/schedule', scheduleRouter.default);
+
+  // 端口转发路由（反向代理用户应用）
+  const portForwardRouter = await import('./routes/port-forward.js');
+  app.use('/proxy', portForwardRouter.default);
 
   // 前端静态文件路径
   // 在生产环境下，代码在 dist/web/server，需要找到 src/web/client/dist
@@ -453,7 +464,7 @@ function setupStaticFiles(app: express.Application, clientDistPath: string) {
   if (!fs.existsSync(clientDistPath)) {
     console.warn(`   警告: 前端未构建，请先运行 cd src/web/client && npm run build`);
     app.use((req, res, next) => {
-      if (req.path.startsWith('/api/') || req.path.startsWith('/ws')) {
+      if (req.path.startsWith('/api/') || req.path.startsWith('/ws') || req.path.startsWith('/proxy/')) {
         return next();
       }
       res.status(503).send(`
@@ -478,7 +489,7 @@ npm run build</pre>
 
   // SPA 回退 - 所有未匹配的路由返回 index.html
   app.use((req, res, next) => {
-    if (req.path.startsWith('/api/') || req.path.startsWith('/ws')) {
+    if (req.path.startsWith('/api/') || req.path.startsWith('/ws') || req.path.startsWith('/proxy/')) {
       return next();
     }
     res.sendFile(path.join(clientDistPath, 'index.html'));

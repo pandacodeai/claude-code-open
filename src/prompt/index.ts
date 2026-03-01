@@ -8,8 +8,8 @@ export { AttachmentManager, attachmentManager } from './attachments.js';
 export {
   PromptTemplates,
   CORE_IDENTITY,
+  getCoreIdentity,
   PERMISSION_MODES,
-  SECURITY_RULES,
   EXECUTING_WITH_CARE,
   PROACTIVE_SKILL_CREATION,
   PROACTIVE_TOOL_DISCOVERY,

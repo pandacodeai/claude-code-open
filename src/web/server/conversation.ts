@@ -465,6 +465,8 @@ export class ConversationManager {
   private options?: { verbose?: boolean };
   /** Chrome MCP 系统提示（与官方 wbA() 一致） */
   private chromeSystemPrompt?: string;
+  /** 记忆整理互斥锁：防止并发压缩导致同时读写 notebook */
+  private isConsolidatingMemory = false;
   /**
    * MCP 工具列表（与官方 mcp.tools 对应）
    * 官方架构：内置工具(registry) + MCP工具(state) 分离管理，查询时合并
@@ -1468,6 +1470,14 @@ export class ConversationManager {
             }
           }
 
+          // 保存压缩前的原始消息快照（深拷贝，防御 performAutoCompact 修改原数组元素）
+          const preCompactMessages = cleanedMessages.map(m => ({
+            role: m.role,
+            content: Array.isArray(m.content)
+              ? m.content.map((b: any) => ({ ...b }))
+              : m.content,
+          })) as Message[];
+
           const compactResult = await this.performAutoCompact(cleanedMessages, resolvedModel, state);
           if (compactResult.wasCompacted) {
             // 修复：压缩后保留当前轮次的消息（对齐 CLI TJ1 的 messagesToKeep 逻辑）
@@ -1516,6 +1526,12 @@ export class ConversationManager {
               threshold,
               savedTokens: compactResult.savedTokens || 0,
               summaryText: compactResult.summaryText,
+            });
+
+            // 异步记忆整理：利用 AI 从被压缩的对话中提取关键发现
+            // fire-and-forget，不阻塞主对话流
+            this.consolidateMemoryAfterCompact(preCompactMessages, state).catch(err => {
+              console.warn('[MemoryConsolidation] 记忆整理失败:', err);
             });
           }
         } catch (err) {
@@ -2492,6 +2508,7 @@ export class ConversationManager {
                 baseUrl: mainClientConfig.baseUrl,
               },
               toolUseId: toolUse.id,
+              maxTurns: input.max_turns,
             }
           );
 
@@ -2522,7 +2539,7 @@ export class ConversationManager {
             output,
           });
 
-          return { success: result.success, output };
+          return { success: result.success, output, error: result.success ? undefined : (result.error || 'Task failed') };
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           console.error(`[Tool] Task 执行失败:`, errorMessage);
@@ -3188,6 +3205,190 @@ export class ConversationManager {
   }
 
   /**
+   * 压缩后异步记忆整理：利用 AI 从被压缩的对话中提取关键发现
+   * 
+   * 类似人类睡眠时的 REM 阶段：短期记忆被清理的同时，
+   * 重要内容被固化到长期存储（session-memory + notebook）
+   *
+   * 设计原则：
+   * - 异步执行，不阻塞主对话
+   * - 使用 haiku 模型，成本极低
+   * - 只提取 session-memory 中没有的新发现
+   * - 提取结果直接写入文件，不需要工具调用
+   */
+  private async consolidateMemoryAfterCompact(
+    preCompactMessages: Message[],
+    state: SessionState,
+  ): Promise<void> {
+    // 互斥锁：防止并发压缩导致同时读写 notebook
+    if (this.isConsolidatingMemory) {
+      console.log('[MemoryConsolidation] 上一次整理仍在进行，跳过');
+      return;
+    }
+    this.isConsolidatingMemory = true;
+
+    try {
+      await this._doConsolidateMemory(preCompactMessages, state);
+    } finally {
+      this.isConsolidatingMemory = false;
+    }
+  }
+
+  private async _doConsolidateMemory(
+    preCompactMessages: Message[],
+    state: SessionState,
+  ): Promise<void> {
+    // 只有启用了 session memory 才做整理
+    if (!isSessionMemoryEnabled()) return;
+
+    const sessionId = state.session.sessionId || '';
+    const projectPath = state.session.cwd;
+    if (!sessionId) return;
+
+    // 读取当前 session-memory
+    const currentNotes = readSessionMemory(projectPath, sessionId);
+    if (!currentNotes) return;
+
+    // 从原始消息中提取纯文本用于 AI 分析（限制 token 预算）
+    const conversationText = this.extractConversationText(preCompactMessages, 8000);
+    if (!conversationText || conversationText.length < 200) return;
+
+    // 读取 project notebook
+    const nbMgr = getNotebookManager();
+    const projectNotes = nbMgr?.read('project') || '';
+
+    try {
+      console.log(`[MemoryConsolidation] 开始从 ${preCompactMessages.length} 条消息中整理记忆...`);
+
+      // 核心设计：让 AI 拿到完整 notebook + 被压缩对话，输出整理后的完整 notebook
+      // AI 自主决定：新发现是否值得记录、旧内容是否该淘汰、重复内容该合并
+      const extractionPrompt = `You are a memory consolidation agent. A conversation is being compressed to free context space.
+Your job: review the conversation for important discoveries, then produce an UPDATED version of the project notebook.
+
+## Current project notebook (this is the FULL content you will rewrite):
+<project-notebook>
+${projectNotes}
+</project-notebook>
+
+## Current session notes (for deduplication reference only, do NOT rewrite this):
+<session-notes>
+${currentNotes.substring(0, 2000)}
+</session-notes>
+
+## Conversation being compressed:
+<conversation>
+${conversationText}
+</conversation>
+
+## Your task:
+1. Read the conversation for discoveries worth persisting:
+   - Bug root causes and fixes (what broke, why, how it was fixed)
+   - Gotchas/pitfalls (things that would waste time if forgotten)
+   - Key architectural decisions and their reasoning
+   - Important file relationships or hidden dependencies
+2. Compare against BOTH the project notebook AND session notes — skip anything already recorded
+3. Output an updated project notebook that:
+   - PRESERVES all existing content that is still relevant and useful for future work
+   - REMOVES or MERGES content that is outdated, redundant, or no longer actionable
+   - INTEGRATES new discoveries naturally into existing sections (don't just append)
+   - Stays within ~8000 tokens (roughly 2000 words) — if over budget, drop the least actionable items
+   - Uses the same language as the existing notebook
+   - Keeps entries concise: each point should be 1-2 lines max
+
+## Response format:
+If the notebook needs no changes (no new findings, nothing to prune), respond with exactly:
+{"noChanges": true}
+
+Otherwise respond with:
+{"updatedNotebook": "<the complete updated notebook content>"}
+
+Respond ONLY with valid JSON, no other text.`;
+
+      const response = await state.client.createMessage(
+        [{ role: 'user', content: extractionPrompt }],
+        undefined,
+        'You consolidate project knowledge. Respond only with valid JSON.'
+      );
+
+      // 解析响应
+      let responseText = '';
+      if (Array.isArray(response.content)) {
+        for (const block of response.content) {
+          if (block.type === 'text') {
+            responseText += (block as any).text;
+          }
+        }
+      }
+
+      // 从响应中提取 JSON
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.log('[MemoryConsolidation] AI 未返回有效 JSON，跳过');
+        return;
+      }
+
+      const result = JSON.parse(jsonMatch[0]);
+
+      if (result.noChanges) {
+        console.log('[MemoryConsolidation] AI 判断无需更新，跳过');
+        return;
+      }
+
+      if (result.updatedNotebook && nbMgr) {
+        // 安全检查：新 notebook 不能比原来短太多（防止 AI 错误地清空内容）
+        const oldLen = projectNotes.length;
+        const newLen = result.updatedNotebook.length;
+        if (oldLen > 200 && newLen < oldLen * 0.3) {
+          console.warn(`[MemoryConsolidation] AI 输出过短 (${newLen} vs ${oldLen})，疑似异常，跳过写入`);
+          return;
+        }
+
+        nbMgr.write('project', result.updatedNotebook);
+        console.log(`[MemoryConsolidation] project notebook 已整理 (${oldLen} -> ${newLen} chars)`);
+      }
+    } catch (err) {
+      console.warn('[MemoryConsolidation] AI 记忆整理失败:', err);
+    }
+  }
+
+  /**
+   * 从消息数组中提取纯文本（用于 AI 分析）
+   * 限制 token 预算，从最新消息开始倒序收集
+   */
+  private extractConversationText(messages: Message[], maxChars: number): string {
+    const parts: string[] = [];
+    let totalChars = 0;
+
+    // 倒序收集，优先保留最近的对话
+    for (let i = messages.length - 1; i >= 0 && totalChars < maxChars; i--) {
+      const msg = messages[i];
+      let text = '';
+
+      if (typeof msg.content === 'string') {
+        text = msg.content;
+      } else if (Array.isArray(msg.content)) {
+        text = msg.content
+          .filter((b: any) => b.type === 'text' && 'text' in b)
+          .map((b: any) => b.text)
+          .join('\n');
+      }
+
+      if (!text) continue;
+
+      // 跳过过长的工具输出（文件内容、日志等）
+      if (text.length > 2000) {
+        text = text.substring(0, 500) + '\n...[truncated]...\n' + text.substring(text.length - 500);
+      }
+
+      const line = `${msg.role}: ${text}`;
+      totalChars += line.length;
+      parts.unshift(line); // 维持时间顺序
+    }
+
+    return parts.join('\n\n---\n\n');
+  }
+
+  /**
    * 检查工具执行权限（对齐 CLI loop.ts 的 handlePermissionRequest）
    *
    * 检查流程：
@@ -3424,8 +3625,34 @@ export class ConversationManager {
         });
       }
 
+      // 获取上下文使用率（动态注入，不影响缓存）
+      // Web 模式：混合估算 = API 真实值 + 新增消息的估算值（消除一轮延迟）
+      let contextUsage: PromptContext['contextUsage'];
+      const resolvedModelForUsage = this.getModelId(state.model);
+      const ctxWindowSize = getContextWindowSize(resolvedModelForUsage);
+      let usedTokens = 0;
+      if (state.lastActualInputTokens > 0 && state.messagesLenAtLastApiCall > 0) {
+        // 混合：上次 API 真实值 + 新增消息估算
+        const newMessages = state.messages.slice(state.messagesLenAtLastApiCall);
+        usedTokens = state.lastActualInputTokens + this.estimateMessageTokens(newMessages);
+      } else if (state.messages.length > 0) {
+        // 回退：纯估算
+        usedTokens = this.estimateMessageTokens(state.messages);
+      }
+      if (usedTokens > 0) {
+        const percentage = Math.min(100, (usedTokens / ctxWindowSize) * 100);
+        contextUsage = {
+          used: usedTokens,
+          available: ctxWindowSize - usedTokens,
+          total: ctxWindowSize,
+          percentage,
+          compressionCount: 0,
+          savedTokens: 0,
+        };
+      }
+
       // 构建提示上下文（与 CLI loop.ts 保持一致）
-      const promptContext = {
+      const promptContext: PromptContext = {
         workingDir: state.session.cwd,
         model: this.getModelId(state.model),
         permissionMode: undefined, // WebUI 不使用权限模式
@@ -3442,6 +3669,8 @@ export class ConversationManager {
         notebookSummary,
         // MCP 服务器信息（用于系统提示中的 MCP 指令）
         mcpServers: mcpServerInfos.length > 0 ? mcpServerInfos : undefined,
+        // 上下文使用率
+        contextUsage,
       };
 
       // 使用官方的 SystemPromptBuilder
@@ -3625,6 +3854,28 @@ Call GenerateImage tool in the following scenarios:
 - Can be called multiple times to refine or generate different variations
 - After generating, discuss the result with the user and offer to adjust if needed`);
     }
+
+    // 端口转发功能提示 — 让模型知道可以用 /proxy/:port/ 预览用户应用
+    sections.push(`# Port Forwarding (Preview User Apps)
+
+When you start a web server for the user (e.g., a game, demo, or web app) using Bash, the user cannot access localhost ports directly because this server runs remotely (Railway, etc.).
+
+**A built-in reverse proxy is available at \`/proxy/:port/\`.**
+
+## How to Use
+1. Start the user's app on any port (e.g., \`node server.js\` listening on port 9090)
+2. Tell the user to open: \`/proxy/9090/\` (relative to this server's URL)
+3. All HTTP requests and WebSocket connections to \`/proxy/9090/*\` are forwarded to \`localhost:9090\`
+
+## Example Response
+After starting a server, tell the user:
+"Server is running. You can preview it here: [Open Preview](/proxy/9090/)"
+
+## Notes
+- Works for any port between 1024-65535
+- Supports HTTP, WebSocket, and all HTTP methods
+- If the target port is not running, a 502 error with a helpful message is returned
+- The proxy only forwards to localhost (127.0.0.1), not to external hosts`);
 
     if (sections.length === 0) {
       return null;
@@ -4720,16 +4971,25 @@ Guidelines:
     }
 
     // 2. 从 installed_plugins.json 读取通过 marketplace 安装的插件
-    //    (对应官方 Xj 函数，读取 ~/.axon/plugins/installed_plugins.json)
+    //    官方存储在 ~/.claude/plugins/installed_plugins.json (V2 格式)
+    //    同时检查 ~/.axon/plugins/ 作为备选
     try {
-      const configDir = process.env.AXON_CONFIG_DIR || path.join(os.homedir(), '.axon');
-      const installedPath = path.join(configDir, 'plugins', 'installed_plugins.json');
+      // 官方路径: ~/.claude/plugins/，我们的路径: ~/.axon/plugins/
+      // 优先读取官方路径（用户通过官方 CLI 安装的插件在那里）
+      const claudeConfigDir = path.join(os.homedir(), '.claude');
+      const axonConfigDir = process.env.AXON_CONFIG_DIR || path.join(os.homedir(), '.axon');
+      const candidatePaths = [
+        path.join(claudeConfigDir, 'plugins', 'installed_plugins.json'),
+        path.join(axonConfigDir, 'plugins', 'installed_plugins.json'),
+      ];
 
-      console.log(`[ConversationManager] Checking installed_plugins.json at: ${installedPath}`);
-      if (fs.existsSync(installedPath)) {
+      for (const installedPath of candidatePaths) {
+        console.log(`[ConversationManager] Checking installed_plugins.json at: ${installedPath}`);
+        if (!fs.existsSync(installedPath)) continue;
+
         const data = JSON.parse(fs.readFileSync(installedPath, 'utf-8'));
         const plugins = data.plugins || {};
-        console.log(`[ConversationManager] Found ${Object.keys(plugins).length} entries in installed_plugins.json`);
+        console.log(`[ConversationManager] Found ${Object.keys(plugins).length} entries in ${installedPath}`);
 
         for (const [pluginId, installations] of Object.entries(plugins)) {
           // 取 pluginId 中的 name 部分 (如 "frontend-design@claude-plugins-official" → "frontend-design")
@@ -4737,32 +4997,27 @@ Guidelines:
 
           if (seenNames.has(name)) continue;
 
-          // 取最新的安装记录
+          // V2 格式: installations 是数组，每个元素有 scope/installPath/version 等
           const installs = installations as any[];
           if (!installs || installs.length === 0) continue;
           const latest = installs[installs.length - 1];
           let installPath: string = latest.installPath;
 
           // 如果记录的 installPath 不存在，尝试扫描缓存目录找到实际版本
-          // (官方 CLI 更新插件后可能不会更新 installed_plugins.json 中的路径)
           if (!installPath || !fs.existsSync(installPath)) {
             const marketplace = pluginId.includes('@') ? pluginId.split('@')[1] : '';
-            const cacheDir = path.join(
-              process.env.AXON_CONFIG_DIR || path.join(os.homedir(), '.axon'),
-              'plugins', 'cache', marketplace, name
-            );
+            // 在 installed_plugins.json 所在目录下的 cache/ 查找
+            const pluginsDir = path.dirname(installedPath);
+            const cacheDir = path.join(pluginsDir, 'cache', marketplace, name);
             if (fs.existsSync(cacheDir)) {
-              // 找到最新的版本目录
               const versions = fs.readdirSync(cacheDir).filter(
                 v => fs.statSync(path.join(cacheDir, v)).isDirectory()
               );
               if (versions.length > 0) {
-                // 取最后一个（按字母排序，通常最新的版本或 commit hash 在最后）
-                // 更准确地按 mtime 排序
                 versions.sort((a, b) => {
                   const aStat = fs.statSync(path.join(cacheDir, a));
                   const bStat = fs.statSync(path.join(cacheDir, b));
-                  return bStat.mtimeMs - aStat.mtimeMs; // 最新的排前面
+                  return bStat.mtimeMs - aStat.mtimeMs;
                 });
                 installPath = path.join(cacheDir, versions[0]);
                 console.log(`[ConversationManager] Resolved installPath for ${pluginId}: ${installPath}`);
@@ -4805,13 +5060,11 @@ Guidelines:
             if (fs.existsSync(mktJsonPath)) {
               try {
                 const mkt = JSON.parse(fs.readFileSync(mktJsonPath, 'utf-8'));
-                // marketplace.json 可能包含多个 plugins，找到匹配 name 的
                 const entry = mkt.plugins?.find((p: any) => p.name === name);
                 if (entry) {
                   pluginName = entry.name;
                   description = entry.description;
                 } else {
-                  // 没有匹配的，使用 marketplace 级别的信息
                   description = mkt.metadata?.description;
                 }
                 const owner = mkt.owner;
@@ -4821,6 +5074,20 @@ Guidelines:
                 version = mkt.metadata?.version || version;
               } catch {}
             }
+          }
+
+          // 扫描 commands 目录
+          const commandNames: string[] = [];
+          const commandsDir = path.join(installPath, 'commands');
+          if (fs.existsSync(commandsDir)) {
+            try {
+              for (const entry of fs.readdirSync(commandsDir)) {
+                const cmdPath = path.join(commandsDir, entry);
+                if (fs.statSync(cmdPath).isDirectory()) {
+                  commandNames.push(entry);
+                }
+              }
+            } catch {}
           }
 
           // 扫描 skills 目录
@@ -4837,7 +5104,7 @@ Guidelines:
             } catch {}
           }
 
-          seenNames.add(pluginName);
+          seenNames.add(name);
           results.push({
             name: pluginName,
             version,
@@ -4846,7 +5113,7 @@ Guidelines:
             enabled: true,
             loaded: false,
             path: installPath,
-            commands: [],
+            commands: commandNames,
             skills: skillNames,
             hooks: [],
             tools: [],

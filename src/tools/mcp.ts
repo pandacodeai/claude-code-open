@@ -46,6 +46,11 @@ interface McpServerState {
    * 解决了缓存的连接 promise 永不 resolve 导致的重连挂起问题
    */
   connectionPromise?: Promise<boolean>;
+  /**
+   * 所有重试均失败后置为 true，阻止后续自动重连。
+   * 仅在 registerMcpServer / disconnectMcpServer 时重置。
+   */
+  permanentlyFailed?: boolean;
 }
 
 export interface McpToolDefinition {
@@ -97,6 +102,7 @@ export function registerMcpServer(
     connected: false,
     connecting: false,
     reconnectAttempts: 0,
+    permanentlyFailed: false,
     capabilities: preloadedTools ? { tools: true } : {},
     tools: preloadedTools || [],
     resources: [],
@@ -302,6 +308,7 @@ export async function disconnectMcpServer(name: string): Promise<void> {
   server.connected = false;
   server.connecting = false;
   server.reconnectAttempts = 0;
+  server.permanentlyFailed = false; // 允许手动重连
 }
 
 /**
@@ -335,6 +342,9 @@ async function checkServerHealth(name: string): Promise<boolean> {
 export async function connectMcpServer(name: string, retry = true): Promise<boolean> {
   const server = mcpServers.get(name);
   if (!server) return false;
+
+  // 所有重试均已耗尽，不再自动重连
+  if (server.permanentlyFailed) return false;
 
   // 如果已连接且健康，直接返回
   if (server.connected && server.process) {
@@ -423,7 +433,7 @@ async function doConnect(name: string, server: McpServerState, retry: boolean): 
         server.process = proc;
 
         // 防止 EPIPE 等 stdin 错误使进程崩溃
-        proc.stdin?.on('error', (err: NodeJS.ErrnoException) => {
+        proc.stdin?.on('error', (err: Error & { code?: string }) => {
           if (err.code !== 'EPIPE') {
             console.error(`MCP server ${name} stdin error:`, err);
           }
@@ -528,6 +538,8 @@ async function doConnect(name: string, server: McpServerState, retry: boolean): 
   }
 
   server.connecting = false;
+  // 所有重试均失败，标记为永久失败，避免后续继续重试
+  server.permanentlyFailed = true;
   return false;
 }
 

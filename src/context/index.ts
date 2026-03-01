@@ -715,6 +715,7 @@ export class ContextManager {
     const afterTokens = estimateTokens(summary);
     this.savedTokens += beforeTokens - afterTokens;
     this.compressionCount++;
+
   }
 
   /**
@@ -758,6 +759,7 @@ export class ContextManager {
     const afterTokens = estimateTokens(summary);
     this.savedTokens += beforeTokens - afterTokens;
     this.compressionCount++;
+
   }
 
   /**

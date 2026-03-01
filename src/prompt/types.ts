@@ -80,6 +80,8 @@ export interface PromptContext {
   isGitRepo?: boolean;
   /** 响应语言 (v2.1.0+) - 配置 Claude 的响应语言 */
   language?: string;
+  /** 是否使用 Claude Code 官方订阅认证（oauth 登录） */
+  isOfficialAuth?: boolean;
   /** 可用工具名称集合（用于条件化提示词组装） */
   toolNames?: Set<string>;
   /** 自定义输出样式 */
@@ -94,6 +96,15 @@ export interface PromptContext {
   projectsDir?: string;
   /** 当前项目的活跃目标 */
   activeGoals?: Goal[];
+  /** 上下文使用率信息（动态注入，不影响缓存） */
+  contextUsage?: {
+    used: number;
+    available: number;
+    total: number;
+    percentage: number;
+    compressionCount: number;
+    savedTokens: number;
+  };
 }
 
 /**

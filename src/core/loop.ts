@@ -2107,6 +2107,8 @@ export class ConversationLoop {
       debug: options.debug,
       // v2.1.0+: 语言配置 - 从 configManager 读取
       language: configManager.get('language'),
+      // 是否使用官方订阅认证（有 oauthToken 或 oauthAccount 说明通过 Claude.ai 登录）
+      isOfficialAuth: !!(configManager.get('oauthToken') || configManager.get('oauthAccount')),
       // Agent 笔记本内容
       notebookSummary: notebookSummary || undefined,
       // 活跃目标
@@ -2191,6 +2193,7 @@ export class ConversationLoop {
         (taskTool as any).setAllowedSubagentTypes(options.allowedSubagentTypes);
       }
     }
+
   }
 
   /**

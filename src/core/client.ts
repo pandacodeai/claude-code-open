@@ -376,11 +376,26 @@ interface PromptBlock {
   cacheScope: 'global' | 'org' | null;
 }
 
+/**
+ * 构建 cache_control 对象（对齐官方 Pc1 函数）
+ *
+ * 官方逻辑：
+ * - type: "ephemeral" — 始终设置
+ * - scope: "global" — 仅当 cacheScope === "global" 时设置，扩大缓存范围到同组织级别
+ * - ttl: "1h" — 仅 OAuth + 未超额 + allowlist 时设置（我们不支持 OAuth，跳过）
+ */
+function buildCacheControl(cacheScope: 'global' | 'org'): Record<string, unknown> {
+  return {
+    type: 'ephemeral' as const,
+    ...(cacheScope === 'global' ? { scope: 'global' } : {}),
+  };
+}
+
 function formatSystemPrompt(
   systemPrompt: string | undefined,
   isOAuth: boolean,
   promptBlocks?: PromptBlock[]
-): Array<{type: 'text'; text: string; cache_control?: {type: 'ephemeral'}}> | string | undefined {
+): Array<{type: 'text'; text: string; cache_control?: Record<string, unknown>}> | string | undefined {
   // 没有 system prompt 时
   if (!systemPrompt) {
     if (isOAuth) {
@@ -392,16 +407,16 @@ function formatSystemPrompt(
   }
 
   // v6.0: 使用 PromptBlock 分块缓存（对齐官方 CG1 分割逻辑）
-  // 静态 block (cacheScope: "global") → cache_control: ephemeral（可跨 turn 缓存）
+  // 静态 block (cacheScope: "global") → cache_control: { type: ephemeral, scope: global }
   // 动态 block (cacheScope: null) → 不设 cache_control（每 turn 重新计算）
   if (promptBlocks && promptBlocks.length > 0) {
-    const apiBlocks: Array<{type: 'text'; text: string; cache_control?: {type: 'ephemeral'}}> = [];
+    const apiBlocks: Array<{type: 'text'; text: string; cache_control?: Record<string, unknown>}> = [];
     for (const block of promptBlocks) {
       if (!block.text) continue;
       apiBlocks.push({
         type: 'text',
         text: block.text,
-        ...(block.cacheScope !== null ? { cache_control: { type: 'ephemeral' as const } } : {}),
+        ...(block.cacheScope !== null ? { cache_control: buildCacheControl(block.cacheScope) } : {}),
       });
     }
     return apiBlocks.length > 0 ? apiBlocks : undefined;
