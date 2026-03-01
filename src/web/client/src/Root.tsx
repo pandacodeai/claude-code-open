@@ -3,6 +3,7 @@ import App from './App';
 import SwarmConsole from './pages/SwarmConsole/index.tsx';
 import BlueprintPage from './pages/BlueprintPage';
 import SchedulePage from './pages/SchedulePage';
+import CustomizePage from './pages/CustomizePage';
 import TopNavBar from './components/swarm/TopNavBar';
 import { SessionSearchModal } from './components/SessionSearchModal/SessionSearchModal';
 import { AuthDialog } from './components/AuthDialog';
@@ -11,7 +12,7 @@ import { ProjectProvider, useProject } from './contexts/ProjectContext';
 import { LanguageProvider } from './i18n';
 import type { Session, SessionActions } from './types';
 
-type Page = 'chat' | 'swarm' | 'blueprint' | 'schedule';
+type Page = 'chat' | 'swarm' | 'blueprint' | 'schedule' | 'customize';
 
 /**
  * RootContent - 在 ProjectProvider 内部使用 ProjectContext
@@ -199,6 +200,13 @@ function RootContent() {
         <div style={pageStyle('schedule')}>
           <ErrorBoundary name="Schedule">
             <SchedulePage />
+          </ErrorBoundary>
+        </div>
+        <div style={pageStyle('customize')}>
+          <ErrorBoundary name="Customize">
+            <CustomizePage
+              onNavigateBack={() => setCurrentPage('chat')}
+            />
           </ErrorBoundary>
         </div>
       </div>

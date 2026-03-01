@@ -21,8 +21,8 @@ interface ProjectItem {
 }
 
 export interface TopNavBarProps {
-  currentPage: 'chat' | 'swarm' | 'blueprint' | 'schedule';
-  onPageChange: (page: 'chat' | 'swarm' | 'blueprint' | 'schedule') => void;
+  currentPage: 'chat' | 'swarm' | 'blueprint' | 'schedule' | 'customize';
+  onPageChange: (page: 'chat' | 'swarm' | 'blueprint' | 'schedule' | 'customize') => void;
   onSettingsClick?: () => void;
   /** 代码视图是否激活 */
   codeViewActive?: boolean;
@@ -87,6 +87,14 @@ const ScheduleIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="8" cy="8" r="6" />
     <path d="M8 4v4l3 2" />
+  </svg>
+);
+
+const CustomizeIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10 2h3v3M6 14H3v-3" />
+    <path d="M14 2l-5.5 5.5M2 14l5.5-5.5" />
+    <circle cx="8.5" cy="7.5" r="1" fill="currentColor" />
   </svg>
 );
 
@@ -361,6 +369,15 @@ export default function TopNavBar({
               <ScheduleIcon />
             </span>
             <span>{t('nav.schedule')}</span>
+          </button>
+          <button
+            className={`${styles.navTab} ${currentPage === 'customize' ? styles.active : ''}`}
+            onClick={() => onPageChange('customize')}
+          >
+            <span className={styles.icon}>
+              <CustomizeIcon />
+            </span>
+            <span>{t('nav.customize')}</span>
           </button>
         </div>
 

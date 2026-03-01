@@ -1,0 +1,103 @@
+import React, { useState } from 'react';
+import { useLanguage } from '../../i18n';
+import ConnectorsPanel from './ConnectorsPanel';
+import SkillsPanel from './SkillsPanel';
+import styles from './CustomizePage.module.css';
+
+type ActiveSection = 'skills' | 'connectors';
+
+interface CustomizePageProps {
+  onNavigateBack?: () => void;
+  onSendMessage?: (message: any) => void;
+  addMessageHandler?: (handler: (msg: any) => void) => () => void;
+}
+
+// SVG Icons
+const BackIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10 12L6 8l4-4" />
+  </svg>
+);
+
+const SkillsIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M8 2l1.5 4.5H14l-3.5 2.5 1.5 4.5L8 11l-3.5 2.5 1.5-4.5L2 6.5h4.5z" />
+  </svg>
+);
+
+const ConnectorsIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10 2h3v3M6 14H3v-3" />
+    <path d="M14 2l-5.5 5.5M2 14l5.5-5.5" />
+    <circle cx="8.5" cy="7.5" r="1" fill="currentColor" />
+  </svg>
+);
+
+/**
+ * CustomizePage - 自定义页面（Connectors + Skills）
+ * 
+ * 三栏布局：
+ * - 左栏（220px）：导航菜单（← Customize / Skills / Connectors）
+ * - 中栏和右栏：由 ConnectorsPanel 或 SkillsPanel 渲染
+ */
+export default function CustomizePage({
+  onNavigateBack,
+  onSendMessage,
+  addMessageHandler,
+}: CustomizePageProps) {
+  const { t } = useLanguage();
+  const [activeSection, setActiveSection] = useState<ActiveSection>('connectors');
+
+  return (
+    <div className={styles.customizePage}>
+      {/* 左侧导航栏 */}
+      <div className={styles.leftNav}>
+        {/* 返回按钮 */}
+        <button
+          className={styles.backButton}
+          onClick={() => onNavigateBack?.()}
+          title={t('nav.chat')}
+        >
+          <BackIcon />
+          <span>{t('customize.title')}</span>
+        </button>
+
+        {/* 导航菜单 */}
+        <nav className={styles.navMenu}>
+          <button
+            className={`${styles.navItem} ${activeSection === 'skills' ? styles.active : ''}`}
+            onClick={() => setActiveSection('skills')}
+          >
+            <span className={styles.navIcon}>
+              <SkillsIcon />
+            </span>
+            <span className={styles.navLabel}>{t('customize.skills')}</span>
+          </button>
+
+          <button
+            className={`${styles.navItem} ${activeSection === 'connectors' ? styles.active : ''}`}
+            onClick={() => setActiveSection('connectors')}
+          >
+            <span className={styles.navIcon}>
+              <ConnectorsIcon />
+            </span>
+            <span className={styles.navLabel}>{t('customize.connectors')}</span>
+          </button>
+        </nav>
+      </div>
+
+      {/* 右侧内容区（中栏 + 右栏由子组件渲染） */}
+      <div className={styles.contentArea}>
+        {activeSection === 'connectors' && (
+          <ConnectorsPanel
+            onSendMessage={onSendMessage}
+            addMessageHandler={addMessageHandler}
+          />
+        )}
+        {activeSection === 'skills' && (
+          <SkillsPanel />
+        )}
+      </div>
+    </div>
+  );
+}

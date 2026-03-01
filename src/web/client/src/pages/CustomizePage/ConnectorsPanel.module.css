@@ -1,0 +1,266 @@
+/**
+ * ConnectorsPanel Styles
+ * 两栏布局：中栏列表（400px） + 右栏详情（flex-1）
+ */
+
+.connectorsPanel {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+}
+
+/* ========================================
+   中栏：连接器列表（400px）
+   ======================================== */
+
+.middleColumn {
+  width: 400px;
+  min-width: 400px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.middleHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.middleTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.middleActions {
+  display: flex;
+  gap: 8px;
+}
+
+.searchButton,
+.addButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.searchButton:hover,
+.addButton:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.middleContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 0;
+}
+
+/* 分组 */
+
+.group {
+  margin-bottom: 20px;
+}
+
+.groupHeader {
+  padding: 8px 24px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.connectorList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 12px;
+}
+
+.connectorItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.connectorItem:hover {
+  background: var(--bg-tertiary);
+}
+
+.connectorItem.active {
+  background: var(--bg-tertiary);
+  box-shadow: inset 0 0 0 1px var(--accent-primary);
+}
+
+.connectorIcon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--text-secondary);
+}
+
+.connectorName {
+  flex: 1;
+  font-weight: 500;
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* ========================================
+   右栏：详情（flex-1）
+   ======================================== */
+
+.rightColumn {
+  flex: 1;
+  background: var(--bg-app);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 40px;
+}
+
+.emptyDetail {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.detailContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  max-width: 480px;
+  width: 100%;
+}
+
+.detailIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  color: var(--accent-primary);
+}
+
+.detailIcon svg {
+  width: 64px;
+  height: 64px;
+}
+
+.detailStatus {
+  font-size: 16px;
+  color: var(--text-primary);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.detailActions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  justify-content: center;
+}
+
+.primaryButton {
+  padding: 12px 32px;
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.primaryButton:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.primaryButton.danger {
+  background: var(--error-bg);
+  color: var(--error-text);
+}
+
+.primaryButton.danger:hover {
+  background: var(--error-hover);
+}
+
+.detailInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.infoRow {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.secondaryActions {
+  display: flex;
+  gap: 12px;
+}
+
+.secondaryButton {
+  padding: 8px 20px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.secondaryButton:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
