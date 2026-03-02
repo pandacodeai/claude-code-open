@@ -21,8 +21,8 @@ interface ProjectItem {
 }
 
 export interface TopNavBarProps {
-  currentPage: 'chat' | 'swarm' | 'blueprint' | 'schedule' | 'customize';
-  onPageChange: (page: 'chat' | 'swarm' | 'blueprint' | 'schedule' | 'customize') => void;
+  currentPage: 'chat' | 'swarm' | 'blueprint' | 'customize';
+  onPageChange: (page: 'chat' | 'swarm' | 'blueprint' | 'customize') => void;
   onSettingsClick?: () => void;
   /** 代码视图是否激活 */
   codeViewActive?: boolean;
@@ -83,18 +83,12 @@ const SwarmIcon = () => (
   </svg>
 );
 
-const ScheduleIcon = () => (
+const ToolboxIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="8" cy="8" r="6" />
-    <path d="M8 4v4l3 2" />
-  </svg>
-);
-
-const CustomizeIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M10 2h3v3M6 14H3v-3" />
-    <path d="M14 2l-5.5 5.5M2 14l5.5-5.5" />
-    <circle cx="8.5" cy="7.5" r="1" fill="currentColor" />
+    <rect x="1" y="6" width="14" height="8" rx="1" />
+    <path d="M5 6V4a3 3 0 016 0v2" />
+    <path d="M1 9h14" />
+    <rect x="6" y="8" width="4" height="2" rx="0.5" />
   </svg>
 );
 
@@ -362,20 +356,11 @@ export default function TopNavBar({
             <span>{t('nav.swarm')}</span>
           </button>
           <button
-            className={`${styles.navTab} ${currentPage === 'schedule' ? styles.active : ''}`}
-            onClick={() => onPageChange('schedule')}
-          >
-            <span className={styles.icon}>
-              <ScheduleIcon />
-            </span>
-            <span>{t('nav.schedule')}</span>
-          </button>
-          <button
             className={`${styles.navTab} ${currentPage === 'customize' ? styles.active : ''}`}
             onClick={() => onPageChange('customize')}
           >
             <span className={styles.icon}>
-              <CustomizeIcon />
+              <ToolboxIcon />
             </span>
             <span>{t('nav.customize')}</span>
           </button>

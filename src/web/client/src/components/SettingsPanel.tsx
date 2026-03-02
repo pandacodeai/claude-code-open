@@ -1,11 +1,9 @@
 /**
  * 设置面板组件
- * 包含通用设置、模型选择、MCP 管理、插件管理和关于信息
+ * 包含通用设置、模型选择和系统配置（MCP 和技能&插件已移至自定义页面）
  */
 
 import { useState } from 'react';
-import { McpPanel } from './McpPanel';
-import { PluginsPanel } from './PluginsPanel';
 import { PromptSnippetsPanel } from './PromptSnippetsPanel';
 import {
   ApiConfigPanel,
@@ -34,8 +32,6 @@ type SettingsTab =
   | 'hooks'
   | 'system'
   | 'import-export'
-  | 'mcp'
-  | 'plugins'
   | 'prompts'
   | 'about';
 
@@ -48,8 +44,6 @@ const TAB_KEYS: { id: SettingsTab; i18nKey: string; icon: string }[] = [
   { id: 'hooks', i18nKey: 'settings.tab.hooks', icon: '🪝' },
   { id: 'system', i18nKey: 'settings.tab.system', icon: '💾' },
 { id: 'import-export', i18nKey: 'settings.tab.importExport', icon: '📦' },
-  { id: 'mcp', i18nKey: 'settings.tab.mcp', icon: '🔌' },
-  { id: 'plugins', i18nKey: 'settings.tab.plugins', icon: '🧩' },
   { id: 'prompts', i18nKey: 'settings.tab.prompts', icon: '📝' },
   { id: 'about', i18nKey: 'settings.tab.about', icon: 'ℹ️' },
 ];
@@ -193,12 +187,6 @@ export function SettingsPanel({
 
       case 'import-export':
         return <ConfigImportExport onClose={onClose} />;
-
-      case 'mcp':
-        return <McpPanel onClose={onClose} onSendMessage={onSendMessage} addMessageHandler={addMessageHandler} />;
-
-      case 'plugins':
-        return <PluginsPanel onClose={onClose} onSendMessage={onSendMessage} addMessageHandler={addMessageHandler} />;
 
       case 'prompts':
         return <PromptSnippetsPanel onClose={onClose} onSendMessage={onSendMessage} addMessageHandler={addMessageHandler} />;

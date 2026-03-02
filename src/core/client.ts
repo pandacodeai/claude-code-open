@@ -917,6 +917,79 @@ function buildBetas(model: string, isOAuth: boolean, fastMode?: boolean): string
  *
  * Server Tool 由 Anthropic 服务器执行，比客户端实现更可靠
  */
+/**
+ * 将 MCP 服务器返回的 inputSchema 规范化为 JSON Schema draft 2020-12 兼容格式
+ * 常见问题：
+ *  - `definitions` 关键字（draft-04/07）→ 需改为 `$defs`（draft-2020-12）
+ *  - `$schema` 指向旧版本 → 移除
+ *  - `$ref` 指向 `#/definitions/...` → 改为 `#/$defs/...`
+ */
+function sanitizeInputSchema(schema: any): any {
+  if (!schema || typeof schema !== 'object') {
+    return { type: 'object', properties: {} };
+  }
+
+  const result = { ...schema };
+
+  // 移除 $schema 字段（避免旧版本声明触发校验失败）
+  delete result.$schema;
+
+  // definitions → $defs
+  if (result.definitions && !result.$defs) {
+    result.$defs = result.definitions;
+    delete result.definitions;
+  }
+
+  // 递归处理所有嵌套 schema 对象
+  for (const key of Object.keys(result)) {
+    const val = result[key];
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      result[key] = sanitizeInputSchema(val);
+    } else if (Array.isArray(val)) {
+      result[key] = val.map((item: any) =>
+        item && typeof item === 'object' ? sanitizeInputSchema(item) : item
+      );
+    }
+  }
+
+  // 修复 $ref 中指向 definitions 的路径
+  if (typeof result.$ref === 'string' && result.$ref.startsWith('#/definitions/')) {
+    result.$ref = result.$ref.replace('#/definitions/', '#/$defs/');
+  }
+
+  // 修复 DingTalk MCP 将 required 放入 properties 内部的问题
+  // 错误结构：properties: { field: {...}, required: ["field","operator"] }
+  // 正确结构：properties: { field: {...} }, required: ["field","operator"]
+  if (result.properties && typeof result.properties === 'object' && !Array.isArray(result.properties)) {
+    const reqInProps = (result.properties as any).required;
+    if (Array.isArray(reqInProps) && reqInProps.every((v: any) => typeof v === 'string')) {
+      if (!result.required) {
+        result.required = reqInProps;
+      }
+      const fixedProps = { ...(result.properties as any) };
+      delete fixedProps.required;
+      result.properties = fixedProps;
+    }
+  }
+
+  // 修复非法的 type 值（如 Java 泛型类型 "Map<String, Any>"、"List<String>" 等）
+  // JSON Schema 合法 type 值：string/number/integer/boolean/array/object/null
+  const VALID_TYPES = new Set(['string', 'number', 'integer', 'boolean', 'array', 'object', 'null']);
+  if (typeof result.type === 'string' && !VALID_TYPES.has(result.type)) {
+    const raw = result.type as string;
+    if (raw.startsWith('Map') || raw.startsWith('map') || raw.toLowerCase().includes('object')) {
+      result.type = 'object';
+    } else if (raw.startsWith('List') || raw.startsWith('list') || raw.startsWith('Array') || raw.includes('[]')) {
+      result.type = 'array';
+    } else {
+      // 兜底：未知类型替换为 object
+      result.type = 'object';
+    }
+  }
+
+  return result;
+}
+
 export function buildApiTools(
   tools?: ToolDefinition[],
   toolSearchEnabled?: boolean,
@@ -931,7 +1004,7 @@ export function buildApiTools(
       const apiTool: any = {
         name: tool.name,
         description: tool.description,
-        input_schema: tool.inputSchema,
+        input_schema: sanitizeInputSchema(tool.inputSchema),
       };
 
       // v2.1.34: deferred tool 标记 defer_loading
@@ -943,6 +1016,48 @@ export function buildApiTools(
 
       apiTools.push(apiTool);
     }
+  }
+
+  // DEBUG: 扫描所有工具 schema 的已知非法模式（定位 DingTalk schema 问题）
+  {
+    const VALID = new Set(['string','number','integer','boolean','array','object','null']);
+    function findSchemaIssues(obj: any, path: string): string[] {
+      if (!obj || typeof obj !== 'object') return [];
+      const issues: string[] = [];
+      // 检查非法 type
+      if (typeof obj.type === 'string' && !VALID.has(obj.type)) {
+        issues.push(`${path}.type="${obj.type}"`);
+      }
+      // 检查 required 被放进了 properties 内部
+      if (obj.properties && typeof obj.properties === 'object') {
+        const req = (obj.properties as any).required;
+        if (Array.isArray(req) && req.every((v: any) => typeof v === 'string')) {
+          issues.push(`${path}.properties.required=[${req.join(',')}] (misplaced)`);
+        }
+        // 检查 properties 中的 value 不是合法 schema（既不是 object 也不是 boolean）
+        for (const k of Object.keys(obj.properties as any)) {
+          const v = (obj.properties as any)[k];
+          if (v !== null && typeof v !== 'object' && typeof v !== 'boolean') {
+            issues.push(`${path}.properties.${k} is ${typeof v} (not a schema)`);
+          }
+        }
+      }
+      for (const k of Object.keys(obj)) {
+        const v = obj[k];
+        if (v && typeof v === 'object' && !Array.isArray(v)) issues.push(...findSchemaIssues(v, `${path}.${k}`));
+        else if (Array.isArray(v)) v.forEach((item: any, i: number) => {
+          if (item && typeof item === 'object') issues.push(...findSchemaIssues(item, `${path}.${k}[${i}]`));
+        });
+      }
+      return issues;
+    }
+    apiTools.forEach((t, i) => {
+      const issues = findSchemaIssues(t.input_schema, 'schema');
+      if (issues.length > 0) {
+        console.log(`[schemaDebug] tools[${i}] ${t.name}:`);
+        issues.forEach(iss => console.log(`  - ${iss}`));
+      }
+    });
   }
 
   // 始终添加 WebSearch Server Tool（对齐官方实现）

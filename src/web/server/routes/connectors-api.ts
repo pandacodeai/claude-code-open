@@ -15,16 +15,28 @@ const router = Router();
 router.get('/callback', async (req, res) => {
   const { code, state, error } = req.query;
 
+  // 返回一个 HTML 页面：通过 postMessage 通知父窗口，然后关闭弹窗
+  const sendAndClose = (payload: { type: string; connectorId?: string; error?: string }) => {
+    const json = JSON.stringify(payload);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(`<!DOCTYPE html><html><body><script>
+      if (window.opener) {
+        window.opener.postMessage(${json}, window.location.origin);
+      }
+      window.close();
+    </script><p>Authorization complete. You can close this window.</p></body></html>`);
+  };
+
   // OAuth 错误处理
   if (error) {
     console.error('[Connectors] OAuth error:', error);
-    return res.redirect('/?page=customize&error=' + encodeURIComponent(error as string));
+    return sendAndClose({ type: 'oauth-error', error: error as string });
   }
 
   // 参数验证
   if (!code || !state) {
     console.error('[Connectors] Missing code or state');
-    return res.redirect('/?page=customize&error=missing_params');
+    return sendAndClose({ type: 'oauth-error', error: 'missing_params' });
   }
 
   try {
@@ -42,7 +54,7 @@ router.get('/callback', async (req, res) => {
 
     console.log('[Connectors] OAuth callback successful:', connectorId);
 
-    // OAuth 成功后，尝试自动激活 MCP（异步，不阻塞重定向）
+    // OAuth 成功后，尝试自动激活 MCP（异步，不阻塞）
     const manager = req.app.locals.conversationManager;
     if (manager) {
       manager.activateConnectorMcp(connectorId).catch((err: any) => {
@@ -50,11 +62,11 @@ router.get('/callback', async (req, res) => {
       });
     }
 
-    // 重定向回前端 Customize 页面，并传递 connected 参数
-    res.redirect(`/?page=customize&connected=${connectorId}`);
+    // 通知父窗口并关闭弹窗
+    sendAndClose({ type: 'oauth-success', connectorId });
   } catch (err: any) {
     console.error('[Connectors] OAuth callback failed:', err);
-    res.redirect('/?page=customize&error=' + encodeURIComponent(err.message));
+    sendAndClose({ type: 'oauth-error', error: err.message });
   }
 });
 
@@ -123,6 +135,65 @@ router.post('/:id/connect', async (req, res) => {
     res.json(result);
   } catch (err: any) {
     console.error('[Connectors] Failed to start OAuth:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// ========================================
+// POST /api/connectors/:id/mcp-oauth-connect - MCP 远程 OAuth 连接
+// 通过 mcp-remote 代理，OAuth 由 mcp-remote 在 MCP 启动时自动弹窗处理
+// ========================================
+router.post('/:id/mcp-oauth-connect', async (req, res) => {
+  try {
+    const connectorId = connectorManager.mcpOAuthConnect(req.params.id);
+
+    // 启动 MCP（mcp-remote 首次连接时会自动弹浏览器做 OAuth）
+    const manager = req.app.locals.conversationManager;
+    if (manager) {
+      manager.activateConnectorMcp(connectorId).catch((err: any) => {
+        console.warn(`[Connectors] Failed to auto-activate MCP for ${connectorId}:`, err);
+      });
+    }
+
+    res.json({ success: true, connectorId });
+  } catch (err: any) {
+    console.error('[Connectors] Failed to mcp-oauth-connect:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// ========================================
+// POST /api/connectors/:id/direct-connect - 凭据直连（不走 OAuth）
+// ========================================
+router.post('/:id/direct-connect', async (req, res) => {
+  let credentials = req.body || {};
+
+  // 如果前端没传凭据或凭据不完整，尝试从环境变量/settings 读取合并
+  const existingConfig = connectorManager.getClientConfig(req.params.id);
+  if (existingConfig) {
+    credentials = { ...existingConfig, ...credentials };
+  }
+
+  // 至少需要有一个有值的字段
+  const hasAnyValue = Object.values(credentials).some((v: any) => v && typeof v === 'string' && v.trim());
+  if (!hasAnyValue) {
+    return res.status(400).json({ error: 'At least one credential field is required' });
+  }
+
+  try {
+    const connectorId = connectorManager.directConnect(req.params.id, credentials);
+
+    // 自动激活 MCP
+    const manager = req.app.locals.conversationManager;
+    if (manager) {
+      manager.activateConnectorMcp(connectorId).catch((err: any) => {
+        console.warn(`[Connectors] Failed to auto-activate MCP for ${connectorId}:`, err);
+      });
+    }
+
+    res.json({ success: true, connectorId });
+  } catch (err: any) {
+    console.error('[Connectors] Failed to direct connect:', err);
     res.status(400).json({ error: err.message });
   }
 });

@@ -147,6 +147,9 @@
     "update-test",
     "api-server",
     "web-api",
-    "claude-in-chrome"
+    "claude-in-chrome",
+    "connector-github",
+    "connector-google",
+    "connector-notion"
   ]
 }

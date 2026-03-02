@@ -968,13 +968,14 @@ const en: Translations = {
   // TopNavBar
   'nav.conversationView': 'Conversation View',
   'nav.codeView': 'Code View',
-  'nav.schedule': 'Schedule',
-  'nav.customize': 'Customize',
+  'nav.customize': 'Toolbox',
 
   // CustomizePage
-  'customize.title': 'Customize',
+  'customize.title': 'Toolbox',
   'customize.skills': 'Skills',
+  'customize.mcp': 'MCP Servers',
   'customize.connectors': 'Connectors',
+  'customize.schedule': 'Scheduled Tasks',
   'customize.notConnected': 'Not connected',
   'customize.connected': 'Connected',
   'customize.connect': 'Connect',
@@ -2118,13 +2119,14 @@ const zh: Translations = {
   // TopNavBar
   'nav.conversationView': '对话视图',
   'nav.codeView': '代码视图',
-  'nav.schedule': '定时任务',
-  'nav.customize': '自定义',
+  'nav.customize': '工具箱',
 
   // CustomizePage
-  'customize.title': '自定义',
+  'customize.title': '工具箱',
   'customize.skills': '技能',
+  'customize.mcp': 'MCP 服务器',
   'customize.connectors': '连接器',
+  'customize.schedule': '定时任务',
   'customize.notConnected': '未连接',
   'customize.connected': '已连接',
   'customize.connect': '连接',

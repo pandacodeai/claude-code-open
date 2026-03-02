@@ -16,6 +16,8 @@ interface ConnectorStatus {
   mcpServerName?: string;
   mcpConnected?: boolean;
   mcpToolCount?: number;
+  authType?: 'oauth' | 'credentials' | 'mcp-oauth';
+  credentialFields?: { key: string; label: string; type: 'text' | 'password' }[];
 }
 
 // ========================================
@@ -76,6 +78,72 @@ function getConnectorIcon(icon: string, size: number = 24): JSX.Element {
     );
   }
 
+  // 飞书 - 蓝色飞鸟 logo
+  if (iconName === 'feishu') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <rect width="24" height="24" rx="5" fill="#3370FF"/>
+        <path d="M6.5 8.5C8.5 7 11 6.5 13.5 7.5C14.5 8 15.5 9 16 10L17.5 7C15 4.5 11 4 8 5.5L6.5 8.5Z" fill="white"/>
+        <path d="M16 10C16.5 11.5 16 13.5 14.5 15C13 16.5 11 17 9 16.5L7 19C10 20.5 14 19.5 16.5 17C18.5 15 19 12 17.5 9.5L16 10Z" fill="white" opacity="0.8"/>
+        <circle cx="10" cy="12" r="1.5" fill="white"/>
+      </svg>
+    );
+  }
+
+  // 钉钉 - 蓝白色 logo
+  if (iconName === 'dingtalk') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <rect width="24" height="24" rx="5" fill="#3089DC"/>
+        <path d="M17.5 10.5c-.3-.8-1.5-1.2-3-1.5-.8-.2-2.5-.5-2.8-.6-.3-.1-.2-.3.1-.4.6-.2 2.8-.1 3.5 0 0 0-.5-1.2-2.8-1.8-1.5-.4-2.8-.2-3.2 0-.4.2-1 .7-.8 2 .2 1.2 1.2 3 2 4.2.5.8.8 1.5.6 2-.1.3-.3.5-.7.5H8.2s.5 1.5 2.8 1.5c1.5 0 2.2-.5 2.5-.8.8-.8 2.5-2.2 3-3.5.3-.7.3-1.2 0-1.6z" fill="white"/>
+      </svg>
+    );
+  }
+
+  // Notion - 黑白 N logo
+  if (iconName === 'notion') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <rect width="24" height="24" rx="4" fill="currentColor" opacity="0.1"/>
+        <path d="M5.5 4.5h8.5l4.5 4v11a1 1 0 01-1 1H5.5a1 1 0 01-1-1V5.5a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.2"/>
+        <path d="M8 8.5h5M8 11.5h8M8 14.5h6" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+      </svg>
+    );
+  }
+
+  // Slack - 彩色 # logo
+  if (iconName === 'slack') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <path d="M6 15a2 2 0 11-2-2h2v2zm1 0a2 2 0 112 2v-2H7z" fill="#E01E5A"/>
+        <path d="M9 6a2 2 0 112 2H9V6zm0 1a2 2 0 11-2 2V7h2z" fill="#36C5F0"/>
+        <path d="M18 9a2 2 0 11-2 2V9h2zm-1 0a2 2 0 11-2-2h2v2z" fill="#2EB67D"/>
+        <path d="M15 18a2 2 0 11-2-2h2v2zm0-1a2 2 0 112 2v-2h-2z" fill="#ECB22E"/>
+      </svg>
+    );
+  }
+
+  // Linear - 紫色圆环
+  if (iconName === 'linear') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" stroke="#5E6AD2" strokeWidth="2"/>
+        <path d="M8 12l3 3 5-6" stroke="#5E6AD2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    );
+  }
+
+  // Jira - 蓝色三角
+  if (iconName === 'jira') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <path d="M12.005 2L5.47 8.535a2 2 0 000 2.83L12 17.9l6.535-6.534a2 2 0 000-2.83L12.005 2z" fill="#2684FF"/>
+        <path d="M12.005 2c-.003 3.39-1.358 6.64-3.768 9.035L12 14.8l3.763-3.765A12.78 12.78 0 0012.005 2z" fill="url(#jira-grad)"/>
+        <defs><linearGradient id="jira-grad" x1="12" y1="2" x2="8.2" y2="11"><stop stopColor="#2684FF"/><stop offset="1" stopColor="#0052CC"/></linearGradient></defs>
+      </svg>
+    );
+  }
+
   // Default: puzzle piece icon
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -120,6 +188,7 @@ export default function ConnectorsPanel() {
   const [showConfig, setShowConfig] = useState(false);
   const [configClientId, setConfigClientId] = useState('');
   const [configClientSecret, setConfigClientSecret] = useState('');
+  const [configFields, setConfigFields] = useState<Record<string, string>>({});
   const [configSaving, setConfigSaving] = useState(false);
 
   // OAuth 连接状态
@@ -129,58 +198,55 @@ export default function ConnectorsPanel() {
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   // 通过 HTTP API 获取连接器列表
-  const fetchConnectors = useCallback(async () => {
+  const fetchConnectors = useCallback(async (): Promise<ConnectorStatus[]> => {
     try {
       const res = await fetch('/api/connectors');
       if (res.ok) {
         const data = await res.json();
-        setConnectors(data.connectors || []);
+        const list = data.connectors || [];
+        setConnectors(list);
+        return list;
       }
     } catch (err) {
       console.error('Failed to fetch connectors:', err);
     } finally {
       setLoading(false);
     }
+    return [];
   }, []);
 
   useEffect(() => {
     fetchConnectors();
   }, [fetchConnectors]);
 
-  // 检测 URL 参数 connected（OAuth 回调后）
+  // 监听 OAuth 弹窗的 postMessage 回调
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const connectedId = params.get('connected');
-    if (connectedId) {
-      const newUrl = window.location.pathname + '?page=customize';
-      window.history.replaceState({}, '', newUrl);
-      fetchConnectors().then(async () => {
-        const connector = connectors.find((c) => c.id === connectedId);
-        if (connector) {
-          setSelectedConnector(connector);
-          // 自动激活 MCP
-          if (connector.mcpServerName && !connector.mcpConnected) {
-            try {
-              await fetch(`/api/connectors/${connectedId}/activate-mcp`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-              });
-              // 再次刷新列表以显示最新状态
-              await fetchConnectors();
-            } catch (err) {
-              console.error('Failed to auto-activate MCP:', err);
-            }
-          }
+    const handleMessage = async (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const { type, connectorId, error } = event.data || {};
+
+      if (type === 'oauth-success' && connectorId) {
+        // 刷新列表，选中已连接的 connector
+        const list = await fetchConnectors();
+        const updated = list.find((c: ConnectorStatus) => c.id === connectorId);
+        if (updated) {
+          setSelectedConnector(updated);
         }
-      });
-    }
-  }, []);
+      } else if (type === 'oauth-error' && error) {
+        alert(`OAuth failed: ${error}`);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [fetchConnectors]);
 
   // 当选中连接器变化时，重置配置面板状态
   useEffect(() => {
     setShowConfig(false);
     setConfigClientId('');
     setConfigClientSecret('');
+    setConfigFields({});
   }, [selectedConnector?.id]);
 
   // 保存配置
@@ -218,8 +284,63 @@ export default function ConnectorsPanel() {
     }
   };
 
+  // MCP 远程 OAuth 连接（Notion/Slack/Linear/Jira）
+  const handleMcpOAuthConnect = async (connector: ConnectorStatus) => {
+    setConnecting(true);
+    try {
+      const res = await fetch(`/api/connectors/${connector.id}/mcp-oauth-connect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (res.ok) {
+        // MCP 启动后 mcp-remote 会自动弹浏览器做 OAuth
+        // 轮询等待 MCP 连接就绪
+        const pollMcpReady = async () => {
+          for (let i = 0; i < 30; i++) { // 最多等 60 秒
+            await new Promise(r => setTimeout(r, 2000));
+            const list = await fetchConnectors();
+            const updated = list.find((c: ConnectorStatus) => c.id === connector.id);
+            if (updated && updated.mcpConnected && updated.mcpToolCount && updated.mcpToolCount > 0) {
+              setSelectedConnector(updated);
+              return;
+            }
+          }
+        };
+        pollMcpReady();
+      } else {
+        const error = await res.json();
+        alert(`Failed to connect: ${error.error}`);
+      }
+    } catch (err) {
+      console.error('Failed to mcp-oauth connect:', err);
+      alert('Failed to connect');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   // 连接操作
   const handleConnect = async (connector: ConnectorStatus) => {
+    // MCP 远程 OAuth 模式（Notion/Slack/Linear/Jira）
+    if (connector.authType === 'mcp-oauth') {
+      handleMcpOAuthConnect(connector);
+      return;
+    }
+
+    // 凭据直连模式
+    if (connector.authType === 'credentials') {
+      if (connector.configured) {
+        // 已有环境变量配置，直接连
+        handleDirectConnect(connector);
+      } else {
+        // 显示表单让用户填
+        setShowConfig(true);
+      }
+      return;
+    }
+
+    // OAuth 模式
     if (!connector.configured) {
       // 未配置时跳到配置表单
       setShowConfig(true);
@@ -245,6 +366,58 @@ export default function ConnectorsPanel() {
       alert('Failed to start OAuth flow');
     } finally {
       setConnecting(false);
+    }
+  };
+
+  // 凭据直连
+  const handleDirectConnect = async (connector: ConnectorStatus) => {
+    // 构建凭据
+    const bodyData: Record<string, string> = {};
+    if (connector.credentialFields && connector.credentialFields.length > 2) {
+      // 多字段模式（如 Jira 有 3 个字段）
+      Object.entries(configFields).forEach(([k, v]) => { if (v) bodyData[k] = v; });
+    } else {
+      // 兼容旧的双字段模式
+      if (configClientId) bodyData.clientId = configClientId;
+      if (configClientSecret) bodyData.clientSecret = configClientSecret;
+    }
+
+    // 如果环境变量已配置，后端可以补齐缺失字段
+    const hasEnvConfig = connector.configured;
+    const hasFormData = Object.values(bodyData).some(v => v);
+    if (!hasEnvConfig && !hasFormData) {
+      alert('Please fill in required fields');
+      return;
+    }
+
+    setConnecting(true);
+    try {
+      const res = await fetch(`/api/connectors/${connector.id}/direct-connect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyData),
+      });
+
+      if (res.ok) {
+        setConfigClientId('');
+        setConfigClientSecret('');
+        setConfigFields({});
+        setShowConfig(false);
+        const list = await fetchConnectors();
+        const updated = list.find((c: ConnectorStatus) => c.id === connector.id);
+        if (updated) {
+          setSelectedConnector(updated);
+        }
+      } else {
+        const error = await res.json();
+        alert(`Failed to connect: ${error.error}`);
+      }
+    } catch (err) {
+      console.error('Failed to direct connect:', err);
+      alert('Failed to connect');
+    } finally {
+      setConnecting(false);
+      setConfigSaving(false);
     }
   };
 
@@ -325,6 +498,8 @@ export default function ConnectorsPanel() {
   const getCategoryTitle = (category: string): string => {
     if (category === 'web') return t('customize.web');
     if (category === 'google') return t('customize.google');
+    if (category === 'feishu') return '飞书 / Feishu';
+    if (category === 'dingtalk') return '钉钉 / DingTalk';
     return category;
   };
 
@@ -453,52 +628,112 @@ export default function ConnectorsPanel() {
                   >
                     {connecting ? t('customize.connecting') : t('customize.connect')}
                   </button>
-                  <button
-                    className={styles.viewDetailsButton}
-                    onClick={() => setShowConfig(true)}
-                  >
-                    {t('customize.viewDetails')}
-                  </button>
+                  {/* mcp-oauth 模式不需要配置，隐藏 View details */}
+                  {currentSelected.authType !== 'mcp-oauth' && (
+                    <button
+                      className={styles.viewDetailsButton}
+                      onClick={() => setShowConfig(true)}
+                    >
+                      {t('customize.viewDetails')}
+                    </button>
+                  )}
                 </div>
                 {connecting && (
-                  <p className={styles.oauthHint}>{t('customize.oauthPopupHint')}</p>
+                  <p className={styles.oauthHint}>
+                    {currentSelected.authType === 'mcp-oauth'
+                      ? (t('nav.chat') === '聊天'
+                        ? '正在启动 MCP 服务，浏览器将自动打开授权页面...'
+                        : 'Starting MCP server, browser will open for authorization...')
+                      : t('customize.oauthPopupHint')}
+                  </p>
                 )}
               </>
             )}
 
-            {/* 配置表单（View details 展开） */}
+            {/* 配置表单（View details 展开 / 凭据直连） */}
             {currentSelected.status !== 'connected' && showConfig && (
               <div className={styles.configForm}>
                 <p className={styles.configHint}>
-                  {t('customize.configHint', { name: currentSelected.name })}
+                  {currentSelected.authType === 'credentials'
+                    ? `${currentSelected.description}`
+                    : t('customize.configHint', { name: currentSelected.name })}
                 </p>
-                <div className={styles.configField}>
-                  <label className={styles.configLabel}>{t('customize.clientId')}</label>
-                  <input
-                    type="text"
-                    className={styles.configInput}
-                    value={configClientId}
-                    onChange={(e) => setConfigClientId(e.target.value)}
-                    placeholder="Enter Client ID"
-                  />
-                </div>
-                <div className={styles.configField}>
-                  <label className={styles.configLabel}>{t('customize.clientSecret')}</label>
-                  <input
-                    type="password"
-                    className={styles.configInput}
-                    value={configClientSecret}
-                    onChange={(e) => setConfigClientSecret(e.target.value)}
-                    placeholder="Enter Client Secret"
-                  />
-                </div>
+                {currentSelected.credentialFields ? (
+                  // 凭据直连：用 provider 定义的字段
+                  <>
+                    {currentSelected.credentialFields.map((field) => {
+                      // 多字段（>2）用 configFields map，双字段用旧 state 保持兼容
+                      const isMultiField = currentSelected.credentialFields!.length > 2;
+                      const value = isMultiField
+                        ? (configFields[field.key] || '')
+                        : (field.key === 'clientId' ? configClientId : configClientSecret);
+                      const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                        if (isMultiField) {
+                          setConfigFields(prev => ({ ...prev, [field.key]: e.target.value }));
+                        } else {
+                          field.key === 'clientId'
+                            ? setConfigClientId(e.target.value)
+                            : setConfigClientSecret(e.target.value);
+                        }
+                      };
+                      return (
+                        <div key={field.key} className={styles.configField}>
+                          <label className={styles.configLabel}>{field.label}</label>
+                          <input
+                            type={field.type}
+                            className={styles.configInput}
+                            value={value}
+                            onChange={onChange}
+                            placeholder={`Enter ${field.label}`}
+                          />
+                        </div>
+                      );
+                    })}
+                  </>
+                ) : (
+                  // OAuth：标准 Client ID / Secret 表单
+                  <>
+                    <div className={styles.configField}>
+                      <label className={styles.configLabel}>{t('customize.clientId')}</label>
+                      <input
+                        type="text"
+                        className={styles.configInput}
+                        value={configClientId}
+                        onChange={(e) => setConfigClientId(e.target.value)}
+                        placeholder="Enter Client ID"
+                      />
+                    </div>
+                    <div className={styles.configField}>
+                      <label className={styles.configLabel}>{t('customize.clientSecret')}</label>
+                      <input
+                        type="password"
+                        className={styles.configInput}
+                        value={configClientSecret}
+                        onChange={(e) => setConfigClientSecret(e.target.value)}
+                        placeholder="Enter Client Secret"
+                      />
+                    </div>
+                  </>
+                )}
                 <div className={styles.configActions}>
                   <button
                     className={styles.connectButton}
-                    onClick={() => handleSaveConfig(currentSelected)}
-                    disabled={configSaving || !configClientId || !configClientSecret}
+                    onClick={() =>
+                      currentSelected.authType === 'credentials'
+                        ? handleDirectConnect(currentSelected)
+                        : handleSaveConfig(currentSelected)
+                    }
+                    disabled={configSaving || (
+                      currentSelected.credentialFields && currentSelected.credentialFields.length > 2
+                        ? !Object.values(configFields).some(v => v)
+                        : (!configClientId || !configClientSecret)
+                    )}
                   >
-                    {configSaving ? t('customize.configSaved') : t('customize.saveConfig')}
+                    {configSaving
+                      ? (t('nav.chat') === '聊天' ? '连接中...' : 'Connecting...')
+                      : currentSelected.authType === 'credentials'
+                        ? (t('nav.chat') === '聊天' ? '连接' : 'Connect')
+                        : t('customize.saveConfig')}
                   </button>
                   <button
                     className={styles.viewDetailsButton}
@@ -518,10 +753,10 @@ export default function ConnectorsPanel() {
                 </p>
                 {currentSelected.userInfo && (
                   <div className={styles.userInfo}>
-                    {currentSelected.userInfo.login && (
+                    {(currentSelected.userInfo.login || currentSelected.userInfo.name) && (
                       <p className={styles.infoRow}>
                         <span className={styles.infoLabel}>User:</span>
-                        <span>{currentSelected.userInfo.login}</span>
+                        <span>{currentSelected.userInfo.login || currentSelected.userInfo.name}</span>
                       </p>
                     )}
                     {currentSelected.userInfo.email && (

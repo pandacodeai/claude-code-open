@@ -6,6 +6,7 @@
 
 import express from 'express';
 import { createServer } from 'http';
+import { createServer as createHttpsServer } from 'https';
 import { WebSocketServer } from 'ws';
 import path from 'path';
 import fs from 'fs';
@@ -78,7 +79,15 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<We
 
   // 创建 Express 应用
   const app = express();
-  const server = createServer(app);
+
+  // 自动检测 SSL 证书，有则用 HTTPS（Slack OAuth 等要求 https redirect_uri）
+  const certDir = path.join(process.cwd(), '.axon-certs');
+  const certPath = path.join(certDir, 'cert.pem');
+  const keyPath = path.join(certDir, 'key.pem');
+  const useHttps = fs.existsSync(certPath) && fs.existsSync(keyPath);
+  const server = useHttps
+    ? createHttpsServer({ cert: fs.readFileSync(certPath), key: fs.readFileSync(keyPath) }, app)
+    : createServer(app);
 
   // 创建 WebSocket 服务器（使用 noServer 模式，手动处理 upgrade 事件）
   // 这样可以避免与 Vite HMR WebSocket 冲突
@@ -314,10 +323,12 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<We
   await new Promise<void>((resolve) => {
     server.listen(port, host, async () => {
       const displayHost = host === '0.0.0.0' ? 'localhost' : host;
-      const url = `http://${displayHost}:${port}`;
-      console.log(`\n🌐 Axon WebUI 已启动`);
+      const proto = useHttps ? 'https' : 'http';
+      const wsProto = useHttps ? 'wss' : 'ws';
+      const url = `${proto}://${displayHost}:${port}`;
+      console.log(`\n🌐 Axon WebUI 已启动${useHttps ? ' (HTTPS)' : ''}`);
       console.log(`   地址: ${url}`);
-      console.log(`   WebSocket: ws://${displayHost}:${port}/ws`);
+      console.log(`   WebSocket: ${wsProto}://${displayHost}:${port}/ws`);
       console.log(`   工作目录: ${cwd}`);
       console.log(`   模型: ${model}`);
 
@@ -326,12 +337,12 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<We
         const addrs = getNetworkAddresses();
         if (addrs.tailscale.length > 0) {
           for (const ip of addrs.tailscale) {
-            console.log(`   📱 Tailscale: http://${ip}:${port}`);
+            console.log(`   📱 Tailscale: ${proto}://${ip}:${port}`);
           }
         }
         if (addrs.lan.length > 0) {
           for (const ip of addrs.lan) {
-            console.log(`   📱 局域网:   http://${ip}:${port}`);
+            console.log(`   📱 局域网:   ${proto}://${ip}:${port}`);
           }
         }
         if (addrs.tailscale.length === 0 && addrs.lan.length === 0) {

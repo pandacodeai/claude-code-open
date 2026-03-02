@@ -79,7 +79,8 @@ const mcpServers: Map<string, McpServerState> = new Map();
 let messageId = 1;
 
 // 配置常量
-const MCP_TIMEOUT = parseInt(process.env.MCP_TIMEOUT || '10000', 10); // 默认 10 秒超时（减少等待时间）
+const MCP_TIMEOUT = parseInt(process.env.MCP_TIMEOUT || '30000', 10); // 默认 30 秒超时（npx 首次下载需要更长时间）
+const MCP_REMOTE_TIMEOUT = 300000; // mcp-remote OAuth 场景：5 分钟超时（用户需要手动在浏览器授权）
 const RESOURCE_CACHE_TTL = 60000; // 资源缓存 1 分钟
 const HEALTH_CHECK_INTERVAL = 30000; // 健康检查间隔 30 秒
 const MAX_RECONNECT_ATTEMPTS = 3; // 最大重连次数
@@ -368,7 +369,9 @@ export async function connectMcpServer(name: string, retry = true): Promise<bool
   }
 
   // 创建新的连接 Promise 并缓存（带超时保护，防止永不 settle）
-  const CONNECTION_TIMEOUT = 30000; // 30 秒
+  // mcp-remote 需要用户在浏览器做 OAuth，超时设为 5 分钟
+  const isMcpRemote = (server.config.args || []).some((arg: string) => arg === 'mcp-remote');
+  const CONNECTION_TIMEOUT = isMcpRemote ? MCP_REMOTE_TIMEOUT + 30000 : 120000;
   let timeoutId: ReturnType<typeof setTimeout>;
   server.connectionPromise = Promise.race([
     doConnect(name, server, retry),
@@ -479,6 +482,9 @@ async function doConnect(name: string, server: McpServerState, retry: boolean): 
         }
 
         // 发送初始化消息
+        // mcp-remote 需要用户在浏览器完成 OAuth 授权，可能需要几分钟
+        const isMcpRemote = (config.args || []).some(arg => arg === 'mcp-remote');
+        const initTimeout = isMcpRemote ? MCP_REMOTE_TIMEOUT : MCP_TIMEOUT;
         const initResult = await sendMcpMessage(name, 'initialize', {
           protocolVersion: '2024-11-05',
           capabilities: {},
@@ -486,7 +492,7 @@ async function doConnect(name: string, server: McpServerState, retry: boolean): 
             name: 'claude-code-restored',
             version: '2.1.4',
           },
-        });
+        }, initTimeout);
 
         if (initResult) {
           server.connected = true;
@@ -635,11 +641,19 @@ async function sendMcpMessage(
           return;
         }
 
+        // 缓冲区：TCP 可能将一条大 JSON 分成多个 chunk 传输
+        let buffer = '';
         const onData = (data: Buffer) => {
-          try {
-            const lines = data.toString().split('\n').filter(Boolean);
-            for (const line of lines) {
-              const response: McpMessage = JSON.parse(line);
+          buffer += data.toString();
+          // 按换行符分割，最后一段可能不完整
+          const parts = buffer.split('\n');
+          buffer = parts.pop() || ''; // 保留最后不完整的部分
+
+          for (const line of parts) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            try {
+              const response: McpMessage = JSON.parse(trimmed);
               if (response.id === id) {
                 clearTimeout(timeoutHandle);
                 server.process?.stdout?.removeListener('data', onData);
@@ -651,9 +665,9 @@ async function sendMcpMessage(
                 }
                 return;
               }
+            } catch (err) {
+              // 不是有效 JSON，忽略（可能是 stderr 混入或其他非 JSON 输出）
             }
-          } catch (err) {
-            // Ignore parse errors for partial messages
           }
         };
 

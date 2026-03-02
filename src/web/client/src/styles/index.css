@@ -1236,6 +1236,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 4px 4px 2px;
+  overflow: hidden;
 }
 
 .input-toolbar-left {
@@ -1442,6 +1443,8 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: 0.2s;
 }
 

@@ -47,6 +47,7 @@ interface AppProps {
   onSessionIdChange?: (id: string | null) => void;
   onConnectedChange?: (connected: boolean) => void;
   registerSessionActions?: (actions: SessionActions) => void;
+  registerMessaging?: (messaging: { send: (msg: any) => void; addMessageHandler: (handler: (msg: any) => void) => () => void }) => void;
 }
 
 function AppContent({
@@ -57,6 +58,7 @@ function AppContent({
   showGitPanel: showGitPanelProp, onToggleGitPanel,
   onSessionsChange, onSessionIdChange, onConnectedChange,
   registerSessionActions,
+  registerMessaging,
 }: AppProps) {
   const { t } = useLanguage();
   const { state: projectState, openFolder } = useProject();
@@ -87,6 +89,11 @@ function AppContent({
   const [pendingCodeRef, setPendingCodeRef] = useState<{ filePath: string; line: number } | null>(null);
 
   const { connected, sessionId, model, setModel, send, addMessageHandler } = useWebSocket(getWebSocketUrl());
+
+  // 暴露 send/addMessageHandler 给 Root（供 CustomizePage 等兄弟组件使用）
+  useEffect(() => {
+    registerMessaging?.({ send, addMessageHandler });
+  }, [send, addMessageHandler, registerMessaging]);
 
   // 消息处理
   const {

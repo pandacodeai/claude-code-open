@@ -661,6 +661,8 @@
 /* ===== 可展开内容样式 (Click to expand) ===== */
 .cli-expandable-content {
   position: relative;
+  flex: 1;
+  min-width: 0;
 }
 
 .cli-expandable-body {

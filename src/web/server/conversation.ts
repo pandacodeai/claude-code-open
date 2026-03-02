@@ -49,6 +49,8 @@ import { MarketplaceManager } from '../../plugins/marketplace.js';
 import { TaskStore, type ScheduledTask } from '../../daemon/store.js';
 import { isDaemonRunning } from '../../daemon/index.js';
 import { parseTimeExpression } from '../../daemon/time-parser.js';
+import { connectorManager } from './connectors/index.js';
+import { BUILTIN_PROVIDERS } from './connectors/providers.js';
 import { appendRunLog } from '../../daemon/run-log.js';
 import { promptSnippetsManager } from './prompt-snippets.js';
 import { isEvolveRestartRequested, triggerGracefulShutdown } from './evolve-state.js';
@@ -681,7 +683,6 @@ export class ConversationManager {
     // 自动激活已连接的 Connector MCP Servers
     // 避免重复注册：检查 serverName 是否已在上面的 mcpServerConfigs 中
     try {
-      const { connectorManager } = await import('./connectors/index.js');
       const connectors = connectorManager.listConnectors();
       
       for (const connector of connectors) {
@@ -752,11 +753,15 @@ export class ConversationManager {
    * 用于 OAuth 连接成功后自动启动对应的 MCP Server
    */
   async activateConnectorMcp(connectorId: string): Promise<{ success: boolean; tools: string[] }> {
-    const { connectorManager } = await import('./connectors/index.js');
-
     try {
       // 刷新 token（如果需要）
       await connectorManager.refreshTokenIfNeeded(connectorId).catch(() => {});
+
+      // Google 系列：预写 token 文件
+      const provider = BUILTIN_PROVIDERS.find((p: any) => p.id === connectorId);
+      if (provider?.category === 'google') {
+        connectorManager.writeGoogleMcpTokenFile(connectorId);
+      }
 
       // 获取 MCP server 配置
       const mcpConfig = connectorManager.getMcpServerConfig(connectorId);
@@ -766,8 +771,14 @@ export class ConversationManager {
 
       const { name, config } = mcpConfig;
 
-      // 如果已经有该 server 的工具，先清理
-      this.mcpTools = this.mcpTools.filter((tool) => !tool.name.startsWith(`mcp__${name}__`));
+      // 共享 MCP：如果已有该 server 的工具，直接返回（不重复启动）
+      const existingTools = this.mcpTools
+        .filter((tool) => tool.name.startsWith(`mcp__${name}__`))
+        .map((tool) => tool.name);
+      if (existingTools.length > 0) {
+        console.log(`[ConversationManager] Shared MCP already active: ${name} (${existingTools.length} tools)`);
+        return { success: true, tools: existingTools };
+      }
 
       // 注册并连接 MCP server
       registerMcpServer(name, config);
@@ -802,13 +813,25 @@ export class ConversationManager {
    * 用于断开连接时清理对应的 MCP Server
    */
   async deactivateConnectorMcp(connectorId: string): Promise<void> {
-    const { connectorManager } = await import('./connectors/index.js');
-
     try {
       const mcpConfig = connectorManager.getMcpServerConfig(connectorId);
       if (!mcpConfig) return;
 
       const { name } = mcpConfig;
+      const provider = BUILTIN_PROVIDERS.find((p: any) => p.id === connectorId);
+
+      // 共享 MCP（Google 系列）：只有当所有同组 connector 都断开后才停 MCP
+      if (provider?.mcpServer?.shared) {
+        const hasOtherConnected = BUILTIN_PROVIDERS.some((p: any) => {
+          if (p.id === connectorId || p.mcpServer?.serverName !== name) return false;
+          const status = connectorManager.getConnector(p.id);
+          return status?.status === 'connected';
+        });
+        if (hasOtherConnected) {
+          console.log(`[ConversationManager] Shared MCP ${name} still needed by other connectors, skipping deactivate`);
+          return;
+        }
+      }
 
       // 从 mcpTools 中移除该 server 的工具
       this.mcpTools = this.mcpTools.filter((tool) => !tool.name.startsWith(`mcp__${name}__`));
@@ -831,8 +854,6 @@ export class ConversationManager {
    * 用于前端显示工具数量等信息
    */
   getMcpToolsForConnector(connectorId: string): string[] {
-    const { connectorManager } = require('./connectors/index.js');
-
     try {
       const mcpConfig = connectorManager.getMcpServerConfig(connectorId);
       if (!mcpConfig) return [];
@@ -2141,12 +2162,14 @@ export class ConversationManager {
           continue;
         }
 
-        // 检查是否为消息一致性错误（重复 tool_result 等），尝试自愈
-        // API 400: "each tool_use must have a single result. Found multiple tool_result blocks with id: ..."
+        // 检查是否为消息一致性错误，尝试自愈：
+        // 1. "重复 tool_result": "each tool_use must have a single result. Found multiple tool_result blocks..."
+        // 2. "缺少 tool_result": "tool_use ids were found without tool_result blocks immediately after..."
         if (
           !messageConsistencyHealed &&
           (errMsg.includes('tool_use must have a single result') ||
            errMsg.includes('multiple `tool_result` blocks') ||
+           errMsg.includes('without `tool_result` blocks') ||
            (errMsg.includes('invalid_request_error') && errMsg.includes('tool_result')))
         ) {
           console.warn(`[ConversationManager] 检测到消息一致性错误，尝试自愈: ${errMsg.substring(0, 100)}`);

@@ -522,6 +522,123 @@ function findToolNameForResult(messages: Message[], toolUseId: string): string {
 const ORPHANED_TOOL_ERROR_MESSAGE = 'Tool execution was interrupted during streaming. The tool call did not complete successfully.';
 
 /**
+ * 修复连续两条 assistant 消息导致的 tool_result 位置错误
+ *
+ * 当 messages[i] 是含 tool_use 的 assistant 消息，messages[i+1] 也是 assistant 消息时，
+ * API 要求的 tool_result（必须紧接在 tool_use 之后）就无法满足。
+ * 此函数将错位的 tool_result 移动到正确位置（插入在两条 assistant 消息之间），
+ * 并从原来的位置删除它们。
+ */
+function fixConsecutiveAssistantMessages(messages: Message[]): Message[] {
+  // 收集需要移动的 tool_result 信息：Map<消息索引, 需要从该消息移走的 tool_use_id 集合>
+  const idsToRemoveFromMsg = new Map<number, Set<string>>();
+  // 收集需要插入的 tool_result 块：Map<assistant消息索引, 要插入在其后的 tool_result blocks>
+  const insertAfterIdx = new Map<number, any[]>();
+
+  for (let i = 0; i < messages.length - 1; i++) {
+    const curr = messages[i];
+    const next = messages[i + 1];
+
+    if (
+      curr.role !== 'assistant' ||
+      !Array.isArray(curr.content) ||
+      !curr.content.some((b: any) => b.type === 'tool_use') ||
+      next.role !== 'assistant'
+    ) {
+      continue;
+    }
+
+    // 找出当前 assistant 消息中所有 tool_use 的 ID
+    const toolUseIds = curr.content
+      .filter((b: any) => b.type === 'tool_use' && b.id)
+      .map((b: any) => b.id as string);
+
+    // 在 i+2 及之后的消息中寻找这些 ID 的 tool_result
+    const collectedResults: any[] = [];
+    const foundIds = new Set<string>();
+
+    for (let j = i + 2; j < messages.length; j++) {
+      const msg = messages[j];
+      if (msg.role !== 'user' || !Array.isArray(msg.content)) continue;
+
+      for (const block of msg.content) {
+        if (
+          typeof block === 'object' &&
+          'type' in block &&
+          block.type === 'tool_result' &&
+          'tool_use_id' in block &&
+          toolUseIds.includes(block.tool_use_id as string) &&
+          !foundIds.has(block.tool_use_id as string)
+        ) {
+          collectedResults.push({ ...block });
+          foundIds.add(block.tool_use_id as string);
+          if (!idsToRemoveFromMsg.has(j)) idsToRemoveFromMsg.set(j, new Set());
+          idsToRemoveFromMsg.get(j)!.add(block.tool_use_id as string);
+        }
+      }
+      if (foundIds.size === toolUseIds.length) break;
+    }
+
+    // 对找不到 tool_result 的 tool_use 补充 error 占位
+    for (const id of toolUseIds) {
+      if (!foundIds.has(id)) {
+        collectedResults.push({
+          type: 'tool_result' as const,
+          tool_use_id: id,
+          content: `Error: ${ORPHANED_TOOL_ERROR_MESSAGE}`,
+          is_error: true,
+        });
+      }
+    }
+
+    if (collectedResults.length > 0) {
+      insertAfterIdx.set(i, collectedResults);
+      console.log(
+        chalk.yellow(
+          `[validateToolResults] 检测到连续 assistant 消息，修正 ${collectedResults.length} 个 tool_result 位置 (assistant[${i}] → assistant[${i + 1}])`
+        )
+      );
+    }
+  }
+
+  if (insertAfterIdx.size === 0) {
+    return messages;
+  }
+
+  // 重建消息数组
+  const result: Message[] = [];
+  for (let i = 0; i < messages.length; i++) {
+    let msg = messages[i];
+
+    // 从该消息中移除已被搬移的 tool_result 块
+    if (idsToRemoveFromMsg.has(i) && msg.role === 'user' && Array.isArray(msg.content)) {
+      const idsToRemove = idsToRemoveFromMsg.get(i)!;
+      const newContent = msg.content.filter(
+        (b: any) => !(b.type === 'tool_result' && idsToRemove.has(b.tool_use_id))
+      );
+      if (newContent.length === 0) {
+        // 消息内容全部移走，跳过（不推入 result）
+        // 但仍需检查是否有插入操作（不太可能，但保险起见）
+        if (insertAfterIdx.has(i)) {
+          result.push({ role: 'user', content: insertAfterIdx.get(i)! } as Message);
+        }
+        continue;
+      }
+      msg = { ...msg, content: newContent };
+    }
+
+    result.push(msg);
+
+    // 在当前 assistant 消息之后插入搬移来的 tool_result user 消息
+    if (insertAfterIdx.has(i)) {
+      result.push({ role: 'user', content: insertAfterIdx.get(i)! } as Message);
+    }
+  }
+
+  return result;
+}
+
+/**
  * 验证并修复孤立的 tool_result
  *
  * 问题场景：
@@ -545,6 +662,11 @@ export function validateToolResults(messages: Message[]): Message[] {
   if (messages.length === 0) {
     return messages;
   }
+
+  // 步骤 0：修复连续两条 assistant 消息导致的 tool_result 位置错误
+  // 场景：messages[i]=assistant(tool_use), messages[i+1]=assistant(text), messages[i+2+]=user(tool_result)
+  // API 要求 tool_result 必须在 tool_use 的紧接下一条消息中，连续 assistant 消息会破坏此约束
+  messages = fixConsecutiveAssistantMessages(messages);
 
   // 1. 收集所有 tool_use IDs（从 assistant 消息中）
   const toolUseIds = new Set<string>();
@@ -3148,11 +3270,12 @@ Guidelines:
         const errMsg = streamError.message || '';
         const errCode = streamError.code || streamError.type || '';
 
-        // 消息一致性错误自愈：重复 tool_result 导致 API 400
+        // 消息一致性错误自愈：重复 tool_result 或缺少 tool_result 导致 API 400
         if (
           !messageConsistencyHealed &&
           (errMsg.includes('tool_use must have a single result') ||
            errMsg.includes('multiple `tool_result` blocks') ||
+           errMsg.includes('without `tool_result` blocks') ||
            (errMsg.includes('invalid_request_error') && errMsg.includes('tool_result')))
         ) {
           console.warn(chalk.yellow(`[Loop] 检测到消息一致性错误，尝试自愈: ${errMsg.substring(0, 100)}`));
