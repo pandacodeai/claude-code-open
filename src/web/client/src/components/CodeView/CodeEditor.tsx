@@ -19,7 +19,9 @@ import { useTimeMachine } from '../../hooks/useTimeMachine';
 import { usePatternDetector } from '../../hooks/usePatternDetector';
 import { useApiDocOverlay } from '../../hooks/useApiDocOverlay';
 import { getSyntaxExplanation, extractKeywordsFromLine } from '../../utils/syntaxDictionary';
-import { aiHoverApi } from '../../api/ai-editor';
+import { aiHoverApi, TourStep } from '../../api/ai-editor';
+import { analyzeCodeStructure } from '../../utils/codeStructureAnalyzer';
+import SemanticMap from './SemanticMap';
 
 /**
  * CodeEditor Props
@@ -116,7 +118,9 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
 
     // AI 功能开关
     const [beginnerMode, setBeginnerMode] = useState(false);
-    const [showMinimap, setShowMinimap] = useState(false);
+    const [showSemanticMap, setShowSemanticMap] = useState(false);
+    const [semanticSteps, setSemanticSteps] = useState<TourStep[]>([]);
+    const [currentVisibleLine, setCurrentVisibleLine] = useState(1);
     const [autoCompleteEnabled, setAutoCompleteEnabled] = useState(true);
     const [apiDocEnabled, setApiDocEnabled] = useState(false); // API Doc Overlay 默认关闭
 
@@ -410,6 +414,16 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
       editorReady,
     });
 
+    // 语义地图：内容变化时自动分析代码结构
+    useEffect(() => {
+      if (!currentTab?.content) {
+        setSemanticSteps([]);
+        return;
+      }
+      const steps = analyzeCodeStructure(currentTab.content, currentTab.path);
+      setSemanticSteps(steps);
+    }, [currentTab?.content, currentTab?.path]);
+
     // ========================================================================
     // 暴露给父组件的方法
     // ========================================================================
@@ -497,6 +511,17 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
       // 监听光标位置变化（用于 Outline 面板高亮）
       editor.onDidChangeCursorPosition((e) => {
         onCursorLineChange?.(e.position.lineNumber);
+      });
+
+      // 监听滚动变化（用于语义地图高亮当前可见区域）
+      editor.onDidScrollChange(() => {
+        const visibleRanges = editor.getVisibleRanges();
+        if (visibleRanges.length > 0) {
+          // 取可见范围的中心行
+          const firstRange = visibleRanges[0];
+          const centerLine = Math.floor((firstRange.startLineNumber + firstRange.endLineNumber) / 2);
+          setCurrentVisibleLine(centerLine);
+        }
       });
 
       // 监听 Ctrl+S 保存
@@ -606,6 +631,15 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
       }
     };
 
+    // 语义地图：点击区块跳转
+    const handleSemanticMapNavigate = (line: number) => {
+      const editor = editorRef.current;
+      if (!editor) return;
+      editor.revealLineInCenter(line);
+      editor.setPosition({ lineNumber: line, column: 1 });
+      editor.focus();
+    };
+
     // 关闭 Tab
     const handleCloseTab = (index: number, e: React.MouseEvent) => {
       e.stopPropagation();
@@ -691,7 +725,7 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
                 fontSize: 13,
                 fontFamily: 'JetBrains Mono, Consolas, monospace',
                 lineHeight: 20,
-                minimap: { enabled: showMinimap },
+                minimap: { enabled: false }, // 禁用 Monaco 内置 minimap，使用自定义语义地图
                 scrollBeyondLastLine: false,
                 automaticLayout: true,
                 tabSize: 2,
@@ -1192,8 +1226,8 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
               )}
               {visibleButtons.has('minimap') && (
                 <button
-                  className={`${styles.aiBtn} ${showMinimap ? styles.active : ''}`}
-                  onClick={() => setShowMinimap(!showMinimap)}
+                  className={`${styles.aiBtn} ${showSemanticMap ? styles.active : ''}`}
+                  onClick={() => setShowSemanticMap(!showSemanticMap)}
                   title={t('codeEditor.minimapTitle')}
                 >
                   🗺️ {t('codeEditor.minimap')}
@@ -1304,8 +1338,22 @@ export const CodeEditor = forwardRef<CodeEditorRef, CodeEditorProps>(
               </div>
             </div>
           ) : (
-            /* 普通模式：编辑器（可能带语法详情面板） */
-            renderEditorBody()
+            /* 普通模式：编辑器 + 可选的语义地图 */
+            showSemanticMap ? (
+              <div className={styles.editorWithSemanticMap}>
+                <div className={styles.editorMainContent}>
+                  {renderEditorBody()}
+                </div>
+                <SemanticMap
+                  steps={semanticSteps}
+                  currentLine={currentVisibleLine}
+                  onNavigate={handleSemanticMapNavigate}
+                  totalLines={currentTab?.content.split('\n').length || 0}
+                />
+              </div>
+            ) : (
+              renderEditorBody()
+            )
           )}
         </div>
 
