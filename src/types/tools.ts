@@ -1,9 +1,9 @@
 /**
- * Claude Code Tool Input Type Definitions
+ * Axon Tool Input Type Definitions
  * Based on official SDK types from docs/official-sdk-tools.d.ts
  *
  * This file contains TypeScript type definitions for all tool inputs
- * used in the Claude Code CLI application.
+ * used in the Axon CLI application.
  */
 
 // ============================================================================
@@ -67,7 +67,7 @@ export interface AgentInput {
   /**
    * v2.1.32: Team name (for Agent Teams)
    * Uses current team context if omitted.
-   * Requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+   * Requires AXON_EXPERIMENTAL_AGENT_TEAMS=1
    */
   team_name?: string;
 
@@ -766,7 +766,7 @@ export interface ExitPlanModeInput {
 /**
  * Input parameters for the Skill tool
  *
- * Invokes custom skills/commands defined in .claude/commands/
+ * Invokes custom skills/commands defined in .axon/commands/
  */
 export interface SkillInput {
   /**

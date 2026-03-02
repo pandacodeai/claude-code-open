@@ -8,7 +8,7 @@
 I built an open-source AI coding platform with a Web IDE, multi-agent system, and 37+ tools (MIT licensed)
 
 ### Body
-After months of reverse-engineering Anthropic's Claude Code CLI, I ended up building something much bigger — an open-source AI coding platform that goes way beyond a chatbot.
+After months of reverse-engineering Anthropic's @anthropic-ai/claude-code, I ended up building something much bigger — an open-source AI coding platform that goes way beyond a chatbot.
 
 **Key features:**
 
@@ -23,7 +23,7 @@ Tech stack: TypeScript, React, Express + WebSocket, Monaco Editor, Tree-sitter W
 
 Everything runs locally. MIT licensed. No telemetry.
 
-GitHub: https://github.com/kill136/claude-code-open
+GitHub: https://github.com/kill136/axon
 Website: https://www.chatbi.site
 Live Demo: http://voicegpt.site:3456/
 
@@ -35,7 +35,7 @@ Live Demo: http://voicegpt.site:3456/
 I open-sourced a full AI coding platform based on Claude — Web IDE, multi-agent workflows, 37+ tools, scheduled automation
 
 ### Body
-I've been building an open-source alternative to Claude Code CLI that's grown into a complete AI coding platform. Here's what makes it different:
+I've been building an open-source alternative to @anthropic-ai/claude-code that's grown into a complete AI coding platform. Here's what makes it different:
 
 **Not just a chatbot — it's a full IDE:**
 - Browser-based IDE with Monaco editor and file tree
@@ -60,6 +60,6 @@ I've been building an open-source alternative to Claude Code CLI that's grown in
 
 MIT licensed, runs locally, supports Anthropic API / AWS Bedrock / Google Vertex AI.
 
-GitHub: https://github.com/kill136/claude-code-open
+GitHub: https://github.com/kill136/axon
 Live Demo: http://voicegpt.site:3456/
 Discord: https://discord.gg/bNyJKk6PVZ

@@ -1,7 +1,7 @@
 /**
- * Claude Code Guide Agent
+ * Axon Guide Agent
  *
- * 专门用于回答关于 Claude Code、Claude Agent SDK 和 Claude API 的问题
+ * 专门用于回答关于 Axon、Claude Agent SDK 和 Claude API 的问题
  */
 
 import { BaseTool } from '../tools/base.js';
@@ -9,7 +9,7 @@ import type { ToolResult, ToolDefinition } from '../types/index.js';
 import { v4 as uuidv4 } from 'uuid';
 
 // 文档 URLs
-const CLAUDE_CODE_DOCS_MAP = 'https://code.claude.com/docs/en/claude_code_docs_map.md';
+const AXON_DOCS_MAP = 'https://code.claude.com/docs/en/claude_code_docs_map.md';
 const CLAUDE_API_DOCS = 'https://platform.claude.com/llms.txt';
 
 /**
@@ -59,7 +59,7 @@ export interface Documentation {
   title: string;
   content: string;
   url: string;
-  category: 'claude-code' | 'sdk' | 'api';
+  category: 'axon' | 'sdk' | 'api';
   keywords: string[];
 }
 
@@ -86,9 +86,9 @@ const guideSessions = new Map<string, GuideSession>();
  * 这里存储了常见问题的快速参考文档
  */
 export const GUIDE_DOCUMENTATION: Record<string, Documentation> = {
-  'claude-code-installation': {
-    title: 'Installing Claude Code',
-    content: `# Installing Claude Code
+  'axon-installation': {
+    title: 'Installing Axon',
+    content: `# Installing Axon
 
 ## Quick Installation
 
@@ -116,19 +116,19 @@ claude auth
 claude --version
 \`\`\``,
     url: 'https://code.claude.com/docs/en/overview',
-    category: 'claude-code',
+    category: 'axon',
     keywords: ['install', 'setup', 'getting started', 'npm', 'api key'],
   },
 
-  'claude-code-hooks': {
-    title: 'Claude Code Hooks',
+  'axon-hooks': {
+    title: 'Axon Hooks',
     content: `# Hooks System
 
-Hooks allow you to run scripts before or after Claude Code operations.
+Hooks allow you to run scripts before or after Axon operations.
 
 ## Hook Locations
-- \`.claude/hooks/\` - Project-specific hooks
-- \`~/.claude/hooks/\` - Global hooks
+- \`.axon/hooks/\` - Project-specific hooks
+- \`~/.axon/hooks/\` - Global hooks
 
 ## Available Hooks
 
@@ -142,7 +142,7 @@ Hooks allow you to run scripts before or after Claude Code operations.
 
 ## Example Hook
 
-\`.claude/hooks/session-start.sh\`:
+\`.axon/hooks/session-start.sh\`:
 \`\`\`bash
 #!/bin/bash
 # Run tests before starting
@@ -151,26 +151,26 @@ npm test
 
 Make executable:
 \`\`\`bash
-chmod +x .claude/hooks/session-start.sh
+chmod +x .axon/hooks/session-start.sh
 \`\`\``,
     url: 'https://code.claude.com/docs/en/hooks',
-    category: 'claude-code',
+    category: 'axon',
     keywords: ['hooks', 'automation', 'pre-tool', 'post-tool', 'session'],
   },
 
-  'claude-code-slash-commands': {
+  'axon-slash-commands': {
     title: 'Slash Commands (Skills)',
     content: `# Slash Commands (Skills)
 
-Custom commands that extend Claude Code functionality.
+Custom commands that extend Axon functionality.
 
 ## Creating a Slash Command
 
-1. Create file in \`.claude/commands/\`
+1. Create file in \`.axon/commands/\`
 2. Name it \`mycommand.md\`
 3. Add prompt content
 
-Example \`.claude/commands/review.md\`:
+Example \`.axon/commands/review.md\`:
 \`\`\`markdown
 # Review Code
 
@@ -192,14 +192,14 @@ claude /review
 \`\`\`
 
 ## Command Locations
-- \`.claude/commands/\` - Project-specific
-- \`~/.claude/commands/\` - Global`,
+- \`.axon/commands/\` - Project-specific
+- \`~/.axon/commands/\` - Global`,
     url: 'https://code.claude.com/docs/en/skills',
-    category: 'claude-code',
+    category: 'axon',
     keywords: ['slash commands', 'skills', 'commands', 'custom prompts'],
   },
 
-  'claude-code-mcp': {
+  'axon-mcp': {
     title: 'MCP Server Configuration',
     content: `# MCP Servers
 
@@ -207,7 +207,7 @@ Model Context Protocol (MCP) servers provide additional tools and context.
 
 ## Configuration
 
-Add to \`~/.claude/settings.json\`:
+Add to \`~/.axon/settings.json\`:
 \`\`\`json
 {
   "mcpServers": {
@@ -248,7 +248,7 @@ claude mcp add server-name
 claude mcp remove server-name
 \`\`\``,
     url: 'https://code.claude.com/docs/en/mcp',
-    category: 'claude-code',
+    category: 'axon',
     keywords: ['mcp', 'servers', 'model context protocol', 'tools', 'integration'],
   },
 
@@ -256,7 +256,7 @@ claude mcp remove server-name
     title: 'Claude Agent SDK Overview',
     content: `# Claude Agent SDK
 
-Build custom AI agents using Claude Code technology.
+Build custom AI agents using Axon technology.
 
 ## Installation
 
@@ -525,10 +525,10 @@ export class GuideAgent {
   /**
    * 分类查询
    */
-  private categorizeQuery(query: string): 'claude-code' | 'sdk' | 'api' | 'general' {
+  private categorizeQuery(query: string): 'axon' | 'sdk' | 'api' | 'general' {
     const lowerQuery = query.toLowerCase();
 
-    // Claude Code CLI 相关
+    // Axon CLI 相关
     if (
       lowerQuery.includes('install') ||
       lowerQuery.includes('hook') ||
@@ -536,9 +536,9 @@ export class GuideAgent {
       lowerQuery.includes('skill') ||
       lowerQuery.includes('mcp server') ||
       lowerQuery.includes('settings.json') ||
-      lowerQuery.includes('claude code')
+      lowerQuery.includes('axon')
     ) {
-      return 'claude-code';
+      return 'axon';
     }
 
     // Agent SDK 相关
@@ -631,17 +631,17 @@ export class GuideAgent {
    */
   private buildFallbackAnswer(category: string): string {
     const docUrls = {
-      'claude-code': CLAUDE_CODE_DOCS_MAP,
+      'axon': AXON_DOCS_MAP,
       'sdk': CLAUDE_API_DOCS,
       'api': CLAUDE_API_DOCS,
-      'general': CLAUDE_CODE_DOCS_MAP,
+      'general': AXON_DOCS_MAP,
     };
 
     return `I don't have built-in documentation for this specific question, but you can find comprehensive information at:
 
 ${docUrls[category]}
 
-For questions about Claude Code features, try asking about:
+For questions about Axon features, try asking about:
 - Installation and setup
 - Hooks and automation
 - Slash commands (skills)
@@ -699,7 +699,7 @@ https://github.com/anthropics/claude-code/issues`;
    */
   private findRelatedTopics(category: string): string[] {
     const relatedMap: Record<string, string[]> = {
-      'claude-code': [
+      'axon': [
         'Hooks and Automation',
         'Slash Commands (Skills)',
         'MCP Server Configuration',
@@ -736,15 +736,15 @@ https://github.com/anthropics/claude-code/issues`;
  */
 export class GuideTool extends BaseTool<GuideOptions, ToolResult> {
   name = 'Guide';
-  description = `Get help with Claude Code, Claude Agent SDK, or Claude API.
+  description = `Get help with Axon, Claude Agent SDK, or Claude API.
 
 Usage:
-- Ask questions about Claude Code features, configuration, hooks, skills, MCP servers
+- Ask questions about Axon features, configuration, hooks, skills, MCP servers
 - Learn about building custom agents with the Agent SDK
 - Get guidance on using the Claude API (Messages, Tool Use, etc.)
 
 Examples:
-- "How do I set up hooks in Claude Code?"
+- "How do I set up hooks in Axon?"
 - "How do I create a slash command?"
 - "How do I configure an MCP server?"
 - "How do I build a custom agent with the SDK?"
@@ -756,7 +756,7 @@ Examples:
       properties: {
         query: {
           type: 'string',
-          description: 'Your question about Claude Code, Agent SDK, or Claude API',
+          description: 'Your question about Axon, Agent SDK, or Claude API',
         },
         topic: {
           type: 'string',

@@ -1,6 +1,6 @@
 # MCP Integration Tests
 
-Comprehensive test suite for the MCP (Model Context Protocol) integration in Claude Code.
+Comprehensive test suite for the MCP (Model Context Protocol) integration in Axon.
 
 ## Test Coverage
 

@@ -1,6 +1,6 @@
 /**
  * 包管理器检测和更新指令模块
- * 基于官方 Claude Code CLI v2.1.4 的实现
+ * 基于 Anthropic 官方 CLI v2.1.4 的实现
  *
  * 官方源码参考：node_modules/@anthropic-ai/claude-code/cli.js
  * - fD1() 函数：检测 Homebrew 安装
@@ -80,7 +80,7 @@ export function isHomebrewInstallation(): boolean {
 
   // 检查是否在 Homebrew Caskroom 目录中
   if (execPath.includes('/Caskroom/')) {
-    if (process.env.CLAUDE_DEBUG) {
+    if (process.env.AXON_DEBUG) {
       console.error(`[PackageManager] Detected Homebrew cask installation: ${execPath}`);
     }
     return true;
@@ -88,7 +88,7 @@ export function isHomebrewInstallation(): boolean {
 
   // 也检查标准 Homebrew 安装路径
   if (execPath.includes('/opt/homebrew/') || execPath.includes('/usr/local/Cellar/')) {
-    if (process.env.CLAUDE_DEBUG) {
+    if (process.env.AXON_DEBUG) {
       console.error(`[PackageManager] Detected Homebrew installation: ${execPath}`);
     }
     return true;
@@ -131,7 +131,7 @@ export function isWingetInstallation(): boolean {
 
   for (const pattern of wingetPatterns) {
     if (pattern.test(execPath)) {
-      if (process.env.CLAUDE_DEBUG) {
+      if (process.env.AXON_DEBUG) {
         console.error(`[PackageManager] Detected winget installation: ${execPath}`);
       }
       return true;
@@ -140,7 +140,7 @@ export function isWingetInstallation(): boolean {
 
   // 额外检查：WindowsApps 目录（Microsoft Store 应用）
   if (execPath.includes('WindowsApps')) {
-    if (process.env.CLAUDE_DEBUG) {
+    if (process.env.AXON_DEBUG) {
       console.error(`[PackageManager] Detected WindowsApps installation: ${execPath}`);
     }
     return true;

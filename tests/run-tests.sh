@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Test runner script for Claude Code core modules
+# Test runner script for Axon core modules
 # Usage: ./tests/run-tests.sh [test-name]
 
 set -e
@@ -22,7 +22,7 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${YELLOW}=== Claude Code Core Module Tests ===${NC}\n"
+echo -e "${YELLOW}=== Axon Core Module Tests ===${NC}\n"
 
 # Function to run a single test
 run_test() {

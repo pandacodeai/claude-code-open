@@ -127,7 +127,7 @@ export function handleBuiltinCommand(text: string): string | null {
 
   if (cmd === '/help' || cmd === '帮助') {
     return [
-      'Claude Code 飞书助手',
+      'Axon 飞书助手',
       '',
       '可用命令:',
       '  /help 或 帮助 - 显示此帮助',

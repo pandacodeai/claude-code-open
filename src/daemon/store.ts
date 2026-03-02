@@ -1,6 +1,6 @@
 /**
  * Daemon 任务持久化存储
- * 管理动态创建的定时/监控任务，持久化到 ~/.claude/daemon-tasks.json
+ * 管理动态创建的定时/监控任务，持久化到 ~/.axon/daemon-tasks.json
  */
 
 import * as fs from 'fs';
@@ -112,9 +112,9 @@ export interface ScheduledTask {
 // 路径常量
 // ============================================================================
 
-const CLAUDE_DIR = path.join(os.homedir(), '.claude');
-const TASKS_FILE = path.join(CLAUDE_DIR, 'daemon-tasks.json');
-const RELOAD_SIGNAL = path.join(CLAUDE_DIR, 'daemon-reload');
+const AXON_DIR = path.join(os.homedir(), '.axon');
+const TASKS_FILE = path.join(AXON_DIR, 'daemon-tasks.json');
+const RELOAD_SIGNAL = path.join(AXON_DIR, 'daemon-reload');
 
 // ============================================================================
 // TaskStore
@@ -129,8 +129,8 @@ export class TaskStore {
   }
 
   private ensureDir(): void {
-    if (!fs.existsSync(CLAUDE_DIR)) {
-      fs.mkdirSync(CLAUDE_DIR, { recursive: true });
+    if (!fs.existsSync(AXON_DIR)) {
+      fs.mkdirSync(AXON_DIR, { recursive: true });
     }
   }
 

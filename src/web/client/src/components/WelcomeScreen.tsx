@@ -16,8 +16,8 @@ export function WelcomeScreen({ onBlueprintCreated: _onBlueprintCreated }: Welco
 
   return (
     <div className="welcome-screen">
-      <img src="/logo.png" alt="Claude Code" className="welcome-logo" />
-      <h2 className="welcome-title">Claude Code WebUI</h2>
+      <img src="/logo.png" alt="Axon" className="welcome-logo" />
+      <h2 className="welcome-title">Axon WebUI</h2>
       <span className="welcome-version">v2.1.20</span>
 
       {isEmptyProject && !hasBlueprint ? (

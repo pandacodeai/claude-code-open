@@ -198,7 +198,7 @@ const tests = [
               // 移除所有 API 密钥
               ...process.env,
               ANTHROPIC_API_KEY: undefined,
-              CLAUDE_API_KEY: undefined,
+              AXON_API_KEY: undefined,
               ANTHROPIC_BASE_URL: undefined
             }
           }

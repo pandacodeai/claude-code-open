@@ -2735,7 +2735,7 @@ export interface AttributionSettings {
   /**
    * Pull Request 描述的归属文本。
    * 空字符串隐藏归属。
-   * 默认包含 Claude Code 链接。
+   * 默认包含 Axon 链接。
    */
   pr?: string;
 }
@@ -2787,7 +2787,7 @@ export interface AdvancedSettings {
 // ============ 主配置类型 ============
 
 /**
- * 完整的 Claude Code 配置
+ * 完整的 Axon 配置
  *
  * 这是组合所有设置的主配置对象。
  * 可以从 settings.json 文件和环境变量加载。
@@ -2940,7 +2940,7 @@ export interface ClaudeConfig {
 /**
  * 用户配置（ClaudeConfig 的别名）
  *
- * 这是存储在 ~/.claude/settings.json 中的配置格式
+ * 这是存储在 ~/.axon/settings.json 中的配置格式
  */
 export type UserConfig = ClaudeConfig;
 
@@ -3019,36 +3019,36 @@ export type InputFormat = 'text' | 'stream-json';
  * 将环境变量映射到配置选项
  */
 export interface EnvironmentConfig {
-  /** ANTHROPIC_API_KEY 或 CLAUDE_API_KEY */
+  /** ANTHROPIC_API_KEY 或 AXON_API_KEY */
   ANTHROPIC_API_KEY?: string;
-  CLAUDE_API_KEY?: string;
+  AXON_API_KEY?: string;
 
-  /** CLAUDE_CODE_OAUTH_TOKEN */
-  CLAUDE_CODE_OAUTH_TOKEN?: string;
+  /** AXON_OAUTH_TOKEN */
+  AXON_OAUTH_TOKEN?: string;
 
-  /** CLAUDE_CODE_USE_BEDROCK */
-  CLAUDE_CODE_USE_BEDROCK?: string;
+  /** AXON_USE_BEDROCK */
+  AXON_USE_BEDROCK?: string;
 
-  /** CLAUDE_CODE_USE_VERTEX */
-  CLAUDE_CODE_USE_VERTEX?: string;
+  /** AXON_USE_VERTEX */
+  AXON_USE_VERTEX?: string;
 
-  /** CLAUDE_CODE_MAX_OUTPUT_TOKENS */
-  CLAUDE_CODE_MAX_OUTPUT_TOKENS?: string;
+  /** AXON_MAX_OUTPUT_TOKENS */
+  AXON_MAX_OUTPUT_TOKENS?: string;
 
-  /** CLAUDE_CODE_MAX_RETRIES */
-  CLAUDE_CODE_MAX_RETRIES?: string;
+  /** AXON_MAX_RETRIES */
+  AXON_MAX_RETRIES?: string;
 
-  /** CLAUDE_CODE_DEBUG_LOGS_DIR */
-  CLAUDE_CODE_DEBUG_LOGS_DIR?: string;
+  /** AXON_DEBUG_LOGS_DIR */
+  AXON_DEBUG_LOGS_DIR?: string;
 
-  /** CLAUDE_CODE_ENABLE_TELEMETRY */
-  CLAUDE_CODE_ENABLE_TELEMETRY?: string;
+  /** AXON_ENABLE_TELEMETRY */
+  AXON_ENABLE_TELEMETRY?: string;
 
-  /** CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING */
-  CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING?: string;
+  /** AXON_DISABLE_FILE_CHECKPOINTING */
+  AXON_DISABLE_FILE_CHECKPOINTING?: string;
 
-  /** CLAUDE_CONFIG_DIR */
-  CLAUDE_CONFIG_DIR?: string;
+  /** AXON_CONFIG_DIR */
+  AXON_CONFIG_DIR?: string;
 
   /** HTTP_PROXY */
   HTTP_PROXY?: string;
@@ -3171,16 +3171,16 @@ export const DEFAULT_CONFIG: Partial<ClaudeConfig> = {
  * 环境变量名称
  */
 export const ENV_VAR_NAMES = {
-  API_KEY: ['ANTHROPIC_API_KEY', 'CLAUDE_API_KEY'],
-  OAUTH_TOKEN: 'CLAUDE_CODE_OAUTH_TOKEN',
-  USE_BEDROCK: 'CLAUDE_CODE_USE_BEDROCK',
-  USE_VERTEX: 'CLAUDE_CODE_USE_VERTEX',
-  MAX_TOKENS: 'CLAUDE_CODE_MAX_OUTPUT_TOKENS',
-  MAX_RETRIES: 'CLAUDE_CODE_MAX_RETRIES',
-  DEBUG_LOGS_DIR: 'CLAUDE_CODE_DEBUG_LOGS_DIR',
-  ENABLE_TELEMETRY: 'CLAUDE_CODE_ENABLE_TELEMETRY',
-  DISABLE_CHECKPOINTING: 'CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING',
-  CONFIG_DIR: 'CLAUDE_CONFIG_DIR',
+  API_KEY: ['ANTHROPIC_API_KEY', 'AXON_API_KEY'],
+  OAUTH_TOKEN: 'AXON_OAUTH_TOKEN',
+  USE_BEDROCK: 'AXON_USE_BEDROCK',
+  USE_VERTEX: 'AXON_USE_VERTEX',
+  MAX_TOKENS: 'AXON_MAX_OUTPUT_TOKENS',
+  MAX_RETRIES: 'AXON_MAX_RETRIES',
+  DEBUG_LOGS_DIR: 'AXON_DEBUG_LOGS_DIR',
+  ENABLE_TELEMETRY: 'AXON_ENABLE_TELEMETRY',
+  DISABLE_CHECKPOINTING: 'AXON_DISABLE_FILE_CHECKPOINTING',
+  CONFIG_DIR: 'AXON_CONFIG_DIR',
 } as const;
 
 /**
@@ -3188,28 +3188,28 @@ export const ENV_VAR_NAMES = {
  */
 export const CONFIG_PATHS = {
   /** 全局配置目录 */
-  GLOBAL_DIR: '~/.claude',
+  GLOBAL_DIR: '~/.axon',
 
   /** 全局配置文件 */
-  GLOBAL_FILE: '~/.claude/settings.json',
+  GLOBAL_FILE: '~/.axon/settings.json',
 
   /** 项目配置目录 */
-  PROJECT_DIR: '.claude',
+  PROJECT_DIR: '.axon',
 
   /** 项目配置文件 */
-  PROJECT_FILE: '.claude/settings.json',
+  PROJECT_FILE: '.axon/settings.json',
 
   /** 会话目录 */
-  SESSION_DIR: '~/.claude/sessions',
+  SESSION_DIR: '~/.axon/sessions',
 
   /** 插件目录 */
-  PLUGIN_DIR: '~/.claude/plugins',
+  PLUGIN_DIR: '~/.axon/plugins',
 
   /** Hook 目录 */
-  HOOK_DIR: '~/.claude/hooks',
+  HOOK_DIR: '~/.axon/hooks',
 
   /** 技能目录 */
-  SKILLS_DIR: '~/.claude/skills',
+  SKILLS_DIR: '~/.axon/skills',
 } as const;
 
 // ============ Git ������� ============

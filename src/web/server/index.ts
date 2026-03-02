@@ -6,6 +6,7 @@
 
 import express from 'express';
 import { createServer } from 'http';
+import { createServer as createHttpsServer } from 'https';
 import { WebSocketServer } from 'ws';
 import path from 'path';
 import fs from 'fs';
@@ -47,7 +48,7 @@ export interface WebServerResult {
 }
 
 export async function startWebServer(options: WebServerOptions = {}): Promise<WebServerResult> {
-  // 初始化运行时日志系统 — 拦截所有 console 输出并持久化到 ~/.claude/runtime.log
+  // 初始化运行时日志系统 — 拦截所有 console 输出并持久化到 ~/.axon/runtime.log
   logger.init({
     interceptConsole: true,
     minLevel: 'info',
@@ -58,40 +59,55 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<We
   errorWatcher.enable();
   logger.setErrorWatcher((entry) => errorWatcher.onError(entry));
 
-  // 设置 CLAUDE_CODE_ENTRYPOINT 环境变量（如果未设置）
-  // 官方 Claude Code 使用此变量标识启动入口点
+  // 设置 AXON_ENTRYPOINT 环境变量（如果未设置）
+  // 官方 Axon 使用此变量标识启动入口点
   // WebUI 模式使用 'claude-vscode' 以匹配官方的 VSCode 扩展入口
-  if (!process.env.CLAUDE_CODE_ENTRYPOINT) {
-    process.env.CLAUDE_CODE_ENTRYPOINT = 'claude-vscode';
+  if (!process.env.AXON_ENTRYPOINT) {
+    process.env.AXON_ENTRYPOINT = 'claude-vscode';
   }
 
   // 定时任务由 WebScheduler 统一管理（稍后初始化）
 
   const {
-    port = parseInt(process.env.PORT || process.env.CLAUDE_WEB_PORT || '3456'),
-    host = process.env.CLAUDE_WEB_HOST || '0.0.0.0',
+    port = parseInt(process.env.PORT || process.env.AXON_WEB_PORT || '3456'),
+    host = process.env.AXON_WEB_HOST || '0.0.0.0',
     cwd = process.cwd(),
-    model = process.env.CLAUDE_MODEL || 'opus',
+    model = process.env.AXON_MODEL || 'opus',
     ngrok: enableNgrok = process.env.ENABLE_NGROK === 'true' || !!process.env.NGROK_AUTHTOKEN,
-    open: autoOpen = process.env.CLAUDE_WEB_NO_OPEN !== 'true',
+    open: autoOpen = process.env.AXON_WEB_NO_OPEN !== 'true',
   } = options;
 
   // 创建 Express 应用
   const app = express();
-  const server = createServer(app);
+
+  // 自动检测 SSL 证书，有则用 HTTPS（Slack OAuth 等要求 https redirect_uri）
+  const certDir = path.join(process.cwd(), '.axon-certs');
+  const certPath = path.join(certDir, 'cert.pem');
+  const keyPath = path.join(certDir, 'key.pem');
+  const useHttps = fs.existsSync(certPath) && fs.existsSync(keyPath);
+  const server = useHttps
+    ? createHttpsServer({ cert: fs.readFileSync(certPath), key: fs.readFileSync(keyPath) }, app)
+    : createServer(app);
 
   // 创建 WebSocket 服务器（使用 noServer 模式，手动处理 upgrade 事件）
   // 这样可以避免与 Vite HMR WebSocket 冲突
   const wss = new WebSocketServer({ noServer: true });
 
-  // 手动处理 HTTP upgrade 事件，只将 /ws 路径的请求转发给我们的 WebSocket 服务器
+  // 端口转发模块（反向代理 /proxy/:port/* → localhost:<port>）
+  const { handleProxyUpgrade } = await import('./routes/port-forward.js');
+
+  // 手动处理 HTTP upgrade 事件
   server.on('upgrade', (request, socket, head) => {
     const { pathname } = new URL(request.url || '', `http://${request.headers.host}`);
 
     if (pathname === '/ws') {
+      // Axon WebSocket 连接
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit('connection', ws, request);
       });
+    } else if (pathname.startsWith('/proxy/')) {
+      // 端口转发 WebSocket 升级
+      handleProxyUpgrade(request, socket as any, head);
     }
     // 其他路径（如 Vite HMR）由 Vite 处理，不需要在这里处理
   });
@@ -133,6 +149,9 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<We
     }
     next();
   });
+
+  // 设置 app.locals，供各路由使用
+  app.locals.conversationManager = conversationManager;
 
   // API 路由
   setupApiRoutes(app, conversationManager);
@@ -176,6 +195,14 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<We
   // 定时任务管理 API 路由
   const scheduleRouter = await import('./routes/schedule-api.js');
   app.use('/api/schedule', scheduleRouter.default);
+
+  // Connectors API 路由（OAuth 连接器管理）
+  const connectorsRouter = await import('./routes/connectors-api.js');
+  app.use('/api/connectors', connectorsRouter.default);
+
+  // 端口转发路由（反向代理用户应用）
+  const portForwardRouter = await import('./routes/port-forward.js');
+  app.use('/proxy', portForwardRouter.default);
 
   // 前端静态文件路径
   // 在生产环境下，代码在 dist/web/server，需要找到 src/web/client/dist
@@ -296,10 +323,12 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<We
   await new Promise<void>((resolve) => {
     server.listen(port, host, async () => {
       const displayHost = host === '0.0.0.0' ? 'localhost' : host;
-      const url = `http://${displayHost}:${port}`;
-      console.log(`\n🌐 Claude Code WebUI 已启动`);
+      const proto = useHttps ? 'https' : 'http';
+      const wsProto = useHttps ? 'wss' : 'ws';
+      const url = `${proto}://${displayHost}:${port}`;
+      console.log(`\n🌐 Axon WebUI 已启动${useHttps ? ' (HTTPS)' : ''}`);
       console.log(`   地址: ${url}`);
-      console.log(`   WebSocket: ws://${displayHost}:${port}/ws`);
+      console.log(`   WebSocket: ${wsProto}://${displayHost}:${port}/ws`);
       console.log(`   工作目录: ${cwd}`);
       console.log(`   模型: ${model}`);
 
@@ -308,12 +337,12 @@ export async function startWebServer(options: WebServerOptions = {}): Promise<We
         const addrs = getNetworkAddresses();
         if (addrs.tailscale.length > 0) {
           for (const ip of addrs.tailscale) {
-            console.log(`   📱 Tailscale: http://${ip}:${port}`);
+            console.log(`   📱 Tailscale: ${proto}://${ip}:${port}`);
           }
         }
         if (addrs.lan.length > 0) {
           for (const ip of addrs.lan) {
-            console.log(`   📱 局域网:   http://${ip}:${port}`);
+            console.log(`   📱 局域网:   ${proto}://${ip}:${port}`);
           }
         }
         if (addrs.tailscale.length === 0 && addrs.lan.length === 0) {
@@ -453,12 +482,12 @@ function setupStaticFiles(app: express.Application, clientDistPath: string) {
   if (!fs.existsSync(clientDistPath)) {
     console.warn(`   警告: 前端未构建，请先运行 cd src/web/client && npm run build`);
     app.use((req, res, next) => {
-      if (req.path.startsWith('/api/') || req.path.startsWith('/ws')) {
+      if (req.path.startsWith('/api/') || req.path.startsWith('/ws') || req.path.startsWith('/proxy/')) {
         return next();
       }
       res.status(503).send(`
         <html>
-          <head><title>Claude Code WebUI</title></head>
+          <head><title>Axon WebUI</title></head>
           <body style="font-family: sans-serif; padding: 40px; text-align: center;">
             <h1>🚧 前端未构建</h1>
             <p>请先构建前端：</p>
@@ -478,7 +507,7 @@ npm run build</pre>
 
   // SPA 回退 - 所有未匹配的路由返回 index.html
   app.use((req, res, next) => {
-    if (req.path.startsWith('/api/') || req.path.startsWith('/ws')) {
+    if (req.path.startsWith('/api/') || req.path.startsWith('/ws') || req.path.startsWith('/proxy/')) {
       return next();
     }
     res.sendFile(path.join(clientDistPath, 'index.html'));

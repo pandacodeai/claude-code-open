@@ -3,9 +3,9 @@
  * VSCode 扩展中权限请求的可点击目标选择器
  *
  * v2.1.3 新功能：允许用户选择权限设置保存的位置
- * - This project: 保存到 .claude/settings.json（团队共享）
- * - All projects: 保存到 ~/.claude/settings.json（全局）
- * - Shared with team: 保存到 .claude/settings.local.json（本地机器特定）
+ * - This project: 保存到 .axon/settings.json（团队共享）
+ * - All projects: 保存到 ~/.axon/settings.json（全局）
+ * - Shared with team: 保存到 .axon/settings.local.json（本地机器特定）
  * - Session only: 仅当前会话，不持久化
  */
 
@@ -47,7 +47,7 @@ const DESTINATION_CONFIGS: Array<{
     descKey: 'permission.destination.project.desc',
     icon: '📁',
     shortcut: 'P',
-    path: '.claude/settings.json',
+    path: '.axon/settings.json',
   },
   {
     id: 'global',
@@ -55,7 +55,7 @@ const DESTINATION_CONFIGS: Array<{
     descKey: 'permission.destination.global.desc',
     icon: '🌐',
     shortcut: 'G',
-    path: '~/.claude/settings.json',
+    path: '~/.axon/settings.json',
   },
   {
     id: 'team',
@@ -63,7 +63,7 @@ const DESTINATION_CONFIGS: Array<{
     descKey: 'permission.destination.team.desc',
     icon: '👥',
     shortcut: 'T',
-    path: '.claude/settings.local.json',
+    path: '.axon/settings.local.json',
   },
   {
     id: 'session',

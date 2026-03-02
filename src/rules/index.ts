@@ -1,5 +1,5 @@
 /**
- * CLAUDE.md and Project Rules Parser
+ * AXON.md and Project Rules Parser
  * Parse project instructions and rules
  */
 
@@ -26,35 +26,35 @@ export interface CustomRule {
   transform?: string;
 }
 
-export interface ClaudeMdSection {
+export interface AxonMdSection {
   title: string;
   content: string;
   level: number;
 }
 
 // File names to look for
-const CLAUDE_MD_FILES = [
-  'CLAUDE.md',
-  '.claude.md',
-  'claude.md',
-  '.claude/CLAUDE.md',
-  '.claude/instructions.md',
+const AXON_MD_FILES = [
+  'AXON.md',
+  '.axon.md',
+  'axon.md',
+  '.axon/AXON.md',
+  '.axon/instructions.md',
 ];
 
 const SETTINGS_FILES = [
-  '.claude/settings.json',
-  '.claude/settings.local.json',
+  '.axon/settings.json',
+  '.axon/settings.local.json',
 ];
 
 /**
- * Find CLAUDE.md file in directory hierarchy
+ * Find AXON.md file in directory hierarchy
  */
 export function findClaudeMd(startDir?: string): string | null {
   let dir = startDir || process.cwd();
 
   // Walk up directory tree
   while (dir !== path.dirname(dir)) {
-    for (const filename of CLAUDE_MD_FILES) {
+    for (const filename of AXON_MD_FILES) {
       const filePath = path.join(dir, filename);
       if (fs.existsSync(filePath)) {
         return filePath;
@@ -64,9 +64,9 @@ export function findClaudeMd(startDir?: string): string | null {
   }
 
   // Check home directory
-  const homeClaudeMd = path.join(os.homedir(), '.claude', 'CLAUDE.md');
-  if (fs.existsSync(homeClaudeMd)) {
-    return homeClaudeMd;
+  const homeAxonMd = path.join(os.homedir(), '.axon', 'AXON.md');
+  if (fs.existsSync(homeAxonMd)) {
+    return homeAxonMd;
   }
 
   return null;
@@ -88,7 +88,7 @@ export function findSettingsFiles(startDir?: string): string[] {
   }
 
   // Global settings
-  const globalSettings = path.join(os.homedir(), '.claude', 'settings.json');
+  const globalSettings = path.join(os.homedir(), '.axon', 'settings.json');
   if (fs.existsSync(globalSettings)) {
     found.push(globalSettings);
   }
@@ -97,18 +97,18 @@ export function findSettingsFiles(startDir?: string): string[] {
 }
 
 /**
- * Parse CLAUDE.md file
+ * Parse AXON.md file
  */
-export function parseClaudeMd(filePath: string): ClaudeMdSection[] {
+export function parseClaudeMd(filePath: string): AxonMdSection[] {
   if (!fs.existsSync(filePath)) {
     return [];
   }
 
   const content = fs.readFileSync(filePath, 'utf-8');
-  const sections: ClaudeMdSection[] = [];
+  const sections: AxonMdSection[] = [];
   const lines = content.split('\n');
 
-  let currentSection: ClaudeMdSection | null = null;
+  let currentSection: AxonMdSection | null = null;
   let contentLines: string[] = [];
 
   for (const line of lines) {
@@ -153,9 +153,9 @@ export function parseClaudeMd(filePath: string): ClaudeMdSection[] {
 }
 
 /**
- * Extract rules from CLAUDE.md sections
+ * Extract rules from AXON.md sections
  */
-export function extractRules(sections: ClaudeMdSection[]): ProjectRules {
+export function extractRules(sections: AxonMdSection[]): ProjectRules {
   const rules: ProjectRules = {};
 
   for (const section of sections) {
@@ -269,7 +269,7 @@ export function loadProjectRules(projectDir?: string): ProjectRules {
   const dir = projectDir || process.cwd();
   let rules: ProjectRules = {};
 
-  // Load CLAUDE.md
+  // Load AXON.md
   const claudeMdPath = findClaudeMd(dir);
   if (claudeMdPath) {
     const sections = parseClaudeMd(claudeMdPath);
@@ -388,7 +388,7 @@ export function generateSystemPromptAddition(rules: ProjectRules): string {
 }
 
 /**
- * Create default CLAUDE.md template
+ * Create default AXON.md template
  */
 export function createClaudeMdTemplate(): string {
   return `# Project Instructions
@@ -424,14 +424,14 @@ Add your project-specific instructions here. Claude will follow these when worki
 }
 
 /**
- * Initialize CLAUDE.md in current directory
+ * Initialize AXON.md in current directory
  */
 export function initClaudeMd(dir?: string): string {
   const targetDir = dir || process.cwd();
-  const filePath = path.join(targetDir, 'CLAUDE.md');
+  const filePath = path.join(targetDir, 'AXON.md');
 
   if (fs.existsSync(filePath)) {
-    throw new Error('CLAUDE.md already exists');
+    throw new Error('AXON.md already exists');
   }
 
   const template = createClaudeMdTemplate();

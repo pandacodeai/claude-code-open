@@ -221,11 +221,11 @@ describe('Unreachable Rules Detection', () => {
     });
 
     it('should format settings source', () => {
-      expect(formatRuleSource('settings')).toBe('User Settings (~/.claude/settings.json)');
+      expect(formatRuleSource('settings')).toBe('User Settings (~/.axon/settings.json)');
     });
 
     it('should format project source', () => {
-      expect(formatRuleSource('project')).toBe('Project Settings (.claude/settings.json)');
+      expect(formatRuleSource('project')).toBe('Project Settings (.axon/settings.json)');
     });
 
     it('should format policy source', () => {

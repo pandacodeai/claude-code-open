@@ -93,14 +93,14 @@ export interface UserProfileResponse {
 // ============ 常量配置 ============
 
 // 认证配置文件路径
-const AUTH_DIR = path.join(os.homedir(), '.claude');
+const AUTH_DIR = path.join(os.homedir(), '.axon');
 const AUTH_FILE = path.join(AUTH_DIR, 'auth.json');
 const CREDENTIALS_FILE = path.join(AUTH_DIR, 'credentials.json');
 // 用户配置文件（Web UI 保存的 apiKey 等配置）
 const SETTINGS_FILE = path.join(AUTH_DIR, 'settings.json');
-// 官方 Claude Code 的配置文件（存储 primaryApiKey）
+// 官方 Axon 参考实现 的配置文件（存储 primaryApiKey）
 const CONFIG_FILE = path.join(AUTH_DIR, 'config.json');
-// 官方 Claude Code 的 OAuth 凭据文件（存储 claudeAiOauth）
+// 官方 Axon 参考实现 的 OAuth 凭据文件（存储 claudeAiOauth）
 const OFFICIAL_CREDENTIALS_FILE = path.join(AUTH_DIR, '.credentials.json');
 
 // 加密密钥（基于机器特征生成）
@@ -232,7 +232,7 @@ function loadAuthSecure(): AuthConfig | null {
 
 /**
  * 检查 OAuth scope 是否包含 user:inference
- * 官方 Claude Code 只有在有这个 scope 时才直接使用 OAuth token
+ * 官方 Axon 参考实现 只有在有这个 scope 时才直接使用 OAuth token
  */
 function hasInferenceScope(scopes?: string[]): boolean {
   return Boolean(scopes?.includes('user:inference'));
@@ -241,7 +241,7 @@ function hasInferenceScope(scopes?: string[]): boolean {
 /**
  * 初始化认证系统
  *
- * 认证优先级（修复版本，与官方 Claude Code 逻辑一致）：
+ * 认证优先级（修复版本，与官方 Axon 参考实现 逻辑一致）：
  * 1. 环境变量 API key
  * 2. OAuth token（如果有 user:inference scope）- 订阅用户优先使用
  * 3. primaryApiKey（如果 OAuth 没有 inference scope）
@@ -250,7 +250,7 @@ function hasInferenceScope(scopes?: string[]): boolean {
 export function initAuth(): AuthConfig | null {
   // 1. 检查环境变量 (最高优先级)
   // 1a. 检查 API Key
-  const envApiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
+  const envApiKey = process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY;
   if (envApiKey) {
     currentAuth = {
       type: 'api_key',
@@ -291,12 +291,12 @@ export function initAuth(): AuthConfig | null {
     }
   }
 
-  // 2. 检查官方 Claude Code 的 .credentials.json（OAuth token）
+  // 2. 检查官方 Axon 参考实现 的 .credentials.json（OAuth token）
   //
   // 重要发现（通过抓包和测试发现）：
   // - OAuth subscription token 需要特殊的 system prompt 格式才能使用 sonnet/opus 模型
-  // - system prompt 的第一个 block 必须以 "You are Claude Code, Anthropic's official CLI for Claude." 开头
-  // - 配合 claude-code-20250219 beta header 可以解锁所有模型
+  // - system prompt 的第一个 block 必须以 "You are Axon, an AI-powered coding assistant." 开头
+  // - 配合 axon-20250219 beta header 可以解锁所有模型
   //
   if (fs.existsSync(OFFICIAL_CREDENTIALS_FILE)) {
     try {
@@ -325,7 +325,7 @@ export function initAuth(): AuthConfig | null {
     }
   }
 
-  // 3. 检查官方 Claude Code 的 config.json（primaryApiKey）
+  // 3. 检查官方 Axon 参考实现 的 config.json（primaryApiKey）
   // 只有当 OAuth token 没有 user:inference scope 时才使用这个
   if (fs.existsSync(CONFIG_FILE)) {
     try {
@@ -358,7 +358,7 @@ export function initAuth(): AuthConfig | null {
     }
   }
 
-  // 注意：我们不再使用官方 Claude Code 的 OAuth token
+  // 注意：我们不再使用官方 Axon 参考实现 的 OAuth token
   // 因为 Anthropic 服务器会验证请求来源，只允许官方客户端使用
 
   // 4. 检查凭证文件（未加密的 API Key）
@@ -445,7 +445,7 @@ const OAUTH_API_KEY_URL = 'https://api.anthropic.com/api/oauth/claude_cli/create
 
 /**
  * 通过 OAuth access token 创建临时 API Key
- * 官方 Claude Code 的认证方式
+ * 官方 Axon 参考实现 的认证方式
  */
 export async function createOAuthApiKey(accessToken: string): Promise<string | null> {
   try {
@@ -736,7 +736,7 @@ export async function startAuthorizationCodeFlow(
 
   // 如果没有 user:inference scope，需要创建 API key
   if (!hasInferenceScope) {
-    console.log('Creating API key for Claude Code...');
+    console.log('Creating API key for Axon...');
     try {
       const apiKey = await createOAuthApiKey(tokenResponse.access_token);
       if (apiKey) {
@@ -873,7 +873,7 @@ function waitForCallback(
             </head>
             <body>
               <h1 class="success">✓ Authorization Successful</h1>
-              <p>You can close this window and return to Claude Code.</p>
+              <p>You can close this window and return to Axon.</p>
             </body>
           </html>
         `);
@@ -1311,7 +1311,7 @@ export async function setupToken(readline: {
 }): Promise<boolean> {
   return new Promise((resolve) => {
     console.log('\n╭─────────────────────────────────────────╮');
-    console.log('│       Claude Code Token Setup           │');
+    console.log('│       Axon Token Setup           │');
     console.log('╰─────────────────────────────────────────╯\n');
     console.log('You can get your API key from:');
     console.log('  https://platform.claude.com/settings/keys\n');
@@ -1338,7 +1338,7 @@ export async function setupToken(readline: {
       if (isValid) {
         setApiKey(apiKey, true);
         console.log('\n✅ API key saved successfully!');
-        console.log('   Stored in: ~/.claude/credentials.json');
+        console.log('   Stored in: ~/.axon/credentials.json');
         readline.close();
         resolve(true);
       } else {

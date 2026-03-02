@@ -140,8 +140,8 @@ export class PermissionManager {
 
   constructor(mode: PermissionMode = 'default') {
     this.mode = mode;
-    this.configDir = process.env.CLAUDE_CONFIG_DIR ||
-                     path.join(process.env.HOME || '~', '.claude');
+    this.configDir = process.env.AXON_CONFIG_DIR ||
+                     path.join(process.env.HOME || '~', '.axon');
 
     // 审计日志路径
     this.auditLogPath = path.join(this.configDir, 'permissions-audit.log');

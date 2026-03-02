@@ -28,11 +28,12 @@ describe('PermissionDestinationSelector', () => {
     });
 
     afterEach(() => {
+      // Must chdir out of tempDir before deleting it (Windows EBUSY)
+      process.chdir(originalCwd);
       // 清理临时目录
       if (fs.existsSync(tempDir)) {
         fs.rmSync(tempDir, { recursive: true, force: true });
       }
-      process.chdir(originalCwd);
     });
 
     it('should not save permission when destination is session', async () => {
@@ -50,8 +51,8 @@ describe('PermissionDestinationSelector', () => {
       handler.handleResponse(request.requestId, true, true, 'always', 'session');
 
       // session 目标不应保存任何文件
-      const projectSettingsPath = path.join(process.cwd(), '.claude', 'settings.json');
-      const globalSettingsPath = path.join(process.env.HOME || process.env.USERPROFILE || '~', '.claude', 'settings.json');
+      const projectSettingsPath = path.join(process.cwd(), '.axon', 'settings.json');
+      const globalSettingsPath = path.join(process.env.HOME || process.env.USERPROFILE || '~', '.axon', 'settings.json');
 
       // 不检查文件是否创建，因为 session 模式不应创建文件
       // 这里主要验证逻辑不会抛出错误
@@ -76,7 +77,7 @@ describe('PermissionDestinationSelector', () => {
       handler.handleResponse(request.requestId, true, true, 'always', 'project');
 
       // 验证项目配置文件被创建
-      const projectSettingsPath = path.join(tempDir, '.claude', 'settings.json');
+      const projectSettingsPath = path.join(tempDir, '.axon', 'settings.json');
       expect(fs.existsSync(projectSettingsPath)).toBe(true);
 
       // 验证配置内容
@@ -103,7 +104,7 @@ describe('PermissionDestinationSelector', () => {
       handler.handleResponse(request.requestId, true, true, 'always', 'team');
 
       // 验证本地配置文件被创建
-      const localSettingsPath = path.join(tempDir, '.claude', 'settings.local.json');
+      const localSettingsPath = path.join(tempDir, '.axon', 'settings.local.json');
       expect(fs.existsSync(localSettingsPath)).toBe(true);
 
       // 验证配置内容
@@ -130,7 +131,7 @@ describe('PermissionDestinationSelector', () => {
       handler.handleResponse(request.requestId, false, true, 'always', 'project');
 
       // 验证配置内容
-      const projectSettingsPath = path.join(tempDir, '.claude', 'settings.json');
+      const projectSettingsPath = path.join(tempDir, '.axon', 'settings.json');
       const config = JSON.parse(fs.readFileSync(projectSettingsPath, 'utf-8'));
       expect(config.permissions).toBeDefined();
       expect(config.permissions.deny).toContain('Bash(rm*)');
@@ -142,7 +143,7 @@ describe('PermissionDestinationSelector', () => {
       process.chdir(tempDir);
 
       // 创建初始配置
-      const claudeDir = path.join(tempDir, '.claude');
+      const claudeDir = path.join(tempDir, '.axon');
       fs.mkdirSync(claudeDir, { recursive: true });
       const initialConfig = {
         version: '2.1.3',
@@ -227,18 +228,18 @@ describe('PermissionDestinationSelector', () => {
 
     it('should return correct path for project destination', () => {
       const configPath = handler['getConfigPathForDestination']('project');
-      expect(configPath).toBe(path.join(process.cwd(), '.claude', 'settings.json'));
+      expect(configPath).toBe(path.join(process.cwd(), '.axon', 'settings.json'));
     });
 
     it('should return correct path for global destination', () => {
       const configPath = handler['getConfigPathForDestination']('global');
       const homeDir = process.env.HOME || process.env.USERPROFILE || '~';
-      expect(configPath).toBe(path.join(homeDir, '.claude', 'settings.json'));
+      expect(configPath).toBe(path.join(homeDir, '.axon', 'settings.json'));
     });
 
     it('should return correct path for team destination', () => {
       const configPath = handler['getConfigPathForDestination']('team');
-      expect(configPath).toBe(path.join(process.cwd(), '.claude', 'settings.local.json'));
+      expect(configPath).toBe(path.join(process.cwd(), '.axon', 'settings.local.json'));
     });
 
     it('should return null for session destination', () => {

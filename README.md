@@ -1,9 +1,9 @@
-# Claude Code Open
+# Axon
 
-### Free & Open Source Claude Code with Web IDE, Multi-Agent, and Self-Evolution
+### Free & Open Source Axon with Web IDE, Multi-Agent, and Self-Evolution
 
-[![npm](https://img.shields.io/npm/v/claude-code-open?style=flat-square&color=CB3837)](https://www.npmjs.com/package/claude-code-open)
-[![GitHub Stars](https://img.shields.io/github/stars/kill136/claude-code-open?style=flat-square)](https://github.com/kill136/claude-code-open)
+[![npm](https://img.shields.io/npm/v/axon?style=flat-square&color=CB3837)](https://www.npmjs.com/package/axon)
+[![GitHub Stars](https://img.shields.io/github/stars/kill136/axon?style=flat-square)](https://github.com/kill136/axon)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![Node](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-brightgreen?style=flat-square)](https://nodejs.org)
 [![Discord](https://img.shields.io/discord/1454020463486566432?style=flat-square&label=Discord&color=5865F2)](https://discord.gg/bNyJKk6PVZ)
@@ -13,16 +13,16 @@
 <div align="center">
 
 <a href="https://voicegpt.site">
-<img src="demo-screenshots/demo.gif" width="720" alt="Claude Code Open Demo">
+<img src="demo-screenshots/demo.gif" width="720" alt="Axon Demo">
 </a>
 
-<sub><a href="https://youtu.be/OQ29pIgp5AI">Watch on YouTube</a> | <a href="https://github.com/kill136/claude-code-open/releases/download/v2.1.37/promo-video.mp4">Download video</a> | <a href="https://voicegpt.site">Try Live Demo</a></sub>
+<sub><a href="https://youtu.be/OQ29pIgp5AI">Watch on YouTube</a> | <a href="https://github.com/kill136/axon/releases/download/v2.1.37/promo-video.mp4">Download video</a> | <a href="https://voicegpt.site">Try Live Demo</a></sub>
 
 </div>
 
-## Why Claude Code Open?
+## Why Axon?
 
-| | Official Claude Code | Claude Code Open |
+| | Official Axon | Axon |
 |---|---|---|
 | **Price** | $20/month (Max plan required) | Free (bring your own API key) |
 | **Interface** | Terminal only | Terminal + **Web IDE** (Monaco editor, file tree, AI-enhanced editing) |
@@ -35,16 +35,16 @@
 
 ```bash
 # Install globally
-npm install -g claude-code-open
+npm install -g axon
 
 # Set your API key
 export ANTHROPIC_API_KEY="sk-..."  # or on Windows: $env:ANTHROPIC_API_KEY="sk-..."
 
 # CLI mode
-claude
+axon
 
 # Web IDE mode
-claude-web
+axon-web
 ```
 
 That's it. Open `http://localhost:3456` for the Web IDE.
@@ -54,16 +54,16 @@ That's it. Open `http://localhost:3456` for the Web IDE.
 <details>
 <summary>One-click installer (no Node.js required)</summary>
 
-**Windows:** Download [install.bat](https://github.com/kill136/claude-code-open/releases/latest/download/install.bat) and double-click.
+**Windows:** Download [install.bat](https://github.com/kill136/axon/releases/latest/download/install.bat) and double-click.
 
 **macOS / Linux:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kill136/axon/private_web_ui/install.sh | bash
 ```
 
 **China mirror:**
 ```bash
-curl -fsSL https://gitee.com/lubanbbs/claude-code-open/raw/private_web_ui/install.sh | bash
+curl -fsSL https://gitee.com/lubanbbs/axon/raw/private_web_ui/install.sh | bash
 ```
 </details>
 
@@ -76,15 +76,15 @@ docker run -it \
   -e ANTHROPIC_API_KEY=your-api-key \
   -p 3456:3456 \
   -v $(pwd):/workspace \
-  -v ~/.claude:/root/.claude \
-  claude-code-open node /app/dist/web-cli.js --host 0.0.0.0
+  -v ~/.axon:/root/.axon \
+  wbj66/axon node /app/dist/web-cli.js --host 0.0.0.0
 
 # CLI only
 docker run -it \
   -e ANTHROPIC_API_KEY=your-api-key \
   -v $(pwd):/workspace \
-  -v ~/.claude:/root/.claude \
-  claude-code-open
+  -v ~/.axon:/root/.axon \
+  wbj66/axon
 ```
 </details>
 
@@ -92,8 +92,8 @@ docker run -it \
 <summary>From source</summary>
 
 ```bash
-git clone https://github.com/kill136/claude-code-open.git
-cd claude-code-open
+git clone https://github.com/kill136/axon.git
+cd axon
 npm install && npm run build
 node dist/cli.js        # CLI
 node dist/web-cli.js    # Web IDE
@@ -169,12 +169,12 @@ Claude: *writes the tool, compiles, restarts itself, tool is now available*
 |---|---|---|
 | `ANTHROPIC_API_KEY` | API key (required) | - |
 | `ANTHROPIC_BASE_URL` | Custom API endpoint | `https://api.anthropic.com` |
-| `CLAUDE_CODE_LANG` | Language (`en`/`zh`) | auto-detect |
+| `AXON_LANG` | Language (`en`/`zh`) | auto-detect |
 
 ### MCP Protocol
 
 ```json
-// .claude/settings.json
+// .axon/settings.json
 {
   "mcpServers": {
     "filesystem": {
@@ -189,15 +189,15 @@ Claude: *writes the tool, compiles, restarts itself, tool is now available*
 ## CLI Reference
 
 ```bash
-claude                          # Interactive mode
-claude "Analyze this project"   # With initial prompt
-claude -p "Explain this code"   # Print mode (non-interactive)
-claude -m opus "Complex task"   # Specify model
-claude --resume                 # Resume last session
-claude-web                      # Web IDE
-claude-web -p 8080 -H 0.0.0.0  # Custom port and host
-claude-web --ngrok              # Public tunnel
-claude-web --evolve             # Self-evolution mode
+axon                          # Interactive mode
+axon "Analyze this project"   # With initial prompt
+axon -p "Explain this code"   # Print mode (non-interactive)
+axon -m opus "Complex task"   # Specify model
+axon --resume                 # Resume last session
+axon-web                      # Web IDE
+axon-web -p 8080 -H 0.0.0.0  # Custom port and host
+axon-web --ngrok              # Public tunnel
+axon-web --evolve             # Self-evolution mode
 ```
 
 ## Community
@@ -212,7 +212,7 @@ PRs and issues are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guideline
 
 ## Acknowledgment
 
-This project is inspired by Anthropic's Claude Code CLI. It is an independent open-source reimplementation using public APIs. For the official version, see [@anthropic-ai/claude-code](https://www.npmjs.com/package/@anthropic-ai/claude-code).
+This project is inspired by Anthropic's @anthropic-ai/claude-code. It is an independent open-source reimplementation using public APIs. For the official version, see [@anthropic-ai/claude-code](https://www.npmjs.com/package/@anthropic-ai/claude-code).
 
 ## License
 

@@ -3,7 +3,7 @@
  * Anthropic API 透传代理 CLI
  *
  * 自动检测本地认证方式（订阅 OAuth / API Key），启动代理服务器。
- * 让其他电脑上的 Claude Code 通过设置环境变量即可使用你的模型额度。
+ * 让其他电脑上的 Axon 通过设置环境变量即可使用你的模型额度。
  *
  * 用法：
  *   # 自动检测本地认证（推荐）
@@ -50,12 +50,12 @@ import { VERSION_BASE } from './version.js';
 
 // ============ 本地凭据检测 ============
 
-const CLAUDE_DIR = path.join(os.homedir(), '.claude');
+const AXON_DIR = path.join(os.homedir(), '.axon');
 
-/** 官方 Claude Code 的 OAuth 凭据文件（未加密） */
-const OFFICIAL_CREDENTIALS_FILE = path.join(CLAUDE_DIR, '.credentials.json');
-/** 官方 Claude Code 的配置文件（存储 primaryApiKey） */
-const CONFIG_FILE = path.join(CLAUDE_DIR, 'config.json');
+/** 官方 Axon 的 OAuth 凭据文件（未加密） */
+const OFFICIAL_CREDENTIALS_FILE = path.join(AXON_DIR, '.credentials.json');
+/** 官方 Axon 的配置文件（存储 primaryApiKey） */
+const CONFIG_FILE = path.join(AXON_DIR, 'config.json');
 
 interface DetectedAuth {
   mode: AuthMode;
@@ -97,7 +97,7 @@ function detectLocalAuth(): DetectedAuth | null {
   }
 
   // 2. 环境变量 ANTHROPIC_API_KEY
-  const envApiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
+  const envApiKey = process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY;
   if (envApiKey) {
     return {
       mode: 'api-key',
@@ -106,7 +106,7 @@ function detectLocalAuth(): DetectedAuth | null {
     };
   }
 
-  // 3. 官方 Claude Code 的 .credentials.json（OAuth，未加密）
+  // 3. 官方 Axon 的 .credentials.json（OAuth，未加密）
   // 文件结构：{ claudeAiOauth: { accessToken, ... }, oauthAccount: { accountUuid, ... } }
   if (fs.existsSync(OFFICIAL_CREDENTIALS_FILE)) {
     try {
@@ -124,7 +124,7 @@ function detectLocalAuth(): DetectedAuth | null {
 
           return {
             mode: 'oauth',
-            source: `~/.claude/.credentials.json (订阅账户，token 剩余 ${remainMin} 分钟)`,
+            source: `~/.axon/.credentials.json (订阅账户，token 剩余 ${remainMin} 分钟)`,
             accessToken: oauth.accessToken,
             refreshToken: oauth.refreshToken || '',
             expiresAt,
@@ -138,14 +138,14 @@ function detectLocalAuth(): DetectedAuth | null {
     }
   }
 
-  // 4. 官方 Claude Code 的 config.json（API Key）
+  // 4. 官方 Axon 的 config.json（API Key）
   if (fs.existsSync(CONFIG_FILE)) {
     try {
       const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
       if (config.primaryApiKey) {
         return {
           mode: 'api-key',
-          source: '~/.claude/config.json (primaryApiKey)',
+          source: '~/.axon/config.json (primaryApiKey)',
           apiKey: config.primaryApiKey,
         };
       }
@@ -215,7 +215,7 @@ program
           '错误: 未检测到本地认证信息。\n\n' +
           '请确保以下之一：\n' +
           '  1. 已通过 claude 命令登录（订阅用户）\n' +
-          '     → 会自动读取 ~/.claude/.credentials.json\n' +
+          '     → 会自动读取 ~/.axon/.credentials.json\n' +
           '  2. 设置环境变量 ANTHROPIC_API_KEY\n' +
           '  3. 使用 --anthropic-key 手动指定 API Key\n' +
           '  4. 使用 --auth-token 手动指定 OAuth Token\n',

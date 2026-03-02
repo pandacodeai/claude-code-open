@@ -12,9 +12,8 @@ import type {
 } from './types.js';
 import { PromptTooLongError } from './types.js';
 import {
-  CORE_IDENTITY,
+  getCoreIdentity,
   TASK_MANAGEMENT,
-  SECURITY_RULES,
   EXECUTING_WITH_CARE,
   PROACTIVE_SKILL_CREATION,
   PROACTIVE_TOOL_DISCOVERY,
@@ -41,7 +40,7 @@ const DEFAULT_OPTIONS: SystemPromptOptions = {
   includeIdentity: true,
   includeToolGuidelines: true,
   includePermissionMode: true,
-  includeClaudeMd: true,
+  includeAxonMd: true,
   includeIdeInfo: true,
   includeDiagnostics: true,
   maxTokens: 180000,
@@ -77,7 +76,11 @@ export class SystemPromptBuilder {
     const opts = { ...DEFAULT_OPTIONS, ...options };
 
     // 检查缓存
-    if (opts.enableCache) {
+    // 注意：当 context 含有每轮变化的动态字段（如 contextUsage）时，
+    // 本地缓存会返回过期数据且错误地标记为 cacheScope: 'global'，
+    // 必须跳过。API 层的 prompt caching 通过 cache_control 独立处理。
+    const hasDynamicFields = !!context.contextUsage;
+    if (opts.enableCache && !hasDynamicFields) {
       const cacheKey = generateCacheKey(context);
       const cached = this.cache.get(cacheKey);
       if (cached) {
@@ -124,7 +127,7 @@ export class SystemPromptBuilder {
 
     // 1. 核心身份 (Rqz)
     if (opts.includeIdentity) {
-      staticParts.push(CORE_IDENTITY);
+      staticParts.push(getCoreIdentity(context.isOfficialAuth));
     }
 
     // 2. 语气和风格 (yqz) - 当没有自定义输出样式时才添加完整版
@@ -180,8 +183,7 @@ You have access to the ${askTool} tool to ask the user questions when you need c
     // 9.6 主动工具发现规则 - 遇到不擅长的任务时自动搜索互联网上的 MCP/Skill
     staticParts.push(PROACTIVE_TOOL_DISCOVERY);
 
-    // 10. 安全规则 (BV6)
-    staticParts.push(SECURITY_RULES);
+    // 10. 安全规则 (BV6) — 已包含在 CORE_IDENTITY 中，不再重复 push
 
     // 11. TodoWrite 强制使用提醒 (bqz)
     if (toolNames.has(todoWriteTool)) {
@@ -240,7 +242,7 @@ assistant: Clients are marked as failed in the \`connectToServer\` function in s
     const selfDir = path.dirname(fileURLToPath(import.meta.url));  // prompt/ 或 dist/prompt/
     const srcRoot = path.resolve(selfDir, '..');                    // src/ 或 dist/
     const codeProjectRoot = path.resolve(srcRoot, '..');            // 项目根目录
-    const claudeConfigDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+    const claudeConfigDir = process.env.AXON_CONFIG_DIR || path.join(os.homedir(), '.axon');
 
     // 从 NotebookManager 获取精确的记忆文件路径
     const notebookMgr = getNotebookManager();
@@ -279,7 +281,7 @@ Your runtime source code is located at the following paths. You can Read these f
 ${memoryPaths}
 
 ### Self-Evolve (自我进化)
-${process.env.CLAUDE_EVOLVE_ENABLED === '1' ? `- Status: ENABLED (running with --evolve flag)
+${process.env.AXON_EVOLVE_ENABLED === '1' ? `- Status: ENABLED (running with --evolve flag)
 - You can modify your own source code and call the SelfEvolve tool to restart with the new code
 - Flow: Edit .ts files → SelfEvolve({ reason: "..." }) → tsc check → auto-restart → session restored
 - Evolve log: ${claudeConfigDir}/evolve-log.jsonl
@@ -290,6 +292,15 @@ ${process.env.CLAUDE_EVOLVE_ENABLED === '1' ? `- Status: ENABLED (running with -
 - Log file: ${claudeConfigDir}/runtime.log (JSONL, auto-rotated, Read this file to inspect runtime errors)
 - Use /analyze-logs skill for comprehensive log analysis
 ${getLogStatsSummary()}`);
+
+    // 12.6 上下文使用率仪表盘（让 AI 感知自己的上下文消耗）
+    if (context.contextUsage) {
+      const u = context.contextUsage;
+      const pct = u.percentage.toFixed(0);
+      const level = u.percentage >= 80 ? 'HIGH' : u.percentage >= 50 ? 'MODERATE' : 'LOW';
+      dynamicParts.push(`# Context Awareness
+Context usage: ${pct}% (${u.used.toLocaleString()}/${u.total.toLocaleString()} tokens) [${level}]${u.compressionCount > 0 ? `\nCompressions: ${u.compressionCount} times, saved ${u.savedTokens.toLocaleString()} tokens` : ''}${u.percentage >= 70 ? '\nWARNING: Context is filling up. Be concise. Prioritize writing important discoveries to Notebook before they are compressed away.' : ''}`);
+    }
 
     // 13. 语言设置
     if (context.language) {
@@ -357,8 +368,8 @@ Always respond in ${context.language}. Use ${context.language} for all explanati
     // 计算哈希
     const hashInfo = this.cache.computeHash(content);
 
-    // 缓存结果
-    if (opts.enableCache) {
+    // 缓存结果（有动态字段时不缓存，避免返回过期数据）
+    if (opts.enableCache && !hasDynamicFields) {
       const cacheKey = generateCacheKey(context);
       this.cache.set(cacheKey, content, hashInfo);
     }

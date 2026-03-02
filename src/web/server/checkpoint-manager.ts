@@ -75,7 +75,7 @@ export class CheckpointManager {
 
   constructor(storageDir?: string) {
     this.checkpoints = new Map();
-    this.storageDir = storageDir || path.join(os.homedir(), '.claude', 'checkpoints');
+    this.storageDir = storageDir || path.join(os.homedir(), '.axon', 'checkpoints');
 
     // 确保存储目录存在
     this.ensureStorageDir();

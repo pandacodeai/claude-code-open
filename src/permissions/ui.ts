@@ -111,8 +111,8 @@ export class PermissionUI {
 
   constructor(configDir?: string) {
     this.configDir = configDir ||
-      process.env.CLAUDE_CONFIG_DIR ||
-      path.join(process.env.HOME || '~', '.claude');
+      process.env.AXON_CONFIG_DIR ||
+      path.join(process.env.HOME || '~', '.axon');
     this.auditLogPath = path.join(this.configDir, 'permissions-audit.log');
   }
 

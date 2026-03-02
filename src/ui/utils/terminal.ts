@@ -6,7 +6,7 @@
  * - 提供光标状态保护机制
  * - 安全的终端写入包装
  *
- * 从官方 Claude Code v2.1.3 逆向工程
+ * 从官方 Axon v2.1.3 逆向工程
  */
 
 import * as process from 'process';

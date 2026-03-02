@@ -593,14 +593,14 @@ ${techStack.language}${techStack.framework ? ' + ' + techStack.framework : ''}`;
 
     const taskSpecific = this.buildTaskSpecificPrompt(task, context);
 
-    // 注入 CLAUDE.md 项目规则，让 Worker 知道项目特定的命令、约束等
+    // 注入 AXON.md 项目规则，让 Worker 知道项目特定的命令、约束等
     const claudeMdSection = this.loadClaudeMdSection(context.projectPath);
 
     return base + taskSpecific + claudeMdSection;
   }
 
   /**
-   * 读取项目 CLAUDE.md，返回可附加到系统提示词的摘要
+   * 读取项目 AXON.md，返回可附加到系统提示词的摘要
    * Worker 需要这些信息来了解项目特定的构建命令、约束等
    */
   private loadClaudeMdSection(projectPath?: string): string {
@@ -611,13 +611,13 @@ ${techStack.language}${techStack.framework ? ' + ' + techStack.framework : ''}`;
       const content = fs.readFileSync(claudeMdPath, 'utf-8').trim();
       if (!content) return '';
 
-      // 限制大小，避免过长的 CLAUDE.md 撑爆 token
+      // 限制大小，避免过长的 AXON.md 撑爆 token
       const maxLen = 4000;
       const truncated = content.length > maxLen
         ? content.slice(0, maxLen) + '\n... (truncated)'
         : content;
 
-      return `\n\n## 项目规则 (CLAUDE.md)
+      return `\n\n## 项目规则 (AXON.md)
 ${truncated}`;
     } catch {
       return '';

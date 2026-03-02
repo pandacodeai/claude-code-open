@@ -220,7 +220,7 @@ const SENSITIVE_FILES = [
   '.ssh/id_rsa',
 ];
 
-const CONTEXT_STORAGE_DIR = path.join(os.homedir(), '.claude', 'agent-contexts');
+const CONTEXT_STORAGE_DIR = path.join(os.homedir(), '.axon', 'agent-contexts');
 
 // ==================== 辅助函数 ====================
 

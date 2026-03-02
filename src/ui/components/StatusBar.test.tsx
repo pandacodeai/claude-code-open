@@ -49,7 +49,7 @@ const FullTest = () => {
         networkStatus="online"
         permissionMode="acceptEdits"
         gitBranch="feature/status-bar"
-        cwd="/home/user/claude-code-open"
+        cwd="/home/user/axon"
       />
     </Box>
   );

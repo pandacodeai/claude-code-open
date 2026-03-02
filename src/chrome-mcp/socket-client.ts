@@ -356,7 +356,7 @@ export class SocketClient extends EventEmitter {
           method: 'execute_tool',
           params: {
             tool: toolName,
-            client_id: 'claude-code',
+            client_id: 'axon',
             args: args
           }
         };

@@ -1,6 +1,6 @@
-# Claude Code 类型系统
+# Axon 类型系统
 
-这个目录包含 Claude Code 项目的所有 TypeScript 类型定义。
+这个目录包含 Axon 项目的所有 TypeScript 类型定义。
 
 ## 文件结构
 

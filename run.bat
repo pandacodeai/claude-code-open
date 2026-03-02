@@ -1,6 +1,6 @@
 @echo off
 
-set IMAGE_NAME=wbj66/claude-code-open:latest
+set IMAGE_NAME=wbj66/axon:latest
 
 :: 检查 Docker
 where docker >nul 2>nul
@@ -17,12 +17,12 @@ if %errorlevel% neq 0 (
     docker pull %IMAGE_NAME%
 )
 
-:: 确保 .claude 目录存在
-if not exist "%USERPROFILE%\.claude" mkdir "%USERPROFILE%\.claude"
+:: 确保 .axon 目录存在
+if not exist "%USERPROFILE%\.axon" mkdir "%USERPROFILE%\.axon"
 
 :: 启动
 docker run -it --rm ^
     -e ANTHROPIC_API_KEY=%ANTHROPIC_API_KEY% ^
-    -v "%USERPROFILE%\.claude:/root/.claude" ^
+    -v "%USERPROFILE%\.axon:/root/.axon" ^
     -v "%cd%:/workspace" ^
     %IMAGE_NAME% %*

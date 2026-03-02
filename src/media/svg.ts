@@ -54,7 +54,7 @@ const DEFAULT_RENDER_OPTIONS: SvgRenderOptions = {
  * 可通过环境变量控制
  */
 export function isSvgRenderEnabled(): boolean {
-  if (process.env.CLAUDE_SVG_RENDER === 'false') {
+  if (process.env.AXON_SVG_RENDER === 'false') {
     return false;
   }
   return true;

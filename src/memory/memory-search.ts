@@ -32,7 +32,7 @@ export interface MemoryStoreStatus {
  * 获取 Claude 配置目录
  */
 function getClaudeDir(): string {
-  return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+  return process.env.AXON_CONFIG_DIR || path.join(os.homedir(), '.axon');
 }
 
 /**
@@ -109,7 +109,7 @@ export class MemorySearchManager {
       transcriptsDir,
     });
 
-    if (process.env.CLAUDE_DEBUG) {
+    if (process.env.AXON_DEBUG) {
       console.log(`[MemorySearch] Synced (${reason || 'manual'}):`, result);
     }
 

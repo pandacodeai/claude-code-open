@@ -133,10 +133,10 @@ export class McpConfigManager {
   constructor(options: McpConfigOptions = {}) {
     // 设置配置路径
     const homeDir = process.env.HOME || process.env.USERPROFILE || '~';
-    const globalDir = process.env.CLAUDE_CONFIG_DIR || path.join(homeDir, '.claude');
+    const globalDir = process.env.AXON_CONFIG_DIR || path.join(homeDir, '.axon');
 
     this.globalConfigPath = options.globalConfigPath || path.join(globalDir, 'settings.json');
-    this.projectConfigPath = options.projectConfigPath || path.join(process.cwd(), '.claude', 'settings.json');
+    this.projectConfigPath = options.projectConfigPath || path.join(process.cwd(), '.axon', 'settings.json');
     this.autoSave = options.autoSave ?? true;
     this.validateCommands = options.validateCommands ?? true;
 

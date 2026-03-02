@@ -1440,7 +1440,7 @@ async function handleClientMessage(
       try {
         const lang = message.payload.language;
         await changeLocale(lang);
-        // 持久化到 ~/.claude/settings.json
+        // 持久化到 ~/.axon/settings.json
         configManager.save({ language: lang });
         sendMessage(ws, {
           type: 'language_changed',
@@ -4842,7 +4842,7 @@ async function handleSkillList(
         sourceName = skill.pluginName;
       } else {
         // 检查是否是 smithery（符号链接）
-        const userSkillsDir = path.join(homeDir, '.claude', 'skills');
+        const userSkillsDir = path.join(homeDir, '.axon', 'skills');
         const skillNameWithoutPrefix = skill.skillName.split(':').pop() || skill.skillName;
         const skillPath = path.join(userSkillsDir, skillNameWithoutPrefix);
         
@@ -4871,8 +4871,8 @@ async function handleSkillList(
       });
     }
 
-    // 2. 检查 ~/.claude/skills/ 目录中未加载的 skills
-    const userSkillsDir = path.join(homeDir, '.claude', 'skills');
+    // 2. 检查 ~/.axon/skills/ 目录中未加载的 skills
+    const userSkillsDir = path.join(homeDir, '.axon', 'skills');
     if (fs.existsSync(userSkillsDir)) {
       const entries = fs.readdirSync(userSkillsDir);
       for (const entry of entries) {
@@ -4904,8 +4904,8 @@ async function handleSkillList(
       }
     }
 
-    // 3. 检查 .claude/skills/ 项目级目录中未加载的 skills
-    const projectSkillsDir = path.join(cwd, '.claude', 'skills');
+    // 3. 检查 .axon/skills/ 项目级目录中未加载的 skills
+    const projectSkillsDir = path.join(cwd, '.axon', 'skills');
     if (fs.existsSync(projectSkillsDir)) {
       const entries = fs.readdirSync(projectSkillsDir);
       for (const entry of entries) {
@@ -5063,7 +5063,7 @@ async function handleSkillDelete(
       skillPath = skill.baseDir;
     } else {
       // 未加载的 skill，尝试从文件系统查找
-      const userSkillsDir = path.join(homeDir, '.claude', 'skills');
+      const userSkillsDir = path.join(homeDir, '.axon', 'skills');
       const skillNameWithoutPrefix = name.split(':').pop() || name;
       skillPath = path.join(userSkillsDir, skillNameWithoutPrefix);
 
@@ -5081,7 +5081,7 @@ async function handleSkillDelete(
     // 删除逻辑
     if (source === 'smithery') {
       // 删除符号链接
-      const userSkillsDir = path.join(homeDir, '.claude', 'skills');
+      const userSkillsDir = path.join(homeDir, '.axon', 'skills');
       const skillNameWithoutPrefix = name.split(':').pop() || name;
       const symlinkPath = path.join(userSkillsDir, skillNameWithoutPrefix);
 

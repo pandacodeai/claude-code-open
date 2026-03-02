@@ -223,7 +223,7 @@ export class WebConfigService {
       const creds = webAuth.getCredentials();
 
       return {
-        apiKey: creds.apiKey,  // 只返回 WebAuthProvider 管理的值
+        apiKey: webAuth.getMaskedApiKey() || '',  // 只返回掩码版本，不泄露明文
         model: config.model,
         maxTokens: config.maxTokens,
         temperature: config.temperature,
@@ -381,7 +381,25 @@ export class WebConfigService {
    */
   async updateApiConfig(config: Partial<ApiConfig>): Promise<boolean> {
     try {
-      this.configManager.save(config);
+      const updates = { ...config };
+
+      // apiKey 特殊处理：空值或掩码值不覆盖已有 key
+      if ('apiKey' in updates) {
+        const val = updates.apiKey?.trim() || '';
+        if (!val || val.includes('...') || val.includes('***')) {
+          // 空值或掩码值 → 不修改已有 apiKey
+          delete (updates as any).apiKey;
+        } else {
+          // 用户输入了新的真实 key → 通过 webAuth 写入
+          webAuth.setApiKey(val);
+          delete (updates as any).apiKey; // 已通过 webAuth 写入，不需要 configManager 再写
+        }
+      }
+
+      // 保存其余配置
+      if (Object.keys(updates).length > 0) {
+        this.configManager.save(updates);
+      }
       return true;
     } catch (error) {
       console.error('[WebConfigService] 更新 API 配置失败:', error);

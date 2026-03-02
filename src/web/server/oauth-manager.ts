@@ -1,6 +1,6 @@
 /**
  * OAuth 管理器
- * 完全基于官方 Claude Code CLI 的 OAuth 实现
+ * 完全基于 Anthropic 官方 CLI 的 OAuth 实现
  * 提供登录、token 刷新、用户信息获取等功能
  */
 

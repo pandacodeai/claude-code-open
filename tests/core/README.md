@@ -1,6 +1,6 @@
 # Core Module Unit Tests
 
-This directory contains unit tests for the core modules of Claude Code CLI.
+This directory contains unit tests for the core modules of Axon CLI.
 
 ## Test Files
 

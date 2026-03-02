@@ -78,7 +78,7 @@ export class PdfTooLargeError extends Error {
  */
 export function isPdfSupported(): boolean {
   // 可以通过环境变量控制
-  if (process.env.CLAUDE_PDF_SUPPORT === 'false') {
+  if (process.env.AXON_PDF_SUPPORT === 'false') {
     return false;
   }
   return true;

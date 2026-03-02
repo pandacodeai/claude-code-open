@@ -159,7 +159,7 @@ export function invalidateSessionCache(sessionId?: string): void {
  */
 function getSessionDir(): string {
   const config = configManager.getAll();
-  return config.sessionManager?.sessionDir || path.join(os.homedir(), '.claude', 'sessions');
+  return config.sessionManager?.sessionDir || path.join(os.homedir(), '.axon', 'sessions');
 }
 
 /**
@@ -223,7 +223,7 @@ export interface SessionData {
 }
 
 /**
- * 官方 Claude Code 会话状态
+ * 官方会话状态
  */
 export interface OfficialSessionState {
   sessionId: string;
@@ -239,7 +239,7 @@ export interface OfficialSessionState {
 }
 
 /**
- * 官方 Claude Code 会话元数据
+ * 官方会话元数据
  */
 export interface OfficialSessionMetadata {
   gitStatus?: string;
@@ -251,7 +251,7 @@ export interface OfficialSessionMetadata {
 }
 
 /**
- * 官方 Claude Code 会话数据格式
+ * 官方会话数据格式
  */
 export interface OfficialSessionData {
   version: string;
@@ -611,7 +611,7 @@ export function loadSession(sessionId: string): SessionData | null {
 
     let session: SessionData;
 
-    // 兼容官方 Claude Code 格式
+    // 兼容官方 Axon 格式
     if (isOfficialFormat(data)) {
       session = convertOfficialToSessionData(data);
     } else {
@@ -746,7 +746,7 @@ export function listSessions(options: SessionListOptions = {}): SessionMetadata[
 
       let metadata: SessionMetadata | null = null;
 
-      // 兼容官方 Claude Code 格式和内部格式
+      // 兼容官方 Axon 格式和内部格式
       if (isOfficialFormat(data)) {
         metadata = convertOfficialToMetadata(data);
       } else if (data?.metadata?.id) {
@@ -1409,7 +1409,7 @@ export function getSessionStatistics(): SessionStatistics {
       const content = fs.readFileSync(path.join(getSessionDir(), file), 'utf-8');
       const data = JSON.parse(content);
 
-      // 兼容官方 Claude Code 格式和内部格式
+      // 兼容官方 Axon 格式和内部格式
       if (isOfficialFormat(data)) {
         sessions.push(convertOfficialToMetadata(data));
       } else if (data?.metadata?.id) {
@@ -1937,7 +1937,7 @@ export class SessionManager {
     this.config = {
       autoSave: config.autoSave ?? true,
       autoSaveIntervalMs: config.autoSaveIntervalMs ?? 30000,
-      sessionDir: config.sessionDir || path.join(os.homedir(), '.claude', 'sessions'),
+      sessionDir: config.sessionDir || path.join(os.homedir(), '.axon', 'sessions'),
       maxSessions: config.maxSessions ?? 100,
       sessionExpiryDays: config.sessionExpiryDays ?? 30,
     };

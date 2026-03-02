@@ -1,6 +1,6 @@
 /**
  * MCP 设置 UI 组件
- * 完全对齐官方 Claude Code 的交互式界面
+ * 完全对齐官方 Axon 的交互式界面
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -565,7 +565,7 @@ export function McpSettings({
   const homeDir = os.homedir();
   const userConfigPath = path.join(homeDir, '.claude.json');
   const projectConfigPath = path.join(cwd, '.mcp.json');
-  const localConfigPath = path.join(homeDir, '.claude', 'settings.json');
+  const localConfigPath = path.join(homeDir, '.axon', 'settings.json');
 
   // 加载服务器配置
   useEffect(() => {

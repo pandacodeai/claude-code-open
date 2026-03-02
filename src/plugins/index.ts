@@ -316,7 +316,7 @@ export class PluginManager extends EventEmitter {
   private configDir: string;
   private pluginConfigFile: string;
   private fileWatchers: Map<string, fs.FSWatcher> = new Map();
-  private claudeCodeVersion: string = '2.1.4'; // 当前 Claude Code 版本
+  private claudeCodeVersion: string = '2.1.4'; // 当前 Axon 版本
 
   // 注册的工具、命令、技能和钩子
   private registeredTools: Map<string, ToolDefinition[]> = new Map();
@@ -331,15 +331,15 @@ export class PluginManager extends EventEmitter {
       this.claudeCodeVersion = claudeCodeVersion;
     }
 
-    this.configDir = process.env.CLAUDE_CONFIG_DIR ||
-                     path.join(os.homedir(), '.claude');
+    this.configDir = process.env.AXON_CONFIG_DIR ||
+                     path.join(os.homedir(), '.axon');
 
     this.pluginConfigFile = path.join(this.configDir, 'plugins.json');
 
     // 默认插件目录
     this.pluginDirs = [
       path.join(this.configDir, 'plugins'),
-      path.join(process.cwd(), '.claude', 'plugins'),
+      path.join(process.cwd(), '.axon', 'plugins'),
     ];
 
     // 确保目录存在
@@ -513,7 +513,7 @@ export class PluginManager extends EventEmitter {
       }
     }
 
-    // 检查 Claude Code 版本
+    // 检查 Axon 版本
     if (metadata.engines['claude-code']) {
       if (!VersionChecker.satisfies(this.claudeCodeVersion, metadata.engines['claude-code'])) {
         return false;
@@ -2172,11 +2172,11 @@ export const pluginHelper: PluginHelper = {
 
   createTemplate(name: string, options = {}): string {
     const author = options.author || 'Your Name';
-    const description = options.description || 'A Claude Code plugin';
+    const description = options.description || 'An Axon plugin';
     const version = options.version || '1.0.0';
 
     return `
-// ${name} - Claude Code Plugin
+// ${name} - Axon Plugin
 
 export default {
   metadata: {

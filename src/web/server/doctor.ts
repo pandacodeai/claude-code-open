@@ -232,7 +232,7 @@ async function checkApiKey(): Promise<DiagnosticResult> {
       status: 'fail',
       message: '未配置认证',
       details: validation.errors.join('; '),
-      fix: '设置环境变量 ANTHROPIC_API_KEY 或 CLAUDE_API_KEY',
+      fix: '设置环境变量 ANTHROPIC_API_KEY 或 AXON_API_KEY',
     };
   }
 }
@@ -325,7 +325,7 @@ async function checkWorkingDirectory(): Promise<DiagnosticResult> {
  * 检查会话目录
  */
 async function checkSessionDirectory(): Promise<DiagnosticResult> {
-  const sessionDir = path.join(os.homedir(), '.claude', 'sessions');
+  const sessionDir = path.join(os.homedir(), '.axon', 'sessions');
 
   try {
     if (!fs.existsSync(sessionDir)) {
@@ -368,7 +368,7 @@ async function checkSessionDirectory(): Promise<DiagnosticResult> {
  * 检查文件权限
  */
 async function checkFilePermissions(): Promise<DiagnosticResult> {
-  const claudeDir = path.join(os.homedir(), '.claude');
+  const claudeDir = path.join(os.homedir(), '.axon');
   const issues: string[] = [];
 
   try {
@@ -408,17 +408,17 @@ async function checkFilePermissions(): Promise<DiagnosticResult> {
 async function checkConfigurationFiles(): Promise<DiagnosticResult> {
   const files: { path: string; name: string; required: boolean }[] = [
     {
-      path: path.join(os.homedir(), '.claude', 'settings.json'),
+      path: path.join(os.homedir(), '.axon', 'settings.json'),
       name: '全局配置',
       required: false
     },
     {
-      path: path.join(process.cwd(), '.claude', 'settings.local.json'),
+      path: path.join(process.cwd(), '.axon', 'settings.local.json'),
       name: '本地配置',
       required: false
     },
     {
-      path: path.join(process.cwd(), 'CLAUDE.md'),
+      path: path.join(process.cwd(), 'AXON.md'),
       name: '项目指令',
       required: false
     },
@@ -715,7 +715,7 @@ export function formatDoctorReport(report: DoctorReport, verbose: boolean = fals
   const lines: string[] = [];
 
   lines.push('╭─────────────────────────────────────────────╮');
-  lines.push('│      Claude Code WebUI 诊断报告            │');
+  lines.push('│      Axon WebUI 诊断报告                   │');
   lines.push('╰─────────────────────────────────────────────╯');
   lines.push('');
 

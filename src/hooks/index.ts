@@ -1,7 +1,7 @@
 /**
  * Hooks 系统
  * 支持在工具调用前后执行自定义脚本或 URL 回调
- * 基于官方 Claude Code CLI v2.1.4 逆向分析
+ * 基于 Anthropic 官方 CLI v2.1.4 逆向分析
  */
 
 import { spawn } from 'child_process';
@@ -39,7 +39,7 @@ export type HookEvent =
   | 'AfterHooks';          // Hooks 执行后（对应 action_after_hooks）
 
 /**
- * Hook 类型（对应官方 Claude Code CLI 支持的类型 + 扩展类型）
+ * Hook 类型（对应官方 CLI 支持的类型 + 扩展类型）
  * - command: 执行 shell 命令（官方）
  * - mcp: 调用 MCP 服务器工具（官方）
  * - prompt: LLM 提示评估（官方）
@@ -50,7 +50,7 @@ export type HookType = 'command' | 'mcp' | 'prompt' | 'agent' | 'url';
 
 /**
  * 默认超时时间（毫秒）
- * 官方 Claude Code CLI v2.1.3+ 要求：Tool hook 超时为 10 分钟
+ * 官方 CLI v2.1.3+ 要求：Tool hook 超时为 10 分钟
  */
 export const DEFAULT_HOOK_TIMEOUT = 600000; // 10 minutes
 
@@ -383,12 +383,12 @@ function isValidLegacyHookConfig(config: any): config is LegacyHookConfig {
  * 从项目目录加载 hooks
  */
 export function loadProjectHooks(projectDir: string): void {
-  // 检查 .claude/settings.json
-  const settingsPath = path.join(projectDir, '.claude', 'settings.json');
+  // 检查 .axon/settings.json
+  const settingsPath = path.join(projectDir, '.axon', 'settings.json');
   loadHooksFromFile(settingsPath);
 
-  // 检查 .claude/hooks/ 目录
-  const hooksDir = path.join(projectDir, '.claude', 'hooks');
+  // 检查 .axon/hooks/ 目录
+  const hooksDir = path.join(projectDir, '.axon', 'hooks');
   if (fs.existsSync(hooksDir) && fs.statSync(hooksDir).isDirectory()) {
     const files = fs.readdirSync(hooksDir);
     for (const file of files) {
@@ -455,9 +455,9 @@ async function executeCommandHook(
     const env = {
       ...process.env,
       ...hook.env,
-      CLAUDE_HOOK_EVENT: input.event,
-      CLAUDE_HOOK_TOOL_NAME: input.toolName || '',
-      CLAUDE_HOOK_SESSION_ID: input.sessionId || '',
+      AXON_HOOK_EVENT: input.event,
+      AXON_HOOK_TOOL_NAME: input.toolName || '',
+      AXON_HOOK_SESSION_ID: input.sessionId || '',
     };
 
     // 通过 stdin 传递输入（包含所有官方字段）
@@ -617,12 +617,12 @@ async function executePromptHook(
 
     // 动态导入 ClaudeClient 以避免循环依赖
     const { ClaudeClient } = await import('../core/client.js');
-    const apiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
+    const apiKey = process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY;
 
     if (!apiKey) {
       return {
         success: false,
-        error: 'Prompt hook requires ANTHROPIC_API_KEY or CLAUDE_API_KEY environment variable',
+        error: 'Prompt hook requires ANTHROPIC_API_KEY or AXON_API_KEY environment variable',
       };
     }
 
@@ -644,7 +644,7 @@ async function executePromptHook(
         },
       ],
       undefined, // tools
-      `You are evaluating a hook in Claude Code.
+      `You are evaluating a hook in Axon.
 
 CRITICAL: You MUST return ONLY valid JSON with no other text, explanation, or commentary before or after the JSON. Do not include any markdown code blocks, thinking, or additional text.
 
@@ -717,17 +717,17 @@ async function executeAgentHook(
   try {
     // 动态导入 Agent 相关模块以避免循环依赖
     const { ClaudeClient } = await import('../core/client.js');
-    const apiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
+    const apiKey = process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY;
 
     if (!apiKey) {
       return {
         success: false,
-        error: 'Agent hook requires ANTHROPIC_API_KEY or CLAUDE_API_KEY environment variable',
+        error: 'Agent hook requires ANTHROPIC_API_KEY or AXON_API_KEY environment variable',
       };
     }
 
     // 构建代理提示词（包含所有官方字段）
-    const agentPrompt = `You are a validator agent of type "${hook.agentType}" in Claude Code.
+    const agentPrompt = `You are a validator agent of type "${hook.agentType}" in Axon.
 
 Your task is to evaluate the following operation and decide whether it should be allowed.
 
@@ -1627,7 +1627,7 @@ export function reloadHooks(projectDir?: string): void {
   // 加载全局 hooks（如果存在）
   const globalSettingsPath = path.join(
     process.env.HOME || process.env.USERPROFILE || '',
-    '.claude',
+    '.axon',
     'settings.json'
   );
   loadHooksFromFile(globalSettingsPath);

@@ -1,11 +1,11 @@
 #!/bin/bash
-# Claude Code Open - WebUI Launcher (for pre-built packages)
+# Axon - WebUI Launcher (for pre-built packages)
 
 set -e
 
 echo ""
 echo "  +=============================================+"
-echo "  |     Claude Code Open - WebUI                |"
+echo "  |          Axon - WebUI                       |"
 echo "  +=============================================+"
 echo ""
 
@@ -30,7 +30,7 @@ if [ ! -f "dist/web-cli.js" ]; then
 fi
 
 echo ""
-echo "[INFO] Starting Claude Code WebUI..."
+echo "[INFO] Starting Axon WebUI..."
 echo "[INFO] Open http://localhost:3456 in your browser"
 echo "[INFO] Press Ctrl+C to stop the server"
 echo ""

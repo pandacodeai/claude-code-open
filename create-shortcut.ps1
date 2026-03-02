@@ -5,7 +5,7 @@ $BatDir = Join-Path $env:USERPROFILE ".local\bin"
 if (!(Test-Path $BatDir)) { New-Item -ItemType Directory -Path $BatDir -Force | Out-Null }
 
 # 获取实际安装路径
-$InstallDir = Join-Path $env:USERPROFILE ".claude-code-open"
+$InstallDir = Join-Path $env:USERPROFILE ".axon"
 $WebCliPath = Join-Path $InstallDir "dist\web-cli.js"
 
 # 创建批处理文件
@@ -13,7 +13,7 @@ $BatPath = Join-Path $BatDir "claude-web-launch.bat"
 $BatContent = @"
 @echo off
 cd /d "$env:USERPROFILE"
-echo Starting Claude Code WebUI...
+echo Starting Axon WebUI...
 echo Press Ctrl+C to stop the server
 echo.
 
@@ -27,12 +27,12 @@ Set-Content -Path $BatPath -Value $BatContent -Encoding ASCII
 
 # 创建快捷方式
 $DesktopPath = [Environment]::GetFolderPath("Desktop")
-$ShortcutPath = Join-Path $DesktopPath "Claude Code WebUI.lnk"
+$ShortcutPath = Join-Path $DesktopPath "Axon WebUI.lnk"
 
 $WshShell = New-Object -ComObject WScript.Shell
 $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
 $Shortcut.TargetPath = $BatPath
-$Shortcut.Description = "Launch Claude Code Web Interface"
+$Shortcut.Description = "Launch Axon Web Interface"
 $Shortcut.WorkingDirectory = $env:USERPROFILE
 $Shortcut.Save()
 

@@ -2,11 +2,11 @@
 
 ## 标题
 
-[开源] Claude Code Open — 开源 AI 编程平台，Web IDE + 多智能体 + 37+ 工具，MIT 协议
+[开源] Axon — 开源 AI 编程平台，Web IDE + 多智能体 + 37+ 工具，MIT 协议
 
 ## 正文
 
-花了几个月逆向还原 Anthropic 的 Claude Code CLI，结果越做越大，最后做成了一个完整的 AI 编程平台。MIT 协议，完全开源。
+花了几个月逆向还原 Anthropic 的 @anthropic-ai/claude-code，结果越做越大，最后做成了一个完整的 AI 编程平台。MIT 协议，完全开源。
 
 ### 核心特性
 
@@ -40,7 +40,7 @@
 
 ### 链接
 
-- GitHub：https://github.com/kill136/claude-code-open
+- GitHub：https://github.com/kill136/axon
 - 官网：https://www.chatbi.site
 - 在线体验：http://voicegpt.site:3456/
 - Discord：https://discord.gg/bNyJKk6PVZ

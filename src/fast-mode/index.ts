@@ -100,7 +100,7 @@ const orgStatusListeners = new Set<(enabled: boolean) => void>();
  * 我们默认启用，除非被环境变量明确禁用
  */
 export function isPenguinEnabled(): boolean {
-  const envDisable = process.env.CLAUDE_CODE_DISABLE_FAST_MODE;
+  const envDisable = process.env.AXON_DISABLE_FAST_MODE;
   if (envDisable === '1' || envDisable === 'true') return false;
   return true;
 }
@@ -343,7 +343,7 @@ export async function prefetchPenguinMode(
   lastPrefetchTime = now;
 
   // 如果没有认证信息，尝试从环境变量获取
-  const apiKey = authInfo?.apiKey || process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
+  const apiKey = authInfo?.apiKey || process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY;
   const accessToken = authInfo?.accessToken;
   if (!apiKey && !accessToken) return;
 

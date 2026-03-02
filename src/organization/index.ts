@@ -53,7 +53,7 @@ export interface TeamMessage {
 }
 
 // Storage paths
-const ORG_DIR = path.join(os.homedir(), '.claude', 'organization');
+const ORG_DIR = path.join(os.homedir(), '.axon', 'organization');
 const ORG_FILE = path.join(ORG_DIR, 'org.json');
 
 // Current organization
@@ -68,8 +68,8 @@ export function initOrganization(): Organization | null {
   }
 
   // Check environment variables
-  const orgId = process.env.CLAUDE_ORG_ID;
-  const orgName = process.env.CLAUDE_ORG_NAME;
+  const orgId = process.env.AXON_ORG_ID;
+  const orgName = process.env.AXON_ORG_NAME;
 
   if (orgId) {
     currentOrg = {

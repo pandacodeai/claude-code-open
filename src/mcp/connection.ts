@@ -631,7 +631,7 @@ export class McpConnectionManager extends EventEmitter {
         protocolVersion: '2024-11-05',
         capabilities: {},
         clientInfo: {
-          name: 'claude-code-open',
+          name: 'axon',
           version: '2.1.4',
         },
       },

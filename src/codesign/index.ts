@@ -31,7 +31,7 @@ export interface SigningKey {
 }
 
 // Storage paths
-const SIGNING_DIR = path.join(os.homedir(), '.claude', 'signing');
+const SIGNING_DIR = path.join(os.homedir(), '.axon', 'signing');
 const KEYS_FILE = path.join(SIGNING_DIR, 'keys.json');
 const SIGNATURES_FILE = path.join(SIGNING_DIR, 'signatures.json');
 
@@ -117,7 +117,7 @@ export function getKey(id: string): SigningKey | null {
 /**
  * Hash file content
  */
-export function hashContent(content: string, algorithm: 'sha256' | 'sha384' | 'sha512' = 'sha256'): string {
+export function hashContentForSign(content: string, algorithm: 'sha256' | 'sha384' | 'sha512' = 'sha256'): string {
   return crypto.createHash(algorithm).update(content).digest('hex');
 }
 
@@ -129,7 +129,7 @@ export function signContent(content: string, key: SigningKey): CodeSignature | n
     return null;
   }
 
-  const hash = hashContent(content);
+  const hash = hashContentForSign(content);
 
   try {
     const sign = crypto.createSign('ed25519');
@@ -161,7 +161,7 @@ export function verifySignature(content: string, signature: CodeSignature): bool
     return false;
   }
 
-  const hash = hashContent(content, signature.algorithm);
+  const hash = hashContentForSign(content, signature.algorithm);
   if (hash !== signature.hash) {
     return false;
   }
@@ -199,7 +199,7 @@ export function signFile(filePath: string, keyId?: string): SignedFile | null {
   if (!key) {
     // Create hash-only signature
     const signature: CodeSignature = {
-      hash: hashContent(content),
+      hash: hashContentForSign(content),
       algorithm: 'sha256',
       timestamp: Date.now(),
     };
@@ -259,7 +259,7 @@ export function verifyFile(filePath: string): {
   }
 
   // Verify hash
-  const currentHash = hashContent(content, signature.algorithm);
+  const currentHash = hashContentForSign(content, signature.algorithm);
   if (currentHash !== signature.hash) {
     return {
       valid: false,

@@ -88,6 +88,8 @@ interface TaskExecutionContext {
   clientConfig?: { apiKey?: string; authToken?: string; baseUrl?: string };
   /** 禁用的工具列表（防止子 agent 递归调用特定工具） */
   disallowedTools?: string[];
+  /** 用户指定的最大轮次 */
+  maxTurns?: number;
 }
 
 /**
@@ -264,6 +266,8 @@ export class TaskManager {
       clientConfig?: { apiKey?: string; authToken?: string; baseUrl?: string };
       /** 对应的 Claude API tool_use block ID，用于前端精确匹配多个 Task */
       toolUseId?: string;
+      /** 用户指定的最大轮次 */
+      maxTurns?: number;
     }
   ): Promise<string> {
     // 验证代理类型
@@ -317,6 +321,7 @@ export class TaskManager {
       messages: initialMessages,
       abortController: new AbortController(),
       clientConfig: options?.clientConfig,
+      maxTurns: options?.maxTurns,
     };
 
     this.tasks.set(taskId, context);
@@ -446,8 +451,8 @@ export class TaskManager {
       // 构建 LoopOptions（对齐 CLI agent.ts 的 executeAgentLoop）
       const loopOptions: LoopOptions = {
         model: resolvedModel,
-        maxTurns: agentDef.maxTurns || 100,
-        verbose: process.env.CLAUDE_VERBOSE === 'true',
+        maxTurns: context.maxTurns || agentDef.maxTurns || 100,
+        verbose: process.env.AXON_VERBOSE === 'true',
         permissionMode: agentDef.permissionMode || 'default',
         allowedTools: effectiveTools,
         workingDir: task.workingDirectory,
@@ -601,7 +606,7 @@ export class TaskManager {
         fullOutput = `${head}\n\n... [Output truncated: ${fullOutput.length} chars → ${MAX_TASK_OUTPUT} chars] ...\n\n${tail}`;
       }
       
-      task.result = fullOutput;
+      task.result = fullOutput || `Task completed (${toolCallCounter} tool calls, no text output)`;
       const totalDuration = task.endTime.getTime() - task.startTime.getTime();
 
       // 日志：子 agent 完成
@@ -730,6 +735,8 @@ export class TaskManager {
       clientConfig?: { apiKey?: string; authToken?: string; baseUrl?: string };
       /** 对应的 Claude API tool_use block ID，用于前端精确匹配多个 Task */
       toolUseId?: string;
+      /** 用户指定的最大轮次 */
+      maxTurns?: number;
     }
   ): Promise<{ success: boolean; output?: string; error?: string; taskId: string; structuredError?: TaskInfo['structuredError'] }> {
     const taskId = await this.createTask(description, prompt, agentType, {

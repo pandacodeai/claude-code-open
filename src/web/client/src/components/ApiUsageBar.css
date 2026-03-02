@@ -4,12 +4,15 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 12px;
+  gap: 6px;
+  padding: 4px 8px;
   font-size: 11px;
   color: var(--text-muted);
   user-select: none;
   transition: opacity 0.3s ease;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* 标签 */
@@ -26,8 +29,8 @@
   background: var(--bg-tertiary);
   border-radius: 2px;
   overflow: hidden;
-  min-width: 60px;
-  max-width: 120px;
+  min-width: 20px;
+  max-width: 60px;
 }
 
 /* 进度条填充 */

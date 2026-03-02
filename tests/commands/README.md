@@ -1,6 +1,6 @@
 # Command System Unit Tests
 
-This directory contains comprehensive unit tests for the Claude Code command system.
+This directory contains comprehensive unit tests for the Axon command system.
 
 ## Test Files
 
@@ -235,4 +235,4 @@ When contributing command tests:
 
 - [Vitest Documentation](https://vitest.dev/)
 - [Testing Best Practices](https://vitest.dev/guide/best-practices.html)
-- [Claude Code Architecture](../../CLAUDE.md)
+- [Axon Architecture](../../AXON.md)

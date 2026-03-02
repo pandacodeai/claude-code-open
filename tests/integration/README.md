@@ -1,6 +1,6 @@
 # Integration Test Framework
 
-This directory contains the integration testing framework for Claude Code CLI. Integration tests verify that multiple components work together correctly.
+This directory contains the integration testing framework for Axon CLI. Integration tests verify that multiple components work together correctly.
 
 ## Directory Structure
 

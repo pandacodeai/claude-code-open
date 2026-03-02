@@ -74,8 +74,8 @@ interface McpMessage {
 // ============ 常量配置 ============
 
 const CONFIG_PATHS = {
-  user: path.join(homedir(), '.claude', 'settings.json'),
-  project: path.join(process.cwd(), '.claude', 'settings.json'),
+  user: path.join(homedir(), '.axon', 'settings.json'),
+  project: path.join(process.cwd(), '.axon', 'settings.json'),
 };
 
 const DISCOVERY_TIMEOUT = 5000; // 5秒探测超时

@@ -1,6 +1,6 @@
 # 🚀 E2E 测试框架 - 从这里开始
 
-欢迎使用 Claude Code CLI E2E 测试框架！
+欢迎使用 Axon CLI E2E 测试框架！
 
 ## 📚 文档导航
 

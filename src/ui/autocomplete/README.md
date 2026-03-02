@@ -1,6 +1,6 @@
 # Autocomplete System
 
-This module provides intelligent autocomplete functionality for the Claude Code CLI input system.
+This module provides intelligent autocomplete functionality for the Axon CLI input system.
 
 ## Features
 

@@ -110,7 +110,7 @@ function getAwsCredentials(): {
  */
 export function detectProvider(): ProviderConfig {
   // Check for Bedrock
-  if (process.env.CLAUDE_CODE_USE_BEDROCK === 'true' || process.env.AWS_BEDROCK_MODEL) {
+  if (process.env.AXON_USE_BEDROCK === 'true' || process.env.AWS_BEDROCK_MODEL) {
     const credentials = getAwsCredentials();
     const modelInput = process.env.AWS_BEDROCK_MODEL || 'anthropic.claude-3-5-sonnet-20241022-v2:0';
     const arnInfo = parseBedrockModelArn(modelInput);
@@ -132,7 +132,7 @@ export function detectProvider(): ProviderConfig {
   }
 
   // Check for Vertex
-  if (process.env.CLAUDE_CODE_USE_VERTEX === 'true' || process.env.ANTHROPIC_VERTEX_PROJECT_ID) {
+  if (process.env.AXON_USE_VERTEX === 'true' || process.env.ANTHROPIC_VERTEX_PROJECT_ID) {
     return {
       type: 'vertex',
       projectId: process.env.ANTHROPIC_VERTEX_PROJECT_ID,
@@ -143,7 +143,7 @@ export function detectProvider(): ProviderConfig {
   }
 
   // Check for Foundry
-  if (process.env.CLAUDE_CODE_USE_FOUNDRY === 'true' || process.env.ANTHROPIC_FOUNDRY_API_KEY) {
+  if (process.env.AXON_USE_FOUNDRY === 'true' || process.env.ANTHROPIC_FOUNDRY_API_KEY) {
     return {
       type: 'foundry',
       apiKey: process.env.ANTHROPIC_FOUNDRY_API_KEY,
@@ -155,7 +155,7 @@ export function detectProvider(): ProviderConfig {
   // Default to Anthropic
   return {
     type: 'anthropic',
-    apiKey: process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY,
+    apiKey: process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY,
     baseUrl: process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com',
     model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
   };
@@ -209,12 +209,12 @@ export function getProviderInfo(config: ProviderConfig): ProviderInfo {
  * 获取 Anthropic API 配置（支持环境变量回退）
  */
 function getAnthropicApiConfig(config: ProviderConfig): { apiKey: string; baseURL: string } {
-  const apiKey = config.apiKey || process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
+  const apiKey = config.apiKey || process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY;
   const baseURL = config.baseUrl || process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com';
   
   if (!apiKey) {
     throw new Error(
-      'Anthropic API key is required. Set ANTHROPIC_API_KEY or CLAUDE_API_KEY environment variable, or provide apiKey in config.'
+      'Anthropic API key is required. Set ANTHROPIC_API_KEY or AXON_API_KEY environment variable, or provide apiKey in config.'
     );
   }
   

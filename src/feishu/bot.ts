@@ -1,6 +1,6 @@
 /**
  * 飞书 Bot 主模块
- * 基于飞书官方 SDK，将飞书消息桥接到 Claude Code 核心引擎
+ * 基于飞书官方 SDK，将飞书消息桥接到 Axon 核心引擎
  * 支持两种模式：
  *   1. 独立模式：自建 SessionManager + ConversationLoop
  *   2. WebUI 模式：接入 WebUI 的 ConversationManager，共享同一个 agent

@@ -2,7 +2,7 @@
 
 ## 概述
 
-环境变量模块提供了完整的环境变量验证、敏感信息检测和统一管理功能，基于官方 Claude Code v2.1.4 的实现。
+环境变量模块提供了完整的环境变量验证、敏感信息检测和统一管理功能，基于官方 Axon v2.1.4 的实现。
 
 ## 模块结构
 
@@ -26,7 +26,7 @@ src/env/
 import { getValidatedEnv } from './env/index.js';
 
 // 获取验证后的值（自动应用默认值和范围限制）
-const maxOutputTokens = getValidatedEnv<number>('CLAUDE_CODE_MAX_OUTPUT_TOKENS');
+const maxOutputTokens = getValidatedEnv<number>('AXON_MAX_OUTPUT_TOKENS');
 // 如果未设置或无效：32000
 // 如果设置为 70000：64000（被限制）
 // 如果设置为 50000：50000（有效）
@@ -38,15 +38,15 @@ const bashMaxOutput = getValidatedEnv<number>('BASH_MAX_OUTPUT_LENGTH');
 #### 内置验证器
 
 - **BASH_MAX_OUTPUT_LENGTH**: 默认 30000，最大 150000
-- **CLAUDE_CODE_MAX_OUTPUT_TOKENS**: 默认 32000，最大 64000
-- **CLAUDE_CODE_MAX_RETRIES**: 默认 3，范围 0-10
-- **CLAUDE_CODE_REQUEST_TIMEOUT**: 默认 300000ms，范围 1000-600000
-- **CLAUDE_CODE_MAX_CONCURRENT_TASKS**: 默认 10，范围 1-100
+- **AXON_MAX_OUTPUT_TOKENS**: 默认 32000，最大 64000
+- **AXON_MAX_RETRIES**: 默认 3，范围 0-10
+- **AXON_REQUEST_TIMEOUT**: 默认 300000ms，范围 1000-600000
+- **AXON_MAX_CONCURRENT_TASKS**: 默认 10，范围 1-100
 - **布尔型环境变量**:
-  - CLAUDE_CODE_ENABLE_TELEMETRY
-  - CLAUDE_CODE_USE_BEDROCK
-  - CLAUDE_CODE_USE_VERTEX
-  - CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING
+  - AXON_ENABLE_TELEMETRY
+  - AXON_USE_BEDROCK
+  - AXON_USE_VERTEX
+  - AXON_DISABLE_FILE_CHECKPOINTING
 
 #### 验证状态
 
@@ -107,16 +107,16 @@ import { envManager } from './env/index.js';
 envManager.validateAll(true);  // verbose = true 输出详细信息
 
 // 获取验证后的值
-const maxTokens = envManager.getValidated<number>('CLAUDE_CODE_MAX_OUTPUT_TOKENS');
+const maxTokens = envManager.getValidated<number>('AXON_MAX_OUTPUT_TOKENS');
 
 // 获取原始值
 const rawValue = envManager.get('SOME_VAR');
 
 // 获取布尔值
-const useBedrock = envManager.getBoolean('CLAUDE_CODE_USE_BEDROCK', false);
+const useBedrock = envManager.getBoolean('AXON_USE_BEDROCK', false);
 
 // 获取数字值
-const maxRetries = envManager.getNumber('CLAUDE_CODE_MAX_RETRIES', 3);
+const maxRetries = envManager.getNumber('AXON_MAX_RETRIES', 3);
 
 // 导出安全的环境变量（敏感值已掩码）
 const safeEnv = envManager.exportSafe();
@@ -139,7 +139,7 @@ const config = new ConfigManager();
 // 如果有无效或被限制的值，会输出警告
 
 // 获取验证后的环境变量
-const maxTokens = config.getValidatedEnv<number>('CLAUDE_CODE_MAX_OUTPUT_TOKENS');
+const maxTokens = config.getValidatedEnv<number>('AXON_MAX_OUTPUT_TOKENS');
 
 // 访问环境变量管理器
 const envMgr = config.getEnvManager();
@@ -216,7 +216,7 @@ isSensitiveVarExtended('WEBHOOK_SECRET');   // true
 ### 已实现（80%）
 
 - ✅ 完整的验证器系统（ValidationResult, EnvVarValidator）
-- ✅ 内置验证器（BASH_MAX_OUTPUT_LENGTH, CLAUDE_CODE_MAX_OUTPUT_TOKENS 等）
+- ✅ 内置验证器（BASH_MAX_OUTPUT_LENGTH, AXON_MAX_OUTPUT_TOKENS 等）
 - ✅ 验证器注册表和管理
 - ✅ 敏感变量检测（基于关键词）
 - ✅ 掩码算法（≤8 字符全掩码，>8 字符保留前后各 4 位）
@@ -249,7 +249,7 @@ isSensitiveVarExtended('WEBHOOK_SECRET');   // true
 ```bash
 # 设置环境变量并测试
 export BASH_MAX_OUTPUT_LENGTH=200000
-export CLAUDE_CODE_MAX_OUTPUT_TOKENS=70000
+export AXON_MAX_OUTPUT_TOKENS=70000
 export ANTHROPIC_API_KEY=sk-ant-api03-test123456789
 
 # 运行应用
@@ -257,10 +257,10 @@ npm run dev
 
 # 应该看到警告：
 # [ENV] BASH_MAX_OUTPUT_LENGTH: Capped from 200000 to 150000
-# [ENV] CLAUDE_CODE_MAX_OUTPUT_TOKENS: Capped from 70000 to 64000
+# [ENV] AXON_MAX_OUTPUT_TOKENS: Capped from 70000 to 64000
 ```
 
 ## 参考文档
 
-- 详细分析: `/home/user/claude-code-open/docs/comparison/analysis/env-analysis.md`
-- 官方源码: 基于 Claude Code v2.1.4 反编译分析
+- 详细分析: `/home/user/axon/docs/comparison/analysis/env-analysis.md`
+- 官方源码: 基于 Axon v2.1.4 反编译分析

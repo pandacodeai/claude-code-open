@@ -1,6 +1,6 @@
 /**
  * 认证命令 - login, logout, upgrade, passes, etc.
- * 基于官方 Claude Code 源码实现
+ * 基于 Anthropic 官方源码实现
  */
 
 import type { SlashCommand, CommandContext, CommandResult } from './types.js';
@@ -19,9 +19,9 @@ import {
 } from '../auth/index.js';
 
 // 获取认证文件路径
-const getAuthFile = () => path.join(os.homedir(), '.claude', 'auth.json');
-const getCredentialsFile = () => path.join(os.homedir(), '.claude', 'credentials.json');
-const getConfigFile = () => path.join(os.homedir(), '.claude', 'settings.json');
+const getAuthFile = () => path.join(os.homedir(), '.axon', 'auth.json');
+const getCredentialsFile = () => path.join(os.homedir(), '.axon', 'credentials.json');
+const getConfigFile = () => path.join(os.homedir(), '.axon', 'settings.json');
 
 // /login - 登录（基于官方源码完善）
 export const loginCommand: SlashCommand = {
@@ -34,7 +34,7 @@ export const loginCommand: SlashCommand = {
     const method = args[0]?.toLowerCase() || '';
 
     // 检查当前认证状态
-    const hasApiKey = !!(process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY);
+    const hasApiKey = !!(process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY);
     const hasCredentials = fs.existsSync(getCredentialsFile());
     const hasOAuthToken = fs.existsSync(getAuthFile());
 
@@ -68,14 +68,14 @@ Current status: ${authStatus}`);
 
     // help 时显示详细帮助
     if (method === 'help' || method === '-h' || method === '--help') {
-      const loginInfo = `╭─ Claude Code Login ────────────────────────────────╮
+      const loginInfo = `╭─ Axon Login ────────────────────────────────╮
 │                                                    │
 │  Current Status: ${authStatus.padEnd(32)}│
 │                                                    │
 │  Login Methods:                                    │
 │                                                    │
 │  1. API Key (Recommended for developers)           │
-│     • Get key from: https://platform.claude.com  │
+│     • Get key from: https://platform.axon.com  │
 │     • Command: /login --api-key                    │
 │     • Best for: Pay-per-use API billing            │
 │                                                    │
@@ -96,12 +96,12 @@ Current status: ${authStatus}`);
 │                                                    │
 │  Environment Variables:                            │
 │    ANTHROPIC_API_KEY       Primary API key         │
-│    CLAUDE_API_KEY          Alternative API key     │
-│    CLAUDE_CODE_OAUTH_TOKEN OAuth token             │
+│    AXON_API_KEY          Alternative API key     │
+│    AXON_OAUTH_TOKEN OAuth token             │
 │                                                    │
 │  Files:                                            │
-│    ~/.claude/credentials.json   API keys           │
-│    ~/.claude/auth.json          OAuth tokens       │
+│    ~/.axon/credentials.json   API keys           │
+│    ~/.axon/auth.json          OAuth tokens       │
 │                                                    │
 │  Verify Authentication:                            │
 │    /doctor                 Check auth status       │
@@ -118,12 +118,12 @@ Current status: ${authStatus}`);
       const apiKeyInfo = `API Key Setup
 
 API keys provide usage-based billing and are the recommended method
-for developers using Claude Code.
+for developers using Axon.
 
 Steps:
 
 1. Get your API key:
-   Visit: https://platform.claude.com/settings/keys
+   Visit: https://platform.axon.com/settings/keys
    Create or copy an existing key
 
 2. Set the API key (choose one method):
@@ -135,7 +135,7 @@ Steps:
       # Then reload your shell
       source ~/.bashrc
 
-   b) Direct setup (stores in ~/.claude/credentials.json):
+   b) Direct setup (stores in ~/.axon/credentials.json):
       Run: /setup-token
       Then paste your API key when prompted
 
@@ -196,9 +196,9 @@ Authentication Details:
   • OAuth API Key: ${authResult.oauthApiKey ? 'Created' : 'N/A (using OAuth token)'}
 
 Credentials saved to:
-  ~/.claude/auth.json
+  ~/.axon/auth.json
 
-You can now use Claude Code with your OAuth credentials.
+You can now use Axon with your OAuth credentials.
 
 Current Status: Authenticated (OAuth)
 
@@ -223,8 +223,8 @@ For immediate use, please try:
   /setup-token         Quick API key setup
 
 Alternative OAuth Setup:
-  1. If you have official Claude Code CLI, use that for OAuth
-  2. Then copy ~/.claude/auth.json to this installation
+  1. If you have official Axon CLI, use that for OAuth
+  2. Then copy ~/.axon/auth.json to this installation
 
 Current Status: ${authStatus}`;
 
@@ -355,9 +355,9 @@ To upgrade:
   1. Visit https://claude.ai/settings
   2. Select your desired plan
   3. Complete payment
-  4. Restart Claude Code to use your new limits
+  4. Restart Axon to use your new limits
 
-API Pricing (platform.claude.com):
+API Pricing (platform.axon.com):
   • Pay per token used
   • No subscription required
   • Best for developers and variable usage
@@ -387,15 +387,15 @@ export const passesCommand: SlashCommand = {
   execute: (ctx: CommandContext): CommandResult => {
     const passesInfo = `Guest Passes
 
-Guest passes let you share Claude Code with friends and colleagues.
+Guest passes let you share Axon with friends and colleagues.
 
 Status: Feature available for Max subscribers
 
 How it works:
   1. Max subscribers get 3 guest passes
-  2. Each pass gives 1 week of Claude Code access
+  2. Each pass gives 1 week of Axon access
   3. Share via email or link
-  4. Recipients get full Claude Code features for 7 days
+  4. Recipients get full Axon features for 7 days
 
 To check your passes:
   • Requires Max subscription
@@ -406,11 +406,11 @@ To check your passes:
 To redeem a pass:
   • Click the shared link
   • Sign in or create a Claude account
-  • Start using Claude Code immediately
+  • Start using Axon immediately
 
 Pass Details:
   • Duration: 7 days from activation
-  • Features: Full Claude Code access
+  • Features: Full Axon access
   • Limit: 3 active passes per Max subscriber
   • Renewal: Passes refresh monthly
 
@@ -422,8 +422,8 @@ Sharing a Pass:
 
 Note: This is an educational project and does not have access to
 official Claude.ai pass generation. For actual passes, use the
-official Claude Code installation from:
-  https://code.claude.com`;
+official installation from:
+  https://code.axon.com`;
 
     ctx.ui.addMessage('assistant', passesInfo);
     return { success: true };
@@ -442,7 +442,7 @@ export const extraUsageCommand: SlashCommand = {
 
     // 模拟检查用户订阅状态
     // 官方代码从 API 获取：hasExtraUsageEnabled, f4() 等
-    const hasApiKey = !!(process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY);
+    const hasApiKey = !!(process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY);
     const userPlan = hasApiKey ? 'api' : 'free'; // 在实际中从 API 获取
 
     // 处理子命令
@@ -460,7 +460,7 @@ ${
   • You're using usage-based billing
   • Extra usage not applicable
   • Pay only for what you use
-  • Set spend limits at https://platform.claude.com
+  • Set spend limits at https://platform.axon.com
 
 Current Status:
   • Billing: Per-token usage
@@ -503,9 +503,9 @@ Extra usage is not applicable when using API keys.
 You're already on usage-based billing - you pay only for what you use.
 
 To manage your API usage:
-  • Set spend limits: https://platform.claude.com/settings/limits
-  • View usage: https://platform.claude.com/settings/usage
-  • Manage billing: https://platform.claude.com/settings/billing`
+  • Set spend limits: https://platform.axon.com/settings/limits
+  • View usage: https://platform.axon.com/settings/usage
+  • Manage billing: https://platform.axon.com/settings/billing`
     : `To enable extra usage for your Claude subscription:
 
 1. Visit Claude Settings:
@@ -534,7 +534,7 @@ After enabling:
   • You'll be notified when approaching limits
 
 Note: This educational project cannot enable extra usage directly.
-Please use the official Claude Code CLI or web interface.`
+Please use the official Axon CLI or web interface.`
 }`;
 
         ctx.ui.addMessage('assistant', enableInfo);
@@ -558,7 +558,7 @@ Extra usage is not applicable when using API keys.
 
 To stop API usage completely:
   • Remove API key from environment
-  • Or delete ~/.claude/credentials.json
+  • Or delete ~/.axon/credentials.json
   • Run: /logout`
     : `To disable extra usage for your Claude subscription:
 
@@ -587,7 +587,7 @@ To re-enable:
   Run: /extra-usage enable
 
 Note: This educational project cannot disable extra usage directly.
-Please use the official Claude Code CLI or web interface.`
+Please use the official Axon CLI or web interface.`
 }`;
 
         ctx.ui.addMessage('assistant', disableInfo);
@@ -665,7 +665,7 @@ Alternative Options:
 For API Users:
   If you're using API keys, you're already on usage-based billing.
   Extra usage is not needed - you pay only for what you use.
-  Manage spend limits at: https://platform.claude.com
+  Manage spend limits at: https://platform.axon.com
 
 For Claude.ai Users:
   Manage extra usage at: https://claude.ai/settings
@@ -676,7 +676,7 @@ Current Status:
   Run: /extra-usage status
 
 Documentation:
-  https://code.claude.com/docs/en/usage-limits
+  https://code.axon.com/docs/en/usage-limits
   https://docs.anthropic.com/claude/docs/billing`;
 
         ctx.ui.addMessage('assistant', extraUsageInfo);
@@ -692,7 +692,7 @@ export const rateLimitOptionsCommand: SlashCommand = {
   description: 'Show options when rate limit is reached',
   category: 'auth',
   execute: (ctx: CommandContext): CommandResult => {
-    const hasApiKey = !!(process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY);
+    const hasApiKey = !!(process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY);
 
     const optionsInfo = `Rate Limit Options
 
@@ -728,7 +728,7 @@ When you reach your API rate limits, you have several options:
 │    • Pay only for what you use                       │
 │    • No subscription required                        │
 │    • Set custom spend limits                         │
-│    • Get API key: https://platform.claude.com      │
+│    • Get API key: https://platform.axon.com      │
 └─────────────────────────────────────────────────────┘
 
 Current Status:

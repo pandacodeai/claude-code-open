@@ -38,7 +38,7 @@ const tests = [
               ...process.env,
               ANTHROPIC_BASE_URL: `http://localhost:${context.mockServer.port}`,
               ANTHROPIC_API_KEY: 'test-api-key',
-              CLAUDE_SESSION_DIR: context.sessionDir
+              AXON_SESSION_DIR: context.sessionDir
             }
           }
         );
@@ -72,7 +72,7 @@ const tests = [
               ...process.env,
               ANTHROPIC_BASE_URL: `http://localhost:${context.mockServer.port}`,
               ANTHROPIC_API_KEY: 'test-api-key',
-              CLAUDE_SESSION_DIR: context.sessionDir
+              AXON_SESSION_DIR: context.sessionDir
             }
           }
         );
@@ -112,7 +112,7 @@ const tests = [
               ...process.env,
               ANTHROPIC_BASE_URL: `http://localhost:${context.mockServer.port}`,
               ANTHROPIC_API_KEY: 'test-api-key',
-              CLAUDE_SESSION_DIR: context.sessionDir
+              AXON_SESSION_DIR: context.sessionDir
             }
           }
         );
@@ -135,7 +135,7 @@ const tests = [
                 ...process.env,
                 ANTHROPIC_BASE_URL: `http://localhost:${context.mockServer.port}`,
                 ANTHROPIC_API_KEY: 'test-api-key',
-                CLAUDE_SESSION_DIR: context.sessionDir
+                AXON_SESSION_DIR: context.sessionDir
               }
             }
           );
@@ -187,7 +187,7 @@ const tests = [
             timeout: 5000,
             env: {
               ...process.env,
-              CLAUDE_SESSION_DIR: context.sessionDir
+              AXON_SESSION_DIR: context.sessionDir
             }
           }
         );
@@ -237,7 +237,7 @@ const tests = [
               ...process.env,
               ANTHROPIC_BASE_URL: `http://localhost:${context.mockServer.port}`,
               ANTHROPIC_API_KEY: 'test-api-key',
-              CLAUDE_SESSION_DIR: context.sessionDir
+              AXON_SESSION_DIR: context.sessionDir
             }
           }
         );
@@ -281,7 +281,7 @@ const tests = [
               ...process.env,
               ANTHROPIC_BASE_URL: `http://localhost:${context.mockServer.port}`,
               ANTHROPIC_API_KEY: 'test-api-key',
-              CLAUDE_SESSION_DIR: context.sessionDir
+              AXON_SESSION_DIR: context.sessionDir
             }
           }
         );
@@ -312,7 +312,7 @@ const tests = [
               ...process.env,
               ANTHROPIC_BASE_URL: `http://localhost:${context.mockServer.port}`,
               ANTHROPIC_API_KEY: 'test-api-key',
-              CLAUDE_SESSION_DIR: context.sessionDir
+              AXON_SESSION_DIR: context.sessionDir
             }
           }
         );
@@ -367,7 +367,7 @@ const tests = [
               ...process.env,
               ANTHROPIC_BASE_URL: `http://localhost:${context.mockServer.port}`,
               ANTHROPIC_API_KEY: 'test-api-key',
-              CLAUDE_SESSION_DIR: context.sessionDir
+              AXON_SESSION_DIR: context.sessionDir
             }
           }
         );

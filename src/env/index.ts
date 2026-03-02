@@ -13,7 +13,7 @@
  * envManager.validateAll(true);
  *
  * // 获取验证后的值
- * const maxOutputTokens = getValidatedEnv<number>('CLAUDE_CODE_MAX_OUTPUT_TOKENS');
+ * const maxOutputTokens = getValidatedEnv<number>('AXON_MAX_OUTPUT_TOKENS');
  * const bashMaxOutput = getValidatedEnv<number>('BASH_MAX_OUTPUT_LENGTH');
  *
  * // 导出安全的环境变量（敏感值已掩码）
@@ -36,11 +36,11 @@ export {
 // ============ 内置验证器 ============
 export {
   BASH_MAX_OUTPUT_LENGTH,
-  CLAUDE_CODE_MAX_OUTPUT_TOKENS,
+  AXON_MAX_OUTPUT_TOKENS,
   ANTHROPIC_API_KEY,
-  CLAUDE_CODE_MAX_RETRIES,
-  CLAUDE_CODE_REQUEST_TIMEOUT,
-  CLAUDE_CODE_MAX_CONCURRENT_TASKS,
+  AXON_MAX_RETRIES,
+  AXON_REQUEST_TIMEOUT,
+  AXON_MAX_CONCURRENT_TASKS,
   BUILTIN_VALIDATORS,
   createBooleanValidator,
   createNumberRangeValidator,

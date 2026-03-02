@@ -33,7 +33,7 @@ export function createTestDirectory(testName: string): string {
 export async function setupE2ETest(testName: string): Promise<E2ETestContext> {
   // 创建测试目录
   const testDir = createTestDirectory(testName);
-  const configDir = path.join(testDir, '.claude');
+  const configDir = path.join(testDir, '.axon');
   const sessionDir = path.join(configDir, 'sessions');
   const homeDir = testDir;
 
@@ -46,14 +46,14 @@ export async function setupE2ETest(testName: string): Promise<E2ETestContext> {
   const originalCwd = process.cwd();
 
   // 设置测试环境变量
-  process.env.CLAUDE_CONFIG_DIR = configDir;
+  process.env.AXON_CONFIG_DIR = configDir;
   process.env.HOME = homeDir;
   process.env.USERPROFILE = homeDir; // Windows 支持
-  process.env.CLAUDE_SESSION_DIR = sessionDir;
+  process.env.AXON_SESSION_DIR = sessionDir;
 
   // 禁用真实 API 调用
   delete process.env.ANTHROPIC_API_KEY;
-  delete process.env.CLAUDE_API_KEY;
+  delete process.env.AXON_API_KEY;
 
   // 启动 Mock API 服务器
   const mockServer = new MockApiServer();

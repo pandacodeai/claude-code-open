@@ -11,7 +11,7 @@
 ### 1. 框架核心文件
 
 #### 1.1 setup.ts - 测试环境设置
-**路径**: `/home/user/claude-code-open/tests/e2e/setup.ts`
+**路径**: `/home/user/axon/tests/e2e/setup.ts`
 
 **主要功能**:
 - ✅ E2E 测试环境初始化和清理
@@ -53,7 +53,7 @@ runTestSuite(suite: TestSuite): Promise<{ passed: number; failed: number }>
 - 异步测试支持
 
 #### 1.2 cli-runner.ts - CLI 执行器
-**路径**: `/home/user/claude-code-open/tests/e2e/cli-runner.ts`
+**路径**: `/home/user/axon/tests/e2e/cli-runner.ts`
 
 **主要功能**:
 - ✅ 编程方式运行 CLI 命令
@@ -94,7 +94,7 @@ simulateInteraction(inputs: string[], options?: CLIRunOptions): Promise<CLIRunRe
 - 交互式和批处理模式
 
 #### 1.3 mock-server.ts - Mock API 服务器
-**路径**: `/home/user/claude-code-open/tests/e2e/mock-server.ts`
+**路径**: `/home/user/axon/tests/e2e/mock-server.ts`
 
 **主要功能**:
 - ✅ 模拟 Anthropic API
@@ -132,7 +132,7 @@ class MockApiServer {
 ### 2. 测试套件
 
 #### 2.1 cli-basic.test.ts - 基础 CLI 功能测试
-**路径**: `/home/user/claude-code-open/tests/e2e/cli-basic.test.ts`
+**路径**: `/home/user/axon/tests/e2e/cli-basic.test.ts`
 
 **测试覆盖**:
 - ✅ 版本信息显示 (`--version`, `-v`)
@@ -149,7 +149,7 @@ class MockApiServer {
 **测试数量**: 12 个测试用例
 
 #### 2.2 cli-session.test.ts - 会话持久化测试
-**路径**: `/home/user/claude-code-open/tests/e2e/cli-session.test.ts`
+**路径**: `/home/user/axon/tests/e2e/cli-session.test.ts`
 
 **测试覆盖**:
 - ✅ 创建新会话
@@ -164,7 +164,7 @@ class MockApiServer {
 **测试数量**: 8 个测试用例
 
 #### 2.3 cli-tools.test.ts - 工具调用测试
-**路径**: `/home/user/claude-code-open/tests/e2e/cli-tools.test.ts`
+**路径**: `/home/user/axon/tests/e2e/cli-tools.test.ts`
 
 **测试覆盖**:
 - ✅ Read 工具（文件读取）
@@ -184,7 +184,7 @@ class MockApiServer {
 ### 3. 辅助文件
 
 #### 3.1 run-all.ts - 测试运行器
-**路径**: `/home/user/claude-code-open/tests/e2e/run-all.ts`
+**路径**: `/home/user/axon/tests/e2e/run-all.ts`
 
 **功能**:
 - ✅ 运行所有测试套件
@@ -193,7 +193,7 @@ class MockApiServer {
 - ✅ 适当的退出码
 
 #### 3.2 example.test.ts - 测试示例
-**路径**: `/home/user/claude-code-open/tests/e2e/example.test.ts`
+**路径**: `/home/user/axon/tests/e2e/example.test.ts`
 
 **包含示例**:
 - ✅ 简单文本响应测试
@@ -203,7 +203,7 @@ class MockApiServer {
 - ✅ 请求内容验证
 
 #### 3.3 README.md - 使用文档
-**路径**: `/home/user/claude-code-open/tests/e2e/README.md`
+**路径**: `/home/user/axon/tests/e2e/README.md`
 
 **内容**:
 - ✅ 快速开始指南
@@ -421,7 +421,7 @@ export function assertArrayEqual<T>(
 
 - [README.md](./README.md) - E2E 测试框架使用指南
 - [example.test.ts](./example.test.ts) - 测试示例代码
-- [CLAUDE.md](../../CLAUDE.md) - 项目总体说明
+- [AXON.md](../../AXON.md) - 项目总体说明
 
 ## 技术栈
 

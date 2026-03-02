@@ -86,7 +86,7 @@ const DEFAULT_CONFIG: SmartPlannerConfig = {
 
 // 持久化目录
 const getPlannersDir = (): string => {
-  const dir = path.join(os.homedir(), '.claude', 'planners');
+  const dir = path.join(os.homedir(), '.axon', 'planners');
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }

@@ -38,11 +38,11 @@ export async function setupTestEnvironment(): Promise<TestEnvironment> {
     sessionDir: path.join(tempDir, 'sessions'),
     projectDir: path.join(tempDir, 'project'),
     originalEnv: {
-      CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR,
+      AXON_CONFIG_DIR: process.env.AXON_CONFIG_DIR,
       ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-      CLAUDE_API_KEY: process.env.CLAUDE_API_KEY,
-      CLAUDE_CODE_MAX_OUTPUT_TOKENS: process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS,
-      CLAUDE_CODE_USE_BEDROCK: process.env.CLAUDE_CODE_USE_BEDROCK,
+      AXON_API_KEY: process.env.AXON_API_KEY,
+      AXON_MAX_OUTPUT_TOKENS: process.env.AXON_MAX_OUTPUT_TOKENS,
+      AXON_USE_BEDROCK: process.env.AXON_USE_BEDROCK,
     },
     originalCwd: process.cwd(),
   };
@@ -53,7 +53,7 @@ export async function setupTestEnvironment(): Promise<TestEnvironment> {
   fs.mkdirSync(env.projectDir, { recursive: true });
 
   // Set test environment variables
-  process.env.CLAUDE_CONFIG_DIR = env.configDir;
+  process.env.AXON_CONFIG_DIR = env.configDir;
   process.env.ANTHROPIC_API_KEY = 'test-api-key-12345';
 
   currentEnvironment = env;

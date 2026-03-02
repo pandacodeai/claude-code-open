@@ -12,7 +12,7 @@ import * as os from 'os';
 const TEST_CONFIG_DIR = path.join(os.tmpdir(), 'claude-test-config-core');
 const TEST_GLOBAL_CONFIG = path.join(TEST_CONFIG_DIR, 'settings.json');
 const TEST_PROJECT_DIR = path.join(os.tmpdir(), 'claude-test-project-core');
-const TEST_PROJECT_CONFIG = path.join(TEST_PROJECT_DIR, '.claude', 'settings.json');
+const TEST_PROJECT_CONFIG = path.join(TEST_PROJECT_DIR, '.axon', 'settings.json');
 
 // 清理测试环境
 function cleanup() {
@@ -28,7 +28,7 @@ function cleanup() {
 function setup() {
   cleanup();
   fs.mkdirSync(TEST_CONFIG_DIR, { recursive: true });
-  fs.mkdirSync(path.join(TEST_PROJECT_DIR, '.claude'), { recursive: true });
+  fs.mkdirSync(path.join(TEST_PROJECT_DIR, '.axon'), { recursive: true });
 }
 
 // 测试结果统计
@@ -74,8 +74,8 @@ function assertDefined<T>(value: T | undefined | null, message: string): asserts
 
 const initTests = [
   test('应该使用默认配置初始化', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
     const config = manager.getAll();
@@ -88,12 +88,12 @@ const initTests = [
     assertEqual(config.verbose, false, '默认 verbose 应为 false');
     assertEqual(config.enableTelemetry, false, '默认遥测应为 false');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
   }),
 
   test('应该创建配置目录', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     cleanup();
     const manager = new ConfigManager();
@@ -101,7 +101,7 @@ const initTests = [
 
     assert(fs.existsSync(TEST_CONFIG_DIR), '配置目录应该被创建');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
     cleanup();
   }),
 ];
@@ -121,8 +121,8 @@ const loadTests = [
       })
     );
 
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
     const config = manager.getAll();
@@ -131,15 +131,15 @@ const loadTests = [
     assertEqual(config.maxTokens, 16384, '应该加载全局配置的 maxTokens');
     assertEqual(config.verbose, true, '应该加载全局配置的 verbose');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
     cleanup();
   }),
 
   test('应该处理不存在的配置文件', () => {
     setup();
 
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
     const config = manager.getAll();
@@ -147,7 +147,7 @@ const loadTests = [
     // 应该使用默认值
     assertEqual(config.model, 'sonnet', '不存在配置时应使用默认值');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
     cleanup();
   }),
 
@@ -156,8 +156,8 @@ const loadTests = [
 
     fs.writeFileSync(TEST_GLOBAL_CONFIG, 'invalid json content {{{');
 
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
     const config = manager.getAll();
@@ -165,7 +165,7 @@ const loadTests = [
     // 应该降级为默认值
     assertEqual(config.model, 'sonnet', '损坏的配置应降级为默认值');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
     cleanup();
   }),
 ];
@@ -186,10 +186,10 @@ const mergeTests = [
       JSON.stringify({ model: 'opus', verbose: true })
     );
 
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
     const originalCwd = process.cwd();
 
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
     process.chdir(TEST_PROJECT_DIR);
 
     const manager = new ConfigManager();
@@ -199,7 +199,7 @@ const mergeTests = [
     assertEqual(config.maxTokens, 8192, '未被覆盖的值应保留');
     assertEqual(config.verbose, true, '项目配置的新值应生效');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
     process.chdir(originalCwd);
     cleanup();
   }),
@@ -213,20 +213,20 @@ const mergeTests = [
     );
 
     const originalEnv = {
-      CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR,
-      CLAUDE_CODE_MAX_OUTPUT_TOKENS: process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS,
+      AXON_CONFIG_DIR: process.env.AXON_CONFIG_DIR,
+      AXON_MAX_OUTPUT_TOKENS: process.env.AXON_MAX_OUTPUT_TOKENS,
     };
 
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
-    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '32768';
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_MAX_OUTPUT_TOKENS = '32768';
 
     const manager = new ConfigManager();
     const config = manager.getAll();
 
     assertEqual(config.maxTokens, 32768, '环境变量应覆盖配置文件');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = originalEnv.CLAUDE_CODE_MAX_OUTPUT_TOKENS;
+    process.env.AXON_CONFIG_DIR = originalEnv.AXON_CONFIG_DIR;
+    process.env.AXON_MAX_OUTPUT_TOKENS = originalEnv.AXON_MAX_OUTPUT_TOKENS;
     cleanup();
   }),
 ];
@@ -237,8 +237,8 @@ const saveTests = [
   test('应该保存配置到全局文件', () => {
     setup();
 
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
     manager.set('model', 'opus');
@@ -251,17 +251,17 @@ const saveTests = [
     assertEqual(saved.model, 'opus', '保存的配置应该正确');
     assertEqual(saved.maxTokens, 16384, '保存的配置应该正确');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
     cleanup();
   }),
 
   test('应该保存项目配置', () => {
     setup();
 
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
     const originalCwd = process.cwd();
 
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
     process.chdir(TEST_PROJECT_DIR);
 
     const manager = new ConfigManager();
@@ -272,7 +272,7 @@ const saveTests = [
     const saved = JSON.parse(fs.readFileSync(TEST_PROJECT_CONFIG, 'utf-8'));
     assertEqual(saved.model, 'opus', '保存的项目配置应该正确');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
     process.chdir(originalCwd);
     cleanup();
   }),
@@ -282,20 +282,20 @@ const saveTests = [
 
 const validationTests = [
   test('应该验证有效配置', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
     const validation = manager.validate();
 
     assertEqual(validation.valid, true, '默认配置应该有效');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
   }),
 
   test('应该拦截无效的 maxTokens', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
 
@@ -311,12 +311,12 @@ const validationTests = [
       );
     }
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
   }),
 
   test('应该拦截无效的模型名称', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
 
@@ -331,7 +331,7 @@ const validationTests = [
       );
     }
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
   }),
 ];
 
@@ -349,8 +349,8 @@ const migrationTests = [
       })
     );
 
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
     const config = manager.getAll();
@@ -359,7 +359,7 @@ const migrationTests = [
     assertEqual(config.enableAutoSave, true, 'autoSave 应该迁移为 enableAutoSave');
     assertEqual(config.version, '2.1.4', '版本号应该更新');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
     cleanup();
   }),
 
@@ -375,8 +375,8 @@ const migrationTests = [
       })
     );
 
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
     const config = manager.getAll();
@@ -384,7 +384,7 @@ const migrationTests = [
     assertEqual(config.model, 'sonnet', '所有旧模型名都应该被迁移');
     assertEqual(config.enableAutoSave, false, 'autoSave 应该正确迁移');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
     cleanup();
   }),
 ];
@@ -393,8 +393,8 @@ const migrationTests = [
 
 const importExportTests = [
   test('应该导出配置（掩码敏感信息）', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
     manager.set('apiKey', 'sk-ant-1234567890abcdef');
@@ -405,12 +405,12 @@ const importExportTests = [
     assert(config.apiKey.includes('***'), 'API 密钥应该被掩码');
     assert(config.apiKey !== 'sk-ant-1234567890abcdef', 'API 密钥不应该明文导出');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
   }),
 
   test('应该导出配置（不掩码）', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
     manager.set('apiKey', 'sk-ant-1234567890abcdef');
@@ -420,12 +420,12 @@ const importExportTests = [
 
     assertEqual(config.apiKey, 'sk-ant-1234567890abcdef', '不掩码时应该导出原始值');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
   }),
 
   test('应该导入有效配置', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
 
@@ -441,12 +441,12 @@ const importExportTests = [
     const config = manager.getAll();
     assertEqual(config.model, 'opus', '导入的配置应该生效');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
   }),
 
   test('应该拒绝无效配置', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
 
@@ -458,7 +458,7 @@ const importExportTests = [
     const result = manager.import(invalidJson);
     assertEqual(result, false, '无效配置应该被拒绝');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
   }),
 ];
 
@@ -466,8 +466,8 @@ const importExportTests = [
 
 const mcpTests = [
   test('应该添加 MCP 服务器', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
 
@@ -481,12 +481,12 @@ const mcpTests = [
     assert('fs' in servers, 'MCP 服务器应该被添加');
     assertEqual(servers.fs.type, 'stdio', '服务器类型应该正确');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
   }),
 
   test('应该验证 MCP 服务器配置', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
 
@@ -503,12 +503,12 @@ const mcpTests = [
       );
     }
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
   }),
 
   test('应该删除 MCP 服务器', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
 
@@ -523,12 +523,12 @@ const mcpTests = [
     const servers = manager.getMcpServers();
     assert(!('test' in servers), 'MCP 服务器应该被删除');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
   }),
 
   test('应该更新 MCP 服务器', () => {
-    const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    process.env.CLAUDE_CONFIG_DIR = TEST_CONFIG_DIR;
+    const originalEnv = process.env.AXON_CONFIG_DIR;
+    process.env.AXON_CONFIG_DIR = TEST_CONFIG_DIR;
 
     const manager = new ConfigManager();
 
@@ -546,7 +546,7 @@ const mcpTests = [
     const servers = manager.getMcpServers();
     assertEqual(servers.test.url, 'http://localhost:4000', 'URL 应该被更新');
 
-    process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    process.env.AXON_CONFIG_DIR = originalEnv;
   }),
 ];
 

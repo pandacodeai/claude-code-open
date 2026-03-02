@@ -57,6 +57,8 @@ export interface ClientConfig {
   temperature?: number;
   /** v2.1.36: Fast mode 状态 */
   fastMode?: boolean;
+  /** 请求来源标识，用于缓存破裂追踪（对齐官方 querySource，默认 "main"） */
+  querySource?: string;
 }
 
 export interface StreamCallbacks {
@@ -212,12 +214,12 @@ class FallbackTriggeredError extends Error {
   }
 }
 
-// 官方 Claude Code 的 beta 头 (v2.1.29 对齐)
+// Axon 的 beta 头 (v2.1.29 对齐官方)
 // 重要发现：claude-code-20250219 beta 需要与特定的 system prompt 配合使用
 // system prompt 的第一个 block 必须以下列字符串之一开头：
-// - "You are Claude Code, Anthropic's official CLI for Claude."
+// - "You are Axon, an AI-powered coding assistant."
 // - "You are a Claude agent, built on Anthropic's Claude Agent SDK."
-const CLAUDE_CODE_BETA = 'claude-code-20250219';           // tFA
+const AXON_BETA = 'claude-code-20250219';           // tFA
 const OAUTH_BETA = 'oauth-2025-04-20';                     // zE
 const THINKING_BETA = 'interleaved-thinking-2025-05-14';   // eFA
 const CONTEXT_1M_BETA = 'context-1m-2025-08-07';           // xZ1
@@ -247,13 +249,13 @@ type ProviderType = 'firstParty' | 'anthropic' | 'bedrock' | 'vertex' | 'foundry
  * 通过环境变量检测使用的云服务商
  */
 function getProviderType(): ProviderType {
-  if (process.env.CLAUDE_CODE_USE_BEDROCK === 'true' || process.env.CLAUDE_CODE_USE_BEDROCK === '1') {
+  if (process.env.AXON_USE_BEDROCK === 'true' || process.env.AXON_USE_BEDROCK === '1') {
     return 'bedrock';
   }
-  if (process.env.CLAUDE_CODE_USE_VERTEX === 'true' || process.env.CLAUDE_CODE_USE_VERTEX === '1') {
+  if (process.env.AXON_USE_VERTEX === 'true' || process.env.AXON_USE_VERTEX === '1') {
     return 'vertex';
   }
-  if (process.env.CLAUDE_CODE_USE_FOUNDRY === 'true' || process.env.CLAUDE_CODE_USE_FOUNDRY === '1') {
+  if (process.env.AXON_USE_FOUNDRY === 'true' || process.env.AXON_USE_FOUNDRY === '1') {
     return 'foundry';
   }
   // v2.1.29: 默认使用 'firstParty' 表示直接使用 Anthropic API
@@ -281,7 +283,7 @@ function isEnvEnabled(value: string | undefined): boolean {
  *
  * 只有以下情况才启用实验性 betas：
  * 1. Provider 是 firstParty 或 foundry
- * 2. 且未设置 CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1
+ * 2. 且未设置 AXON_DISABLE_EXPERIMENTAL_BETAS=1
  *
  * 这是 v2.1.29 修复 beta header 验证错误的关键：
  * Bedrock 和 Vertex 网关用户不会获得实验性 betas
@@ -291,7 +293,7 @@ function isExperimentalBetasEnabled(): boolean {
   if (provider !== 'firstParty' && provider !== 'foundry') {
     return false;
   }
-  return !isEnvEnabled(process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS);
+  return !isEnvEnabled(process.env.AXON_DISABLE_EXPERIMENTAL_BETAS);
 }
 
 /**
@@ -331,30 +333,30 @@ function supportsWebSearch(model: string): boolean {
          model.includes('claude-haiku-4');
 }
 
-// Claude Code 身份验证的 magic string
+// Axon 身份验证的 magic string
 // 官方有三种身份标识，根据不同场景使用
-const CLAUDE_CODE_IDENTITY = "You are Claude Code, Anthropic's official CLI for Claude.";
-const CLAUDE_CODE_AGENT_SDK_IDENTITY = "You are Claude Code, Anthropic's official CLI for Claude, running within the Claude Agent SDK.";
-const CLAUDE_AGENT_IDENTITY = "You are a Claude agent, built on Anthropic's Claude Agent SDK.";
+const AXON_IDENTITY = "You are Axon, an AI-powered coding assistant.";
+const AXON_AGENT_SDK_IDENTITY = "You are Axon, an AI-powered coding assistant, running within the Claude Agent SDK.";
+const AXON_AGENT_IDENTITY = "You are a Claude agent, built on Anthropic's Claude Agent SDK.";
 
 /**
- * 检查 system prompt 是否包含有效的 Claude Code 身份标识
+ * 检查 system prompt 是否包含有效的 Axon 身份标识
  */
 function hasValidIdentity(systemPrompt?: string | Array<{type: string; text: string}>): boolean {
   if (!systemPrompt) return false;
 
   if (typeof systemPrompt === 'string') {
-    return systemPrompt.startsWith(CLAUDE_CODE_IDENTITY) ||
-           systemPrompt.startsWith(CLAUDE_CODE_AGENT_SDK_IDENTITY) ||
-           systemPrompt.startsWith(CLAUDE_AGENT_IDENTITY);
+    return systemPrompt.startsWith(AXON_IDENTITY) ||
+           systemPrompt.startsWith(AXON_AGENT_SDK_IDENTITY) ||
+           systemPrompt.startsWith(AXON_AGENT_IDENTITY);
   }
 
   if (Array.isArray(systemPrompt) && systemPrompt.length > 0) {
     const firstBlock = systemPrompt[0];
     if (firstBlock?.type === 'text' && firstBlock?.text) {
-      return firstBlock.text.startsWith(CLAUDE_CODE_IDENTITY) ||
-             firstBlock.text.startsWith(CLAUDE_CODE_AGENT_SDK_IDENTITY) ||
-             firstBlock.text.startsWith(CLAUDE_AGENT_IDENTITY);
+      return firstBlock.text.startsWith(AXON_IDENTITY) ||
+             firstBlock.text.startsWith(AXON_AGENT_SDK_IDENTITY) ||
+             firstBlock.text.startsWith(AXON_AGENT_IDENTITY);
     }
   }
 
@@ -365,7 +367,7 @@ function hasValidIdentity(systemPrompt?: string | Array<{type: string; text: str
  * 格式化 system prompt 以启用 Prompt Caching
  *
  * v5.0: 所有模式都启用 cache_control，节省重复 System Prompt 的 token 消耗
- * - 对于 OAuth 模式：第一个 block 必须以 CLAUDE_CODE_IDENTITY 开头
+ * - 对于 OAuth 模式：第一个 block 必须以 AXON_IDENTITY 开头
  * - 对于非 OAuth 模式：直接缓存整个 System Prompt
  */
 /**
@@ -376,32 +378,67 @@ interface PromptBlock {
   cacheScope: 'global' | 'org' | null;
 }
 
-function formatSystemPrompt(
+/**
+ * 对齐官方 HJq 函数：检查是否应为当前模型启用 prompt caching
+ *
+ * 官方支持 DISABLE_PROMPT_CACHING 系列 env var，按型号粒度控制：
+ * - DISABLE_PROMPT_CACHING          - 禁用所有型号
+ * - DISABLE_PROMPT_CACHING_HAIKU    - 仅禁用 Haiku
+ * - DISABLE_PROMPT_CACHING_SONNET   - 仅禁用 Sonnet
+ * - DISABLE_PROMPT_CACHING_OPUS     - 仅禁用 Opus
+ */
+export function isPromptCachingEnabled(model: string): boolean {
+  if (process.env.DISABLE_PROMPT_CACHING) return false;
+  if (process.env.DISABLE_PROMPT_CACHING_HAIKU && model.includes('haiku')) return false;
+  if (process.env.DISABLE_PROMPT_CACHING_SONNET && model.includes('sonnet')) return false;
+  if (process.env.DISABLE_PROMPT_CACHING_OPUS && model.includes('opus')) return false;
+  return true;
+}
+
+/**
+ * 构建 cache_control 对象（对齐官方 Pc1 函数）
+ *
+ * 官方逻辑：
+ * - type: "ephemeral" — 始终设置
+ * - ttl: "1h" — OAuth 用户（延长缓存有效期到 1 小时，官方需额外满足未超额+allowlist）
+ * - scope: "global" — 仅当 cacheScope === "global" 时设置，扩大缓存范围到同组织级别
+ */
+export function buildCacheControl(cacheScope: 'global' | 'org', isOAuth?: boolean): Record<string, unknown> {
+  return {
+    type: 'ephemeral' as const,
+    ...(isOAuth ? { ttl: '1h' } : {}),
+    ...(cacheScope === 'global' ? { scope: 'global' } : {}),
+  };
+}
+
+export function formatSystemPrompt(
   systemPrompt: string | undefined,
   isOAuth: boolean,
-  promptBlocks?: PromptBlock[]
-): Array<{type: 'text'; text: string; cache_control?: {type: 'ephemeral'}}> | string | undefined {
+  promptBlocks?: PromptBlock[],
+  enableCaching?: boolean
+): Array<{type: 'text'; text: string; cache_control?: Record<string, unknown>}> | string | undefined {
   // 没有 system prompt 时
   if (!systemPrompt) {
     if (isOAuth) {
       return [
-        { type: 'text', text: CLAUDE_CODE_IDENTITY, cache_control: { type: 'ephemeral' } }
+        { type: 'text', text: AXON_IDENTITY, ...(enableCaching !== false ? { cache_control: { type: 'ephemeral', ttl: '1h' } } : {}) }
       ];
     }
     return undefined;
   }
 
   // v6.0: 使用 PromptBlock 分块缓存（对齐官方 CG1 分割逻辑）
-  // 静态 block (cacheScope: "global") → cache_control: ephemeral（可跨 turn 缓存）
+  // 静态 block (cacheScope: "global") → cache_control: { type: ephemeral, scope: global }
   // 动态 block (cacheScope: null) → 不设 cache_control（每 turn 重新计算）
   if (promptBlocks && promptBlocks.length > 0) {
-    const apiBlocks: Array<{type: 'text'; text: string; cache_control?: {type: 'ephemeral'}}> = [];
+    const apiBlocks: Array<{type: 'text'; text: string; cache_control?: Record<string, unknown>}> = [];
     for (const block of promptBlocks) {
       if (!block.text) continue;
       apiBlocks.push({
         type: 'text',
         text: block.text,
-        ...(block.cacheScope !== null ? { cache_control: { type: 'ephemeral' as const } } : {}),
+        // enableCaching=false 时完全跳过 cache_control（对齐官方 h2z 中 q&&... 逻辑）
+        ...(enableCaching !== false && block.cacheScope !== null ? { cache_control: buildCacheControl(block.cacheScope, isOAuth) } : {}),
       });
     }
     return apiBlocks.length > 0 ? apiBlocks : undefined;
@@ -410,35 +447,37 @@ function formatSystemPrompt(
   // 兼容旧路径：单字符串模式
   if (!isOAuth) {
     return [
-      { type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }
+      { type: 'text', text: systemPrompt, ...(enableCaching !== false ? { cache_control: { type: 'ephemeral' } } : {}) }
     ];
   }
 
   // OAuth 模式需要身份标识作为第一个 block
-  let identityToUse = CLAUDE_CODE_IDENTITY;
+  let identityToUse = AXON_IDENTITY;
   let remainingText = '';
 
-  if (systemPrompt.startsWith(CLAUDE_CODE_IDENTITY)) {
-    identityToUse = CLAUDE_CODE_IDENTITY;
-    remainingText = systemPrompt.slice(CLAUDE_CODE_IDENTITY.length).trim();
-  } else if (systemPrompt.startsWith(CLAUDE_CODE_AGENT_SDK_IDENTITY)) {
-    identityToUse = CLAUDE_CODE_AGENT_SDK_IDENTITY;
-    remainingText = systemPrompt.slice(CLAUDE_CODE_AGENT_SDK_IDENTITY.length).trim();
-  } else if (systemPrompt.startsWith(CLAUDE_AGENT_IDENTITY)) {
-    identityToUse = CLAUDE_AGENT_IDENTITY;
-    remainingText = systemPrompt.slice(CLAUDE_AGENT_IDENTITY.length).trim();
+  if (systemPrompt.startsWith(AXON_IDENTITY)) {
+    identityToUse = AXON_IDENTITY;
+    remainingText = systemPrompt.slice(AXON_IDENTITY.length).trim();
+  } else if (systemPrompt.startsWith(AXON_AGENT_SDK_IDENTITY)) {
+    identityToUse = AXON_AGENT_SDK_IDENTITY;
+    remainingText = systemPrompt.slice(AXON_AGENT_SDK_IDENTITY.length).trim();
+  } else if (systemPrompt.startsWith(AXON_AGENT_IDENTITY)) {
+    identityToUse = AXON_AGENT_IDENTITY;
+    remainingText = systemPrompt.slice(AXON_AGENT_IDENTITY.length).trim();
   } else {
+    const cc = enableCaching !== false ? { cache_control: { type: 'ephemeral' as const, ttl: '1h' as const } } : {};
     return [
-      { type: 'text', text: CLAUDE_CODE_IDENTITY, cache_control: { type: 'ephemeral' } },
-      { type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }
+      { type: 'text', text: AXON_IDENTITY, ...cc },
+      { type: 'text', text: systemPrompt, ...cc }
     ];
   }
 
-  const blocks: Array<{type: 'text'; text: string; cache_control?: {type: 'ephemeral'}}> = [
-    { type: 'text' as const, text: identityToUse, cache_control: { type: 'ephemeral' as const } }
+  const cc = enableCaching !== false ? { cache_control: { type: 'ephemeral' as const, ttl: '1h' as const } } : {};
+  const blocks: Array<{type: 'text'; text: string; cache_control?: Record<string, unknown>}> = [
+    { type: 'text' as const, text: identityToUse, ...cc }
   ];
   if (remainingText.length > 0) {
-    blocks.push({ type: 'text' as const, text: remainingText, cache_control: { type: 'ephemeral' as const } });
+    blocks.push({ type: 'text' as const, text: remainingText, ...cc });
   }
   return blocks;
 }
@@ -487,9 +526,27 @@ function sanitizeContent(content: any): any {
   return content;
 }
 
-function formatMessages(messages: Array<{ role: string; content: any }>, enableThinking?: boolean): Array<{ role: string; content: any }> {
+/**
+ * 对齐官方 S2z / R2z / y2z 函数：
+ * - 官方 z > A.length-3 → 最后 2 条消息的最后一个 block 添加 cache_control
+ * - enableCaching=false 时完全跳过（对齐 HJq 的 enablePromptCaching 控制）
+ * - isOAuth=true 时在 cache_control 中加入 ttl:"1h"（对齐 Pc1 函数）
+ */
+export function formatMessages(
+  messages: Array<{ role: string; content: any }>,
+  enableThinking?: boolean,
+  enableCaching?: boolean,
+  isOAuth?: boolean
+): Array<{ role: string; content: any }> {
+  // 构建 cache_control 对象（isOAuth 时加 ttl:1h）
+  const cacheControl: Record<string, unknown> = {
+    type: 'ephemeral',
+    ...(isOAuth ? { ttl: '1h' } : {}),
+  };
+
   const formatted = messages.map((m, msgIndex) => {
-    const isLastMessage = msgIndex === messages.length - 1;
+    // 官方 z > A.length-3 → 最后 2 条消息（索引 >= length-2）
+    const isRecentMessage = msgIndex >= messages.length - 2;
 
     // 如果 content 是字符串，转换为数组格式并添加缓存控制
     if (typeof m.content === 'string') {
@@ -498,8 +555,7 @@ function formatMessages(messages: Array<{ role: string; content: any }>, enableT
         content: [{
           type: 'text',
           text: m.content,
-          // 只为最后一条消息添加缓存控制（官方逻辑）
-          ...(isLastMessage ? { cache_control: { type: 'ephemeral' } } : {}),
+          ...(isRecentMessage && enableCaching !== false ? { cache_control: cacheControl } : {}),
         }],
       };
     }
@@ -521,12 +577,11 @@ function formatMessages(messages: Array<{ role: string; content: any }>, enableT
 
       const content = filteredContent.map((block: any, blockIndex: number) => {
         const isLastBlock = blockIndex === filteredContent.length - 1;
-        // 跳过 thinking 类型的 block
+        // 跳过 thinking 类型的 block（官方 y2z 逻辑）
         const isThinkingBlock = block.type === 'thinking' || block.type === 'redacted_thinking';
 
-        // 只为最后一条消息的最后一个非 thinking block 添加缓存控制
-        if (isLastMessage && isLastBlock && !isThinkingBlock) {
-          return { ...block, cache_control: { type: 'ephemeral' } };
+        if (isRecentMessage && isLastBlock && !isThinkingBlock && enableCaching !== false) {
+          return { ...block, cache_control: cacheControl };
         }
         return block;
       });
@@ -538,6 +593,196 @@ function formatMessages(messages: Array<{ role: string; content: any }>, enableT
   });
   return sanitizeContent(formatted);
 }
+
+// ─── 缓存破裂追踪系统（对齐官方 xR7/bR7/kB）───────────────────────────────
+// 官方常量：最多追踪10个 source、最小 token 差阈值 2000、5分钟/1小时时间窗口
+const CACHE_BREAK_MAX_SOURCES = 10;
+const CACHE_BREAK_MIN_TOKEN_DROP = 2000;
+
+interface CacheBreakState {
+  systemHash: number;
+  toolsHash: number;
+  toolNames: string[];
+  systemCharCount: number;
+  model: string;
+  fastMode: boolean;
+  callCount: number;
+  pendingChanges: null | {
+    systemPromptChanged: boolean;
+    toolSchemasChanged: boolean;
+    modelChanged: boolean;
+    fastModeChanged: boolean;
+    addedToolCount: number;
+    removedToolCount: number;
+    systemCharDelta: number;
+    previousModel: string;
+    newModel: string;
+  };
+  prevCacheReadTokens: number | null;
+  microcompacted: boolean;
+}
+
+export const cacheBreakMap = new Map<string, CacheBreakState>();
+
+/** 对齐官方 IR7：简单 djb2-like 整数哈希 */
+export function hashContent(content: any): number {
+  const str = JSON.stringify(content);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i) | 0;
+  }
+  return hash;
+}
+
+/** 对齐官方 hR7：计算哈希前剥离 cache_control 字段，避免其变化误判内容变化 */
+export function stripCacheControlFields(items: any[]): any[] {
+  return items.map((item: any) => {
+    if (!('cache_control' in item)) return item;
+    const { cache_control: _, ...rest } = item;
+    return rest;
+  });
+}
+
+/** 计算 system blocks 的总字符数（对齐官方 cY9） */
+export function getSystemCharCount(systemBlocks: any[]): number {
+  let count = 0;
+  for (const block of systemBlocks) count += (block.text || '').length;
+  return count;
+}
+
+/**
+ * 追踪每次 API 调用前的状态（对齐官方 xR7）
+ * 比较 system/tools 哈希，记录变化原因，为后续 cache break 报告提供上下文
+ */
+export function trackCacheState(
+  systemBlocks: any[],
+  tools: any[],
+  model: string,
+  querySource: string,
+  fastMode: boolean
+): void {
+  try {
+    const strippedSystem = stripCacheControlFields(systemBlocks);
+    const strippedTools = stripCacheControlFields(tools);
+    const systemHash = hashContent(strippedSystem);
+    const toolsHash = hashContent(strippedTools);
+    const toolNames = tools.map((t: any) => ('name' in t ? t.name : 'unknown'));
+    const systemCharCount = getSystemCharCount(systemBlocks);
+
+    const existing = cacheBreakMap.get(querySource);
+    if (!existing) {
+      // 容量满时驱逐最旧的 source
+      while (cacheBreakMap.size >= CACHE_BREAK_MAX_SOURCES) {
+        const firstKey = cacheBreakMap.keys().next().value;
+        if (firstKey !== undefined) cacheBreakMap.delete(firstKey);
+      }
+      cacheBreakMap.set(querySource, {
+        systemHash, toolsHash, toolNames, systemCharCount,
+        model, fastMode, callCount: 1,
+        pendingChanges: null, prevCacheReadTokens: null, microcompacted: false,
+      });
+      return;
+    }
+
+    existing.callCount++;
+    const systemChanged = systemHash !== existing.systemHash;
+    const toolsChanged = toolsHash !== existing.toolsHash;
+    const modelChanged = model !== existing.model;
+    const fastModeChanged = fastMode !== existing.fastMode;
+
+    if (systemChanged || toolsChanged || modelChanged || fastModeChanged) {
+      const prevToolSet = new Set(existing.toolNames);
+      const newToolSet = new Set(toolNames);
+      existing.pendingChanges = {
+        systemPromptChanged: systemChanged,
+        toolSchemasChanged: toolsChanged,
+        modelChanged,
+        fastModeChanged,
+        addedToolCount: toolNames.filter((n: string) => !prevToolSet.has(n)).length,
+        removedToolCount: existing.toolNames.filter((n: string) => !newToolSet.has(n)).length,
+        systemCharDelta: systemCharCount - existing.systemCharCount,
+        previousModel: existing.model,
+        newModel: model,
+      };
+    } else {
+      existing.pendingChanges = null;
+    }
+
+    existing.systemHash = systemHash;
+    existing.toolsHash = toolsHash;
+    existing.toolNames = toolNames;
+    existing.systemCharCount = systemCharCount;
+    existing.model = model;
+    existing.fastMode = fastMode;
+  } catch {
+    // 追踪失败不影响主流程
+  }
+}
+
+/**
+ * 报告缓存命中率下降（对齐官方 bR7）
+ * 当 cacheReadTokens < prevCacheReadTokens * 0.95 且差值 > 2000 时输出警告
+ */
+export function reportCacheBreak(
+  querySource: string,
+  cacheReadTokens: number,
+  cacheCreationTokens: number,
+  debug: boolean
+): void {
+  const state = cacheBreakMap.get(querySource);
+  if (!state) return;
+
+  // haiku 缓存行为特殊，官方跳过 haiku 的 cache break 报告
+  if (state.model.includes('haiku')) return;
+
+  const prevCacheRead = state.prevCacheReadTokens;
+  state.prevCacheReadTokens = cacheReadTokens;
+
+  if (prevCacheRead === null) return;
+
+  const drop = prevCacheRead - cacheReadTokens;
+  // 命中率未显著下降 → 清空 pendingChanges，正常缓存
+  if (cacheReadTokens >= prevCacheRead * 0.95 || drop < CACHE_BREAK_MIN_TOKEN_DROP) {
+    state.pendingChanges = null;
+    state.microcompacted = false;
+    return;
+  }
+
+  // 收集 cache break 原因
+  const reasons: string[] = [];
+  if (state.microcompacted) {
+    reasons.push('microcompact');
+    state.microcompacted = false;
+  }
+  const changes = state.pendingChanges;
+  if (changes) {
+    if (changes.modelChanged) {
+      reasons.push(`model changed (${changes.previousModel} → ${changes.newModel})`);
+    }
+    if (changes.systemPromptChanged) {
+      const delta = changes.systemCharDelta;
+      const suffix = delta === 0 ? '' : delta > 0 ? ` (+${delta} chars)` : ` (${delta} chars)`;
+      reasons.push(`system prompt changed${suffix}`);
+    }
+    if (changes.toolSchemasChanged) {
+      const hasCounts = changes.addedToolCount > 0 || changes.removedToolCount > 0;
+      const suffix = hasCounts
+        ? ` (+${changes.addedToolCount}/-${changes.removedToolCount} tools)`
+        : ' (tool prompt/schema changed, same tool set)';
+      reasons.push(`tools changed${suffix}`);
+    }
+    if (changes.fastModeChanged) reasons.push('fast mode toggled');
+  }
+
+  const cause = reasons.length > 0 ? reasons.join(', ') : 'unknown cause';
+  const msg = `[PROMPT CACHE BREAK] ${cause} [source=${querySource}, call #${state.callCount}, cache read: ${prevCacheRead} → ${cacheReadTokens}, creation: ${cacheCreationTokens}]`;
+
+  if (debug) {
+    console.warn(msg);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 // 会话相关的全局状态
 let _sessionId: string | null = null;
@@ -577,13 +822,13 @@ function buildMetadata(accountUuid?: string): { user_id: string } {
  *
  * 重要发现：
  * - claude-code-20250219 beta 需要与特定的 system prompt 配合使用
- * - system prompt 必须以 CLAUDE_CODE_IDENTITY 或 CLAUDE_AGENT_IDENTITY 开头
+ * - system prompt 必须以 AXON_IDENTITY 或 AXON_AGENT_IDENTITY 开头
  * - 只有满足这个条件，OAuth token 才能使用 sonnet/opus 模型
  *
  * v2.1.29 修复：
  * - 完全重写以对齐官方实现
  * - 对于 Bedrock/Vertex 网关用户，不添加实验性 betas
- * - 支持 CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1 完全禁用实验性 betas
+ * - 支持 AXON_DISABLE_EXPERIMENTAL_BETAS=1 完全禁用实验性 betas
  * - 添加 structured-outputs beta 支持
  */
 function buildBetas(model: string, isOAuth: boolean, fastMode?: boolean): string[] {
@@ -594,7 +839,7 @@ function buildBetas(model: string, isOAuth: boolean, fastMode?: boolean): string
 
   // 1. 非 haiku 模型添加 claude-code beta（官方: if(!K)q.push(tFA)）
   if (!isHaiku) {
-    betas.push(CLAUDE_CODE_BETA);
+    betas.push(AXON_BETA);
   }
 
   // 2. OAuth 订阅用户添加 oauth beta（官方: if(O7())q.push(zE)）
@@ -615,8 +860,8 @@ function buildBetas(model: string, isOAuth: boolean, fastMode?: boolean): string
 
   // 5. structured outputs beta（官方需要 feature flag tengu_tool_pear）
   // 由于我们没有 Anthropic 的 feature flag 系统，默认不启用
-  // 通过环境变量 CLAUDE_CODE_ENABLE_STRUCTURED_OUTPUTS=1 手动启用
-  if (supportsStructuredOutputs(model) && isEnvEnabled(process.env.CLAUDE_CODE_ENABLE_STRUCTURED_OUTPUTS)) {
+  // 通过环境变量 AXON_ENABLE_STRUCTURED_OUTPUTS=1 手动启用
+  if (supportsStructuredOutputs(model) && isEnvEnabled(process.env.AXON_ENABLE_STRUCTURED_OUTPUTS)) {
     betas.push(STRUCTURED_OUTPUTS_BETA);
   }
 
@@ -666,13 +911,91 @@ function buildBetas(model: string, isOAuth: boolean, fastMode?: boolean): string
  * v5.0: 为最后一个工具添加 cache_control，启用工具列表缓存
  * 官方实现：最后一个工具添加 { type: "ephemeral" } 来缓存整个工具列表
  *
- * 官方 Claude Code 使用 Anthropic API 的 Server Tool 进行网络搜索：
+ * 官方 Anthropic API 的 Server Tool 进行网络搜索：
  * - type: 'web_search_20250305'
  * - name: 'web_search'
  *
  * Server Tool 由 Anthropic 服务器执行，比客户端实现更可靠
  */
-function buildApiTools(tools?: ToolDefinition[], toolSearchEnabled?: boolean): any[] | undefined {
+/**
+ * 将 MCP 服务器返回的 inputSchema 规范化为 JSON Schema draft 2020-12 兼容格式
+ * 常见问题：
+ *  - `definitions` 关键字（draft-04/07）→ 需改为 `$defs`（draft-2020-12）
+ *  - `$schema` 指向旧版本 → 移除
+ *  - `$ref` 指向 `#/definitions/...` → 改为 `#/$defs/...`
+ */
+function sanitizeInputSchema(schema: any): any {
+  if (!schema || typeof schema !== 'object') {
+    return { type: 'object', properties: {} };
+  }
+
+  const result = { ...schema };
+
+  // 移除 $schema 字段（避免旧版本声明触发校验失败）
+  delete result.$schema;
+
+  // definitions → $defs
+  if (result.definitions && !result.$defs) {
+    result.$defs = result.definitions;
+    delete result.definitions;
+  }
+
+  // 递归处理所有嵌套 schema 对象
+  for (const key of Object.keys(result)) {
+    const val = result[key];
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      result[key] = sanitizeInputSchema(val);
+    } else if (Array.isArray(val)) {
+      result[key] = val.map((item: any) =>
+        item && typeof item === 'object' ? sanitizeInputSchema(item) : item
+      );
+    }
+  }
+
+  // 修复 $ref 中指向 definitions 的路径
+  if (typeof result.$ref === 'string' && result.$ref.startsWith('#/definitions/')) {
+    result.$ref = result.$ref.replace('#/definitions/', '#/$defs/');
+  }
+
+  // 修复 DingTalk MCP 将 required 放入 properties 内部的问题
+  // 错误结构：properties: { field: {...}, required: ["field","operator"] }
+  // 正确结构：properties: { field: {...} }, required: ["field","operator"]
+  if (result.properties && typeof result.properties === 'object' && !Array.isArray(result.properties)) {
+    const reqInProps = (result.properties as any).required;
+    if (Array.isArray(reqInProps) && reqInProps.every((v: any) => typeof v === 'string')) {
+      if (!result.required) {
+        result.required = reqInProps;
+      }
+      const fixedProps = { ...(result.properties as any) };
+      delete fixedProps.required;
+      result.properties = fixedProps;
+    }
+  }
+
+  // 修复非法的 type 值（如 Java 泛型类型 "Map<String, Any>"、"List<String>" 等）
+  // JSON Schema 合法 type 值：string/number/integer/boolean/array/object/null
+  const VALID_TYPES = new Set(['string', 'number', 'integer', 'boolean', 'array', 'object', 'null']);
+  if (typeof result.type === 'string' && !VALID_TYPES.has(result.type)) {
+    const raw = result.type as string;
+    if (raw.startsWith('Map') || raw.startsWith('map') || raw.toLowerCase().includes('object')) {
+      result.type = 'object';
+    } else if (raw.startsWith('List') || raw.startsWith('list') || raw.startsWith('Array') || raw.includes('[]')) {
+      result.type = 'array';
+    } else {
+      // 兜底：未知类型替换为 object
+      result.type = 'object';
+    }
+  }
+
+  return result;
+}
+
+export function buildApiTools(
+  tools?: ToolDefinition[],
+  toolSearchEnabled?: boolean,
+  enableCaching?: boolean,
+  isOAuth?: boolean
+): any[] | undefined {
   const apiTools: any[] = [];
 
   // 添加客户端工具
@@ -681,7 +1004,7 @@ function buildApiTools(tools?: ToolDefinition[], toolSearchEnabled?: boolean): a
       const apiTool: any = {
         name: tool.name,
         description: tool.description,
-        input_schema: tool.inputSchema,
+        input_schema: sanitizeInputSchema(tool.inputSchema),
       };
 
       // v2.1.34: deferred tool 标记 defer_loading
@@ -695,6 +1018,48 @@ function buildApiTools(tools?: ToolDefinition[], toolSearchEnabled?: boolean): a
     }
   }
 
+  // DEBUG: 扫描所有工具 schema 的已知非法模式（定位 DingTalk schema 问题）
+  {
+    const VALID = new Set(['string','number','integer','boolean','array','object','null']);
+    function findSchemaIssues(obj: any, path: string): string[] {
+      if (!obj || typeof obj !== 'object') return [];
+      const issues: string[] = [];
+      // 检查非法 type
+      if (typeof obj.type === 'string' && !VALID.has(obj.type)) {
+        issues.push(`${path}.type="${obj.type}"`);
+      }
+      // 检查 required 被放进了 properties 内部
+      if (obj.properties && typeof obj.properties === 'object') {
+        const req = (obj.properties as any).required;
+        if (Array.isArray(req) && req.every((v: any) => typeof v === 'string')) {
+          issues.push(`${path}.properties.required=[${req.join(',')}] (misplaced)`);
+        }
+        // 检查 properties 中的 value 不是合法 schema（既不是 object 也不是 boolean）
+        for (const k of Object.keys(obj.properties as any)) {
+          const v = (obj.properties as any)[k];
+          if (v !== null && typeof v !== 'object' && typeof v !== 'boolean') {
+            issues.push(`${path}.properties.${k} is ${typeof v} (not a schema)`);
+          }
+        }
+      }
+      for (const k of Object.keys(obj)) {
+        const v = obj[k];
+        if (v && typeof v === 'object' && !Array.isArray(v)) issues.push(...findSchemaIssues(v, `${path}.${k}`));
+        else if (Array.isArray(v)) v.forEach((item: any, i: number) => {
+          if (item && typeof item === 'object') issues.push(...findSchemaIssues(item, `${path}.${k}[${i}]`));
+        });
+      }
+      return issues;
+    }
+    apiTools.forEach((t, i) => {
+      const issues = findSchemaIssues(t.input_schema, 'schema');
+      if (issues.length > 0) {
+        console.log(`[schemaDebug] tools[${i}] ${t.name}:`);
+        issues.forEach(iss => console.log(`  - ${iss}`));
+      }
+    });
+  }
+
   // 始终添加 WebSearch Server Tool（对齐官方实现）
   const webSearchServerTool: WebSearchTool20250305 = {
     name: 'web_search',
@@ -703,10 +1068,14 @@ function buildApiTools(tools?: ToolDefinition[], toolSearchEnabled?: boolean): a
   apiTools.push(webSearchServerTool);
 
   // v5.0: 为最后一个工具添加 cache_control，缓存整个工具列表
-  // 官方实现：cacheControl: D && YA === D ? cPA("global") : void 0
-  if (apiTools.length > 0) {
+  // enableCaching=false 时跳过（对齐 HJq 的控制逻辑）
+  // isOAuth=true 时加 ttl:1h（对齐 Pc1 函数）
+  if (apiTools.length > 0 && enableCaching !== false) {
     const lastTool = apiTools[apiTools.length - 1];
-    lastTool.cache_control = { type: 'ephemeral' };
+    lastTool.cache_control = {
+      type: 'ephemeral',
+      ...(isOAuth ? { ttl: '1h' } : {}),
+    };
   }
 
   return apiTools.length > 0 ? apiTools : undefined;
@@ -725,6 +1094,8 @@ export class ClaudeClient {
   /** v2.1.36: fast mode 状态 */
   private fastMode: boolean = false;
   private isOAuth: boolean = false;  // 是否使用 OAuth 模式
+  /** 请求来源标识，用于缓存破裂追踪（对齐官方 querySource） */
+  private querySource: string = 'main';
   private totalUsage: UsageStats = {
     inputTokens: 0,
     outputTokens: 0,
@@ -739,19 +1110,19 @@ export class ClaudeClient {
   constructor(config: ClientConfig = {}) {
     // 准备 Anthropic 客户端配置
     // 关键：对于 OAuth 模式，只使用 authToken，不使用 apiKey
-    // 官方 Claude Code 的逻辑：zB() ? null : apiKey
+    // OAuth 模式下不需要 API Key
     const authToken = config.authToken || process.env.ANTHROPIC_AUTH_TOKEN;
     // 如果有 authToken，则不使用 apiKey（官方逻辑）
-    const apiKey = authToken ? null : (config.apiKey || process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY);
+    const apiKey = authToken ? null : (config.apiKey || process.env.ANTHROPIC_API_KEY || process.env.AXON_API_KEY);
 
     if (!apiKey && !authToken) {
       console.warn('[ClaudeClient] No API key or auth token configured. API calls will fail until authentication is set up.');
     }
 
-    // 构建默认 headers（与官方 Claude Code 完全一致）
+    // 构建默认 headers（与官方 Anthropic API 完全一致）
     // 官方 User-Agent 格式: claude-cli/${VERSION} (external, ${ENTRYPOINT}${agent-sdk})
-    const entrypoint = process.env.CLAUDE_CODE_ENTRYPOINT || 'claude-vscode';
-    const agentSdkVersion = process.env.CLAUDE_AGENT_SDK_VERSION;
+    const entrypoint = process.env.AXON_ENTRYPOINT || 'claude-vscode';
+    const agentSdkVersion = process.env.AXON_AGENT_SDK_VERSION;
     const agentSdkSuffix = agentSdkVersion ? `, agent-sdk/${agentSdkVersion}` : '';
 
     const defaultHeaders: Record<string, string> = {
@@ -816,8 +1187,8 @@ export class ClaudeClient {
     // 使用21000作为安全默认值（留有余量）
     this.maxTokens = config.maxTokens || Math.min(21000, capabilities.maxOutputTokens);
 
-    // 对标官方 V39: 默认 10 次重试，可通过 CLAUDE_CODE_MAX_RETRIES 覆盖
-    const envRetries = parseInt(process.env.CLAUDE_CODE_MAX_RETRIES || '', 10);
+    // 对标官方 V39: 默认 10 次重试，可通过 AXON_MAX_RETRIES 覆盖
+    const envRetries = parseInt(process.env.AXON_MAX_RETRIES || '', 10);
     this.maxRetries = config.maxRetries ?? (!isNaN(envRetries) ? envRetries : DEFAULT_MAX_RETRIES);
     this.retryDelay = config.retryDelay ?? DEFAULT_RETRY_BASE_DELAY;
 
@@ -846,6 +1217,11 @@ export class ClaudeClient {
     // v2.1.36: 存储 fast mode 状态
     if (config.fastMode !== undefined) {
       this.fastMode = config.fastMode;
+    }
+
+    // 存储 querySource（用于缓存破裂追踪）
+    if (config.querySource) {
+      this.querySource = config.querySource;
     }
 
     if (this.debug) {
@@ -1180,24 +1556,27 @@ export class ClaudeClient {
         // 构建 betas 数组（模拟官方 qC 函数）
         const betas = buildBetas(currentModel, this.isOAuth, isFastActive);
 
+        // 对齐官方 HJq：按型号检查是否启用 prompt caching
+        const enableCaching = isPromptCachingEnabled(currentModel);
+
         // 格式化 system prompt（优先使用 blocks 分块缓存）
-        const formattedSystem = formatSystemPrompt(systemPrompt, this.isOAuth, options?.promptBlocks);
+        const formattedSystem = formatSystemPrompt(systemPrompt, this.isOAuth, options?.promptBlocks, enableCaching);
 
         // 构建 API 工具列表（将 WebSearch 客户端工具替换为 Server Tool）
-        const apiTools = buildApiTools(tools, options?.toolSearchEnabled);
+        const apiTools = buildApiTools(tools, options?.toolSearchEnabled, enableCaching, this.isOAuth);
 
         const requestParams: any = {
           model: currentModel,
           max_tokens: this.maxTokens,
           system: formattedSystem,
-          // v5.0: 使用 formatMessages 启用消息缓存
-          messages: formatMessages(messages, options?.enableThinking),
+          // v5.0: 使用 formatMessages 启用消息缓存（最后2条消息，对齐官方 S2z）
+          messages: formatMessages(messages, options?.enableThinking, enableCaching, this.isOAuth),
           tools: apiTools,
           // 添加 tool_choice 参数（强制 AI 使用工具）
           ...(options?.toolChoice ? { tool_choice: options.toolChoice } : {}),
-          // 添加 betas 参数（官方 Claude Code 的关键）
+          // 添加 betas 参数（对齐原始参考实现）
           ...(betas.length > 0 ? { betas } : {}),
-          // 添加 metadata（官方 Claude Code 的 Ja 函数）
+          // 添加 metadata（对齐原始参考实现的 Ja 函数）
           metadata: buildMetadata(),
           // v2.1.31: 传递 temperature（如果配置了覆盖值）
           ...(this.temperature !== undefined ? { temperature: this.temperature } : {}),
@@ -1347,11 +1726,14 @@ export class ClaudeClient {
       // 构建 betas 数组（模拟官方 qC 函数）
       const betas = buildBetas(this.model, this.isOAuth, isFastActive);
 
+      // 对齐官方 HJq：按型号检查是否启用 prompt caching
+      const enableCaching = isPromptCachingEnabled(this.model);
+
       // 格式化 system prompt（优先使用 blocks 分块缓存）
-      const formattedSystem = formatSystemPrompt(systemPrompt, this.isOAuth, options?.promptBlocks);
+      const formattedSystem = formatSystemPrompt(systemPrompt, this.isOAuth, options?.promptBlocks, enableCaching);
 
       // 构建 API 工具列表（将 WebSearch 客户端工具替换为 Server Tool）
-      const apiTools = buildApiTools(tools, options?.toolSearchEnabled);
+      const apiTools = buildApiTools(tools, options?.toolSearchEnabled, enableCaching, this.isOAuth);
 
       if (this.debug) {
         console.log('[ClaudeClient] isOAuth:', this.isOAuth, '| apiKey:', this.client.apiKey ? 'set' : 'null', '| authToken:', (this.client as any).authToken ? 'set' : 'null');
@@ -1366,6 +1748,20 @@ export class ClaudeClient {
         if (isFastActive) {
           console.log('[ClaudeClient] Fast mode active');
         }
+        if (!enableCaching) {
+          console.log('[ClaudeClient] Prompt caching disabled for model:', this.model);
+        }
+      }
+
+      // 对齐官方 xR7：在每次 API 调用前追踪 system/tools 状态，为后续 cache break 报告提供上下文
+      if (enableCaching && Array.isArray(formattedSystem)) {
+        trackCacheState(
+          formattedSystem,
+          apiTools || [],
+          this.model,
+          this.querySource,
+          this.fastMode
+        );
       }
 
       // 使用 beta.messages.stream 而不是 messages.stream（官方方式）
@@ -1373,14 +1769,14 @@ export class ClaudeClient {
         model: this.model,
         max_tokens: this.maxTokens,
         system: formattedSystem as any,
-        // v5.0: 使用 formatMessages 启用消息缓存（传递 enableThinking 避免 thinking blocks 被误过滤）
-        messages: formatMessages(messages, options?.enableThinking) as any,
+        // v5.0: 使用 formatMessages 启用消息缓存（最后2条消息，对齐官方 S2z）
+        messages: formatMessages(messages, options?.enableThinking, enableCaching, this.isOAuth) as any,
         tools: apiTools as any,
         // 添加 toolChoice 支持（强制 AI 调用特定工具）
         ...(options?.toolChoice ? { tool_choice: options.toolChoice } : {}),
-        // 添加 betas 参数（官方 Claude Code 的关键）
+        // 添加 betas 参数（对齐原始参考实现）
         ...(betas.length > 0 ? { betas } : {}),
-        // 添加 metadata（官方 Claude Code 的 Ja 函数）
+        // 添加 metadata（对齐原始参考实现的 Ja 函数）
         metadata: buildMetadata(),
         // v2.1.31: 传递 temperature 到 streaming 路径
         // 修复 temperatureOverride 在 streaming API 路径被静默忽略的问题
@@ -1625,6 +2021,9 @@ export class ClaudeClient {
             thinkingTokens,
           });
 
+          // 对齐官方 bR7：检测缓存命中率下降并输出警告
+          reportCacheBreak(this.querySource, cacheReadTokens, cacheCreationTokens, this.debug);
+
           yield {
             type: 'usage',
             usage: {
@@ -1727,7 +2126,7 @@ let _defaultClient: ClaudeClient | null = null;
 
 /**
  * 检查 OAuth scope 是否包含 user:inference
- * 官方 Claude Code 只有在有这个 scope 时才直接使用 OAuth token
+ * 官方 Anthropic OAuth 只有在有这个 scope 时才直接使用 OAuth token
  */
 function hasInferenceScope(scopes?: string[]): boolean {
   return Boolean(scopes?.includes('user:inference'));
@@ -1754,12 +2153,12 @@ export function getDefaultClient(): ClaudeClient {
 
         if (oauthToken) {
           // 关键修复：检查是否有 user:inference scope
-          // 官方 Claude Code 在有此 scope 时直接使用 OAuth access token
+          // 对齐原始参考实现，在有此 scope 时直接使用 OAuth access token
           // 注意：auth.scope 或 auth.scopes 都可能存在
           const scopes = auth.scope || auth.scopes;
           if (hasInferenceScope(scopes)) {
             // 直接使用 OAuth access token 作为 authToken
-            // 这是官方 Claude Code 的做法
+            // 对齐原始参考实现的做法
             config.authToken = oauthToken;
           } else {
             // 没有 inference scope，需要使用创建的 API Key

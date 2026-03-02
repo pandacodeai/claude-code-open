@@ -2,7 +2,7 @@
  * DOM Renderer - DOM 树渲染器
  * 用于将 Ink DOM 元素渲染到 Screen 缓冲区
  *
- * 从官方 Claude Code 源码逆向工程提取 (原名: DQ0)
+ * 从官方 Axon 源码逆向工程提取 (原名: DQ0)
  *
  * 关键功能：
  * 1. display:none 视觉伪影修复 - 当元素从可见变为 display:none 时清除屏幕痕迹

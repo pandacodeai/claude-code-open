@@ -2,7 +2,7 @@
 
 ## Overview
 
-This directory contains comprehensive unit tests for the Claude Code hooks system. The hooks system allows users to execute custom logic at various points during tool execution and session lifecycle.
+This directory contains comprehensive unit tests for the Axon hooks system. The hooks system allows users to execute custom logic at various points during tool execution and session lifecycle.
 
 ## Test File
 

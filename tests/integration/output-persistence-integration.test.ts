@@ -174,7 +174,7 @@ describe('Output Persistence Integration', () => {
   describe('Cross-Tool Consistency', () => {
     it('should use consistent output directory for all tools', async () => {
       const outputDir = getOutputDir();
-      expect(outputDir).toContain('.claude');
+      expect(outputDir).toContain('.axon');
       expect(outputDir).toContain('tasks');
 
       // 验证目录存在

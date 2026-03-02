@@ -1,0 +1,18 @@
+/**
+ * SkillsPanel Styles
+ * 包裹 PluginsPanel，让其填满 CustomizePage 内容区
+ */
+
+.skillsPanel {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+}
+
+/* 让嵌入的 PluginsPanel 填满容器 */
+.skillsPanel :global(.plugins-panel) {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 24px 24px;
+}

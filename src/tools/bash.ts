@@ -122,12 +122,12 @@ function findGitRoot(gitExePath: string): string | null {
 /**
  * 查找 Windows 上的 git-bash 路径
  * 官方逻辑：
- * 1. 检查 CLAUDE_CODE_GIT_BASH_PATH 环境变量
+ * 1. 检查 AXON_GIT_BASH_PATH 环境变量
  * 2. 通过 git 命令路径推断 bash.exe 位置
  */
 function findGitBash(): string | null {
   // 1. 检查环境变量
-  const envPath = process.env.CLAUDE_CODE_GIT_BASH_PATH;
+  const envPath = process.env.AXON_GIT_BASH_PATH;
   if (envPath) {
     if (fs.existsSync(envPath)) {
       return envPath;
@@ -196,9 +196,9 @@ function getPlatformShell(): ShellConfig {
 
     // git-bash 未找到，按官方行为直接退出
     console.error(
-      'Claude Code on Windows requires git-bash (https://git-scm.com/downloads/win). ' +
+      'Axon on Windows requires git-bash (https://git-scm.com/downloads/win). ' +
       'If installed but not in PATH, set environment variable pointing to your bash.exe, similar to: ' +
-      'CLAUDE_CODE_GIT_BASH_PATH=C:\\Program Files\\Git\\bin\\bash.exe'
+      'AXON_GIT_BASH_PATH=C:\\Program Files\\Git\\bin\\bash.exe'
     );
     process.exit(1);
   }
@@ -314,7 +314,7 @@ function fixWindowsPathsForBash(command: string): string {
   if (!IS_WINDOWS) return command;
 
   // 匹配 Windows 驱动器路径：X:\ 后面跟着路径字符（字母、数字、下划线、点、横杠和反斜杠）
-  // 例如：F:\claude-code-open\tests\file.ts → F:/claude-code-open/tests/file.ts
+  // 例如：F:\axon\tests\file.ts → F:/axon/tests/file.ts
   // 注意：不匹配空格，因为空格在 bash 中是分词符。
   // 带空格的路径应该用引号括起来，引号内的反斜杠由 bash 自己处理。
   return command.replace(
@@ -461,7 +461,7 @@ export function isShellId(id: string): boolean {
 // 获取任务输出文件路径（使用官方的 tasks 目录）
 export function getTaskOutputPath(taskId: string): string {
   const homeDir = process.env.HOME || process.env.USERPROFILE || '/tmp';
-  const tasksDir = path.join(homeDir, '.claude', 'tasks');
+  const tasksDir = path.join(homeDir, '.axon', 'tasks');
 
   // 确保目录存在
   if (!fs.existsSync(tasksDir)) {
@@ -540,7 +540,7 @@ export function cleanupStaleTasks(): { cleaned: number; errors: number } {
   const homeDir = process.env.HOME || process.env.USERPROFILE || '/tmp';
 
   for (const subDir of ['tasks', path.join('tasks', 'conversations')]) {
-    const dir = path.join(homeDir, '.claude', subDir);
+    const dir = path.join(homeDir, '.axon', subDir);
     if (!fs.existsSync(dir)) continue;
 
     try {
@@ -729,7 +729,7 @@ function isBackgroundable(command: string): boolean {
 
 /**
  * 生成后台任务相关提示文本（条件性）
- * 根据 CLAUDE_CODE_DISABLE_BACKGROUND_TASKS 环境变量决定是否显示
+ * 根据 AXON_DISABLE_BACKGROUND_TASKS 环境变量决定是否显示
  */
 function getBackgroundTasksPrompt(): string {
   if (isBackgroundTasksDisabled()) {
@@ -831,12 +831,12 @@ Important notes:
 git commit -m "$(cat <<'EOF'
    Commit message here.
 
-   🤖 Generated with Claude Code (https://claude.com/claude-code)
+   🤖 Generated with Axon (https://claude.com/claude-code)
    Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
    EOF
    )"
 </example>
-- The attribution (Co-Authored-By trailer) is configurable via the "attribution.commit" setting in ~/.claude/settings.json
+- The attribution (Co-Authored-By trailer) is configurable via the "attribution.commit" setting in ~/.axon/settings.json
 - Users can disable attribution by setting "attribution.commit" to an empty string or "includeCoAuthoredBy" to false
 
 # Creating pull requests

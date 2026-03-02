@@ -8,11 +8,11 @@
 
 I open-sourced a full AI coding platform with Web IDE, multi-agent system, and 37+ tools.
 
-It started as a Claude Code CLI study project. Now it's something much bigger.
+It started as a @anthropic-ai/claude-code study project. Now it's something much bigger.
 
 MIT licensed. Runs locally. Your data stays yours.
 
-GitHub: github.com/kill136/claude-code-open
+GitHub: github.com/kill136/axon
 
 Thread 🧵
 
@@ -54,8 +54,8 @@ One requirement in → complete code out.
 Get started in 60 seconds:
 
 ```
-git clone github.com/kill136/claude-code-open
-cd claude-code-open && npm install
+git clone github.com/kill136/axon
+cd axon && npm install
 npm run web
 ```
 
@@ -72,19 +72,19 @@ Discord: discord.gg/bNyJKk6PVZ
 
 ### Standalone 1 — Self Evolution
 
-Wild feature: the AI in Claude Code Open can modify its own source code.
+Wild feature: the AI in Axon can modify its own source code.
 
 It edits TypeScript files → runs tsc type check → hot-reloads the server.
 
 All with audit logging and dry-run preview.
 
-github.com/kill136/claude-code-open
+github.com/kill136/axon
 
 ### Standalone 2 — Scheduled Tasks
 
 "Every morning at 9am, review yesterday's commits and notify me on Feishu."
 
-The scheduled task daemon in Claude Code Open supports:
+The scheduled task daemon in Axon supports:
 - Natural language time config
 - File watching triggers
 - Desktop + Feishu notifications
@@ -92,10 +92,10 @@ The scheduled task daemon in Claude Code Open supports:
 
 ### Standalone 3 — Database Tool
 
-Claude Code Open has a built-in database client.
+Axon has a built-in database client.
 
 Connect to PostgreSQL, MySQL, SQLite, Redis, or MongoDB right from the AI conversation.
 
 Query data, describe tables, explore schemas — all through natural language.
 
-github.com/kill136/claude-code-open
+github.com/kill136/axon

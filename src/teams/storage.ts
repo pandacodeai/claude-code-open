@@ -3,8 +3,8 @@
  * 管理团队配置、消息收件箱的文件存储
  *
  * 目录结构:
- * ~/.claude/teams/{team-name}/config.json     - 团队配置
- * ~/.claude/teams/{team-name}/mailbox/{agent-name}.json - 消息收件箱
+ * ~/.axon/teams/{team-name}/config.json     - 团队配置
+ * ~/.axon/teams/{team-name}/mailbox/{agent-name}.json - 消息收件箱
  */
 
 import * as fs from 'fs';
@@ -26,7 +26,7 @@ import type {
  * 获取 teams 存储根目录
  */
 function getTeamsDir(): string {
-  return path.join(os.homedir(), '.claude', 'teams');
+  return path.join(os.homedir(), '.axon', 'teams');
 }
 
 /**
@@ -403,7 +403,7 @@ export function isInTeamMode(): boolean {
  */
 export function isAgentTeamsEnabled(): boolean {
   // 检查环境变量
-  const envValue = process.env.CLAUDE_CODE_ENABLE_AGENT_TEAMS;
+  const envValue = process.env.AXON_ENABLE_AGENT_TEAMS;
   if (envValue) {
     const lower = envValue.toLowerCase().trim();
     return ['1', 'true', 'yes', 'on'].includes(lower);

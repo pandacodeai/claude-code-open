@@ -264,7 +264,7 @@ export class TaskExecutor {
 
     // 1. 读取用户 notebook（experience.md）
     try {
-      const experiencePath = path.join(os.homedir(), '.claude', 'memory', 'experience.md');
+      const experiencePath = path.join(os.homedir(), '.axon', 'memory', 'experience.md');
       if (fs.existsSync(experiencePath)) {
         const content = fs.readFileSync(experiencePath, 'utf-8').trim();
         if (content) {
@@ -277,7 +277,7 @@ export class TaskExecutor {
     // 2. 读取项目 notebook（project.md）
     try {
       const projectHash = crypto.createHash('md5').update(workingDir).digest('hex').slice(0, 12);
-      const projectDir = path.join(os.homedir(), '.claude', 'memory', 'projects');
+      const projectDir = path.join(os.homedir(), '.axon', 'memory', 'projects');
       // 尝试匹配 projectHash 开头的目录
       if (fs.existsSync(projectDir)) {
         const dirs = fs.readdirSync(projectDir);

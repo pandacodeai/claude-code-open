@@ -1,0 +1,112 @@
+/**
+ * CustomizePage Styles
+ * 三栏布局：左栏导航 + 中栏列表 + 右栏详情
+ */
+
+.customizePage {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bg-app);
+}
+
+/* ========================================
+   左侧导航栏（220px）
+   ======================================== */
+
+.leftNav {
+  width: 220px;
+  min-width: 220px;
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  width: 100%;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.backButton:hover {
+  background: var(--bg-secondary);
+  color: var(--accent-primary);
+}
+
+.backButton svg {
+  flex-shrink: 0;
+}
+
+/* 导航菜单 */
+
+.navMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 8px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.navItem:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.navItem.active {
+  background: var(--bg-secondary);
+  color: var(--accent-primary);
+  font-weight: 500;
+}
+
+.navIcon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.navLabel {
+  flex: 1;
+}
+
+/* ========================================
+   右侧内容区（中栏 + 右栏由子组件处理）
+   ======================================== */
+
+.contentArea {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-width: 0; /* 防止 flex 子元素溢出 */
+}

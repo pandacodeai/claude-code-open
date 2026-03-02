@@ -58,7 +58,7 @@ jobs:
 
           echo "" >> CHANGELOG_BODY.md
           echo "" >> CHANGELOG_BODY.md
-          echo "**Full Changelog**: https://github.com/kill136/claude-code-open/compare/${PREV_TAG}...${CURRENT_TAG}" >> CHANGELOG_BODY.md
+          echo "**Full Changelog**: https://github.com/kill136/axon/compare/${PREV_TAG}...${CURRENT_TAG}" >> CHANGELOG_BODY.md
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -78,19 +78,19 @@ jobs:
         include:
           - os: windows-latest
             label: Windows x64
-            artifact: claude-code-open-windows-x64
+            artifact: axon-windows-x64
             shell: pwsh
           - os: ubuntu-latest
             label: Linux x64
-            artifact: claude-code-open-linux-x64
+            artifact: axon-linux-x64
             shell: bash
           - os: macos-13
             label: macOS x64 (Intel)
-            artifact: claude-code-open-macos-x64
+            artifact: axon-macos-x64
             shell: bash
           - os: macos-latest
             label: macOS arm64 (Apple Silicon)
-            artifact: claude-code-open-macos-arm64
+            artifact: axon-macos-arm64
             shell: bash
 
     steps:

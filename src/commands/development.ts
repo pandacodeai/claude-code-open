@@ -53,7 +53,7 @@ export const feedbackCommand: SlashCommand = {
     const { args, config } = ctx;
 
     // 官方 GitHub issues URL 和反馈 API
-    const ISSUES_URL = 'https://github.com/anthropics/claude-code/issues';
+    const ISSUES_URL = 'https://github.com/anthropics/axon/issues';
     const FEEDBACK_API = 'https://api.anthropic.com/api/claude_cli_feedback';
 
     if (args.length > 0) {
@@ -97,7 +97,7 @@ ${feedbackMessage}
 - Date: ${environmentInfo.datetime}
 
 **Source**
-Submitted via /feedback command in Claude Code CLI
+Submitted via /feedback command in Axon CLI
 
 ---
 *This issue was auto-generated from the /feedback command*`;
@@ -118,7 +118,7 @@ ${truncatedMessage}
 - Date: ${environmentInfo.datetime}
 
 **Source**
-Submitted via /feedback command in Claude Code CLI
+Submitted via /feedback command in Axon CLI
 
 ---
 *This issue was auto-generated from the /feedback command*
@@ -140,7 +140,7 @@ Submitted via /feedback command in Claude Code CLI
 
 "${feedbackMessage.slice(0, 200)}${feedbackMessage.length > 200 ? '...' : ''}"
 
-Your feedback helps improve Claude Code.
+Your feedback helps improve Axon.
 
 **Next Steps:**
 
@@ -173,7 +173,7 @@ If you prefer, you can also:
     // 无参数时显示使用说明
     const feedbackInfo = `Submit Feedback / Bug Report
 
-Based on official Claude Code v2.0.59 implementation.
+Based on official Axon v2.0.59 implementation.
 
 **Usage:**
   /feedback <your message>
@@ -186,7 +186,7 @@ Based on official Claude Code v2.0.59 implementation.
 **What gets included:**
   ✓ Your feedback message
   ✓ Environment info (platform, Node version, terminal)
-  ✓ Claude Code version
+  ✓ Axon version
   ✓ Timestamp
 
 **Types of feedback welcome:**
@@ -207,7 +207,7 @@ Based on official Claude Code v2.0.59 implementation.
   • Feedback API: ${FEEDBACK_API}
   • Community: https://discord.gg/anthropic
 
-We read all feedback and use it to improve Claude Code!`;
+We read all feedback and use it to improve Axon!`;
 
     ctx.ui.addMessage('assistant', feedbackInfo);
     return { success: true };
@@ -263,7 +263,7 @@ gh pr create --title "the pr title" --body "$(cat <<'EOF'
 - [ ] Run existing tests
 - [ ] Manual testing steps if applicable
 
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Axon](https://claude.com/axon)
 EOF
 )"
 \`\`\`
@@ -545,7 +545,7 @@ Your final reply must contain the markdown report and nothing else.`;
 export const releaseNotesCommand: SlashCommand = {
   name: 'release-notes',
   aliases: ['changelog', 'whats-new'],
-  description: 'View release notes for Claude Code',
+  description: 'View release notes for Axon',
   category: 'development',
   execute: async (ctx: CommandContext): Promise<CommandResult> => {
     try {
@@ -560,25 +560,25 @@ export const releaseNotesCommand: SlashCommand = {
       }
 
       // 如果没有解析到版本信息，显示基本信息
-      const fallbackInfo = `Claude Code Release Notes
+      const fallbackInfo = `Axon Release Notes
 
 Version: ${ctx.config.version}
 
 Recent updates and features have been added.
 
 See the full changelog at:
-https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md`;
+https://github.com/anthropics/axon/blob/main/CHANGELOG.md`;
 
       ctx.ui.addMessage('assistant', fallbackInfo);
       return { success: true };
     } catch (error) {
       // 错误处理：显示备用信息
-      const errorInfo = `Claude Code - Version ${ctx.config.version}
+      const errorInfo = `Axon - Version ${ctx.config.version}
 
 Unable to fetch latest release notes at this time.
 
 See the full changelog at:
-https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md`;
+https://github.com/anthropics/axon/blob/main/CHANGELOG.md`;
 
       ctx.ui.addMessage('assistant', errorInfo);
       return { success: true };
@@ -592,18 +592,18 @@ https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md`;
  */
 async function fetchChangelog(): Promise<string> {
   // 如果设置了禁止非必要流量的环境变量，返回空字符串
-  if (process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC) {
+  if (process.env.AXON_DISABLE_NONESSENTIAL_TRAFFIC) {
     return '';
   }
 
   try {
     const CHANGELOG_URL =
-      'https://raw.githubusercontent.com/anthropics/claude-code/refs/heads/main/CHANGELOG.md';
+      'https://raw.githubusercontent.com/anthropics/axon/refs/heads/main/CHANGELOG.md';
 
     // 使用 fetch API 获取 changelog
     const response = await fetch(CHANGELOG_URL, {
       headers: {
-        'User-Agent': 'claude-code-cli',
+        'User-Agent': 'axon-cli',
       },
     });
 
@@ -695,12 +695,12 @@ function formatReleaseNotes(versions: Array<[string, string[]]>): string {
     return `${versionHeader}\n${updateList}`;
   });
 
-  return `Claude Code Release Notes
+  return `Axon Release Notes
 
 ${formatted.join('\n\n')}
 
 See the full changelog at:
-https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md`;
+https://github.com/anthropics/axon/blob/main/CHANGELOG.md`;
 }
 
 // /vim - Vim 模式切换 (基于官方 v2.0.59 源码实现)
@@ -715,11 +715,11 @@ export const vimCommand: SlashCommand = {
 
     // 从环境变量或配置中获取当前 Vim 模式状态
     // 官方实现使用运行时状态，这里使用环境变量模拟
-    const currentVimMode = process.env.CLAUDE_CODE_VIM_MODE === 'true';
+    const currentVimMode = process.env.AXON_VIM_MODE === 'true';
 
     if (subcommand === 'on') {
       // 启用 Vim 键绑定
-      process.env.CLAUDE_CODE_VIM_MODE = 'true';
+      process.env.AXON_VIM_MODE = 'true';
 
       const response = `Vim Mode: Enabled
 
@@ -745,7 +745,7 @@ To disable Vim mode, use: /vim off`;
       return { success: true };
     } else if (subcommand === 'off') {
       // 禁用 Vim 键绑定
-      process.env.CLAUDE_CODE_VIM_MODE = 'false';
+      process.env.AXON_VIM_MODE = 'false';
 
       const response = `Vim Mode: Disabled
 
@@ -759,7 +759,7 @@ To re-enable Vim mode, use: /vim on`;
     } else if (!subcommand) {
       // 切换状态
       const newState = !currentVimMode;
-      process.env.CLAUDE_CODE_VIM_MODE = String(newState);
+      process.env.AXON_VIM_MODE = String(newState);
 
       const response = `Vim Mode: ${newState ? 'Enabled' : 'Disabled'}
 
@@ -801,7 +801,7 @@ export const ideCommand: SlashCommand = {
     const subcommand = args[0]?.toLowerCase();
 
     // 检测 IDE 环境变量
-    const ideType = process.env.CLAUDE_IDE || process.env.VSCODE_PID ? 'vscode' :
+    const ideType = process.env.AXON_IDE || process.env.VSCODE_PID ? 'vscode' :
                     process.env.CURSOR_SESSION_ID ? 'cursor' : null;
     const ideConnected = !!ideType;
     const workspacePath = config.cwd;
@@ -846,11 +846,11 @@ export const ideCommand: SlashCommand = {
 
       // 支持的 IDE
       statusText += `Supported IDEs\n`;
-      statusText += `  • VS Code - Set CLAUDE_IDE=vscode\n`;
-      statusText += `  • Cursor - Set CLAUDE_IDE=cursor\n`;
-      statusText += `  • JetBrains - Set CLAUDE_IDE=jetbrains\n`;
-      statusText += `  • Vim/Neovim - Set CLAUDE_IDE=vim\n`;
-      statusText += `  • Emacs - Set CLAUDE_IDE=emacs\n`;
+      statusText += `  • VS Code - Set AXON_IDE=vscode\n`;
+      statusText += `  • Cursor - Set AXON_IDE=cursor\n`;
+      statusText += `  • JetBrains - Set AXON_IDE=jetbrains\n`;
+      statusText += `  • Vim/Neovim - Set AXON_IDE=vim\n`;
+      statusText += `  • Emacs - Set AXON_IDE=emacs\n`;
       statusText += '\n';
 
       // 使用说明
@@ -861,7 +861,7 @@ export const ideCommand: SlashCommand = {
       statusText += '\n';
 
       if (!ideConnected) {
-        statusText += `Tip: Set the CLAUDE_IDE environment variable to enable IDE-specific features.`;
+        statusText += `Tip: Set the AXON_IDE environment variable to enable IDE-specific features.`;
       }
 
       ctx.ui.addMessage('assistant', statusText);
@@ -888,7 +888,7 @@ Example: /ide connect vscode`;
       }
 
       // 设置 IDE 环境变量
-      process.env.CLAUDE_IDE = requestedIde;
+      process.env.AXON_IDE = requestedIde;
 
       const response = `IDE Connected: ${requestedIde}
 
@@ -899,23 +899,23 @@ Connection established successfully.
 
 IDE-specific features are now available.
 
-Note: This setting is for the current session only. To make it permanent, set the CLAUDE_IDE environment variable in your shell configuration.
+Note: This setting is for the current session only. To make it permanent, set the AXON_IDE environment variable in your shell configuration.
 
 Example (bash/zsh):
-  export CLAUDE_IDE=${requestedIde}`;
+  export AXON_IDE=${requestedIde}`;
 
       ctx.ui.addMessage('assistant', response);
       ctx.ui.addActivity(`Connected to ${requestedIde}`);
       return { success: true };
     } else if (subcommand === 'disconnect') {
       // 断开 IDE 连接
-      if (!ideConnected && !process.env.CLAUDE_IDE) {
+      if (!ideConnected && !process.env.AXON_IDE) {
         ctx.ui.addMessage('assistant', 'No IDE connection to disconnect.');
         return { success: true };
       }
 
-      const previousIde = process.env.CLAUDE_IDE || ideType;
-      delete process.env.CLAUDE_IDE;
+      const previousIde = process.env.AXON_IDE || ideType;
+      delete process.env.AXON_IDE;
 
       const response = `IDE Disconnected
 

@@ -2,13 +2,13 @@
 
 ## Title
 
-Show HN: Claude Code Open – Open-source AI coding platform with Web IDE, multi-agent system, 37+ tools
+Show HN: Axon – Open-source AI coding platform with Web IDE, multi-agent system, 37+ tools
 
 ## Body
 
 Hey HN,
 
-I've been working on an open-source AI coding platform that started as a reverse-engineering study of Anthropic's Claude Code CLI, but evolved into something much more capable.
+I've been working on an open-source AI coding platform that started as a reverse-engineering study of Anthropic's Axon CLI, but evolved into something much more capable.
 
 **What it does:**
 - Full Web IDE with Monaco editor, file tree, and AI-enhanced editing (hover tips, code review, test generation)
@@ -22,12 +22,12 @@ I've been working on an open-source AI coding platform that started as a reverse
 
 **Tech stack:** TypeScript, React + Ink, Express + WebSocket, Monaco Editor, better-sqlite3, Tree-sitter WASM
 
-**Why I built this:** I wanted to understand how Claude Code works internally, and along the way I added capabilities I wished the official tool had — a web UI, multi-agent workflows, scheduled automation, and full extensibility.
+**Why I built this:** I wanted to understand how Axon works internally, and along the way I added capabilities I wished the official tool had — a web UI, multi-agent workflows, scheduled automation, and full extensibility.
 
 It's MIT licensed and runs entirely locally. Your data never leaves your machine.
 
 - Website: https://www.chatbi.site
-- GitHub: https://github.com/kill136/claude-code-open
+- GitHub: https://github.com/kill136/axon
 - Live Demo: http://voicegpt.site:3456/
 - Discord: https://discord.gg/bNyJKk6PVZ
 

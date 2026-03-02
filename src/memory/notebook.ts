@@ -6,7 +6,7 @@
  *
  * 两个笔记本，两个生命周期：
  * - experience.md: 跨项目经验（用户信息、工作模式、教训）~4K tokens
- * - project.md:    项目知识（CLAUDE.md 没覆盖的、agent 自己发现的）~8K tokens
+ * - project.md:    项目知识（AXON.md 没覆盖的、agent 自己发现的）~8K tokens
  *
  * 当前会话的上下文由对话本身 + TodoWrite + Session Memory 负责，不需要额外笔记本。
  */
@@ -52,7 +52,7 @@ export interface NotebookStats {
 
 /** 获取 ~/.claude 目录 */
 function getClaudeDir(): string {
-  return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+  return process.env.AXON_CONFIG_DIR || path.join(os.homedir(), '.axon');
 }
 
 /** 将项目路径转为安全的目录名 */

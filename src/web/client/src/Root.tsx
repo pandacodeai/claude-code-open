@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import App from './App';
 import SwarmConsole from './pages/SwarmConsole/index.tsx';
 import BlueprintPage from './pages/BlueprintPage';
-import SchedulePage from './pages/SchedulePage';
+import CustomizePage from './pages/CustomizePage';
 import TopNavBar from './components/swarm/TopNavBar';
 import { SessionSearchModal } from './components/SessionSearchModal/SessionSearchModal';
 import { AuthDialog } from './components/AuthDialog';
@@ -11,7 +11,7 @@ import { ProjectProvider, useProject } from './contexts/ProjectContext';
 import { LanguageProvider } from './i18n';
 import type { Session, SessionActions } from './types';
 
-type Page = 'chat' | 'swarm' | 'blueprint' | 'schedule';
+type Page = 'chat' | 'swarm' | 'blueprint' | 'customize';
 
 /**
  * RootContent - 在 ProjectProvider 内部使用 ProjectContext
@@ -42,6 +42,19 @@ function RootContent() {
     exportSession: () => {},
     importSession: () => {},
   });
+
+  // 来自 App 的消息通信（供 CustomizePage 等兄弟组件使用）
+  const messagingRef = useRef<{
+    send: (msg: any) => void;
+    addMessageHandler: (handler: (msg: any) => void) => () => void;
+  }>({
+    send: () => {},
+    addMessageHandler: () => () => {},
+  });
+
+  const handleRegisterMessaging = useCallback((messaging: typeof messagingRef.current) => {
+    messagingRef.current = messaging;
+  }, []);
 
   // 项目上下文
   const { state: projectState, switchProject, openFolder, removeProject } = useProject();
@@ -180,6 +193,7 @@ function RootContent() {
               onSessionIdChange={setCurrentSessionId}
               onConnectedChange={setConnected}
               registerSessionActions={handleRegisterSessionActions}
+              registerMessaging={handleRegisterMessaging}
             />
           </ErrorBoundary>
         </div>
@@ -196,9 +210,13 @@ function RootContent() {
             />
           </ErrorBoundary>
         </div>
-        <div style={pageStyle('schedule')}>
-          <ErrorBoundary name="Schedule">
-            <SchedulePage />
+        <div style={pageStyle('customize')}>
+          <ErrorBoundary name="Customize">
+            <CustomizePage
+              onNavigateBack={() => setCurrentPage('chat')}
+              onSendMessage={(msg: any) => messagingRef.current.send(msg)}
+              addMessageHandler={(handler: (msg: any) => void) => messagingRef.current.addMessageHandler(handler)}
+            />
           </ErrorBoundary>
         </div>
       </div>

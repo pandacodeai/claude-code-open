@@ -509,16 +509,16 @@ export class PermissionHandler {
 
     switch (destination) {
       case 'project':
-        // .claude/settings.json - 项目配置，团队共享
-        return path.join(cwd, '.claude', 'settings.json');
+        // .axon/settings.json - 项目配置，团队共享
+        return path.join(cwd, '.axon', 'settings.json');
 
       case 'global':
-        // ~/.claude/settings.json - 全局配置
-        return path.join(homeDir, '.claude', 'settings.json');
+        // ~/.axon/settings.json - 全局配置
+        return path.join(homeDir, '.axon', 'settings.json');
 
       case 'team':
-        // .claude/settings.local.json - 本地配置，机器特定
-        return path.join(cwd, '.claude', 'settings.local.json');
+        // .axon/settings.local.json - 本地配置，机器特定
+        return path.join(cwd, '.axon', 'settings.local.json');
 
       case 'session':
         // 仅会话，不保存
@@ -594,10 +594,10 @@ export class PermissionHandler {
         content = fs.readFileSync(gitignorePath, 'utf-8');
       }
 
-      const pattern = '.claude/settings.local.json';
+      const pattern = '.axon/settings.local.json';
 
       if (!content.includes(pattern)) {
-        const addition = `\n# Claude Code local settings (machine-specific)\n${pattern}\n`;
+        const addition = `\n# Axon local settings (machine-specific)\n${pattern}\n`;
         fs.writeFileSync(gitignorePath, content + addition, 'utf-8');
         console.log(`[PermissionHandler] Added ${pattern} to .gitignore`);
       }

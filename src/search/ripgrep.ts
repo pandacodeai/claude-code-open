@@ -91,7 +91,7 @@ export function getVendoredRgPath(): string | null {
     // 项目自身的 vendor 目录（如果将来自己打包 rg）
     path.resolve(__dirname, '..', '..', 'vendor', 'ripgrep', vendorSubDir, rgBinary),
     // 全局安装目录
-    path.join(os.homedir(), '.claude', 'bin', rgBinary),
+    path.join(os.homedir(), '.axon', 'bin', rgBinary),
   ];
 
   for (const rgPath of possiblePaths) {

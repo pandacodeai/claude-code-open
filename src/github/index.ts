@@ -10,7 +10,7 @@ import { spawn } from 'child_process';
 /**
  * GitHub Actions 工作流模板
  */
-const CLAUDE_CODE_WORKFLOW = `name: Claude Code Review
+const AXON_WORKFLOW = `name: Axon Review
 
 on:
   pull_request:
@@ -41,10 +41,10 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Claude Code
+      - name: Install Axon
         run: npm install -g @anthropic-ai/claude-code
 
-      - name: Run Claude Code Review
+      - name: Run Axon Review
         env:
           ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
@@ -121,7 +121,7 @@ export async function setupGitHubWorkflow(projectDir: string): Promise<{
   }
 
   // 写入工作流文件
-  fs.writeFileSync(workflowPath, CLAUDE_CODE_WORKFLOW);
+  fs.writeFileSync(workflowPath, AXON_WORKFLOW);
 
   return {
     success: true,

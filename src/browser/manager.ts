@@ -28,7 +28,7 @@ import { getProfile, ensureCleanExit, decorateProfile } from './profiles.js';
 import { ensureChromeExtensionRelayServer, stopChromeExtensionRelayServer } from './extension-relay.js';
 import { resolveRelayAuthToken } from './extension-relay-auth.js';
 
-const CONFIG_DIR = path.join(os.homedir(), '.claude');
+const CONFIG_DIR = path.join(os.homedir(), '.axon');
 const CDP_PORT_RANGE_START = 9222;
 const CDP_PORT_RANGE_END = 9322;
 
@@ -86,11 +86,11 @@ async function findAvailableCdpPort(preferredPort?: number): Promise<number> {
 
 /**
  * Kill orphan Chrome processes from previous interrupted sessions.
- * Looks for chrome.exe processes with --user-data-dir pointing to .claude/browser.
+ * Looks for chrome.exe processes with --user-data-dir pointing to .axon/browser.
  */
 async function killOrphanChromes(): Promise<void> {
   try {
-    const browserDir = path.join(os.homedir(), '.claude', 'browser').replace(/\\/g, '\\\\');
+    const browserDir = path.join(os.homedir(), '.axon', 'browser').replace(/\\/g, '\\\\');
     let pids: number[] = [];
 
     if (process.platform === 'win32') {
@@ -99,7 +99,7 @@ async function killOrphanChromes(): Promise<void> {
         { encoding: 'utf-8', timeout: 5000, windowsHide: true }
       );
       for (const line of output.split('\n')) {
-        if (line.includes('.claude') && line.includes('browser') && line.includes('--remote-debugging-')) {
+        if (line.includes('.axon') && line.includes('browser') && line.includes('--remote-debugging-')) {
           const pidMatch = line.match(/,(\d+)\s*$/);
           if (pidMatch) pids.push(parseInt(pidMatch[1], 10));
         }
@@ -112,7 +112,7 @@ async function killOrphanChromes(): Promise<void> {
       // Unix: pgrep + ps
       try {
         const output = execSync(
-          `ps aux | grep -E 'chrome.*\\.claude.browser.*--remote-debugging-' | grep -v grep`,
+          `ps aux | grep -E 'chrome.*\\.axon.browser.*--remote-debugging-' | grep -v grep`,
           { encoding: 'utf-8', timeout: 5000 }
         );
         for (const line of output.trim().split('\n')) {
@@ -193,6 +193,43 @@ async function getChromeWebSocketUrl(cdpUrl: string, timeoutMs = 2000): Promise<
 
 function resolveUserDataDir(profileName: string = 'default'): string {
   return path.join(CONFIG_DIR, 'browser', profileName, 'user-data');
+}
+
+/**
+ * Remove stale claude-ext-* extension entries from Chrome's Secure Preferences.
+ * Each Browser start() creates a new temp extension dir via loadUnpacked.
+ * Chrome persists every loaded extension in Secure Preferences, so after many
+ * sessions dozens of stale entries accumulate. On next launch Chrome tries to
+ * re-load all of them, showing multiple "debugging this browser" banners.
+ */
+function purgeStaleExtensions(userDataDir: string): void {
+  const secPrefsPath = path.join(userDataDir, 'Default', 'Secure Preferences');
+  try {
+    if (!fs.existsSync(secPrefsPath)) return;
+    const raw = fs.readFileSync(secPrefsPath, 'utf-8');
+    const prefs = JSON.parse(raw);
+    const settings = prefs?.extensions?.settings;
+    if (!settings || typeof settings !== 'object') return;
+
+    let removed = 0;
+    for (const [extId, extData] of Object.entries(settings)) {
+      if (typeof extData === 'object' && extData !== null) {
+        const extPath = (extData as Record<string, unknown>).path;
+        if (typeof extPath === 'string' && /claude-ext-\d+/.test(extPath)) {
+          delete settings[extId];
+          removed++;
+        }
+      }
+    }
+
+    if (removed > 0) {
+      fs.writeFileSync(secPrefsPath, JSON.stringify(prefs), 'utf-8');
+      console.log(`[BrowserManager] Purged ${removed} stale extension entries from Secure Preferences`);
+    }
+  } catch (err) {
+    // Non-fatal: if we can't clean up, Chrome will just show extra banners
+    console.warn('[BrowserManager] Failed to purge stale extensions:', err);
+  }
 }
 
 // --- connectOverCDP with caching + auto-reconnect ---
@@ -584,6 +621,13 @@ export class BrowserManager {
         // Chrome may still be holding it; ignore
       }
     }
+
+    // --- Purge stale extension entries from Chrome's Secure Preferences ---
+    // Each start() creates a new temp extension dir via loadUnpacked, but Chrome
+    // remembers all previously loaded extensions in Secure Preferences. Over time
+    // this accumulates dozens of stale entries pointing to deleted temp dirs,
+    // causing Chrome to show multiple "debugging" banners on launch.
+    purgeStaleExtensions(userDataDir);
 
     // --- Start relay server ---
     const relayPort = cdpPort + 1;

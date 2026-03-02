@@ -1,6 +1,6 @@
 /**
  * Input 组件
- * 用户输入框 - 仿官方 Claude Code 风格
+ * 用户输入框 - 仿官方 Axon 风格
  * 支持斜杠命令、文件路径、@mention 自动补全
  *
  * v2.1.6: 添加 Kitty 键盘协议支持
@@ -19,7 +19,7 @@ import {
 import { t } from '../../i18n/index.js';
 
 // 官方 claude 颜色
-const CLAUDE_COLOR = '#D77757';
+const AXON_COLOR = '#D77757';
 
 // 权限快捷模式类型 - 官方 v2.1.2
 export type QuickPermissionMode = 'default' | 'acceptEdits' | 'plan';
@@ -60,7 +60,7 @@ export const Input: React.FC<InputProps> = ({
   const [completionType, setCompletionType] = useState<'command' | 'file' | 'mention' | 'directory' | 'bash-history' | 'none'>('none');
 
   // Vim 模式支持
-  const [vimModeEnabled, setVimModeEnabled] = useState(process.env.CLAUDE_CODE_VIM_MODE === 'true');
+  const [vimModeEnabled, setVimModeEnabled] = useState(process.env.AXON_VIM_MODE === 'true');
   const [vimNormalMode, setVimNormalMode] = useState(vimModeEnabled);
   const [undoStack, setUndoStack] = useState<Array<{ value: string; cursor: number }>>([]);
   const [lastDeletedText, setLastDeletedText] = useState('');
@@ -93,7 +93,7 @@ export const Input: React.FC<InputProps> = ({
   // 监听环境变量变化（通过轮询检测）
   useEffect(() => {
     const checkVimMode = () => {
-      const newVimMode = process.env.CLAUDE_CODE_VIM_MODE === 'true';
+      const newVimMode = process.env.AXON_VIM_MODE === 'true';
       if (newVimMode !== vimModeEnabled) {
         setVimModeEnabled(newVimMode);
         setVimNormalMode(newVimMode); // 启用时默认进入 Normal 模式
@@ -1192,7 +1192,7 @@ export const Input: React.FC<InputProps> = ({
                 >
                   {/* v2.1.6: 显示图标 */}
                   {icon && <Text>{icon} </Text>}
-                  <Text color={CLAUDE_COLOR} bold={index === selectedCompletionIndex}>
+                  <Text color={AXON_COLOR} bold={index === selectedCompletionIndex}>
                     {item.label}
                   </Text>
                   {item.aliases && item.aliases.length > 0 && (

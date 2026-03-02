@@ -2,7 +2,7 @@
  * T-015: 权限规则解析器
  *
  * 功能：
- * - 解析官方 Claude Code 权限规则语法
+ * - 解析官方权限规则语法
  * - 支持 Bash(command:pattern) 命令匹配
  * - 支持 Read/Write/Edit(path/**) 路径通配符
  * - 支持工具参数级别的权限控制
@@ -41,8 +41,8 @@ export type RuleType = 'allow' | 'deny';
  */
 export type RuleSource =
   | 'cli'              // 命令行参数
-  | 'settings'         // 用户设置 (~/.claude/settings.json)
-  | 'project'          // 项目设置 (.claude/settings.json)
+  | 'settings'         // 用户设置 (~/.axon/settings.json)
+  | 'project'          // 项目设置 (.axon/settings.json)
   | 'policy'           // 策略文件
   | 'session'          // 会话记忆
   | 'runtime';         // 运行时动态添加
@@ -148,7 +148,7 @@ export class RuleParseError extends Error {
 /**
  * 权限规则解析器
  *
- * 解析官方 Claude Code 权限规则语法，支持：
+ * 解析官方权限规则语法，支持：
  * - 工具级权限 (Bash, Read, Write, etc.)
  * - 命令级权限 (Bash(npm:*), Bash(git diff:*))
  * - 路径级权限 (Read(/path/**), Write(src/*.ts))
@@ -1066,8 +1066,8 @@ export function formatRule(rule: ParsedRule): string {
 export function formatRuleSource(source: RuleSource): string {
   const sourceLabels: Record<RuleSource, string> = {
     cli: 'Command Line',
-    settings: 'User Settings (~/.claude/settings.json)',
-    project: 'Project Settings (.claude/settings.json)',
+    settings: 'User Settings (~/.axon/settings.json)',
+    project: 'Project Settings (.axon/settings.json)',
     policy: 'Policy File',
     session: 'Session Memory',
     runtime: 'Runtime',

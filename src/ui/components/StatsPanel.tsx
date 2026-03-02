@@ -181,7 +181,7 @@ function calculateStreaks(dailyActivity: DailyActivity[]): { currentStreak: numb
 
 // 从会话文件加载统计数据
 function loadStatsFromSessions(dateRange: DateRangeType): StatsData | null {
-  const sessionsDir = path.join(os.homedir(), '.claude', 'sessions');
+  const sessionsDir = path.join(os.homedir(), '.axon', 'sessions');
 
   if (!fs.existsSync(sessionsDir)) {
     return null;

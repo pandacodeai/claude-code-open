@@ -26,7 +26,7 @@ export function isTruthy(value: string | boolean | undefined): boolean {
  * 检查后台任务是否被禁用
  */
 export function isBackgroundTasksDisabled(): boolean {
-  return isTruthy(process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS);
+  return isTruthy(process.env.AXON_DISABLE_BACKGROUND_TASKS);
 }
 
 /**
@@ -40,7 +40,7 @@ export function useBuiltinRipgrep(): boolean {
  * 检查是否启用沙箱模式
  */
 export function isSandboxEnabled(): boolean {
-  return isTruthy(process.env.CLAUDE_CODE_SANDBOX);
+  return isTruthy(process.env.AXON_SANDBOX);
 }
 
 // ============ 自动更新相关 ============
@@ -50,7 +50,7 @@ export function isSandboxEnabled(): boolean {
  * 官网源码实现:
  * function _JA(){
  *   if(i1(process.env.DISABLE_AUTOUPDATER))return"DISABLE_AUTOUPDATER set";
- *   if(process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC)return"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC set";
+ *   if(process.env.AXON_DISABLE_NONESSENTIAL_TRAFFIC)return"AXON_DISABLE_NONESSENTIAL_TRAFFIC set";
  *   let A=R1();
  *   if(A.autoUpdates===!1&&(A.installMethod!=="native"||A.autoUpdatesProtectedForNative!==!0))return"config";
  *   return null
@@ -62,9 +62,9 @@ export function getAutoUpdaterDisabledReason(): string | null {
     return 'DISABLE_AUTOUPDATER set';
   }
 
-  // 检查 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC 环境变量
-  if (process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC) {
-    return 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC set';
+  // 检查 AXON_DISABLE_NONESSENTIAL_TRAFFIC 环境变量
+  if (process.env.AXON_DISABLE_NONESSENTIAL_TRAFFIC) {
+    return 'AXON_DISABLE_NONESSENTIAL_TRAFFIC set';
   }
 
   // 注意：这里简化了配置检查，完整实现需要访问配置管理器

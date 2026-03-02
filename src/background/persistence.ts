@@ -42,7 +42,7 @@ export interface PersistedAgentState {
 export interface PersistenceOptions {
   /**
    * 存储目录
-   * @default ~/.claude/background-tasks/
+   * @default ~/.axon/background-tasks/
    */
   storageDir?: string;
 
@@ -74,7 +74,7 @@ export class PersistenceManager {
   private readonly options: Required<PersistenceOptions>;
 
   // 默认配置
-  static readonly DEFAULT_STORAGE_DIR = path.join(os.homedir(), '.claude', 'background-tasks');
+  static readonly DEFAULT_STORAGE_DIR = path.join(os.homedir(), '.axon', 'background-tasks');
   static readonly DEFAULT_EXPIRY_TIME = 86400000; // 24 hours
 
   constructor(options: PersistenceOptions = {}) {
@@ -171,7 +171,7 @@ export class PersistenceManager {
    */
   saveAgent(agent: PersistedAgentState): boolean {
     try {
-      const agentDir = path.join(os.homedir(), '.claude', 'agents');
+      const agentDir = path.join(os.homedir(), '.axon', 'agents');
 
       // 确保目录存在
       if (!fs.existsSync(agentDir)) {
@@ -195,7 +195,7 @@ export class PersistenceManager {
    */
   loadAgent(id: string): PersistedAgentState | null {
     try {
-      const agentDir = path.join(os.homedir(), '.claude', 'agents');
+      const agentDir = path.join(os.homedir(), '.axon', 'agents');
       const filePath = path.join(agentDir, `${id}.json`);
 
       if (!fs.existsSync(filePath)) {
@@ -251,7 +251,7 @@ export class PersistenceManager {
   listAgents(): PersistedAgentState[] {
     try {
       const agents: PersistedAgentState[] = [];
-      const agentDir = path.join(os.homedir(), '.claude', 'agents');
+      const agentDir = path.join(os.homedir(), '.axon', 'agents');
 
       if (!fs.existsSync(agentDir)) {
         return agents;

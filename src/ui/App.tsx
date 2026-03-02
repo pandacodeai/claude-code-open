@@ -1,6 +1,6 @@
 /**
  * 主应用组�?
- * 使用 Ink 渲染 CLI 界面 - 仿官�?Claude Code
+ * 使用 Ink 渲染 CLI 界面 - 仿官�?Axon
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
@@ -45,9 +45,9 @@ import { VERSION_FULL } from '../version.js';
 // 信任管理模块 - 修复 v2.1.3 home 目录信任问题
 import { trustManager, initializeTrustManager } from '../trust/index.js';
 import { TrustDialog, useTrustDialog } from './components/TrustDialog.js';
-// CLAUDE.md 导入审批对话框 - v2.1.6 新增
-import { ClaudeMdImportDialog, scanClaudeMdFiles, type ClaudeMdFile, type ClaudeMdApprovalResult } from './components/ClaudeMdImportDialog.js';
-import { useClaudeMdImport } from './hooks/useClaudeMdImport.js';
+// AXON.md 导入审批对话框 - v2.1.6 新增
+import { AxonMdImportDialog, scanAxonMdFiles, type AxonMdFile, type AxonMdApprovalResult } from './components/AxonMdImportDialog.js';
+import { useAxonMdImport } from './hooks/useAxonMdImport.js';
 // v2.1.7: 终端标题 spinner - 避免标题抖动
 import { startTerminalTitleSpinner, stopTerminalTitleSpinner } from '../utils/platform.js';
 
@@ -267,9 +267,9 @@ export const App: React.FC<AppProps> = ({
     TrustDialogComponent,
   } = useTrustDialog(process.cwd());
 
-  // CLAUDE.md 导入审批状态 - v2.1.6 新增
-  const claudeMdImport = useClaudeMdImport(process.cwd());
-  const [showClaudeMdDialog, setShowClaudeMdDialog] = useState(false);
+  // AXON.md 导入审批状态 - v2.1.6 新增
+  const axonMdImport = useAxonMdImport(process.cwd());
+  const [showAxonMdDialog, setShowAxonMdDialog] = useState(false);
 
   // 会话 ID
   const sessionId = useRef(uuidv4());
@@ -530,41 +530,41 @@ export const App: React.FC<AppProps> = ({
     ]);
   }, []);
 
-  // CLAUDE.md 导入审批处理函数 - v2.1.6 新增
-  // 处理 CLAUDE.md 导入审批完成
-  const handleClaudeMdApprovalComplete = useCallback((result: ClaudeMdApprovalResult) => {
-    claudeMdImport.handleApprovalResult(result);
-    setShowClaudeMdDialog(false);
+  // AXON.md 导入审批处理函数 - v2.1.6 新增
+  // 处理 AXON.md 导入审批完成
+  const handleAxonMdApprovalComplete = useCallback((result: AxonMdApprovalResult) => {
+    axonMdImport.handleApprovalResult(result);
+    setShowAxonMdDialog(false);
 
     if (result.approved) {
-      addMessage('assistant', `Imported ${result.approvedFiles.length} CLAUDE.md file(s).\n\nProject instructions have been loaded.`);
-      addActivity(`Imported ${result.approvedFiles.length} CLAUDE.md files`);
+      addMessage('assistant', `Imported ${result.approvedFiles.length} AXON.md file(s).\n\nProject instructions have been loaded.`);
+      addActivity(`Imported ${result.approvedFiles.length} AXON.md files`);
     } else {
       addActivity(t('ui.claudeMdDeclined'));
     }
-  }, [claudeMdImport, addMessage, addActivity]);
+  }, [axonMdImport, addMessage, addActivity]);
 
-  // 处理 CLAUDE.md 导入取消
-  const handleClaudeMdCancel = useCallback(() => {
-    setShowClaudeMdDialog(false);
-    claudeMdImport.skipApproval();
+  // 处理 AXON.md 导入取消
+  const handleAxonMdCancel = useCallback(() => {
+    setShowAxonMdDialog(false);
+    axonMdImport.skipApproval();
     addActivity(t('ui.claudeMdSkipped'));
-  }, [claudeMdImport, addActivity]);
+  }, [axonMdImport, addActivity]);
 
-  // 检查是否需要显示 CLAUDE.md 导入对话框
+  // 检查是否需要显示 AXON.md 导入对话框
   useEffect(() => {
     // 只在信任目录后且有待审批文件时显示
-    if (directoryTrusted && claudeMdImport.needsApproval && !claudeMdImport.loading) {
+    if (directoryTrusted && axonMdImport.needsApproval && !axonMdImport.loading) {
       // 只对外部文件显示审批对话框，项目内文件默认信任
-      const hasExternalFiles = claudeMdImport.pendingFiles.some(f => f.source === 'external');
+      const hasExternalFiles = axonMdImport.pendingFiles.some(f => f.source === 'external');
       if (hasExternalFiles) {
-        setShowClaudeMdDialog(true);
+        setShowAxonMdDialog(true);
       } else {
         // 自动批准项目内的文件
-        claudeMdImport.skipApproval();
+        axonMdImport.skipApproval();
       }
     }
-  }, [directoryTrusted, claudeMdImport.needsApproval, claudeMdImport.loading, claudeMdImport.pendingFiles, claudeMdImport.skipApproval]);
+  }, [directoryTrusted, axonMdImport.needsApproval, axonMdImport.loading, axonMdImport.pendingFiles, axonMdImport.skipApproval]);
 
   // 处理 Shift+Tab 权限模式切换 - 官方 v2.1.2 响应式状态更新
   const handlePermissionModeChange = useCallback((mode: 'default' | 'acceptEdits' | 'plan') => {
@@ -1079,13 +1079,13 @@ export const App: React.FC<AppProps> = ({
         {/* 信任对话框 - 修复 v2.1.3 home 目录信任问题 */}
         {TrustDialogComponent}
 
-        {/* CLAUDE.md 导入审批对话框 - v2.1.6 新增 */}
-        {showClaudeMdDialog && (
-          <ClaudeMdImportDialog
-            files={claudeMdImport.pendingFiles}
+        {/* AXON.md 导入审批对话框 - v2.1.6 新增 */}
+        {showAxonMdDialog && (
+          <AxonMdImportDialog
+            files={axonMdImport.pendingFiles}
             cwd={process.cwd()}
-            onComplete={handleClaudeMdApprovalComplete}
-            onCancel={handleClaudeMdCancel}
+            onComplete={handleAxonMdApprovalComplete}
+            onCancel={handleAxonMdCancel}
             showDetails={false}
           />
         )}

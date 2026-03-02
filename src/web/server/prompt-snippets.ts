@@ -1,6 +1,6 @@
 /**
  * Prompt Snippets 管理器
- * 持久化到 ~/.claude/prompt-snippets/*.json
+ * 持久化到 ~/.axon/prompt-snippets/*.json
  * 在 buildSystemPrompt 时按优先级注入
  */
 
@@ -60,7 +60,7 @@ export interface PromptSnippetUpdateInput {
 // ============================================================================
 
 function getSnippetsDir(): string {
-  return path.join(os.homedir(), '.claude', 'prompt-snippets');
+  return path.join(os.homedir(), '.axon', 'prompt-snippets');
 }
 
 function ensureSnippetsDir(): string {

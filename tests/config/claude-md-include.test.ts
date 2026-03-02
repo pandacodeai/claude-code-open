@@ -1,5 +1,5 @@
 /**
- * CLAUDE.md @include 指令和二进制文件过滤测试
+ * AXON.md @include 指令和二进制文件过滤测试
  *
  * v2.1.2 功能:
  * - @include 指令支持
@@ -11,14 +11,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import {
-  ClaudeMdParser,
+  AxonMdParser,
   isTextFile,
   isBinaryFile,
   getTextFileExtensions,
   hasBinaryContent,
-} from '../../src/config/claude-md-parser.js';
+} from '../../src/config/axon-md-parser.js';
 
-describe('CLAUDE.md @include 指令', () => {
+describe('AXON.md @include 指令', () => {
   let testDir: string;
 
   beforeAll(() => {
@@ -123,7 +123,7 @@ describe('CLAUDE.md @include 指令', () => {
     });
   });
 
-  describe('ClaudeMdParser @include 处理', () => {
+  describe('AxonMdParser @include 处理', () => {
     beforeEach(() => {
       // 清理测试目录内容
       const files = fs.readdirSync(testDir);
@@ -132,14 +132,14 @@ describe('CLAUDE.md @include 指令', () => {
       }
     });
 
-    it('应该解析不带 @include 的 CLAUDE.md', () => {
+    it('应该解析不带 @include 的 AXON.md', () => {
       const claudeMdContent = `# Project
 
 This is a simple project.
 `;
-      fs.writeFileSync(path.join(testDir, 'CLAUDE.md'), claudeMdContent);
+      fs.writeFileSync(path.join(testDir, 'AXON.md'), claudeMdContent);
 
-      const parser = new ClaudeMdParser(testDir);
+      const parser = new AxonMdParser(testDir);
       const result = parser.parse();
 
       expect(result.exists).toBe(true);
@@ -154,16 +154,16 @@ This is a simple project.
       fs.mkdirSync(docsDir, { recursive: true });
       fs.writeFileSync(path.join(docsDir, 'api.md'), '## API Documentation\n\nThis is API docs.');
 
-      // 创建 CLAUDE.md
+      // 创建 AXON.md
       const claudeMdContent = `# Project
 
 @./docs/api.md
 
 Main content here.
 `;
-      fs.writeFileSync(path.join(testDir, 'CLAUDE.md'), claudeMdContent);
+      fs.writeFileSync(path.join(testDir, 'AXON.md'), claudeMdContent);
 
-      const parser = new ClaudeMdParser(testDir);
+      const parser = new AxonMdParser(testDir);
       const result = parser.parse();
 
       expect(result.exists).toBe(true);
@@ -178,16 +178,16 @@ Main content here.
       fs.mkdirSync(imagesDir, { recursive: true });
       fs.writeFileSync(path.join(imagesDir, 'logo.png'), Buffer.from([0x89, 0x50, 0x4E, 0x47]));
 
-      // 创建 CLAUDE.md
+      // 创建 AXON.md
       const claudeMdContent = `# Project
 
 @./images/logo.png
 
 Main content here.
 `;
-      fs.writeFileSync(path.join(testDir, 'CLAUDE.md'), claudeMdContent);
+      fs.writeFileSync(path.join(testDir, 'AXON.md'), claudeMdContent);
 
-      const parser = new ClaudeMdParser(testDir);
+      const parser = new AxonMdParser(testDir);
       const result = parser.parse();
 
       expect(result.exists).toBe(true);
@@ -207,9 +207,9 @@ Main content here.
 
 Main content.
 `;
-      fs.writeFileSync(path.join(testDir, 'CLAUDE.md'), claudeMdContent);
+      fs.writeFileSync(path.join(testDir, 'AXON.md'), claudeMdContent);
 
-      const parser = new ClaudeMdParser(testDir);
+      const parser = new AxonMdParser(testDir);
       const result = parser.parse();
 
       expect(result.skippedBinaryFiles).toContain('./docs/manual.pdf');
@@ -230,9 +230,9 @@ Main content.
 
 Main content.
 `;
-      fs.writeFileSync(path.join(testDir, 'CLAUDE.md'), claudeMdContent);
+      fs.writeFileSync(path.join(testDir, 'AXON.md'), claudeMdContent);
 
-      const parser = new ClaudeMdParser(testDir);
+      const parser = new AxonMdParser(testDir);
       const result = parser.parse();
 
       expect(result.content).toContain('API Docs');
@@ -251,9 +251,9 @@ Main content.
 
 Main content.
 `;
-      fs.writeFileSync(path.join(testDir, 'CLAUDE.md'), claudeMdContent);
+      fs.writeFileSync(path.join(testDir, 'AXON.md'), claudeMdContent);
 
-      const parser = new ClaudeMdParser(testDir);
+      const parser = new AxonMdParser(testDir);
       const result = parser.parse();
 
       // 代码块中的 @include 不应被处理
@@ -272,9 +272,9 @@ Main content.
 
 Main content.
 `;
-      fs.writeFileSync(path.join(testDir, 'CLAUDE.md'), claudeMdContent);
+      fs.writeFileSync(path.join(testDir, 'AXON.md'), claudeMdContent);
 
-      const parser = new ClaudeMdParser(testDir);
+      const parser = new AxonMdParser(testDir);
       const result = parser.parse();
 
       expect(result.content).toContain('Spaced Path Docs');
@@ -287,9 +287,9 @@ Main content.
 
 Main content.
 `;
-      fs.writeFileSync(path.join(testDir, 'CLAUDE.md'), claudeMdContent);
+      fs.writeFileSync(path.join(testDir, 'AXON.md'), claudeMdContent);
 
-      const parser = new ClaudeMdParser(testDir);
+      const parser = new AxonMdParser(testDir);
       const result = parser.parse();
 
       // 不应该崩溃
@@ -310,9 +310,9 @@ Main content.
 
 @./docs/a.md
 `;
-      fs.writeFileSync(path.join(testDir, 'CLAUDE.md'), claudeMdContent);
+      fs.writeFileSync(path.join(testDir, 'AXON.md'), claudeMdContent);
 
-      const parser = new ClaudeMdParser(testDir);
+      const parser = new AxonMdParser(testDir);
 
       // 不应该无限循环
       const result = parser.parse();

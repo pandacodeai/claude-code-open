@@ -47,7 +47,7 @@ import { fromMsysPath } from '../utils/platform.js';
  * @returns 绝对路径
  */
 function resolveFilePath(filePath: string): string {
-  // 处理 MSYS/Git Bash 路径格式：/f/claude-code-open → F:/claude-code-open
+  // 处理 MSYS/Git Bash 路径格式：/f/axon → F:/axon
   // 子 agent 从 Bash 输出中拿到的路径可能是 MSYS 格式，Node.js fs 不认识
   filePath = fromMsysPath(filePath);
 
@@ -396,7 +396,7 @@ Usage:
 - You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters
 - Any lines longer than 2000 characters will be truncated
 - Results are returned using cat -n format, with line numbers starting at 1
-- This tool allows Claude Code to read images (eg PNG, JPG, etc). When reading an image file the contents are presented visually as Claude Code is a multimodal LLM.
+- This tool allows Axon to read images (eg PNG, JPG, etc). When reading an image file the contents are presented visually as Axon is a multimodal LLM.
 - This tool can read PDF files (.pdf). For large PDFs (more than 10 pages), you MUST provide the pages parameter to read specific page ranges (e.g., pages: "1-5"). Reading a large PDF without the pages parameter will fail. Maximum 20 pages per request.
 - This tool can read Jupyter notebooks (.ipynb files) and returns all cells with their outputs, combining code, text, and visualizations.
 - This tool can only read files, not directories. To read a directory, use an ls command via the Bash tool.
@@ -1328,7 +1328,7 @@ Usage:
 
   private fileBackup = new FileBackup();
   /** 是否强制要求先读取文件（可通过环境变量配置） */
-  private requireFileRead: boolean = process.env.CLAUDE_EDIT_REQUIRE_READ !== 'false';
+  private requireFileRead: boolean = process.env.AXON_EDIT_REQUIRE_READ !== 'false';
 
   getInputSchema(): ToolDefinition['inputSchema'] {
     return {

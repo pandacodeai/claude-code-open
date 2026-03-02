@@ -6,11 +6,11 @@
 - **任务名称**: E2E 测试框架
 - **完成日期**: 2025-12-25
 - **状态**: ✅ 已完成
-- **工作目录**: `/home/user/claude-code-open/tests/e2e/`
+- **工作目录**: `/home/user/axon/tests/e2e/`
 
 ## 🎯 任务目标
 
-创建一个完整的端到端(E2E)测试框架，用于测试 Claude Code CLI 的完整功能，包括：
+创建一个完整的端到端(E2E)测试框架，用于测试 Axon CLI 的完整功能，包括：
 1. ✅ 创建 `tests/e2e/` 目录
 2. ✅ 创建 E2E 测试框架（setup.ts, cli-runner.ts, mock-server.ts）
 3. ✅ 创建 E2E 测试套件（basic, session, tools）

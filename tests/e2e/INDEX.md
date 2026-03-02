@@ -336,7 +336,7 @@ run-all.ts
 ## 相关链接
 
 - [主项目文档](../../README.md)
-- [CLAUDE.md](../../CLAUDE.md)
+- [AXON.md](../../AXON.md)
 - [单元测试](../config.test.ts)
 
 ---

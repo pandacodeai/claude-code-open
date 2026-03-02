@@ -205,7 +205,7 @@ export const Message: React.FC<MessageProps> = React.memo(({
     if (isUser) return t('message.you');
     if (isSystem) return t('message.system');
     if (isError) return t('message.error');
-    return t('message.claude');
+    return t('message.axon');
   };
 
   const getRoleColor = () => {

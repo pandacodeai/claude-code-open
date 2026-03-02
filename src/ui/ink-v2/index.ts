@@ -1,7 +1,7 @@
 /**
  * Ink V2 渲染引擎
  *
- * 从官方 Claude Code 源码逆向工程提取
+ * 从官方 Axon 源码逆向工程提取
  *
  * 主要特性：
  * 1. ink2 模式 - 增量渲染，只更新变化的部分
@@ -66,7 +66,7 @@ import { writeToTerminal } from './output.js';
  * 这是一个简化的 Ink 渲染引擎，专注于：
  * - 正确处理终端 resize
  * - 增量渲染优化
- * - 与官方 Claude Code 兼容的渲染行为
+ * - 与官方 Axon 兼容的渲染行为
  */
 export class InkV2App {
   private options: InkV2Options;

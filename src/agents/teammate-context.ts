@@ -5,7 +5,7 @@
  * 使用 AsyncLocalStorage 管理 Teammate 上下文
  * 官方源码：cli.js 中的 R6A 对象（teammate API 导出）
  *
- * 环境变量: CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+ * 环境变量: AXON_EXPERIMENTAL_AGENT_TEAMS=1
  */
 
 import { AsyncLocalStorage } from 'async_hooks';
@@ -212,7 +212,7 @@ export function isPlanModeRequired(): boolean {
   const ctx = getTeammateContext();
   if (ctx) return ctx.planModeRequired ?? false;
   if (dynamicTeamContext !== null) return dynamicTeamContext.planModeRequired ?? false;
-  return process.env.CLAUDE_CODE_PLAN_MODE_REQUIRED === 'true';
+  return process.env.AXON_PLAN_MODE_REQUIRED === 'true';
 }
 
 /**
@@ -317,10 +317,10 @@ export function waitForTeammatesToBecomeIdle(
  * 检查 Agent Teams 功能是否启用
  * 对齐官方 F8() 函数
  *
- * 需要 CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 环境变量
+ * 需要 AXON_EXPERIMENTAL_AGENT_TEAMS=1 环境变量
  */
 export function isAgentTeamsEnabled(): boolean {
-  const envValue = process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS;
+  const envValue = process.env.AXON_EXPERIMENTAL_AGENT_TEAMS;
   if (!envValue) return false;
   // 支持 '1', 'true', 'yes' 等
   return ['1', 'true', 'yes'].includes(envValue.toLowerCase());

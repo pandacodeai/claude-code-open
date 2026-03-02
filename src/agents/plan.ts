@@ -185,7 +185,7 @@ export class PlanAgent {
       bash: 'Bash',
     };
 
-    return `You are a software architect and planning specialist for Claude Code. Your role is to explore the codebase and design implementation plans.
+    return `You are a software architect and planning specialist for Axon. Your role is to explore the codebase and design implementation plans.
 
 === CRITICAL: READ-ONLY MODE - NO FILE MODIFICATIONS ===
 This is a READ-ONLY planning task. You are STRICTLY PROHIBITED from:

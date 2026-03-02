@@ -43,9 +43,9 @@ function getSourceLabels(): Record<SkillSource, string> {
 // 来源路径提示
 const SOURCE_PATHS: Record<SkillSource, string> = {
   policySettings: '',
-  userSettings: '~/.claude/skills/',
-  projectSettings: '.claude/commands/',
-  localSettings: '.claude/skills/',
+  userSettings: '~/.axon/skills/',
+  projectSettings: '.axon/commands/',
+  localSettings: '.axon/skills/',
   flagSettings: '',
   plugin: 'plugin',
   builtin: '',
@@ -97,7 +97,7 @@ function scanSkillsDir(dir: string, source: SkillSource): SkillInfo[] {
 // 扫描 plugin 中的 skills
 function scanPluginSkills(): SkillInfo[] {
   const skillsMap = new Map<string, SkillInfo>(); // 用于去重
-  const pluginsCacheDir = path.join(os.homedir(), '.claude', 'plugins', 'cache');
+  const pluginsCacheDir = path.join(os.homedir(), '.axon', 'plugins', 'cache');
 
   if (!fs.existsSync(pluginsCacheDir)) return [];
 
@@ -172,16 +172,16 @@ function getAllSkills(cwd: string): SkillInfo[] {
   // 1. Plugin skills (从已安装的 plugins 加载)
   skills.push(...scanPluginSkills());
 
-  // 2. User skills (~/.claude/skills/)
-  const userSkillsDir = path.join(os.homedir(), '.claude', 'skills');
+  // 2. User skills (~/.axon/skills/)
+  const userSkillsDir = path.join(os.homedir(), '.axon', 'skills');
   skills.push(...scanSkillsDir(userSkillsDir, 'userSettings'));
 
-  // 3. Project skills (.claude/commands/)
-  const projectSkillsDir = path.join(cwd, '.claude', 'commands');
+  // 3. Project skills (.axon/commands/)
+  const projectSkillsDir = path.join(cwd, '.axon', 'commands');
   skills.push(...scanSkillsDir(projectSkillsDir, 'projectSettings'));
 
-  // 4. Local skills (.claude/skills/)
-  const localSkillsDir = path.join(cwd, '.claude', 'skills');
+  // 4. Local skills (.axon/skills/)
+  const localSkillsDir = path.join(cwd, '.axon', 'skills');
   skills.push(...scanSkillsDir(localSkillsDir, 'localSettings'));
 
   return skills;

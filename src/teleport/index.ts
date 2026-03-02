@@ -2,7 +2,7 @@
  * Teleport - 远程会话连接模块
  *
  * 功能：
- * - 连接到远程 Claude Code 会话
+ * - 连接到远程 Axon 会话
  * - 实时同步消息和状态
  * - 断线重连
  * - 仓库验证
@@ -63,18 +63,18 @@ export async function connectToRemoteSession(
   const { createRemoteSession } = await import('./session.js');
 
   // 如果没有提供 ingressUrl，尝试从环境变量获取
-  const url = ingressUrl || process.env.CLAUDE_TELEPORT_URL;
+  const url = ingressUrl || process.env.AXON_TELEPORT_URL;
 
   if (!url) {
     throw new Error(
-      'No ingress URL provided. Set CLAUDE_TELEPORT_URL environment variable or pass it as parameter.'
+      'No ingress URL provided. Set AXON_TELEPORT_URL environment variable or pass it as parameter.'
     );
   }
 
   const session = createRemoteSession({
     sessionId,
     ingressUrl: url,
-    authToken: authToken || process.env.CLAUDE_TELEPORT_TOKEN,
+    authToken: authToken || process.env.AXON_TELEPORT_TOKEN,
   });
 
   await session.connect();

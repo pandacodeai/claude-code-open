@@ -21,22 +21,22 @@ import { VERSION_BASE } from '../version.js';
 const OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
 const OAUTH_TOKEN_ENDPOINT = 'https://platform.claude.com/v1/oauth/token';
 const OAUTH_BETA = 'oauth-2025-04-20';
-const CLAUDE_CODE_BETA = 'claude-code-20250219';
+const AXON_BETA = 'claude-code-20250219';
 const THINKING_BETA = 'interleaved-thinking-2025-05-14';
 const PROMPT_CACHING_SCOPE_BETA = 'prompt-caching-scope-2026-01-05';
 
-// Claude Code 身份标识（Anthropic 订阅 token 要求 system prompt 必须以此开头）
+// Axon 身份标识（Anthropic 订阅 token 要求 system prompt 必须以此开头）
 // 官方有三种有效身份标识，CC 客户端根据运行模式使用不同的版本：
-//   1. CLI 模式:       "You are Claude Code, Anthropic's official CLI for Claude."
-//   2. Agent SDK 模式: "You are Claude Code, Anthropic's official CLI for Claude, running within the Claude Agent SDK."
+//   1. CLI 模式:       "You are Axon, an AI-powered coding assistant."
+//   2. Agent SDK 模式: "You are Axon, an AI-powered coding assistant, running within the Claude Agent SDK."
 //   3. 自定义 Agent:   "You are a Claude agent, built on Anthropic's Claude Agent SDK."
-const CLAUDE_CODE_IDENTITIES = [
-  "You are Claude Code, Anthropic's official CLI for Claude, running within the Claude Agent SDK.",
-  "You are Claude Code, Anthropic's official CLI for Claude.",
+const AXON_IDENTITIES = [
+  "You are Axon, an AI-powered coding assistant, running within the Claude Agent SDK.",
+  "You are Axon, an AI-powered coding assistant.",
   "You are a Claude agent, built on Anthropic's Claude Agent SDK.",
 ];
 // 注入时使用最短的 CLI 身份标识（兼容性最好）
-const CLAUDE_CODE_IDENTITY = CLAUDE_CODE_IDENTITIES[1];
+const AXON_IDENTITY = AXON_IDENTITIES[1];
 
 // Token 提前刷新时间：过期前 5 分钟
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
@@ -67,7 +67,7 @@ export interface ProxyConfig {
   oauthRefreshToken?: string;
   /** OAuth 模式：token 过期时间 (ms timestamp) */
   oauthExpiresAt?: number;
-  /** OAuth 模式：账户 UUID（从 ~/.claude/.credentials.json 的 oauthAccount 读取） */
+  /** OAuth 模式：账户 UUID（从 ~/.axon/.credentials.json 的 oauthAccount 读取） */
   oauthAccountUuid?: string;
   /** 转发目标地址，默认 https://api.anthropic.com */
   targetBaseUrl: string;
@@ -267,7 +267,7 @@ function buildProxyBetas(model: string): string[] {
 
   // 1. 非 haiku 模型添加 claude-code beta（官方: if(!K)q.push(tFA)）
   if (!isHaiku) {
-    betas.push(CLAUDE_CODE_BETA);
+    betas.push(AXON_BETA);
   }
 
   // 2. OAuth 订阅用户必须添加 oauth beta（官方: if(O7())q.push(zE)）
@@ -349,8 +349,8 @@ function buildForwardHeaders(
   betaList = betaList.filter(b => !b.startsWith('prompt-caching-scope'));
 
   // 确保包含 claude-code beta
-  if (!betaList.includes(CLAUDE_CODE_BETA) && !model.toLowerCase().includes('haiku')) {
-    betaList.push(CLAUDE_CODE_BETA);
+  if (!betaList.includes(AXON_BETA) && !model.toLowerCase().includes('haiku')) {
+    betaList.push(AXON_BETA);
   }
 
   // 确保包含 oauth beta
@@ -533,14 +533,14 @@ export async function createProxyServer(config: ProxyConfig) {
         } catch { /* ignore */ }
       }
 
-      // 检测是否是流式请求 + OAuth 模式下注入 Claude Code 身份
+      // 检测是否是流式请求 + OAuth 模式下注入 Axon 身份
       let isStreaming = false;
       if (body.length > 0) {
         try {
           const parsed = JSON.parse(body.toString());
           isStreaming = parsed.stream === true;
 
-          // OAuth 模式：确保 system prompt 以 Claude Code 身份开头
+          // OAuth 模式：确保 system prompt 以 Axon 身份开头
           // 这是 Anthropic 订阅 token 的硬性要求，否则返回 invalid_request_error
           if (authMode === 'oauth' && parsed.messages) {
             // 保存原始 body 快照（修改前），用于 dump 对比
@@ -577,23 +577,23 @@ export async function createProxyServer(config: ProxyConfig) {
 
             // 辅助函数：检查文本是否以任一有效 CC 身份标识开头
             const hasValidIdentity = (text: string): boolean =>
-              CLAUDE_CODE_IDENTITIES.some(id => text.startsWith(id));
+              AXON_IDENTITIES.some(id => text.startsWith(id));
 
             if (!parsed.system) {
               // 没有 system prompt，直接添加
-              parsed.system = CLAUDE_CODE_IDENTITY;
+              parsed.system = AXON_IDENTITY;
               needsRewrite = true;
             } else if (typeof parsed.system === 'string') {
               // string 格式的 system prompt
               if (!hasValidIdentity(parsed.system)) {
-                parsed.system = CLAUDE_CODE_IDENTITY + '\n\n' + parsed.system;
+                parsed.system = AXON_IDENTITY + '\n\n' + parsed.system;
                 needsRewrite = true;
               }
               // 已有有效身份标识，不做任何修改
             } else if (Array.isArray(parsed.system)) {
               if (parsed.system.length === 0) {
                 // 空数组，转成包含身份标识的数组
-                parsed.system = [{ type: 'text', text: CLAUDE_CODE_IDENTITY }];
+                parsed.system = [{ type: 'text', text: AXON_IDENTITY }];
                 needsRewrite = true;
               } else {
                 // 官方 CC 的 system prompt 结构（cli.js:3117-3123）：
@@ -625,7 +625,7 @@ export async function createProxyServer(config: ProxyConfig) {
                       break;
                     }
                   }
-                  parsed.system.splice(insertIdx, 0, { type: 'text', text: CLAUDE_CODE_IDENTITY });
+                  parsed.system.splice(insertIdx, 0, { type: 'text', text: AXON_IDENTITY });
                   needsRewrite = true;
                 }
               }

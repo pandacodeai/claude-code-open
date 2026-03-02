@@ -129,8 +129,8 @@ async function createRelayServer(
 ): Promise<ChromeExtensionRelayServer> {
   const authToken = resolveRelayAuthToken(port);
 
-  // Verbose CDP logging — only when CLAUDE_VERBOSE or RELAY_VERBOSE is set
-  const verbose = process.env.CLAUDE_VERBOSE === 'true' || process.env.RELAY_VERBOSE === 'true';
+  // Verbose CDP logging — only when AXON_VERBOSE or RELAY_VERBOSE is set
+  const verbose = process.env.AXON_VERBOSE === 'true' || process.env.RELAY_VERBOSE === 'true';
   
   // State
   const connectedTargets = new Map<string, ConnectedTarget>();

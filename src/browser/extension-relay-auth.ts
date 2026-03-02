@@ -9,7 +9,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 
-const CONFIG_DIR = path.join(os.homedir(), '.claude');
+const CONFIG_DIR = path.join(os.homedir(), '.axon');
 const BROWSER_DIR = path.join(CONFIG_DIR, 'browser');
 const RELAY_TOKEN_FILE = path.join(BROWSER_DIR, 'relay-token');
 

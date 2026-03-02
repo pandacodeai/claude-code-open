@@ -248,12 +248,12 @@ export class GitIgnore {
    */
   static getSuggestedRules(): string[] {
     return [
-      '# Claude Code',
-      '.claude/',
-      '.claude/sessions/',
+      '# Axon',
+      '.axon/',
+      '.axon/sessions/',
       '',
-      '# Keep CLAUDE.md tracked',
-      '!CLAUDE.md',
+      '# Keep AXON.md tracked',
+      '!AXON.md',
       '',
       '# Environment variables',
       '.env',

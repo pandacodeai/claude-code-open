@@ -5,7 +5,7 @@
  */
 
 import type { ConfigManager, UserConfig, ConfigSource } from './index.js';
-import { ClaudeMdParser } from './claude-md-parser.js';
+import { AxonMdParser } from './axon-md-parser.js';
 import * as fs from 'fs';
 
 export interface ConfigDisplayOptions {
@@ -33,7 +33,7 @@ export class ConfigCommand {
 
     // 标题
     output += '='.repeat(60) + '\n';
-    output += 'Claude Code Configuration\n';
+    output += 'Axon Configuration\n';
     output += '='.repeat(60) + '\n\n';
 
     // 配置内容
@@ -56,7 +56,7 @@ export class ConfigCommand {
       output += this.displayBackups();
     }
 
-    // CLAUDE.md 信息
+    // AXON.md 信息
     output += this.displayClaudeMd();
 
     output += '\n' + '='.repeat(60) + '\n';
@@ -169,13 +169,13 @@ export class ConfigCommand {
   }
 
   /**
-   * 展示 CLAUDE.md 信息
+   * 展示 AXON.md 信息
    */
   private displayClaudeMd(): string {
-    const parser = new ClaudeMdParser();
+    const parser = new AxonMdParser();
     const info = parser.parse();
 
-    let output = '**CLAUDE.md Status:**\n\n';
+    let output = '**AXON.md Status:**\n\n';
 
     if (info.exists) {
       const stats = parser.getStats();
@@ -198,7 +198,7 @@ export class ConfigCommand {
     } else {
       output += `Path: ${info.path}\n`;
       output += `Status: Not Found ✗\n`;
-      output += '\nTip: Create a CLAUDE.md file to provide project-specific guidance to Claude.\n';
+      output += '\nTip: Create an AXON.md file to provide project-specific guidance to Axon.\n';
     }
 
     output += '\n';
@@ -327,7 +327,7 @@ export class ConfigCommand {
    */
   help(): string {
     return `
-Claude Code Configuration Commands
+Axon Configuration Commands
 
 Usage:
   /config                   - Display current configuration
@@ -349,11 +349,11 @@ Examples:
 
 Configuration Sources (priority order):
   1. default              - Built-in defaults
-  2. policySettings       - Organization policies (~/.claude/policy.json)
-  3. userSettings         - User global config (~/.claude/settings.json)
-  4. projectSettings      - Project config (./.claude/settings.json)
-  5. localSettings        - Machine-specific (./.claude/local.json)
-  6. envSettings          - Environment variables (CLAUDE_CODE_*)
+  2. policySettings       - Organization policies (~/.axon/policy.json)
+  3. userSettings         - User global config (~/.axon/settings.json)
+  4. projectSettings      - Project config (./.axon/settings.json)
+  5. localSettings        - Machine-specific (./.axon/local.json)
+  6. envSettings          - Environment variables (AXON_*)
   7. flagSettings         - Command-line flags (--settings)
 `;
   }

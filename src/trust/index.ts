@@ -237,7 +237,7 @@ class TrustManager extends EventEmitter {
    * 获取信任状态持久化文件路径
    */
   private getTrustFilePath(): string {
-    const claudeDir = path.join(os.homedir(), '.claude');
+    const claudeDir = path.join(os.homedir(), '.axon');
     return path.join(claudeDir, 'trusted-directories.json');
   }
 

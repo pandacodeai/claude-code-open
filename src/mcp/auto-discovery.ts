@@ -154,7 +154,7 @@ export interface McpJsonRpcMessage {
  * 自动发现选项
  */
 export interface AutoDiscoveryOptions {
-  /** 配置文件路径 (默认: ~/.claude/settings.json) */
+  /** 配置文件路径 (默认: ~/.axon/settings.json) */
   configPaths?: string[];
 
   /** 启动时自动连接 */
@@ -500,8 +500,8 @@ class HttpTransport extends EventEmitter implements McpTransport {
 
 const DEFAULT_OPTIONS: Required<AutoDiscoveryOptions> = {
   configPaths: [
-    path.join(homedir(), '.claude', 'settings.json'),
-    path.join(process.cwd(), '.claude', 'settings.json'),
+    path.join(homedir(), '.axon', 'settings.json'),
+    path.join(process.cwd(), '.axon', 'settings.json'),
   ],
   autoConnect: true,
   autoReconnect: true,
@@ -548,8 +548,8 @@ export class McpAutoDiscovery extends EventEmitter {
     if (process.platform === 'win32') {
       const userProfile = process.env.USERPROFILE || homedir();
       this.options.configPaths = [
-        path.join(userProfile, '.claude', 'settings.json'),
-        path.join(process.cwd(), '.claude', 'settings.json'),
+        path.join(userProfile, '.axon', 'settings.json'),
+        path.join(process.cwd(), '.axon', 'settings.json'),
       ];
     }
   }
@@ -888,7 +888,7 @@ export class McpAutoDiscovery extends EventEmitter {
         sampling: {},
       },
       clientInfo: {
-        name: 'claude-code-open',
+        name: 'axon',
         version: '2.1.4',
       },
     });

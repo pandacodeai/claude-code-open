@@ -1,6 +1,6 @@
 /**
  * Plan 持久化管理器
- * 负责保存、加载、管理计划到 ~/.claude/plans/
+ * 负责保存、加载、管理计划到 ~/.axon/plans/
  * v2.1.9: 支持 plansDirectory 配置自定义存储目录
  */
 
@@ -20,9 +20,9 @@ import type {
 } from './types.js';
 
 // 默认计划存储目录
-const DEFAULT_PLANS_DIR = path.join(os.homedir(), '.claude', 'plans');
-const DEFAULT_TEMPLATES_DIR = path.join(os.homedir(), '.claude', 'plan-templates');
-const DEFAULT_VERSIONS_DIR = path.join(os.homedir(), '.claude', 'plan-versions');
+const DEFAULT_PLANS_DIR = path.join(os.homedir(), '.axon', 'plans');
+const DEFAULT_TEMPLATES_DIR = path.join(os.homedir(), '.axon', 'plan-templates');
+const DEFAULT_VERSIONS_DIR = path.join(os.homedir(), '.axon', 'plan-versions');
 const MAX_PLANS = 500; // 最多保存的计划数
 const PLAN_EXPIRY_DAYS = 90; // 计划过期天数
 

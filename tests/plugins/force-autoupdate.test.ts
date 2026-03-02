@@ -23,7 +23,7 @@ describe('FORCE_AUTOUPDATE_PLUGINS 环境变量', () => {
   beforeEach(() => {
     // 清理相关环境变量
     delete process.env.DISABLE_AUTOUPDATER;
-    delete process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC;
+    delete process.env.AXON_DISABLE_NONESSENTIAL_TRAFFIC;
     delete process.env.FORCE_AUTOUPDATE_PLUGINS;
   });
 
@@ -72,9 +72,9 @@ describe('FORCE_AUTOUPDATE_PLUGINS 环境变量', () => {
       expect(getAutoUpdaterDisabledReason()).toBe('DISABLE_AUTOUPDATER set');
     });
 
-    it('CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC 设置时应返回禁用原因', () => {
-      process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = '1';
-      expect(getAutoUpdaterDisabledReason()).toBe('CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC set');
+    it('AXON_DISABLE_NONESSENTIAL_TRAFFIC 设置时应返回禁用原因', () => {
+      process.env.AXON_DISABLE_NONESSENTIAL_TRAFFIC = '1';
+      expect(getAutoUpdaterDisabledReason()).toBe('AXON_DISABLE_NONESSENTIAL_TRAFFIC set');
     });
   });
 
@@ -88,8 +88,8 @@ describe('FORCE_AUTOUPDATE_PLUGINS 环境变量', () => {
       expect(isAutoUpdaterDisabled()).toBe(true);
     });
 
-    it('CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 时应返回 true', () => {
-      process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = '1';
+    it('AXON_DISABLE_NONESSENTIAL_TRAFFIC=1 时应返回 true', () => {
+      process.env.AXON_DISABLE_NONESSENTIAL_TRAFFIC = '1';
       expect(isAutoUpdaterDisabled()).toBe(true);
     });
   });
@@ -151,8 +151,8 @@ describe('FORCE_AUTOUPDATE_PLUGINS 环境变量', () => {
         expect(shouldSkipPluginAutoUpdate()).toBe(true);
       });
 
-      it('CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 且 FORCE 未设置时应跳过插件更新', () => {
-        process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = '1';
+      it('AXON_DISABLE_NONESSENTIAL_TRAFFIC=1 且 FORCE 未设置时应跳过插件更新', () => {
+        process.env.AXON_DISABLE_NONESSENTIAL_TRAFFIC = '1';
         expect(shouldSkipPluginAutoUpdate()).toBe(true);
       });
     });
@@ -176,8 +176,8 @@ describe('FORCE_AUTOUPDATE_PLUGINS 环境变量', () => {
         expect(shouldSkipPluginAutoUpdate()).toBe(false);
       });
 
-      it('CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 且 FORCE=1 时不应跳过插件更新', () => {
-        process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = '1';
+      it('AXON_DISABLE_NONESSENTIAL_TRAFFIC=1 且 FORCE=1 时不应跳过插件更新', () => {
+        process.env.AXON_DISABLE_NONESSENTIAL_TRAFFIC = '1';
         process.env.FORCE_AUTOUPDATE_PLUGINS = '1';
         expect(shouldSkipPluginAutoUpdate()).toBe(false);
       });
@@ -231,7 +231,7 @@ describe('PluginAutoUpdater 集成测试', () => {
   beforeEach(() => {
     // 清理相关环境变量
     delete process.env.DISABLE_AUTOUPDATER;
-    delete process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC;
+    delete process.env.AXON_DISABLE_NONESSENTIAL_TRAFFIC;
     delete process.env.FORCE_AUTOUPDATE_PLUGINS;
   });
 

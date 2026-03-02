@@ -7,7 +7,7 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import { t } from '../../i18n/index.js';
 
-const CLAUDE_COLOR = '#D77757';
+const AXON_COLOR = '#D77757';
 
 export interface HistorySearchProps {
   /** 搜索关键词 */
@@ -60,13 +60,13 @@ export const HistorySearch: React.FC<HistorySearchProps> = ({
     <Box flexDirection="column" marginBottom={1}>
       {/* 搜索提示行 */}
       <Box>
-        <Text color={CLAUDE_COLOR} bold>
+        <Text color={AXON_COLOR} bold>
           (reverse-i-search)`
         </Text>
         <Text color="cyan" bold>
           {query}
         </Text>
-        <Text color={CLAUDE_COLOR} bold>
+        <Text color={AXON_COLOR} bold>
           ':
         </Text>
         {currentMatch ? (

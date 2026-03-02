@@ -1,5 +1,5 @@
 /**
- * Claude Code - 主入口
+ * Axon - 主入口
  * 导出所有模块
  *
  * 注意: 使用命名空间导出避免名称冲突
@@ -108,7 +108,7 @@ export * from './notifications/index.js';
 // 代码签名系统
 export * from './codesign/index.js';
 
-// CLAUDE.md 和规则系统
+// AXON.md 和规则系统
 export * from './rules/index.js';
 
 // 版本信息

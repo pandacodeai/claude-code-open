@@ -431,11 +431,11 @@ export class TmuxBackend {
     const args: string[] = ['npx', 'claude-code'];
 
     const env: string[] = [
-      `CLAUDE_CODE_TEAM_NAME="${options.teamName}"`,
-      `CLAUDE_CODE_AGENT_NAME="${options.memberName}"`,
-      `CLAUDE_CODE_AGENT_ROLE="teammate"`,
-      `CLAUDE_CODE_TASK_LIST_ID="${options.taskListId}"`,
-      `CLAUDE_CODE_ENABLE_AGENT_TEAMS="true"`,
+      `AXON_TEAM_NAME="${options.teamName}"`,
+      `AXON_AGENT_NAME="${options.memberName}"`,
+      `AXON_AGENT_ROLE="teammate"`,
+      `AXON_TASK_LIST_ID="${options.taskListId}"`,
+      `AXON_ENABLE_AGENT_TEAMS="true"`,
     ];
 
     if (options.model) {

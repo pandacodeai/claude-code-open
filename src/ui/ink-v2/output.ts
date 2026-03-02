@@ -2,7 +2,7 @@
  * Output - 终端输出工具
  * 将渲染操作转换为 ANSI 转义序列
  *
- * 从官方 Claude Code 源码逆向工程提取
+ * 从官方 Axon 源码逆向工程提取
  */
 
 import type { RenderOp } from './types.js';

@@ -1,8 +1,8 @@
 #!/bin/bash
 # ============================================
-# Claude Code Open - One-Click Install Script
-# GitHub:  curl -fsSL https://raw.githubusercontent.com/kill136/claude-code-open/private_web_ui/install.sh | bash
-# China:   curl -fsSL https://gitee.com/lubanbbs/claude-code-open/raw/private_web_ui/install.sh | bash
+# Axon - One-Click Install Script
+# GitHub:  curl -fsSL https://raw.githubusercontent.com/kill136/axon/private_web_ui/install.sh | bash
+# China:   curl -fsSL https://gitee.com/lubanbbs/axon/raw/private_web_ui/install.sh | bash
 # ============================================
 set -e
 
@@ -15,11 +15,11 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
-REPO_URL_GITHUB="https://github.com/kill136/claude-code-open.git"
-REPO_URL_GITEE="https://gitee.com/lubanbbs/claude-code-open.git"
+REPO_URL_GITHUB="https://github.com/kill136/axon.git"
+REPO_URL_GITEE="https://gitee.com/lubanbbs/axon.git"
 REPO_URL=""  # Will be set by detect_repo_url()
-DOCKER_IMAGE="wbj66/claude-code-open:latest"
-INSTALL_DIR="$HOME/.claude-code-open"
+DOCKER_IMAGE="wbj66/axon:latest"
+INSTALL_DIR="$HOME/.axon"
 NODE_MAJOR_REQUIRED=18
 NODE_MAJOR_MAX=22  # LTS; native modules may lack prebuilds for newer versions
 NODE_HEAP_MB=3072  # Node.js max heap size for npm install (prevents OOM on low-memory devices)
@@ -28,8 +28,8 @@ MIN_TOTAL_MB=2048  # Minimum required memory (RAM + swap); auto-creates swap if 
 print_banner() {
     echo -e "${CYAN}"
     echo '  ╔═══════════════════════════════════════════╗'
-    echo '  ║        Claude Code Open Installer         ║'
-    echo '  ║     github.com/kill136/claude-code-open   ║'
+    echo '  ║             Axon Installer                ║'
+    echo '  ║        github.com/kill136/axon            ║'
     echo '  ╚═══════════════════════════════════════════╝'
     echo -e "${NC}"
 }
@@ -555,7 +555,7 @@ create_update_and_start_script() {
     cat > "$INSTALL_DIR/update-and-start.sh" << 'STARTER_EOF'
 #!/bin/bash
 # ============================================
-# Claude Code Open - Auto-Update & Start
+# Axon - Auto-Update & Start
 # This script pulls latest code before starting
 # ============================================
 # Note: no "set -e" here — update failures should not prevent startup
@@ -568,7 +568,7 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-INSTALL_DIR="$HOME/.claude-code-open"
+INSTALL_DIR="$HOME/.axon"
 
 info()    { echo -e "${BLUE}[INFO]${NC} $*"; }
 success() { echo -e "${GREEN}[OK]${NC} $*"; }
@@ -576,7 +576,7 @@ warn()    { echo -e "${YELLOW}[WARN]${NC} $*"; }
 
 echo -e "${CYAN}"
 echo '  ╔═══════════════════════════════════════════╗'
-echo '  ║   Claude Code Open - Auto Update & Start  ║'
+echo '  ║      Axon - Auto Update & Start           ║'
 echo '  ╚═══════════════════════════════════════════╝'
 echo -e "${NC}"
 
@@ -670,7 +670,7 @@ if [ "$NEED_REBUILD" = true ]; then
 fi
 
 echo ""
-info "Starting Claude Code WebUI..."
+info "Starting Axon WebUI..."
 echo ""
 
 # --- Start the application ---
@@ -697,8 +697,8 @@ create_desktop_shortcut_npm() {
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Claude Code WebUI
-Comment=Launch Claude Code Web Interface (Auto-Update)
+Name=Axon WebUI
+Comment=Launch Axon Web Interface (Auto-Update)
 Exec=bash -c '$INSTALL_DIR/update-and-start.sh'
 Icon=utilities-terminal
 Terminal=true
@@ -713,10 +713,10 @@ EOF
     elif [ "$PLATFORM" = "macos" ]; then
         DESKTOP_DIR="$HOME/Desktop"
         if [ -d "$DESKTOP_DIR" ]; then
-            SHORTCUT_FILE="$DESKTOP_DIR/Claude Code WebUI.command"
+            SHORTCUT_FILE="$DESKTOP_DIR/Axon WebUI.command"
             cat > "$SHORTCUT_FILE" << EOF
 #!/bin/bash
-"$HOME/.claude-code-open/update-and-start.sh" &
+"$HOME/.axon/update-and-start.sh" &
 APP_PID=\$!
 # Wait for server to start and open browser
 sleep 3
@@ -747,9 +747,9 @@ create_desktop_shortcut_docker() {
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Claude Code WebUI
-Comment=Launch Claude Code Web Interface
-Exec=bash -c 'cd ~; docker run -it --rm -p 3456:3456 \${ANTHROPIC_API_KEY:+-e ANTHROPIC_API_KEY="\$ANTHROPIC_API_KEY"} -v "\$HOME/.claude:/root/.claude" -v "\$(pwd):/workspace" $DOCKER_IMAGE'
+Name=Axon WebUI
+Comment=Launch Axon Web Interface
+Exec=bash -c 'cd ~; docker run -it --rm -p 3456:3456 \${ANTHROPIC_API_KEY:+-e ANTHROPIC_API_KEY="\$ANTHROPIC_API_KEY"} -v "\$HOME/.axon:/root/.axon" -v "\$(pwd):/workspace" $DOCKER_IMAGE'
 Icon=utilities-terminal
 Terminal=true
 Categories=Development;Utility;
@@ -763,15 +763,15 @@ EOF
     elif [ "$PLATFORM" = "macos" ]; then
         DESKTOP_DIR="$HOME/Desktop"
         if [ -d "$DESKTOP_DIR" ]; then
-            SHORTCUT_FILE="$DESKTOP_DIR/Claude Code WebUI.command"
+            SHORTCUT_FILE="$DESKTOP_DIR/Axon WebUI.command"
             cat > "$SHORTCUT_FILE" << EOF
 #!/bin/bash
 cd ~
-echo "Starting Claude Code WebUI..."
+echo "Starting Axon WebUI..."
 echo "Press Ctrl+C to stop the server"
 echo ""
 # Start server in background and open browser
-docker run -it --rm -p 3456:3456 \${ANTHROPIC_API_KEY:+-e ANTHROPIC_API_KEY="\$ANTHROPIC_API_KEY"} -v "\$HOME/.claude:/root/.claude" -v "\$(pwd):/workspace" $DOCKER_IMAGE &
+docker run -it --rm -p 3456:3456 \${ANTHROPIC_API_KEY:+-e ANTHROPIC_API_KEY="\$ANTHROPIC_API_KEY"} -v "\$HOME/.axon:/root/.axon" -v "\$(pwd):/workspace" $DOCKER_IMAGE &
 DOCKER_PID=\$!
 # Wait for server to start and open browser
 sleep 3
@@ -902,7 +902,7 @@ install_npm() {
     echo ""
     echo -e "  ${BOLD}Desktop Shortcut:${NC}"
     echo -e "    A shortcut has been created on your desktop"
-    echo -e "    Click it to start Claude Code WebUI"
+    echo -e "    Click it to start Axon WebUI"
     echo ""
 }
 
@@ -918,11 +918,11 @@ install_docker() {
 
     cat > "$WRAPPER" << 'WRAPPER_EOF'
 #!/bin/bash
-IMAGE_NAME="wbj66/claude-code-open:latest"
-mkdir -p ~/.claude
+IMAGE_NAME="wbj66/axon:latest"
+mkdir -p ~/.axon
 exec docker run -it --rm \
     ${ANTHROPIC_API_KEY:+-e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"} \
-    -v "$HOME/.claude:/root/.claude" \
+    -v "$HOME/.axon:/root/.axon" \
     -v "$(pwd):/workspace" \
     "$IMAGE_NAME" "$@"
 WRAPPER_EOF
@@ -944,7 +944,7 @@ WRAPPER_EOF
     echo ""
     echo -e "  ${BOLD}Desktop Shortcut:${NC}"
     echo -e "    A shortcut has been created on your desktop"
-    echo -e "    Click it to start Claude Code WebUI"
+    echo -e "    Click it to start Axon WebUI"
     echo ""
 }
 
@@ -967,9 +967,9 @@ ensure_path_in_shellrc() {
 
     if [ -n "$SHELL_RC" ]; then
         # Avoid duplicate entries
-        if ! grep -q 'Claude Code Open' "$SHELL_RC" 2>/dev/null; then
+        if ! grep -q 'Axon' "$SHELL_RC" 2>/dev/null; then
             echo "" >> "$SHELL_RC"
-            echo '# Claude Code Open' >> "$SHELL_RC"
+            echo '# Axon' >> "$SHELL_RC"
             echo "export PATH=\"$dir:\$PATH\"" >> "$SHELL_RC"
         fi
         warn "Added $dir to PATH in $SHELL_RC"
@@ -981,7 +981,7 @@ ensure_path_in_shellrc() {
 
 # --- Uninstall ---
 uninstall() {
-    info "Uninstalling Claude Code Open..."
+    info "Uninstalling Axon..."
 
     if [ -d "$INSTALL_DIR" ]; then
         cd "$INSTALL_DIR" && npm unlink 2>/dev/null || true

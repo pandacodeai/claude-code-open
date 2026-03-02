@@ -342,5 +342,5 @@ main().catch(console.error);
 
 ## 参考文档
 
-- [官方对比分析](/home/user/claude-code-open/docs/comparison/26-git.md)
-- [实现报告](/home/user/claude-code-open/docs/implementation/git-integration-report.md)
+- [官方对比分析](/home/user/axon/docs/comparison/26-git.md)
+- [实现报告](/home/user/axon/docs/implementation/git-integration-report.md)

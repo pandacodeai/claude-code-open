@@ -2,7 +2,7 @@
  * UI 入口点
  * 使用 Ink 渲染
  *
- * 官方 Claude Code 的渲染策略：
+ * 官方 Axon 的渲染策略：
  * 1. 监听 stdout.on("resize") 事件
  * 2. resize 时更新 terminalColumns/terminalRows
  * 3. 使用 Static 组件固化历史消息

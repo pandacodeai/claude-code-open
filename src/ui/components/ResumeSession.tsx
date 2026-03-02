@@ -1,6 +1,6 @@
 /**
  * Resume Session 组件 - 官方风格的交互式会话选择器
- * 参考官方 Claude Code cli.js 中的 R77/ubA 组件实现
+ * 参考官方 Axon cli.js 中的 R77/ubA 组件实现
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -32,7 +32,7 @@ interface ResumeSessionProps {
 }
 
 // 获取会话目录
-const getSessionsDir = () => path.join(os.homedir(), '.claude', 'sessions');
+const getSessionsDir = () => path.join(os.homedir(), '.axon', 'sessions');
 
 // 格式化时间差 (官方风格: "2h ago", "3d ago")
 function getTimeAgo(date: Date): string {
@@ -237,10 +237,10 @@ export const ResumeSession: React.FC<ResumeSessionProps> = ({
         `To resume session "${session.summary.slice(0, 40)}${session.summary.length > 40 ? '...' : ''}"`,
         '',
         t('resume.run'),
-        `  claude --resume ${session.id}`,
+        `  axon --resume ${session.id}`,
         '',
         t('resume.orShortForm'),
-        `  claude -r ${session.id.slice(0, 8)}`,
+        `  axon -r ${session.id.slice(0, 8)}`,
         '',
       ].join('\n');
       onDone(message, { display: 'assistant' });

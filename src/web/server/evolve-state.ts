@@ -38,10 +38,10 @@ export function triggerGracefulShutdown(): void {
 }
 
 /**
- * 检查进化模式是否启用（通过 --evolve 标志启动时设置 CLAUDE_EVOLVE_ENABLED=1）
+ * 检查进化模式是否启用（通过 --evolve 标志启动时设置 AXON_EVOLVE_ENABLED=1）
  */
 export function isEvolveEnabled(): boolean {
-  return process.env.CLAUDE_EVOLVE_ENABLED === '1';
+  return process.env.AXON_EVOLVE_ENABLED === '1';
 }
 
 /**

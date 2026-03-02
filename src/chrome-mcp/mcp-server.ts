@@ -367,7 +367,7 @@ export async function runMcpServer(): Promise<void> {
     serverName: 'Claude in Chrome',
     logger,
     socketPath: getSocketPath(),
-    clientTypeId: 'claude-code',
+    clientTypeId: 'axon',
     onAuthenticationError: () => {
       logger.warn('Authentication error occurred. Please ensure you are logged into the Claude browser extension.');
     },

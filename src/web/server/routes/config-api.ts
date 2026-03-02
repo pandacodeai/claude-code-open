@@ -5,6 +5,7 @@
 
 import type { Express, Request, Response } from 'express';
 import { webConfigService } from '../services/config-service.js';
+import { webAuth } from '../web-auth.js';
 
 /**
  * 统一的响应格式
@@ -182,7 +183,14 @@ export function setupConfigApiRoutes(app: Express): void {
    */
   app.post('/api/config/api/test', async (req: Request, res: Response) => {
     try {
-      const { apiBaseUrl, apiKey, customModelName } = req.body;
+      const { apiBaseUrl, customModelName } = req.body;
+      let { apiKey } = req.body;
+
+      // 如果前端发来的是掩码值或空值，回退到已保存的真实 key
+      if (!apiKey || apiKey.includes('...') || apiKey.includes('***')) {
+        const creds = webAuth.getCredentials();
+        apiKey = creds.apiKey;
+      }
 
       if (!apiKey) {
         return sendError(res, new Error('需要提供 API Key 进行测试'), 400);

@@ -68,8 +68,8 @@ export const AGENT_TOOL_CONFIGS: Record<string, AgentToolConfig> = {
     allowedTools: '*',
     permissionLevel: 'elevated',
   },
-  'claude-code-guide': {
-    agentType: 'claude-code-guide',
+  'axon-guide': {
+    agentType: 'axon-guide',
     allowedTools: ['Glob', 'Grep', 'Read', 'WebFetch', 'WebSearch', 'AskUserQuestion'],
     permissionLevel: 'readonly',
   },

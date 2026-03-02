@@ -311,7 +311,7 @@ describe('Home Directory Trust Integration', () => {
    */
   it('从 home 目录接受信任后 hooks 应立即可用', async () => {
     // 模拟场景：
-    // 1. 用户从 home 目录运行 Claude Code
+    // 1. 用户从 home 目录运行 Axon
     // 2. 显示信任对话框
     // 3. 用户接受信任
     // 4. Hooks 应该立即被加载和可用

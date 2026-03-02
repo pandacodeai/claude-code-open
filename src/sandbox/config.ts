@@ -364,7 +364,7 @@ export class SandboxConfigManager {
   constructor(configDir?: string) {
     // Configuration directory
     this.configDir = configDir ||
-      path.join(process.env.HOME || process.env.USERPROFILE || '~', '.claude', 'sandbox');
+      path.join(process.env.HOME || process.env.USERPROFILE || '~', '.axon', 'sandbox');
     this.configFile = path.join(this.configDir, 'config.json');
 
     // Load configuration

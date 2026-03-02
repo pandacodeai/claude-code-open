@@ -17,7 +17,7 @@ import * as os from 'os';
 // ============ 常量配置 ============
 
 // Keychain 服务名称（用于标识存储的凭证）
-const SERVICE_NAME = 'com.anthropic.claude-code';
+const SERVICE_NAME = 'com.anthropic.axon';
 const ACCOUNT_NAME = 'api-key';
 
 // ============ 平台检测 ============

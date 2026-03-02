@@ -62,7 +62,7 @@ export class BackgroundTaskManager {
   private static instance: BackgroundTaskManager | null = null;
 
   constructor() {
-    // 检查环境变量：CLAUDE_CODE_DISABLE_BACKGROUND_TASKS
+    // 检查环境变量：AXON_DISABLE_BACKGROUND_TASKS
     this.disabled = isBackgroundTasksDisabled();
 
     if (this.disabled) {

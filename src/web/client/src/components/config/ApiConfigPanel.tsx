@@ -103,6 +103,9 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
     authPriority: 'auto',
   });
 
+  // 跟踪 apiKey 是否被用户手动修改过（防止掩码值或空值覆盖已有 key）
+  const [apiKeyDirty, setApiKeyDirty] = useState(false);
+
   // 加载状态
   const [loading, setLoading] = useState(false);
   // 错误信息
@@ -160,17 +163,26 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
     setError(null);
 
     try {
+      // 如果 apiKey 没被用户修改过，不发送（避免掩码值覆盖真实 key）
+      const payload = { ...config };
+      if (!apiKeyDirty) {
+        delete payload.apiKey;
+      }
+
       const response = await fetch('/api/config/api', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
+        body: JSON.stringify(payload),
       });
       const data = await response.json();
 
       if (data.success) {
         onSave?.(config);
         setError(null);
+        setApiKeyDirty(false);
         setSaveSuccess(t('apiConfig.saved'));
+        // 重新加载配置以获取更新后的掩码值
+        fetchCurrentConfig();
         setTimeout(() => setSaveSuccess(null), 3000);
       } else {
         setError(data.error || t('apiConfig.saveFailed', { error: '' }));
@@ -196,8 +208,10 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
    * 测试 API 连接
    */
   const handleTest = async () => {
-    // 验证必填项
-    if (!config.apiKey || config.apiKey.trim() === '') {
+    // 验证必填项：apiKey 为空且未被用户修改过时，可能后端有已保存的 key，允许测试
+    // 只在完全没有 key（无掩码值且未输入新 key）时报错
+    const hasExistingKey = !apiKeyDirty && config.apiKey && config.apiKey.includes('...');
+    if (!hasExistingKey && (!config.apiKey || config.apiKey.trim() === '')) {
       setValidationError(t('apiConfig.apiKey.required'));
       return;
     }
@@ -390,11 +404,20 @@ export function ApiConfigPanel({ onSave, onClose }: ApiConfigPanelProps) {
             <label>
               {t('apiConfig.apiKey.label')}
               <input
-                type="password"
+                type={apiKeyDirty ? 'password' : 'text'}
                 className="mcp-form-input"
                 placeholder={t('placeholder.apiKey')}
                 value={config.apiKey ?? ''}
-                onChange={(e) => updateConfig('apiKey', e.target.value)}
+                onFocus={() => {
+                  // 聚焦时，如果显示的是掩码值，清空以便输入新 key
+                  if (!apiKeyDirty && config.apiKey && config.apiKey.includes('...')) {
+                    setConfig(prev => ({ ...prev, apiKey: '' }));
+                  }
+                }}
+                onChange={(e) => {
+                  setApiKeyDirty(true);
+                  updateConfig('apiKey', e.target.value);
+                }}
               />
             </label>
             <span className="help-text">

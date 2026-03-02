@@ -2,17 +2,17 @@
 
 ## 1. 掘金 / CSDN 文章
 
-**标题：** 开源了一个 Claude Code 逆向工程学习项目，25+ 工具完整复现
+**标题：** 开源了一个 Axon 逆向工程学习项目，25+ 工具完整复现
 
 **正文：**
 
 ---
 
-大家好，我最近开源了一个教育性项目 **Claude Code Open**，通过逆向工程的方式重新实现了 Claude Code CLI 的核心功能。
+大家好，我最近开源了一个教育性项目 **Axon**，通过逆向工程的方式重新实现了 Axon CLI 的核心功能。
 
 ### 为什么做这个项目？
 
-Claude Code 是 Anthropic 官方推出的 AI 编程助手 CLI 工具，但官方代码是混淆的，无法直接学习其架构设计。作为一个对 AI 工具链感兴趣的开发者，我决定通过逆向工程的方式还原它的实现，用于学习和研究。
+Axon 是 Anthropic 官方推出的 AI 编程助手 CLI 工具，但官方代码是混淆的，无法直接学习其架构设计。作为一个对 AI 工具链感兴趣的开发者，我决定通过逆向工程的方式还原它的实现，用于学习和研究。
 
 ### 项目亮点
 
@@ -34,8 +34,8 @@ Claude Code 是 Anthropic 官方推出的 AI 编程助手 CLI 工具，但官方
 ### 快速开始
 
 ```bash
-git clone https://github.com/kill136/claude-code-open.git
-cd claude-code && npm install
+git clone https://github.com/kill136/axon.git
+cd axon && npm install
 export ANTHROPIC_API_KEY=your-key
 npm run dev
 ```
@@ -43,7 +43,7 @@ npm run dev
 ### 相关链接
 
 - 🌐 官网：https://www.chatbi.site
-- 📦 GitHub：https://github.com/kill136/claude-code-open
+- 📦 GitHub：https://github.com/kill136/axon
 - 💬 Discord：https://discord.gg/bNyJKk6PVZ
 
 ---
@@ -56,13 +56,13 @@ npm run dev
 
 ## 2. V2EX 帖子
 
-**标题：** [开源] Claude Code 逆向工程学习项目，25+ 工具完整复现
+**标题：** [开源] Axon 逆向工程学习项目，25+ 工具完整复现
 
 **正文：**
 
-分享一个我最近做的开源项目：**Claude Code Open**
+分享一个我最近做的开源项目：**Axon**
 
-这是一个通过逆向工程重新实现 Claude Code CLI 的教育性项目，用于学习 AI 编程助手的架构设计。
+这是一个通过逆向工程重新实现 Axon CLI 的教育性项目，用于学习 AI 编程助手的架构设计。
 
 **主要特性：**
 - 25+ 内置工具（Bash、文件操作、搜索、Web 访问等）
@@ -74,7 +74,7 @@ npm run dev
 **技术栈：** TypeScript, Anthropic SDK, React/Ink, Zod
 
 🌐 官网：https://www.chatbi.site
-📦 GitHub：https://github.com/kill136/claude-code-open
+📦 GitHub：https://github.com/kill136/axon
 
 纯学习项目，欢迎交流！
 
@@ -84,9 +84,9 @@ npm run dev
 
 **推文 1（主推）：**
 
-🚀 开源了 Claude Code 逆向工程项目！
+🚀 开源了 Axon 逆向工程项目！
 
-通过还原 Anthropic 的 Claude Code CLI，深入学习 AI 编程助手架构：
+通过还原 Anthropic 的 Axon CLI，深入学习 AI 编程助手架构：
 
 ✅ 25+ 内置工具
 ✅ 三层架构设计
@@ -94,7 +94,7 @@ npm run dev
 ✅ React + Ink 终端 UI
 
 🔗 https://www.chatbi.site
-📦 https://github.com/kill136/claude-code-open
+📦 https://github.com/kill136/axon
 
 #OpenSource #AI #ClaudeCode #TypeScript
 
@@ -102,9 +102,9 @@ npm run dev
 
 **推文 1（主推）：**
 
-🚀 Open-sourced Claude Code reverse-engineering project!
+🚀 Open-sourced Axon reverse-engineering project!
 
-Learn AI coding assistant architecture by recreating Anthropic's Claude Code CLI:
+Learn AI coding assistant architecture by recreating Anthropic's Axon CLI:
 
 ✅ 25+ built-in tools
 ✅ Three-layer architecture
@@ -112,7 +112,7 @@ Learn AI coding assistant architecture by recreating Anthropic's Claude Code CLI
 ✅ React + Ink terminal UI
 
 🔗 https://www.chatbi.site
-📦 https://github.com/kill136/claude-code-open
+📦 https://github.com/kill136/axon
 
 #OpenSource #AI #ClaudeCode #TypeScript
 
@@ -120,9 +120,9 @@ Learn AI coding assistant architecture by recreating Anthropic's Claude Code CLI
 
 **推文 2（Thread）：**
 
-🧵 Why I reverse-engineered Claude Code?
+🧵 Why I reverse-engineered Axon?
 
-1/ Claude Code is one of the best AI coding assistants, but official code is obfuscated
+1/ Axon is one of the best AI coding assistants, but official code is obfuscated
 
 2/ I recreated core features from public APIs and type definitions
 
@@ -136,11 +136,11 @@ Learn AI coding assistant architecture by recreating Anthropic's Claude Code CLI
 
 ## 4. Hacker News
 
-**Title:** Show HN: Claude Code Open – Reverse-engineered Claude Code CLI for learning
+**Title:** Show HN: Axon – Reverse-engineered Axon CLI for learning
 
 **Text:**
 
-I reverse-engineered Anthropic's Claude Code CLI to understand how AI coding assistants are built.
+I reverse-engineered Anthropic's Axon CLI to understand how AI coding assistants are built.
 
 **What it includes:**
 - 25+ tools (Bash, file ops, search, web access, etc.)
@@ -155,19 +155,19 @@ I reverse-engineered Anthropic's Claude Code CLI to understand how AI coding ass
 This is purely for educational purposes - great for anyone wanting to learn how AI coding tools work under the hood.
 
 Website: https://www.chatbi.site
-GitHub: https://github.com/kill136/claude-code-open
+GitHub: https://github.com/kill136/axon
 
 ---
 
 ## 5. Reddit (r/programming, r/MachineLearning)
 
-**Title:** [Project] Reverse-engineered Claude Code CLI - 25+ tools, full architecture study
+**Title:** [Project] Reverse-engineered Axon CLI - 25+ tools, full architecture study
 
 **Body:**
 
 Hey everyone,
 
-I've been working on an open-source project that reverse-engineers Anthropic's Claude Code CLI. Since the official code is obfuscated, I decided to recreate it from public APIs and type definitions for educational purposes.
+I've been working on an open-source project that reverse-engineers Anthropic's Axon CLI. Since the official code is obfuscated, I decided to recreate it from public APIs and type definitions for educational purposes.
 
 **Features:**
 - 25+ built-in tools (Bash, Read, Write, Edit, Glob, Grep, WebFetch, etc.)
@@ -179,7 +179,7 @@ I've been working on an open-source project that reverse-engineers Anthropic's C
 
 **Links:**
 - Website: https://www.chatbi.site
-- GitHub: https://github.com/kill136/claude-code-open
+- GitHub: https://github.com/kill136/axon
 
 It's a great resource if you want to understand how modern AI coding assistants are architected. Feedback welcome!
 
@@ -199,9 +199,9 @@ It's a great resource if you want to understand how modern AI coding assistants 
 
 **推文 2（Thread）：**
 
-🧵 为什么我逆向工程了 Claude Code？
+🧵 为什么我逆向工程了 Axon？
 
-1/ Claude Code 是目前最强的 AI 编程助手之一，但官方代码是混淆的
+1/ Axon 是目前最强的 AI 编程助手之一，但官方代码是混淆的
 
 2/ 我通过分析公开 API 和类型定义，完整还原了核心功能
 
@@ -215,11 +215,11 @@ It's a great resource if you want to understand how modern AI coding assistants 
 
 ## 4. Hacker News
 
-**Title:** Show HN: Claude Code Open – Reverse-engineered Claude Code CLI for learning
+**Title:** Show HN: Axon – Reverse-engineered Axon CLI for learning
 
 **Text:**
 
-I reverse-engineered Anthropic's Claude Code CLI to understand how AI coding assistants are built.
+I reverse-engineered Anthropic's Axon CLI to understand how AI coding assistants are built.
 
 **What it includes:**
 - 25+ tools (Bash, file ops, search, web access, etc.)
@@ -234,19 +234,19 @@ I reverse-engineered Anthropic's Claude Code CLI to understand how AI coding ass
 This is purely for educational purposes - great for anyone wanting to learn how AI coding tools work under the hood.
 
 Website: https://www.chatbi.site
-GitHub: https://github.com/kill136/claude-code-open
+GitHub: https://github.com/kill136/axon
 
 ---
 
 ## 5. Reddit (r/programming, r/MachineLearning)
 
-**Title:** [Project] Reverse-engineered Claude Code CLI - 25+ tools, full architecture study
+**Title:** [Project] Reverse-engineered Axon CLI - 25+ tools, full architecture study
 
 **Body:**
 
 Hey everyone,
 
-I've been working on an open-source project that reverse-engineers Anthropic's Claude Code CLI. Since the official code is obfuscated, I decided to recreate it from public APIs and type definitions for educational purposes.
+I've been working on an open-source project that reverse-engineers Anthropic's Axon CLI. Since the official code is obfuscated, I decided to recreate it from public APIs and type definitions for educational purposes.
 
 **Features:**
 - 25+ built-in tools (Bash, Read, Write, Edit, Glob, Grep, WebFetch, etc.)
@@ -258,7 +258,7 @@ I've been working on an open-source project that reverse-engineers Anthropic's C
 
 **Links:**
 - Website: https://www.chatbi.site
-- GitHub: https://github.com/kill136/claude-code-open
+- GitHub: https://github.com/kill136/axon
 
 It's a great resource if you want to understand how modern AI coding assistants are architected. Feedback welcome!
 

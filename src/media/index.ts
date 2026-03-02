@@ -2,7 +2,7 @@
  * 媒体处理模块统一导出
  * 提供图片、PDF、SVG 等媒体文件的处理功能
  *
- * 基于官方 Claude Code CLI 的实现
+ * 基于 Anthropic 官方 CLI 的实现
  * - 图片处理：CP3, zP3, BQ0 函数
  * - PDF 处理：XzB 函数
  * - SVG 渲染：增强功能（官方未实现）

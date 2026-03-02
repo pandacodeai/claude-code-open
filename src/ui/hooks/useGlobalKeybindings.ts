@@ -142,7 +142,7 @@ export function useGlobalKeybindings(options: UseGlobalKeybindingsOptions) {
           process.kill(process.pid, 'SIGTSTP');
         }
       },
-      description: 'Suspend Claude Code (Linux/macOS)',
+      description: 'Suspend Axon (Linux/macOS)',
       category: 'System',
       enabled: () => process.platform !== 'win32',
     },
@@ -438,13 +438,13 @@ const builtinActions: Record<string, { description: string; handler: () => void 
     description: '新建会话',
     handler: () => {
       // 触发新会话事件（需要上层组件监听）
-      process.emit('CLAUDE_NEW_SESSION' as any);
+      process.emit('AXON_NEW_SESSION' as any);
     },
   },
   'save_session': {
     description: '保存当前会话',
     handler: () => {
-      process.emit('CLAUDE_SAVE_SESSION' as any);
+      process.emit('AXON_SAVE_SESSION' as any);
     },
   },
 
@@ -452,19 +452,19 @@ const builtinActions: Record<string, { description: string; handler: () => void 
   'toggle_output': {
     description: '切换输出显示模式',
     handler: () => {
-      process.emit('CLAUDE_TOGGLE_OUTPUT' as any);
+      process.emit('AXON_TOGGLE_OUTPUT' as any);
     },
   },
   'expand_output': {
     description: '展开全部输出',
     handler: () => {
-      process.emit('CLAUDE_EXPAND_OUTPUT' as any);
+      process.emit('AXON_EXPAND_OUTPUT' as any);
     },
   },
   'collapse_output': {
     description: '折叠全部输出',
     handler: () => {
-      process.emit('CLAUDE_COLLAPSE_OUTPUT' as any);
+      process.emit('AXON_COLLAPSE_OUTPUT' as any);
     },
   },
 
@@ -473,7 +473,7 @@ const builtinActions: Record<string, { description: string; handler: () => void 
     description: '在外部编辑器中编辑当前输入 (Ctrl+G)',
     handler: () => {
       // 触发外部编辑器事件（由上层组件处理）
-      (process as any).emit('CLAUDE_EXTERNAL_EDITOR');
+      (process as any).emit('AXON_EXTERNAL_EDITOR');
     },
   },
 };
@@ -527,7 +527,7 @@ function createActionHandler(action: string): () => void {
       if (command) {
         // 触发 shell 命令执行事件（由上层组件处理）
         // 使用类型断言绕过 process.emit 的类型检查
-        (process as any).emit('CLAUDE_SHELL_COMMAND', command);
+        (process as any).emit('AXON_SHELL_COMMAND', command);
         return;
       }
     }
@@ -553,7 +553,7 @@ function createActionHandler(action: string): () => void {
       const url = action.slice(5).trim();
       if (url) {
         // 使用类型断言绕过 process.emit 的类型检查
-        (process as any).emit('CLAUDE_OPEN_URL', url);
+        (process as any).emit('AXON_OPEN_URL', url);
         return;
       }
     }
@@ -564,7 +564,7 @@ function createActionHandler(action: string): () => void {
     if (action.startsWith('/')) {
       const command = action.trim();
       // 使用类型断言绕过 process.emit 的类型检查
-      (process as any).emit('CLAUDE_SLASH_COMMAND', command);
+      (process as any).emit('AXON_SLASH_COMMAND', command);
       return;
     }
 

@@ -73,7 +73,7 @@ function ensureConvCleanupTimer(): void {
 // 获取任务输出目录
 function getTasksDir(): string {
   const homeDir = process.env.HOME || process.env.USERPROFILE || '/tmp';
-  const tasksDir = path.join(homeDir, '.claude', 'tasks', 'conversations');
+  const tasksDir = path.join(homeDir, '.axon', 'tasks', 'conversations');
 
   if (!fs.existsSync(tasksDir)) {
     fs.mkdirSync(tasksDir, { recursive: true });
@@ -95,7 +95,7 @@ function getTaskOutputPath(taskId: string): string {
  * 创建新的后台对话任务
  */
 export function createBackgroundTask(userInput: string): BackgroundConversationTask | null {
-  // 检查环境变量：CLAUDE_CODE_DISABLE_BACKGROUND_TASKS
+  // 检查环境变量：AXON_DISABLE_BACKGROUND_TASKS
   if (isBackgroundTasksDisabled()) {
     console.log('[BackgroundTasks] Background tasks disabled by environment variable');
     return null;

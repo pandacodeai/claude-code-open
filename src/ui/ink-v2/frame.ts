@@ -2,7 +2,7 @@
  * Frame - 帧管理
  * 用于创建和管理渲染帧数据
  *
- * 从官方 Claude Code 源码逆向工程提取 (原名: ptA)
+ * 从官方 Axon 源码逆向工程提取 (原名: ptA)
  */
 
 import type { FrameData, ScreenData, Position } from './types.js';

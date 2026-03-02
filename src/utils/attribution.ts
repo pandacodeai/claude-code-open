@@ -2,16 +2,16 @@
  * Attribution utilities for git commits and pull requests
  *
  * Provides Co-Authored-By signatures for commits and attribution links for PRs,
- * matching the official Claude Code implementation.
+ * matching the official Axon implementation.
  */
 
 import { configManager } from '../config/index.js';
 import type { AttributionSettings } from '../types/config.js';
 
 /**
- * Claude Code website URL
+ * Axon website URL
  */
-const CLAUDE_CODE_URL = 'https://claude.com/claude-code';
+const AXON_URL = 'https://claude.com/claude-code';
 
 /**
  * v2.1.9: 生成 Session URL
@@ -34,7 +34,7 @@ export function getSessionUrl(sessionId: string, ingressUrl?: string): string {
  *
  * 官方实现（b_7 函数）：
  * function b_7() {
- *   let A = process.env.CLAUDE_CODE_REMOTE_SESSION_ID;
+ *   let A = process.env.AXON_REMOTE_SESSION_ID;
  *   if (!A) return null;
  *   let Q = process.env.SESSION_INGRESS_URL;
  *   if (Q?.includes("localhost")) return null;
@@ -44,7 +44,7 @@ export function getSessionUrl(sessionId: string, ingressUrl?: string): string {
  * @returns Claude-Session trailer 或 null（如果不是远程会话）
  */
 export function getClaudeSessionTrailer(): string | null {
-  const sessionId = process.env.CLAUDE_CODE_REMOTE_SESSION_ID;
+  const sessionId = process.env.AXON_REMOTE_SESSION_ID;
   if (!sessionId) {
     return null;
   }
@@ -87,7 +87,7 @@ function getModelDisplayName(modelId?: string): string {
 function getDefaultAttribution(modelId?: string): AttributionSettings {
   const modelName = getModelDisplayName(modelId);
 
-  const prAttribution = `🤖 Generated with [Claude Code](${CLAUDE_CODE_URL})`;
+  const prAttribution = `🤖 Generated with [Axon](${AXON_URL})`;
   const commitAttribution = `${prAttribution}\nCo-Authored-By: ${modelName} <noreply@anthropic.com>`;
 
   return {
@@ -178,12 +178,12 @@ export function isAttributionEnabled(type: 'commit' | 'pr'): boolean {
 /**
  * v2.1.9: 检查是否为远程会话
  *
- * 基于 CLAUDE_CODE_REMOTE 环境变量判断
+ * 基于 AXON_REMOTE 环境变量判断
  */
 export function isRemoteSession(): boolean {
-  return process.env.CLAUDE_CODE_REMOTE === 'true' ||
-         process.env.CLAUDE_CODE_REMOTE === '1' ||
-         !!process.env.CLAUDE_CODE_REMOTE_SESSION_ID;
+  return process.env.AXON_REMOTE === 'true' ||
+         process.env.AXON_REMOTE === '1' ||
+         !!process.env.AXON_REMOTE_SESSION_ID;
 }
 
 /**
@@ -191,7 +191,7 @@ export function isRemoteSession(): boolean {
  *
  * 官方实现（uZ1 函数部分）：
  * if(VpA()==="remote"){
- *   let Z=process.env.CLAUDE_CODE_REMOTE_SESSION_ID;
+ *   let Z=process.env.AXON_REMOTE_SESSION_ID;
  *   if(Z){
  *     let Y=process.env.SESSION_INGRESS_URL;
  *     if(!Y?.includes("localhost")){
@@ -209,7 +209,7 @@ export function getRemoteSessionAttribution(): AttributionSettings | null {
     return null;
   }
 
-  const sessionId = process.env.CLAUDE_CODE_REMOTE_SESSION_ID;
+  const sessionId = process.env.AXON_REMOTE_SESSION_ID;
   if (!sessionId) {
     return { commit: '', pr: '' };
   }

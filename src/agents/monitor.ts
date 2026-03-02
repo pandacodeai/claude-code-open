@@ -246,7 +246,7 @@ export class AgentMonitor extends EventEmitter {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.metricsDir = this.config.metricsDir ||
-      path.join(os.homedir(), '.claude', 'agent-metrics');
+      path.join(os.homedir(), '.axon', 'agent-metrics');
 
     this.ensureMetricsDir();
   }
