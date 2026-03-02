@@ -38,12 +38,18 @@ export const BUILTIN_PROVIDERS: ConnectorProvider[] = [
     category: 'web',
     description: 'Access repositories, issues, and pull requests',
     icon: 'github',
+    // 双模式：公网部署用 OAuth App，本地用 Personal Access Token
     oauth: {
       authorizationEndpoint: 'https://github.com/login/oauth/authorize',
       tokenEndpoint: 'https://github.com/login/oauth/access_token',
       scopes: ['repo', 'read:user'],
       envClientId: 'GITHUB_CLIENT_ID',
       envClientSecret: 'GITHUB_CLIENT_SECRET',
+    },
+    credentials: {
+      fields: [
+        { key: 'pat', label: 'Personal Access Token', type: 'password', envVar: 'GITHUB_TOKEN', mcpEnvVar: 'GITHUB_PERSONAL_ACCESS_TOKEN' },
+      ],
     },
     mcpServer: {
       serverName: 'connector-github',
@@ -180,12 +186,20 @@ export const BUILTIN_PROVIDERS: ConnectorProvider[] = [
     category: 'web',
     description: 'Send messages, manage channels, and search Slack workspace',
     icon: 'slack',
+    // 双模式：公网 HTTPS 部署用 OAuth，本地/私有部署用 Bot Token
+    // 运行时由 ConnectorManager.listConnectors 根据环境变量动态判断 authType
     oauth: {
       authorizationEndpoint: 'https://slack.com/oauth/v2/authorize',
       tokenEndpoint: 'https://slack.com/api/oauth.v2.access',
       scopes: ['channels:history', 'channels:read', 'chat:write', 'groups:history', 'groups:read', 'im:history', 'im:read', 'mpim:history', 'mpim:read', 'users:read', 'reactions:read', 'reactions:write'],
       envClientId: 'SLACK_CLIENT_ID',
       envClientSecret: 'SLACK_CLIENT_SECRET',
+    },
+    credentials: {
+      fields: [
+        { key: 'botToken', label: 'Bot Token (xoxb-...)', type: 'password', envVar: 'SLACK_BOT_TOKEN', mcpEnvVar: 'SLACK_BOT_TOKEN' },
+        { key: 'teamId', label: 'Team ID (T...)', type: 'text', envVar: 'SLACK_TEAM_ID', mcpEnvVar: 'SLACK_TEAM_ID' },
+      ],
     },
     mcpServer: {
       serverName: 'connector-slack',

@@ -229,7 +229,7 @@ export class RealtimeCoordinator extends EventEmitter {
   setBlueprint(blueprint: Blueprint): void {
     this.currentBlueprint = blueprint;
     if (blueprint.apiContract) {
-      console.log(`[RealtimeCoordinator] 蓝图包含 API 契约: ${blueprint.apiContract.endpoints.length} 个端点`);
+      console.log(`[RealtimeCoordinator] Blueprint contains API contract: ${blueprint.apiContract.endpoints.length} endpoints`);
     }
     // v5.0: 初始化或恢复共享记忆
     this.swarmMemory = blueprint.swarmMemory || this.initSwarmMemory();
@@ -312,7 +312,7 @@ export class RealtimeCoordinator extends EventEmitter {
    */
   registerWorkerExecutor(workerId: string, executor: AutonomousWorkerExecutor): void {
     this.activeWorkerExecutors.set(workerId, executor);
-    console.log(`[RealtimeCoordinator] Worker 已注册: ${workerId} (活跃: ${this.activeWorkerExecutors.size})`);
+    console.log(`[RealtimeCoordinator] Worker registered: ${workerId} (active: ${this.activeWorkerExecutors.size})`);
   }
 
   /**
@@ -321,7 +321,7 @@ export class RealtimeCoordinator extends EventEmitter {
    */
   unregisterWorkerExecutor(workerId: string): void {
     this.activeWorkerExecutors.delete(workerId);
-    console.log(`[RealtimeCoordinator] Worker 已注销: ${workerId} (活跃: ${this.activeWorkerExecutors.size})`);
+    console.log(`[RealtimeCoordinator] Worker unregistered: ${workerId} (active: ${this.activeWorkerExecutors.size})`);
   }
 
   /**
@@ -336,7 +336,7 @@ export class RealtimeCoordinator extends EventEmitter {
     // 构建广播消息
     const message = this.buildBroadcastMessage(update);
 
-    console.log(`[RealtimeCoordinator] 广播更新到 ${this.activeWorkerExecutors.size} 个活跃 Worker: ${update.summary}`);
+    console.log(`[RealtimeCoordinator] Broadcasting update to ${this.activeWorkerExecutors.size} active Workers: ${update.summary}`);
 
     // 向所有活跃的 Worker 注入消息
     for (const [workerId, executor] of this.activeWorkerExecutors) {
@@ -345,11 +345,11 @@ export class RealtimeCoordinator extends EventEmitter {
         if (executor.isExecuting()) {
           const success = executor.interject(message);
           if (success) {
-            console.log(`[RealtimeCoordinator] 已向 Worker ${workerId} 广播更新`);
+            console.log(`[RealtimeCoordinator] Broadcasted update to Worker ${workerId}`);
           }
         }
       } catch (error) {
-        console.error(`[RealtimeCoordinator] 向 Worker ${workerId} 广播失败:`, error);
+        console.error(`[RealtimeCoordinator] Broadcasting to Worker ${workerId} failed:`, error);
       }
     }
 
@@ -629,7 +629,7 @@ export class RealtimeCoordinator extends EventEmitter {
           if (task.status === 'running') {
             const hasResult = result.taskResults.has(task.id);
             if (!hasResult) {
-              console.log(`[RealtimeCoordinator] 清理孤儿任务: ${task.id} (${task.name}) - LeadAgent 已结束但任务仍在 running`);
+              console.log(`[RealtimeCoordinator] Cleaning up orphan task: ${task.id} (${task.name}) - LeadAgent has ended but task is still running`);
               task.status = 'failed';
               task.result = { success: false, changes: [], decisions: [], error: 'LeadAgent 执行结束，任务未完成' };
               task.completedAt = new Date();
@@ -715,7 +715,7 @@ export class RealtimeCoordinator extends EventEmitter {
    * v9.0: LeadAgent 模式下不支持，LeadAgent 自行管理执行流程
    */
   async continueExecution(): Promise<ExecutionResult> {
-    console.warn('[RealtimeCoordinator] LeadAgent 模式不支持 continueExecution，请重新启动执行');
+    console.warn('[RealtimeCoordinator] LeadAgent mode does not support continueExecution, please restart execution');
     return this.buildResult(false, 'LeadAgent 模式不支持 continueExecution');
   }
 
@@ -728,7 +728,7 @@ export class RealtimeCoordinator extends EventEmitter {
       // v9.1: 在 LeadAgent 模式下，暂停 = 中止 LeadAgent + 保存状态
       // 恢复时通过 unpause() 以 isResume 模式重启
       if (this.currentLeadAgent) {
-        console.log('[RealtimeCoordinator] 暂停执行：中止 LeadAgent 并保存状态');
+        console.log('[RealtimeCoordinator] Pausing execution: aborting LeadAgent and saving state');
         this.currentLeadAgent.stop();
         // 将正在运行的任务重置为 pending（避免卡在 running 状态）
         if (this.currentPlan) {
@@ -792,7 +792,7 @@ export class RealtimeCoordinator extends EventEmitter {
       }
       // v9.1: 中止 LeadAgent 的 ConversationLoop
       if (this.currentLeadAgent) {
-        console.log('[RealtimeCoordinator] 取消执行：中止 LeadAgent');
+        console.log('[RealtimeCoordinator] Canceling execution: aborting LeadAgent');
         this.currentLeadAgent.stop();
       }
       this.emitEvent('plan:cancelled', {
@@ -878,13 +878,13 @@ export class RealtimeCoordinator extends EventEmitter {
    */
   skipTask(taskId: string): boolean {
     if (!this.currentPlan) {
-      console.warn('[RealtimeCoordinator] 无法跳过任务：没有执行计划');
+      console.warn('[RealtimeCoordinator] Cannot skip task: no execution plan');
       return false;
     }
 
     const task = this.currentPlan.tasks.find(t => t.id === taskId);
     if (!task) {
-      console.warn(`[RealtimeCoordinator] 无法跳过任务：找不到任务 ${taskId}`);
+      console.warn(`[RealtimeCoordinator] Cannot skip task: task ${taskId} not found`);
       return false;
     }
 
@@ -901,11 +901,11 @@ export class RealtimeCoordinator extends EventEmitter {
 
     // 只能跳过失败或待执行的任务
     if (actualStatus !== 'failed' && actualStatus !== 'pending') {
-      console.warn(`[RealtimeCoordinator] 无法跳过任务：任务 ${taskId} 状态为 ${actualStatus}`);
+      console.warn(`[RealtimeCoordinator] Cannot skip task: task ${taskId} status is ${actualStatus}`);
       return false;
     }
 
-    console.log(`[RealtimeCoordinator] 跳过任务: ${task.name} (${taskId})`);
+    console.log(`[RealtimeCoordinator] Skipping task: ${task.name} (${taskId})`;
 
     // 更新任务状态
     task.status = 'skipped';
@@ -949,22 +949,22 @@ export class RealtimeCoordinator extends EventEmitter {
    */
   async retryTask(taskId: string): Promise<boolean> {
     if (!this.currentPlan) {
-      console.warn('[RealtimeCoordinator] 无法重试任务：没有执行计划');
+      console.warn('[RealtimeCoordinator] Cannot retry task: no execution plan');
       return false;
     }
 
     const task = this.currentPlan.tasks.find(t => t.id === taskId);
     if (!task) {
-      console.warn(`[RealtimeCoordinator] 无法重试任务：找不到任务 ${taskId}`);
+      console.warn(`[RealtimeCoordinator] Cannot retry task: task ${taskId} not found`);
       return false;
     }
 
     if (task.status !== 'failed') {
-      console.warn(`[RealtimeCoordinator] 无法重试任务：任务 ${taskId} 状态为 ${task.status}，不是 failed`);
+      console.warn(`[RealtimeCoordinator] Cannot retry task: task ${taskId} status is ${task.status}, not failed`);
       return false;
     }
 
-    console.log(`[RealtimeCoordinator] 重试任务: ${task.name} (${taskId})`);
+    console.log(`[RealtimeCoordinator] Retrying task: ${task.name} (${taskId})`);
 
     // 重置任务状态
     task.status = 'pending';
@@ -990,7 +990,7 @@ export class RealtimeCoordinator extends EventEmitter {
           role: 'user',
           content: `[系统通知] 用户请求重试失败的任务 "${task.name}" (${taskId})。该任务状态已重置为 pending，请重新执行此任务。`,
         });
-        console.log(`[RealtimeCoordinator] 已向正在运行的 LeadAgent 注入重试指令: ${taskId}`);
+        console.log(`[RealtimeCoordinator] Injected retry instruction to running LeadAgent: ${taskId}`);
 
         if (this.autoSaveEnabled && this.projectPath) {
           this.saveExecutionState();
@@ -1000,7 +1000,7 @@ export class RealtimeCoordinator extends EventEmitter {
     }
 
     // LeadAgent 未在执行中，保存状态，返回 false 让调用方重启执行
-    console.log(`[RealtimeCoordinator] LeadAgent 未在执行中，需要调用方重启执行`);
+    console.log(`[RealtimeCoordinator] LeadAgent is not executing, caller needs to restart execution`);
     if (this.autoSaveEnabled && this.projectPath) {
       this.saveExecutionState();
     }
@@ -1305,7 +1305,7 @@ export class RealtimeCoordinator extends EventEmitter {
       // v3.0: 发出状态变化事件，由外部决定如何持久化
       this.emitEvent('state:changed', { state });
     } catch (error) {
-      console.error('[RealtimeCoordinator] 构建执行状态失败:', error);
+      console.error('[RealtimeCoordinator] Building execution state failed:', error);
     }
   }
 
@@ -1313,7 +1313,7 @@ export class RealtimeCoordinator extends EventEmitter {
    * @deprecated v3.0: 状态现在保存在蓝图文件中，不再使用独立的 execution-state.json
    */
   loadExecutionState(_projectPath?: string): ExecutionState | null {
-    console.warn('[RealtimeCoordinator] loadExecutionState 已废弃，请使用蓝图文件中的 lastExecutionPlan');
+    console.warn('[RealtimeCoordinator] loadExecutionState is deprecated, please use lastExecutionPlan in blueprint file');
     return null;
   }
 
@@ -1335,7 +1335,7 @@ export class RealtimeCoordinator extends EventEmitter {
    * @deprecated v3.0: 使用蓝图文件中的 lastExecutionPlan
    */
   static loadStateFromProject(_projectPath: string): ExecutionState | null {
-    console.warn('[RealtimeCoordinator] loadStateFromProject 已废弃，请使用蓝图文件');
+    console.warn('[RealtimeCoordinator] loadStateFromProject is deprecated, please use blueprint file');
     return null;
   }
 
@@ -1521,7 +1521,7 @@ export class RealtimeCoordinator extends EventEmitter {
       });
     }
 
-    console.log(`[RealtimeCoordinator] 状态已恢复: 已完成 ${state.completedTaskIds.length} 个任务, 失败 ${state.failedTaskIds.length} 个, 跳过 ${state.skippedTaskIds.length} 个`);
+    console.log(`[RealtimeCoordinator] State restored: completed ${state.completedTaskIds.length} tasks, failed ${state.failedTaskIds.length}, skipped ${state.skippedTaskIds.length}`);
   }
 
   /**
@@ -1540,7 +1540,7 @@ export class RealtimeCoordinator extends EventEmitter {
       .filter(group => group.length > 0);
 
     if (tasks.length !== serialized.tasks.length) {
-      console.warn(`[RealtimeCoordinator] 过滤了 ${serialized.tasks.length - tasks.length} 个无效任务`);
+      console.warn(`[RealtimeCoordinator] Filtered ${serialized.tasks.length - tasks.length} invalid tasks`);
     }
 
     return {
@@ -1565,7 +1565,7 @@ export class RealtimeCoordinator extends EventEmitter {
   private deserializeTask(serialized: SerializableSmartTask): SmartTask | null {
     // 防御性检查：确保必要字段存在
     if (!serialized.name) {
-      console.warn(`[RealtimeCoordinator] 任务 ${serialized.id} 缺少 name 字段，跳过`);
+      console.warn(`[RealtimeCoordinator] Task ${serialized.id} missing name field, skipping`);
       return null;
     }
 
@@ -1607,7 +1607,7 @@ export class RealtimeCoordinator extends EventEmitter {
         conflict: this.serializeConflict(conflict),
       });
 
-      console.log(`[Coordinator] 🔴 冲突已注册: ${conflict.id}, 等待人工干预...`);
+      console.log(`[Coordinator] 🔴 Conflict registered: ${conflict.id}, waiting for manual intervention...`);
     });
   }
 
@@ -1640,7 +1640,7 @@ export class RealtimeCoordinator extends EventEmitter {
       decision: decision.decision,
     });
 
-    console.log(`[Coordinator] ✅ 冲突已解决: ${decision.conflictId}, 决策: ${decision.decision}`);
+    console.log(`[Coordinator] ✅ Conflict resolved: ${decision.conflictId}, decision: ${decision.decision}`);
 
     return {
       success: true,

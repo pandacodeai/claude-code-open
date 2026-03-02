@@ -4,14 +4,8 @@
 
 /* MCP 面板容器 */
 .mcp-panel {
-  padding: 20px;
-  max-width: 900px;
-  margin: 0 auto;
-  min-height: 600px;
-  max-height: calc(100vh - 100px);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 /* MCP 面板头部 */

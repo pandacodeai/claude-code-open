@@ -515,6 +515,8 @@ export class BrowserManager {
   private _relayServer: any = null;
   private _extensionPath: string = '';
   private _starting: boolean = false;
+  /** Listeners notified when Chrome process exits unexpectedly */
+  private _onChromeExitListeners: Array<() => void> = [];
 
   private constructor() {
     // 注册进程退出清理：确保 Chrome 子进程不会成为孤儿进程
@@ -682,10 +684,12 @@ export class BrowserManager {
       decorateProfile(userDataDir, profileName, profileColor);
     }
 
-    chrome.proc.on('exit', () => {
+    chrome.proc.on('exit', (code) => {
       if (this.running?.pid === chrome.pid) {
         this.running = null;
         this.cleanup();
+        console.warn(`[BrowserManager] Chrome process exited (code: ${code}). Notifying listeners...`);
+        this.notifyChromeExit();
       }
     });
 
@@ -901,6 +905,23 @@ export class BrowserManager {
     this.currentPage = null;
     this.claimedPages.clear();
     this._isRunning = false;
+  }
+
+  /** Register a listener to be called when Chrome process exits unexpectedly */
+  onChromeExit(listener: () => void): void {
+    this._onChromeExitListeners.push(listener);
+  }
+
+  /** Remove a previously registered Chrome exit listener */
+  offChromeExit(listener: () => void): void {
+    const idx = this._onChromeExitListeners.indexOf(listener);
+    if (idx >= 0) this._onChromeExitListeners.splice(idx, 1);
+  }
+
+  private notifyChromeExit(): void {
+    for (const listener of this._onChromeExitListeners) {
+      try { listener(); } catch { /* best effort */ }
+    }
   }
 
   // --- Page access ---

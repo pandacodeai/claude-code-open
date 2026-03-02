@@ -150,6 +150,7 @@
     "claude-in-chrome",
     "connector-github",
     "connector-google",
-    "connector-notion"
+    "connector-notion",
+    "connector-slack"
   ]
 }

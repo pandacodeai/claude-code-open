@@ -502,7 +502,7 @@ export class ConversationManager {
     // 初始化插件市场管理器
     const { pluginManager } = await import('../../plugins/index.js');
     this.marketplaceManager = new MarketplaceManager(pluginManager);
-    console.log('[ConversationManager] 插件市场管理器已初始化');
+    console.log('[ConversationManager] Plugin marketplace manager initialized');
 
     // 注册默认 marketplace（等待完成，确保 Discover 面板可用）
     await this.marketplaceManager.ensureDefaultMarketplace();
@@ -552,9 +552,9 @@ export class ConversationManager {
     // 检查认证状态（WebUI 使用 webAuth 作为唯一认证入口）
     const authStatus = webAuth.getStatus();
     if (authStatus.authenticated) {
-      console.log(`[ConversationManager] 认证类型: ${authStatus.type} (${authStatus.provider})`);
+      console.log(`[ConversationManager] Auth type: ${authStatus.type} (${authStatus.provider})`);
     } else {
-      console.log('[ConversationManager] 未配置认证，等待用户在设置页面配置 API Key 或登录 OAuth');
+      console.log('[ConversationManager] No authentication configured, waiting for user to configure API Key or login with OAuth in settings');
     }
 
     // 设置 ExecutionManager 的认证配置，供蜂群子 agent 使用
@@ -587,7 +587,7 @@ export class ConversationManager {
           }
           // 如果服务器已禁用，跳过注册和工具加载
           if (disabledServers.includes(name)) {
-            console.log(`[ConversationManager] Chrome MCP 服务器 ${name} 已禁用，跳过工具加载`);
+            console.log(`[ConversationManager] Chrome MCP server ${name} disabled, skipping tool loading`);
             continue;
           }
           // 注册到 MCP 服务器映射（预加载工具定义，使执行时可用）
@@ -603,17 +603,17 @@ export class ConversationManager {
           }
         }
         this.chromeSystemPrompt = chromeConfig.systemPrompt;
-        console.log(`[ConversationManager] Chrome MCP 工具已加载 (${this.mcpTools.length} tools)`);
+        console.log(`[ConversationManager] Chrome MCP tools loaded (${this.mcpTools.length} tools)`);
       }
     } catch (error) {
-      console.warn('[ConversationManager] Chrome 集成加载失败:', error);
+      console.warn('[ConversationManager] Failed to load Chrome integration:', error);
     }
 
     // 【与 CLI cli.ts:382-391 一致】自动加载并连接所有配置的 MCP 服务器
     try {
       await this.initializeAllMcpServers();
     } catch (error) {
-      console.warn('[ConversationManager] MCP 服务器初始化失败:', error);
+      console.warn('[ConversationManager] Failed to initialize MCP server:', error);
     }
 
     // 同步禁用服务器列表到 MCPSearchTool，使搜索无结果时能提示可启用的服务器
@@ -624,13 +624,13 @@ export class ConversationManager {
       const crypto = await import('crypto');
       const projectHash = crypto.createHash('md5').update(this.cwd).digest('hex').slice(0, 12);
       await initMemorySearchManager(this.cwd, projectHash);
-      console.log(`[ConversationManager] 初始化 MemorySearchManager: ${this.cwd}`);
+      console.log(`[ConversationManager] Initializing MemorySearchManager: ${this.cwd}`);
     } catch (error) {
-      console.warn('[ConversationManager] 初始化 MemorySearchManager 失败:', error);
+      console.warn('[ConversationManager] Failed to initialize MemorySearchManager:', error);
     }
 
     // 确保工具已注册
-    console.log(`[ConversationManager] 已注册 ${toolRegistry.getAll().length} 个工具`);
+    console.log(`[ConversationManager] Registered ${toolRegistry.getAll().length} tools`);
   }
 
   /**
@@ -885,7 +885,7 @@ export class ConversationManager {
   private ensureClientCredentialsFresh(state: SessionState): void {
     const currentFingerprint = this.getCredentialsFingerprint();
     if (state.credentialsFingerprint && state.credentialsFingerprint !== currentFingerprint) {
-      console.log('[ConversationManager] 检测到认证凭据变更，重建客户端');
+      console.log('[ConversationManager] Detected auth credentials change, rebuilding client');
       const newConfig = this.buildClientConfig(state.model);
       state.client = new ClaudeClient({ ...newConfig });
       state.credentialsFingerprint = currentFingerprint;
@@ -937,20 +937,20 @@ export class ConversationManager {
     // 这处理了历史遗留 token（org:create_api_key scope 但从未调过 createOAuthApiKey 的情况）
     const hasInferenceScope = oauthConfig.scopes?.includes('user:inference');
     if (!hasInferenceScope && !oauthConfig.oauthApiKey && oauthConfig.accessToken) {
-      console.log('[ConversationManager] OAuth token 缺少 user:inference scope，尝试自动创建 API Key...');
+      console.log('[ConversationManager] OAuth token missing user:inference scope, attempting to auto-create API Key...');
       try {
         const apiKey = await createOAuthApiKey(oauthConfig.accessToken);
         if (apiKey) {
           await oauthManager.saveOAuthConfig({ oauthApiKey: apiKey });
-          console.log('[ConversationManager] OAuth API Key 已自动创建，重新构建客户端');
+          console.log('[ConversationManager] OAuth API Key auto-created, rebuilding client');
           const newConfig = this.buildClientConfig(state.model);
           state.client = new ClaudeClient({ ...newConfig });
           state.credentialsFingerprint = this.getCredentialsFingerprint();
         } else {
-          console.warn('[ConversationManager] createOAuthApiKey 返回 null，推理可能失败');
+          console.warn('[ConversationManager] createOAuthApiKey returned null, inference may fail');
         }
       } catch (e: any) {
-        console.error('[ConversationManager] 自动创建 API Key 失败:', e.message);
+        console.error('[ConversationManager] Failed to auto-create API Key:', e.message);
       }
     }
 
@@ -969,7 +969,7 @@ export class ConversationManager {
       const newConfig = this.buildClientConfig(state.model);
       state.client = new ClaudeClient({ ...newConfig });
       state.credentialsFingerprint = this.getCredentialsFingerprint();
-      console.log('[ConversationManager] 客户端已使用刷新后的 OAuth 凭证');
+      console.log('[ConversationManager] Client now using refreshed OAuth credentials');
     }
   }
 
@@ -983,7 +983,7 @@ export class ConversationManager {
     if (state) {
       // 会话已存在，检查是否需要更新工作目录
       if (projectPath && state.session.cwd !== projectPath) {
-        console.log(`[ConversationManager] 更新会话 ${sessionId} 工作目录: ${state.session.cwd} -> ${projectPath}`);
+        console.log(`[ConversationManager] Updated session ${sessionId} working directory: ${state.session.cwd} -> ${projectPath}`);
         state.session.setWorkingDirectory(projectPath);
         await state.session.initializeGitInfo();
       }
@@ -996,7 +996,7 @@ export class ConversationManager {
 
     // 创建新会话
     const workingDir = projectPath || this.cwd;
-    console.log(`[ConversationManager] 创建新会话 ${sessionId}, workingDir: ${workingDir}, permissionMode: ${permissionMode || 'default'}`);
+    console.log(`[ConversationManager] Creating new session ${sessionId}, workingDir: ${workingDir}, permissionMode: ${permissionMode || 'default'}`);
 
     const session = new Session(workingDir);
     await session.initializeGitInfo();
@@ -1051,18 +1051,18 @@ export class ConversationManager {
     if (isSessionMemoryEnabled()) {
       try {
         initSessionMemory(workingDir, sessionId);
-        console.log(`[ConversationManager] 初始化 session memory: ${sessionId}, workingDir: ${workingDir}`);
+        console.log(`[ConversationManager] Initializing session memory: ${sessionId}, workingDir: ${workingDir}`);
       } catch (error) {
-        console.warn('[ConversationManager] 初始化 session memory 失败:', error);
+        console.warn('[ConversationManager] Failed to initialize session memory:', error);
       }
     }
 
     // 初始化 Agent 笔记本系统（与 CLI loop.ts 保持一致）
     try {
       initNotebookManager(workingDir);
-      console.log(`[ConversationManager] 初始化 NotebookManager: ${workingDir}`);
+      console.log(`[ConversationManager] Initializing NotebookManager: ${workingDir}`);
     } catch (error) {
-      console.warn('[ConversationManager] 初始化 NotebookManager 失败:', error);
+      console.warn('[ConversationManager] Failed to initialize NotebookManager:', error);
     }
 
     return state;
@@ -1197,14 +1197,14 @@ export class ConversationManager {
     const state = this.sessions.get(sessionId);
     if (state) {
       if (state.isProcessing && state.ws && state.ws !== ws && state.ws.readyState === 1 /* OPEN */) {
-        console.warn(`[ConversationManager] 会话 ${sessionId} 正在处理中，WebSocket 被新连接替换（可能是页面刷新或多标签页）`);
+        console.warn(`[ConversationManager] Session ${sessionId} is processing, WebSocket replaced by new connection (possibly page refresh or multiple tabs)`);
       }
       // 如果会话正在处理中且 WebSocket 实际发生了变化（页面刷新），标记完成后重发 history
       // 因为刷新后客户端没有 currentMessageRef
       // 注意：插话（interrupt）场景下 ws 是同一个连接，不应设置此标记
       if (state.isProcessing && state.ws !== ws) {
         state.needsHistoryResend = true;
-        console.log(`[ConversationManager] 会话 ${sessionId} 处理中 ws 被替换，标记完成后重发 history`);
+        console.log(`[ConversationManager] Session ${sessionId} processing, ws replaced, will resend history after completion`);
       }
       state.ws = ws;
       state.userInteractionHandler.setWebSocket(ws);
@@ -1284,9 +1284,9 @@ export class ConversationManager {
     const state = this.sessions.get(sessionId);
     if (state) {
       state.permissionHandler.updateConfig(config);
-      console.log(`[ConversationManager] 权限配置已更新 (session: ${sessionId}):`, config);
+      console.log(`[ConversationManager] Permission config updated (session: ${sessionId}):`, config);
     } else {
-      console.warn(`[ConversationManager] 权限配置更新失败: 会话 ${sessionId} 不存在 (config: ${JSON.stringify(config)})`);
+      console.warn(`[ConversationManager] Failed to update permission config: session ${sessionId} not found (config: ${JSON.stringify(config)})`);
     }
   }
 
@@ -1354,7 +1354,7 @@ export class ConversationManager {
         // 超时后强制重置：旧的 conversationLoop 仍在后台跑，
         // 但它检查 state.cancelled 后会自行退出。
         // 这里强制放行，让新消息能被处理。
-        console.warn('[ConversationManager] 插话取消超时，强制重置 isProcessing');
+        console.warn('[ConversationManager] Interject cancellation timeout, forcing isProcessing reset');
         state.isProcessing = false;
       }
     }
@@ -1448,9 +1448,9 @@ export class ConversationManager {
         for (const serverName of servers) {
           try {
             await this.toggleMcpServer(serverName, false);
-            console.log(`[MCP] 对话结束，自动禁用临时 MCP 服务器: ${serverName}`);
+            console.log(`[MCP] Conversation ended, auto-disabling temporary MCP server: ${serverName}`);
           } catch (err) {
-            console.warn(`[MCP] 自动禁用 MCP 服务器 ${serverName} 失败:`, err);
+            console.warn(`[MCP] Failed to auto-disable MCP server ${serverName}:`, err);
           }
         }
       }
@@ -1500,7 +1500,7 @@ export class ConversationManager {
       try {
         await this.ensureValidOAuthToken(state);
       } catch (error: any) {
-        console.error('[ConversationManager] OAuth token 刷新失败:', error.message);
+        console.error('[ConversationManager] OAuth token refresh failed:', error.message);
         // 继续尝试，让 API 调用返回真实错误
       }
 
@@ -1540,7 +1540,7 @@ export class ConversationManager {
 
       if (needsCompact) {
         try {
-          console.log(`[AutoCompact] 触发压缩 (lastActualTokens: ${state.lastActualInputTokens.toLocaleString()}, threshold: ${threshold.toLocaleString()})`);
+          console.log(`[AutoCompact] Triggered compaction (lastActualTokens: ${state.lastActualInputTokens.toLocaleString()}, threshold: ${threshold.toLocaleString()})`);
           // 通知前端：开始压缩
           callbacks.onContextCompact?.('start', { threshold, estimatedTokens: state.lastActualInputTokens });
           // 关键：压缩前保存当前轮次的消息（最后一条非摘要 user 消息及其后的所有消息）
@@ -1616,7 +1616,7 @@ export class ConversationManager {
                 // 从最早的索引开始保留所有消息
                 if (earliestIndex < startIndex) {
                   messagesToKeep = cleanedMessages.slice(earliestIndex);
-                  console.log(`[AutoCompact] 检测到孤立 tool_result，扩展 messagesToKeep 从索引 ${earliestIndex}`);
+                  console.log(`[AutoCompact] Detected orphaned tool_result, extending messagesToKeep from index ${earliestIndex}`);
                 }
               }
             }
@@ -1672,7 +1672,7 @@ export class ConversationManager {
               };
               state.chatHistory.push(summaryEntry);
             }
-            console.log(`[AutoCompact] 上下文已压缩`);
+            console.log(`[AutoCompact] Context compacted`);
             // 通知前端：压缩完成（包含 summaryText 以便前端追加 summary 消息）
             callbacks.onContextCompact?.('end', {
               threshold,
@@ -1683,7 +1683,7 @@ export class ConversationManager {
             // 异步记忆整理：利用 AI 从被压缩的对话中提取关键发现
             // fire-and-forget，不阻塞主对话流
             this.consolidateMemoryAfterCompact(preCompactMessages, state).catch(err => {
-              console.warn('[MemoryConsolidation] 记忆整理失败:', err);
+              console.warn('[MemoryConsolidation] Memory consolidation failed:', err);
             });
           }
         } catch (err) {
@@ -3941,6 +3941,15 @@ Respond ONLY with valid JSON, no other text.`;
   private buildWebuiToolGuidance(): string | null {
     const sections: string[] = [];
 
+    // 自感知 URL — 根据当前协议和端口动态生成，供 Browser 工具访问 Web UI
+    const webProto = process.env.AXON_WEB_PROTO || 'http';
+    const webPort = process.env.AXON_WEB_PORT || '3456';
+    const selfUrl = `${webProto}://localhost:${webPort}`;
+    sections.push(`# Self-Awareness (Web UI URL)
+
+Your Web UI is running at: \`${selfUrl}\`
+To view your own UI: \`Browser start\` → \`Browser goto ${selfUrl}\` → \`Browser screenshot\``);
+
     // 服务器模式安全约束 — 防止用户通过对话诱导执行破坏性命令
     sections.push(`# 服务器模式安全约束（最高优先级）
 
@@ -5022,10 +5031,10 @@ Guidelines:
       // 同步禁用服务器列表到 MCPSearchTool
       this.syncDisabledServersToSearchTool();
 
-      console.log(`[ConversationManager] MCP 服务器 ${name} ${newEnabled ? '已启用' : '已禁用'}, mcpTools 剩余: ${this.mcpTools.length}, 工具名: [${this.mcpTools.map(t => t.name).join(', ')}]`);
+      console.log(`[ConversationManager] MCP server ${name} ${newEnabled ? 'enabled' : 'disabled'}, mcpTools remaining: ${this.mcpTools.length}, tool names: [${this.mcpTools.map(t => t.name).join(', ')}]`);
       return { success: true, enabled: newEnabled };
     } catch (error) {
-      console.error(`[ConversationManager] 切换 MCP 服务器失败:`, error);
+      console.error(`[ConversationManager] Failed to toggle MCP server:`, error);
       return { success: false, enabled: false };
     }
   }
@@ -5082,7 +5091,7 @@ Guidelines:
       fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
       fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
     } catch (err) {
-      console.warn(`[ConversationManager] 更新 disabledMcpServers 失败:`, err);
+      console.warn(`[ConversationManager] Failed to update disabledMcpServers:`, err);
     }
   }
 
@@ -5285,7 +5294,7 @@ Guidelines:
         }
       }
     } catch (err) {
-      console.warn('[ConversationManager] 读取 installed_plugins.json 失败:', err);
+      console.warn('[ConversationManager] Failed to read installed_plugins.json:', err);
     }
 
     return results;
@@ -5332,11 +5341,11 @@ Guidelines:
 
       const success = await pluginManager.setEnabled(name, true);
       if (success) {
-        console.log(`[ConversationManager] 插件已启用: ${name}`);
+        console.log(`[ConversationManager] Plugin enabled: ${name}`);
       }
       return success;
     } catch (error) {
-      console.error(`[ConversationManager] 启用插件失败:`, error);
+      console.error(`[ConversationManager] Failed to enable plugin:`, error);
       return false;
     }
   }
@@ -5350,11 +5359,11 @@ Guidelines:
 
       const success = await pluginManager.setEnabled(name, false);
       if (success) {
-        console.log(`[ConversationManager] 插件已禁用: ${name}`);
+        console.log(`[ConversationManager] Plugin disabled: ${name}`);
       }
       return success;
     } catch (error) {
-      console.error(`[ConversationManager] 禁用插件失败:`, error);
+      console.error(`[ConversationManager] Failed to disable plugin:`, error);
       return false;
     }
   }
@@ -5368,11 +5377,11 @@ Guidelines:
 
       const success = await pluginManager.uninstall(name);
       if (success) {
-        console.log(`[ConversationManager] 插件已卸载: ${name}`);
+        console.log(`[ConversationManager] Plugin uninstalled: ${name}`);
       }
       return success;
     } catch (error) {
-      console.error(`[ConversationManager] 卸载插件失败:`, error);
+      console.error(`[ConversationManager] Failed to uninstall plugin:`, error);
       return false;
     }
   }
@@ -5430,7 +5439,7 @@ Guidelines:
         })),
       };
     } catch (error) {
-      console.error('[ConversationManager] 获取插件市场数据失败:', error);
+      console.error('[ConversationManager] Failed to get plugin marketplace data:', error);
       return { marketplaces: [], availablePlugins: [] };
     }
   }
@@ -5449,7 +5458,7 @@ Guidelines:
         return { success: false, error: '插件市场管理器未初始化' };
       }
 
-      console.log(`[ConversationManager] 开始安装插件: ${pluginId}`);
+      console.log(`[ConversationManager] Starting plugin installation: ${pluginId}`);
 
       // 使用 MarketplaceManager 安装插件
       const result = await this.marketplaceManager.installPlugin(pluginId);
@@ -5462,7 +5471,7 @@ Guidelines:
       }
 
       const state = result.plugin;
-      console.log(`[ConversationManager] 插件已安装: ${state.metadata.name}@${state.metadata.version}`);
+      console.log(`[ConversationManager] Plugin installed: ${state.metadata.name}@${state.metadata.version}`);
 
       return {
         success: true,
@@ -5478,7 +5487,7 @@ Guidelines:
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`[ConversationManager] 安装插件失败:`, errorMsg);
+      console.error(`[ConversationManager] Failed to install plugin:`, errorMsg);
       return { success: false, error: errorMsg };
     }
   }
@@ -5513,7 +5522,7 @@ Guidelines:
 
     // 防御性检查：如果旧 session 没有 rewindManager，创建一个新的
     if (!state.rewindManager) {
-      console.warn(`[ConversationManager] 会话 ${sessionId} 缺少 rewindManager，正在创建新实例`);
+      console.warn(`[ConversationManager] Session ${sessionId} missing rewindManager, creating new instance`);
       state.rewindManager = new RewindManager(sessionId);
     }
 
@@ -5532,7 +5541,7 @@ Guidelines:
       throw new Error(`会话未找到: ${sessionId}`);
     }
 
-    console.log(`[ConversationManager] 执行回滚: sessionId=${sessionId}, messageId=${messageId}, option=${option}`);
+    console.log(`[ConversationManager] Executing rewind: sessionId=${sessionId}, messageId=${messageId}, option=${option}`);
 
     const result: any = { success: true, option };
 
@@ -5540,7 +5549,7 @@ Guidelines:
     if (option === 'conversation' || option === 'both') {
       const messageIndex = state.chatHistory.findIndex(m => m.id === messageId);
       if (messageIndex < 0) {
-        console.error(`[ConversationManager] 未找到消息: ${messageId}`);
+        console.error(`[ConversationManager] Message not found: ${messageId}`);
         return { success: false, option, error: '未找到要回滚的消息' };
       }
 
@@ -5590,7 +5599,7 @@ Guidelines:
             }
           }
           state.messages = state.messages.slice(0, cutIndex);
-          console.log(`[ConversationManager] fallback 截断 messages: userMsgCount=${userMsgCount}, cutIndex=${cutIndex}`);
+          console.log(`[ConversationManager] fallback truncate messages: userMsgCount=${userMsgCount}, cutIndex=${cutIndex}`);
         }
       } else {
         // chatHistory 被清空，messages 也清空
@@ -5602,7 +5611,7 @@ Guidelines:
 
       const chatRemoved = originalChatCount - state.chatHistory.length;
       const msgRemoved = originalMsgCount - state.messages.length;
-      console.log(`[ConversationManager] 回滚对话成功: chatHistory 删除 ${chatRemoved} 条(剩余 ${state.chatHistory.length}), messages 删除 ${msgRemoved} 条(剩余 ${state.messages.length})`);
+      console.log(`[ConversationManager] Rewind conversation successful: chatHistory removed ${chatRemoved} (remaining ${state.chatHistory.length}), messages removed ${msgRemoved} (remaining ${state.messages.length})`);
       result.conversationResult = {
         messagesRemoved: chatRemoved,
         newMessageCount: state.chatHistory.length,
@@ -5615,7 +5624,7 @@ Guidelines:
     if (option === 'code' || option === 'both') {
       // 防御性检查：如果旧 session 没有 rewindManager，创建一个新的
       if (!state.rewindManager) {
-        console.warn(`[ConversationManager] 会话 ${sessionId} 缺少 rewindManager，正在创建新实例`);
+        console.warn(`[ConversationManager] Session ${sessionId} missing rewindManager, creating new instance`);
         state.rewindManager = new RewindManager(sessionId);
       }
 
@@ -5623,14 +5632,14 @@ Guidelines:
       result.codeResult = codeResult;
 
       if (!codeResult.success) {
-        console.warn(`[ConversationManager] 代码回滚失败: ${codeResult.error}`);
+        console.warn(`[ConversationManager] Code rewind failed: ${codeResult.error}`);
         // 不阻止整个操作，只记录警告
       } else {
-        console.log(`[ConversationManager] 代码回滚成功: ${codeResult.filesChanged.length} 个文件被恢复`);
+        console.log(`[ConversationManager] Code rewind successful: ${codeResult.filesChanged.length} files restored`);
       }
     }
 
-    console.log(`[ConversationManager] 回滚完成:`, result);
+    console.log(`[ConversationManager] Rewind complete:`, result);
     return result;
   }
 
@@ -5649,7 +5658,7 @@ Guidelines:
         if (hasToolUse) {
           // 这条 assistant 消息包含 tool_use 但后面没有 tool_result，移除它
           messages = messages.slice(0, -1);
-          console.log(`[ConversationManager] ensureMessagesConsistency: 移除末尾含 tool_use 的 assistant 消息`);
+          console.log(`[ConversationManager] ensureMessagesConsistency: Removing trailing assistant message with tool_use`);
           continue;
         }
       }
@@ -5660,7 +5669,7 @@ Guidelines:
         );
         if (hasToolResult) {
           messages = messages.slice(0, -1);
-          console.log(`[ConversationManager] ensureMessagesConsistency: 移除末尾孤立的 tool_result 消息`);
+          console.log(`[ConversationManager] ensureMessagesConsistency: Removing trailing orphaned tool_result message`);
           continue;
         }
       }

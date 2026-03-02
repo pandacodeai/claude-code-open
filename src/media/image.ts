@@ -20,7 +20,7 @@ async function getSharp() {
       const mod = await import('sharp');
       _sharp = mod.default;
     } catch (e) {
-      console.warn('[Image] sharp 不可用，图片压缩功能已禁用:', (e as Error).message);
+      console.warn('[Image] sharp not available, image compression disabled:', (e as Error).message);
     }
   }
   return _sharp;
@@ -409,7 +409,7 @@ export async function compressBase64Image(
     const result = await compressBuffer(buffer, maxBytes);
     return `data:${result.mediaType};base64,${result.base64}`;
   } catch (error) {
-    console.error('[ImageCompression] 压缩失败，返回原始数据:', error);
+    console.error('[ImageCompression] Compression failed, returning original data:', error);
     return base64Data.startsWith('data:')
       ? base64Data
       : `data:${originalMediaType};base64,${pureBase64}`;
@@ -436,7 +436,7 @@ export async function compressRawBase64(
     const result = await compressBuffer(buffer, maxBytes);
     return { data: result.base64, mediaType: result.mediaType };
   } catch (error) {
-    console.error('[ImageCompression] 附件压缩失败，使用原始数据:', error);
+    console.error('[ImageCompression] Attachment compression failed, using original data:', error);
     return { data: base64Data, mediaType };
   }
 }

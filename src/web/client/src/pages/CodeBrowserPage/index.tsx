@@ -48,7 +48,8 @@ export default function CodeBrowserPage({ context, onNavigateToChat }: CodeBrows
   const chatMessagesRef = useRef<HTMLDivElement>(null);
 
   // WebSocket 连接
-  const wsUrl = `ws://${window.location.host}/ws`;
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
   const { connected, send, addMessageHandler, model } = useWebSocket(wsUrl);
 
   // 处理 WebSocket 消息

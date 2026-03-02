@@ -21,7 +21,7 @@ async function getResvg(): Promise<any> {
         const wasmMod = await import('@resvg/resvg-wasm');
         _Resvg = wasmMod.Resvg;
       } catch (e) {
-        console.warn('[SVG] resvg 不可用，SVG 渲染功能已禁用:', (e as Error).message);
+        console.warn('[SVG] resvg not available, SVG rendering disabled:', (e as Error).message);
       }
     }
   }

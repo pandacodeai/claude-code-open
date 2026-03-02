@@ -353,7 +353,7 @@ export class SmartPlanner extends EventEmitter {
       } else if (event.type === 'tool_result' && event.result) {
         extracted = { ...extracted, ...event.result };
       } else if (event.type === 'error') {
-        console.error('[SmartPlanner] AI 分析失败:', event.error);
+        console.error('[SmartPlanner] AI analysis failed:', event.error);
       }
     }
 
@@ -450,7 +450,7 @@ export class SmartPlanner extends EventEmitter {
 
     } catch (error) {
       // 探索失败不阻塞流程
-      console.warn('[SmartPlanner] 代码库探索失败:', error);
+      console.warn('[SmartPlanner] Codebase exploration failed:', error);
     }
 
     return findings.length > 0 ? findings.join('\n') : '';
@@ -495,7 +495,7 @@ export class SmartPlanner extends EventEmitter {
         }
       }
     } catch (error) {
-      console.warn('[SmartPlanner] 代码搜索失败:', error);
+      console.warn('[SmartPlanner] Code search failed:', error);
     }
 
     return results;
@@ -624,7 +624,7 @@ export class SmartPlanner extends EventEmitter {
       } else if (event.type === 'tool_result' && event.result) {
         extracted = { ...extracted, ...event.result };
       } else if (event.type === 'error') {
-        console.error('[SmartPlanner] 需求提取失败:', event.error);
+        console.error('[SmartPlanner] Requirement extraction failed:', event.error);
       }
     }
 
@@ -984,7 +984,7 @@ export class SmartPlanner extends EventEmitter {
       } else if (event.type === 'tool_result' && event.result) {
         blueprintData = { ...blueprintData, ...event.result };
       } else if (event.type === 'error') {
-        console.error('[SmartPlanner] 蓝图生成失败:', event.error);
+        console.error('[SmartPlanner] Blueprint generation failed:', event.error);
       }
     }
 
@@ -992,12 +992,12 @@ export class SmartPlanner extends EventEmitter {
     this.emit('blueprint:progress', { step: 3, total: 5, message: '正在构建蓝图结构...' });
 
     // 调试日志：检查 AI 返回的数据
-    console.log('[SmartPlanner] AI 返回的蓝图数据:');
-    console.log('  - businessProcesses:', blueprintData.businessProcesses?.length || 0, '个');
-    console.log('  - modules:', blueprintData.modules?.length || 0, '个');
-    console.log('  - nfrs:', blueprintData.nfrs?.length || 0, '个');
+    console.log('[SmartPlanner] Blueprint data returned by AI:');
+    console.log('  - businessProcesses:', blueprintData.businessProcesses?.length || 0);
+    console.log('  - modules:', blueprintData.modules?.length || 0);
+    console.log('  - nfrs:', blueprintData.nfrs?.length || 0);
     if (!blueprintData.businessProcesses?.length && !blueprintData.modules?.length && !blueprintData.nfrs?.length) {
-      console.warn('[SmartPlanner] ⚠️ AI 返回的数据为空！可能是 AI 调用失败或未正确生成结构。');
+      console.warn('[SmartPlanner] ⚠️ AI returned empty data! May be AI call failed or structure not generated correctly.');
       console.log('[SmartPlanner] blueprintData:', JSON.stringify(blueprintData, null, 2).slice(0, 500));
     }
 
@@ -1121,7 +1121,7 @@ export class SmartPlanner extends EventEmitter {
         apiPrefix: apiContract.apiPrefix,
       });
 
-      console.log(`[SmartPlanner] API 契约已写入蓝图: ${apiContract.endpoints.length} 个端点, 前缀: ${apiContract.apiPrefix}`);
+      console.log(`[SmartPlanner] API contract written to blueprint: ${apiContract.endpoints.length} endpoints, prefix: ${apiContract.apiPrefix}`);
     }
 
     this.emit('planner:decomposing', { blueprintId: blueprint.id });
@@ -1185,7 +1185,7 @@ export class SmartPlanner extends EventEmitter {
 
     // 验证 AI 返回的数据结构
     if (!taskData || !Array.isArray(taskData.tasks)) {
-      console.error('[SmartPlanner] AI 返回的数据无效，缺少 tasks 数组');
+      console.error('[SmartPlanner] AI returned invalid data, missing tasks array');
       console.error('[SmartPlanner] taskData:', JSON.stringify(taskData, null, 2));
       throw new Error('任务分解失败：AI 未能返回有效的任务列表。请检查蓝图描述是否足够详细，或稍后重试。');
     }
@@ -1194,7 +1194,7 @@ export class SmartPlanner extends EventEmitter {
     const tasks: SmartTask[] = taskData.tasks
       .filter((t) => {
         if (!t.name || typeof t.name !== 'string') {
-          console.warn('[SmartPlanner] 过滤掉无效任务（缺少 name）:', JSON.stringify(t));
+          console.warn('[SmartPlanner] Filtered out invalid task (missing name):', JSON.stringify(t));
           return false;
         }
         return true;
@@ -1326,10 +1326,10 @@ export class SmartPlanner extends EventEmitter {
       const defaultSystemPrompt = '你是一个数据提取助手。分析用户的输入，使用 submit_extracted_data 工具返回结构化数据。不要输出任何文本，直接调用工具提交数据。';
       const systemPrompt = customSystemPrompt || defaultSystemPrompt;
 
-      console.log('[SmartPlanner] extractWithAI 开始流式调用...');
-      console.log('[SmartPlanner] 推断的 schema keys:', Object.keys(inferredSchema));
-      console.log('[SmartPlanner] Prompt 长度:', prompt.length, '字符');
-      console.log('[SmartPlanner] 发送的 prompt（前1000字符）:\n', prompt.slice(0, 1000));
+      console.log('[SmartPlanner] extractWithAI starting streaming call...');
+      console.log('[SmartPlanner] Inferred schema keys:', Object.keys(inferredSchema));
+      console.log('[SmartPlanner] Prompt length:', prompt.length, 'characters');
+      console.log('[SmartPlanner] Prompt being sent (first 1000 chars):\n', prompt.slice(0, 1000));
 
       // 使用流式 API 以便打印完整输出
       let fullText = '';
@@ -1350,58 +1350,58 @@ export class SmartPlanner extends EventEmitter {
         // 打印每个流式事件
         if (event.type === 'text' && event.text) {
           fullText += event.text;
-          console.log('[SmartPlanner][Stream] 文本:', event.text);
+          console.log('[SmartPlanner][Stream] Text:', event.text);
         } else if (event.type === 'thinking' && event.thinking) {
-          console.log('[SmartPlanner][Stream] 思考:', event.thinking);
+          console.log('[SmartPlanner][Stream] Thinking:', event.thinking);
         } else if (event.type === 'tool_use_start') {
           hasToolUse = true;
           currentToolName = event.name || '';
-          console.log('[SmartPlanner][Stream] 工具调用开始:', currentToolName);
+          console.log('[SmartPlanner][Stream] Tool call started:', currentToolName);
         } else if (event.type === 'tool_use_delta' && event.input) {
           toolInputJson += event.input;
           // 每收到增量就打印（但不打印换行，避免日志过多）
           process.stdout.write(event.input);
         } else if (event.type === 'stop') {
-          console.log('\n[SmartPlanner][Stream] 流结束，原因:', event.stopReason);
+          console.log('\n[SmartPlanner][Stream] Stream ended, reason:', event.stopReason);
         } else if (event.type === 'error') {
-          console.error('[SmartPlanner][Stream] 错误:', event.error);
+          console.error('[SmartPlanner][Stream] Error:', event.error);
         } else if (event.type === 'usage') {
-          console.log('[SmartPlanner][Stream] Token 使用:', JSON.stringify(event.usage));
+          console.log('[SmartPlanner][Stream] Token usage:', JSON.stringify(event.usage));
         }
       }
 
-      console.log('[SmartPlanner] 流式调用完成');
-      console.log('[SmartPlanner] 收到文本长度:', fullText.length);
-      console.log('[SmartPlanner] 收到工具输入长度:', toolInputJson.length);
+      console.log('[SmartPlanner] Streaming call completed');
+      console.log('[SmartPlanner] Received text length:', fullText.length);
+      console.log('[SmartPlanner] Received tool input length:', toolInputJson.length);
 
       // 如果有工具调用，解析工具输入
       if (hasToolUse && toolInputJson) {
-        console.log('[SmartPlanner] extractWithAI 成功，AI 调用了工具:', currentToolName);
-        console.log('[SmartPlanner] 工具输入 JSON（完整）:\n', toolInputJson);
+        console.log('[SmartPlanner] extractWithAI succeeded, AI called tool:', currentToolName);
+        console.log('[SmartPlanner] Tool input JSON (complete):\n', toolInputJson);
 
         try {
           const inputData = JSON.parse(toolInputJson) as T;
-          console.log('[SmartPlanner] 工具返回数据的 keys:', Object.keys(inputData || {}));
+          console.log('[SmartPlanner] Tool returned data keys:', Object.keys(inputData || {}));
           return inputData;
         } catch (parseError) {
-          console.error('[SmartPlanner] 工具输入 JSON 解析失败:', parseError);
-          console.error('[SmartPlanner] 原始 JSON:', toolInputJson);
+          console.error('[SmartPlanner] Tool input JSON parsing failed:', parseError);
+          console.error('[SmartPlanner] Raw JSON:', toolInputJson);
         }
       }
 
       // 如果AI没有调用工具，尝试从文本中解析（降级方案）
       if (fullText) {
-        console.log('[SmartPlanner] AI 返回文本，尝试解析 JSON...');
-        console.log('[SmartPlanner] 文本内容（完整）:\n', fullText);
+        console.log('[SmartPlanner] AI returned text, attempting to parse JSON...');
+        console.log('[SmartPlanner] Text content (complete):\n', fullText);
         const parsed = this.tryParseJSON<T>(fullText);
         if (parsed !== null) {
-          console.log('[SmartPlanner] JSON 解析成功');
+          console.log('[SmartPlanner] JSON parsing succeeded');
           return parsed;
         }
-        console.warn('[SmartPlanner] JSON 解析失败');
+        console.warn('[SmartPlanner] JSON parsing failed');
       }
 
-      console.warn('[SmartPlanner] AI未调用工具且无法解析文本，使用默认值');
+      console.warn('[SmartPlanner] AI did not call tool and text parsing failed, using default values');
       return defaultValue;
     } catch (error) {
       console.error('[SmartPlanner] AI extraction failed:', error);
@@ -1516,7 +1516,7 @@ export class SmartPlanner extends EventEmitter {
     explorationContext: string
   ): Promise<APIContract | null> {
     // 让 AI 自己判断是否需要 API 契约，而不是用脆弱的正则匹配
-    console.log('[SmartPlanner] 分析项目是否需要 API 契约...');
+    console.log('[SmartPlanner] Analyzing whether project needs API contract...');
 
     try {
       const loop = new ConversationLoop({
@@ -1590,11 +1590,11 @@ ${explorationContext ? `## 现有代码结构\n${explorationContext}` : ''}
 
           // AI 判断不需要契约
           if (parsed.needsContract === false) {
-            console.log('[SmartPlanner] AI 判断项目不需要 API 契约:', parsed.reason);
+            console.log('[SmartPlanner] AI determined project does not need API contract:', parsed.reason);
             return null;
           }
 
-          console.log('[SmartPlanner] API 契约生成成功:', parsed.endpoints?.length, '个端点');
+          console.log('[SmartPlanner] API contract generated successfully:', parsed.endpoints?.length, 'endpoints');
           return {
             apiPrefix: parsed.apiPrefix || '/api/v1',
             endpoints: parsed.endpoints || [],
@@ -1603,11 +1603,11 @@ ${explorationContext ? `## 现有代码结构\n${explorationContext}` : ''}
         }
       }
 
-      console.warn('[SmartPlanner] 无法解析 API 契约响应');
+      console.warn('[SmartPlanner] Cannot parse API contract response');
       return null;
 
     } catch (error: any) {
-      console.error('[SmartPlanner] API 契约生成失败:', error.message);
+      console.error('[SmartPlanner] API contract generation failed:', error.message);
       return null;
     }
   }
@@ -1710,7 +1710,7 @@ ${requirements.map((r, i) => `${i + 1}. ${r}`).join('\n')}
             try {
               return JSON.parse(jsonMatch[1]);
             } catch (e) {
-              console.error('[SmartPlanner] JSON 解析失败 (代码块):', e);
+              console.error('[SmartPlanner] JSON parsing failed (code block):', e);
             }
           }
           // 尝试直接匹配 JSON 对象
@@ -1719,7 +1719,7 @@ ${requirements.map((r, i) => `${i + 1}. ${r}`).join('\n')}
             try {
               return JSON.parse(directMatch[0]);
             } catch (e) {
-              console.error('[SmartPlanner] JSON 解析失败 (直接匹配):', e);
+              console.error('[SmartPlanner] JSON parsing failed (direct match):', e);
             }
           }
           return null;
@@ -1730,12 +1730,12 @@ ${requirements.map((r, i) => `${i + 1}. ${r}`).join('\n')}
         if (!explorationData) {
           // 输出详细日志帮助诊断
           const preview = result.length > 200 ? result.slice(0, 200) + '...' : result;
-          console.warn('[SmartPlanner] 代码库探索: 无法从响应中提取 JSON');
-          console.warn(`[SmartPlanner]   响应长度: ${result.length}`);
-          console.warn(`[SmartPlanner]   响应预览: ${preview.replace(/\n/g, '\\n')}`);
+          console.warn('[SmartPlanner] Codebase exploration: Cannot extract JSON from response');
+          console.warn(`[SmartPlanner]   Response length: ${result.length}`);
+          console.warn(`[SmartPlanner]   Response preview: ${preview.replace(/\n/g, '\\n')}`);
         }
       } else {
-        console.warn('[SmartPlanner] 代码库探索: AI 响应为空');
+        console.warn('[SmartPlanner] Codebase exploration: AI response is empty');
       }
 
       this.emit('planner:explored', { projectPath, exploration: explorationData });
@@ -1879,8 +1879,8 @@ ${explorationContext ? `\n## 代码库探索结果\n${explorationContext}` : ''}
 
 请分析以上信息，将需求分解为具体的开发任务，并以 JSON 格式输出。`;
 
-    console.log('[SmartPlanner] 开始任务分解 Agent...');
-    console.log('[SmartPlanner] Prompt 长度:', userPrompt.length, '字符');
+    console.log('[SmartPlanner] Starting task decomposition Agent...');
+    console.log('[SmartPlanner] Prompt length:', userPrompt.length, 'characters');
 
     try {
       // 使用 ConversationLoop 作为 Agent 进行任务分解
@@ -1896,8 +1896,8 @@ ${explorationContext ? `\n## 代码库探索结果\n${explorationContext}` : ''}
 
       const result = await loop.processMessage(userPrompt);
 
-      console.log('[SmartPlanner] Agent 响应长度:', result?.length || 0);
-      console.log('[SmartPlanner] Agent 响应预览:', result?.slice(0, 500));
+      console.log('[SmartPlanner] Agent response length:', result?.length || 0);
+      console.log('[SmartPlanner] Agent response preview:', result?.slice(0, 500));
 
       if (!result) {
         throw new Error('Agent 返回空响应');
@@ -1907,7 +1907,7 @@ ${explorationContext ? `\n## 代码库探索结果\n${explorationContext}` : ''}
       const jsonMatch = result.match(/```json\s*([\s\S]*?)```/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[1]);
-        console.log('[SmartPlanner] 成功解析 JSON，tasks 数量:', parsed.tasks?.length || 0);
+        console.log('[SmartPlanner] Successfully parsed JSON, tasks count:', parsed.tasks?.length || 0);
         return parsed;
       }
 
@@ -1915,16 +1915,16 @@ ${explorationContext ? `\n## 代码库探索结果\n${explorationContext}` : ''}
       const directMatch = result.match(/\{[\s\S]*"tasks"[\s\S]*\}/);
       if (directMatch) {
         const parsed = JSON.parse(directMatch[0]);
-        console.log('[SmartPlanner] 直接匹配 JSON，tasks 数量:', parsed.tasks?.length || 0);
+        console.log('[SmartPlanner] Direct JSON match, tasks count:', parsed.tasks?.length || 0);
         return parsed;
       }
 
-      console.error('[SmartPlanner] 无法从响应中提取 JSON');
-      console.error('[SmartPlanner] 完整响应:', result);
+      console.error('[SmartPlanner] Cannot extract JSON from response');
+      console.error('[SmartPlanner] Full response:', result);
       throw new Error('无法从 Agent 响应中提取任务数据');
 
     } catch (error: any) {
-      console.error('[SmartPlanner] 任务分解 Agent 失败:', error.message);
+      console.error('[SmartPlanner] Task decomposition Agent failed:', error.message);
       throw new Error(`任务分解失败: ${error.message}`);
     }
   }
@@ -2388,7 +2388,7 @@ ${explorationContext ? `\n## 代码库探索结果\n${explorationContext}` : ''}
       const filePath = path.join(blueprintDir, `${planId}.json`);
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
-        console.log(`[SmartPlanner] 执行计划已删除: ${planId}`);
+        console.log(`[SmartPlanner] Execution plan deleted: ${planId}`);
       }
     } catch (error) {
       console.error('[SmartPlanner] Failed to delete execution plan:', error);
@@ -2513,26 +2513,26 @@ export class StreamingBlueprintGenerator extends EventEmitter {
     state: DialogState,
     projectPath: string
   ): AsyncGenerator<StreamingEvent> {
-    console.log('[StreamingBlueprintGenerator] 开始流式生成蓝图...');
+    console.log('[StreamingBlueprintGenerator] Starting streaming blueprint generation...');
 
     if (!state.isComplete) {
-      console.log('[StreamingBlueprintGenerator] 错误：对话未完成');
+      console.log('[StreamingBlueprintGenerator] Error: dialog not completed');
       yield { type: 'error', error: '对话未完成，无法生成蓝图' };
       return;
     }
 
     // Step 1: 发送开始信号
-    console.log('[StreamingBlueprintGenerator] Step 1: 发送开始信号');
+    console.log('[StreamingBlueprintGenerator] Step 1: Sending start signal');
     yield { type: 'progress', step: 1, total: 5, message: '正在分析需求...' };
     yield { type: 'text', text: '🔍 **开始分析需求...**\n\n' };
 
     // 构建蓝图生成的提示词
-    console.log('[StreamingBlueprintGenerator] 构建提示词...');
+    console.log('[StreamingBlueprintGenerator] Building prompt...');
     const prompt = this.buildBlueprintPrompt(state);
-    console.log('[StreamingBlueprintGenerator] 提示词长度:', prompt.length);
+    console.log('[StreamingBlueprintGenerator] Prompt length:', prompt.length);
 
     // Step 2: 流式调用 AI
-    console.log('[StreamingBlueprintGenerator] Step 2: 开始调用 AI API...');
+    console.log('[StreamingBlueprintGenerator] Step 2: Starting AI API call...');
     yield { type: 'progress', step: 2, total: 5, message: 'AI 正在设计项目结构...' };
 
     let fullResponse = '';
@@ -2540,7 +2540,7 @@ export class StreamingBlueprintGenerator extends EventEmitter {
 
     try {
       // 使用流式 API
-      console.log('[StreamingBlueprintGenerator] 调用 createMessageStream...');
+      console.log('[StreamingBlueprintGenerator] Calling createMessageStream...');
       for await (const event of this.client.createMessageStream(
         [{ role: 'user', content: prompt }],
         [],
@@ -2550,20 +2550,20 @@ export class StreamingBlueprintGenerator extends EventEmitter {
         if (event.type === 'text' && event.text) {
           fullResponse += event.text;
           // 流式发送文本片段
-          console.log('[StreamingBlueprintGenerator] 收到 AI 文本片段，长度:', event.text.length);
+          console.log('[StreamingBlueprintGenerator] Received AI text fragment, length:', event.text.length);
           yield { type: 'text', text: event.text };
         } else if (event.type === 'thinking' && event.thinking) {
-          console.log('[StreamingBlueprintGenerator] 收到 AI 思考内容');
+          console.log('[StreamingBlueprintGenerator] Received AI thinking content');
           yield { type: 'thinking', thinking: event.thinking };
         } else if (event.type === 'error') {
-          console.error('[StreamingBlueprintGenerator] AI 返回错误:', event.error);
+          console.error('[StreamingBlueprintGenerator] AI returned error:', event.error);
           yield { type: 'error', error: event.error };
           return;
         } else if (event.type === 'stop') {
-          console.log('[StreamingBlueprintGenerator] AI 流结束，原因:', event.stopReason);
+          console.log('[StreamingBlueprintGenerator] AI stream ended, reason:', event.stopReason);
         }
       }
-      console.log('[StreamingBlueprintGenerator] AI 响应完成，总长度:', fullResponse.length);
+      console.log('[StreamingBlueprintGenerator] AI response completed, total length:', fullResponse.length);
 
       // Step 3: 解析 JSON
       yield { type: 'progress', step: 3, total: 5, message: '正在构建蓝图结构...' };

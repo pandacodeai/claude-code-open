@@ -190,6 +190,7 @@ ADVANCED FEATURES:
   // 按 sessionId 隔离的 controller 实例
   // 每个会话有自己的专属 tab 和 refs/console 状态
   private controllers: Map<string, any> = new Map();
+  private chromeExitListenerRegistered = false;
 
   private async getController(): Promise<any> {
     const sessionId = getSessionId();
@@ -200,6 +201,15 @@ ADVANCED FEATURES:
       const manager = BrowserManager.getInstance();
       controller = new BrowserController(manager);
       this.controllers.set(sessionId, controller);
+
+      // Register Chrome exit listener once to clean up all controllers
+      if (!this.chromeExitListenerRegistered) {
+        this.chromeExitListenerRegistered = true;
+        manager.onChromeExit(() => {
+          this.controllers.clear();
+          this.chromeExitListenerRegistered = false;
+        });
+      }
     }
     return controller;
   }
@@ -818,7 +828,8 @@ ADVANCED FEATURES:
 
       if (error.message?.includes('Browser is not running')) {
         return this.error(
-          'Browser is not running. Please use "start" action first to launch the browser.'
+          'Browser is not running (Chrome process may have crashed or been closed). ' +
+          'Please use "start" action to relaunch the browser. Previous page state will be lost.'
         );
       }
 

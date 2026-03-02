@@ -96,13 +96,24 @@ export class ConnectorManager {
 
     return BUILTIN_PROVIDERS.map((provider) => {
       const tokenData = connectors[provider.id];
+
+      // 解析运行时 authType（双模式 provider 根据环境变量动态判断）
+      const resolvedAuthType = this.resolveAuthType(provider);
+
       // 用 getClientConfig 方法，它会先检查环境变量再检查 settings.json
       const clientConfig = this.getClientConfig(provider.id);
-      // 对于凭据直连，有任意一个字段有值就算 configured
-      // 对于 OAuth，需要 clientId 和 clientSecret 都有
-      const configured = provider.credentials
-        ? !!(clientConfig && Object.values(clientConfig).some(v => v && typeof v === 'string' && v.trim()))
-        : !!(clientConfig?.clientId && clientConfig?.clientSecret);
+
+      // 根据实际 authType 判断是否已配置
+      let configured: boolean;
+      if (resolvedAuthType === 'mcp-oauth') {
+        configured = true; // mcp-remote 不需要配置
+      } else if (resolvedAuthType === 'credentials') {
+        // 凭据直连：有任意一个字段有值就算 configured
+        configured = !!(clientConfig && Object.values(clientConfig).some(v => v && typeof v === 'string' && (v as string).trim()));
+      } else {
+        // OAuth：需要 clientId 和 clientSecret 都有
+        configured = !!(clientConfig?.clientId && clientConfig?.clientSecret);
+      }
 
       const status: ConnectorStatus = {
         id: provider.id,
@@ -129,19 +140,39 @@ export class ConnectorManager {
       }
 
       // 认证方式
-      if (provider.mcpRemoteUrl) {
-        status.authType = 'mcp-oauth';
-      } else if (provider.credentials) {
-        status.authType = 'credentials';
+      status.authType = resolvedAuthType;
+      if (resolvedAuthType === 'credentials' && provider.credentials) {
         status.credentialFields = provider.credentials.fields.map(f => ({
           key: f.key, label: f.label, type: f.type,
         }));
-      } else {
-        status.authType = 'oauth';
       }
 
       return status;
     });
+  }
+
+  /**
+   * 解析 provider 的运行时 authType
+   * 双模式 provider（如 Slack 同时有 oauth 和 credentials）根据环境变量动态判断：
+   *  - 有 OAuth Client ID/Secret → 'oauth'（公网 HTTPS 部署）
+   *  - 否则有凭据环境变量 → 'credentials'（本地 Bot Token 模式，一键直连）
+   *  - 都没有 → 'credentials'（显示表单让用户填）
+   */
+  private resolveAuthType(provider: ConnectorProvider): 'oauth' | 'credentials' | 'mcp-oauth' {
+    if (provider.mcpRemoteUrl) {
+      return 'mcp-oauth';
+    }
+    // 双模式：同时有 oauth 和 credentials
+    if (provider.oauth && provider.credentials) {
+      const hasOAuthEnv = !!(
+        provider.oauth.envClientId && process.env[provider.oauth.envClientId] &&
+        provider.oauth.envClientSecret && process.env[provider.oauth.envClientSecret]
+      );
+      if (hasOAuthEnv) return 'oauth';
+      return 'credentials';
+    }
+    if (provider.credentials) return 'credentials';
+    return 'oauth';
   }
 
   /**
@@ -695,19 +726,21 @@ export class ConnectorManager {
     // 构建环境变量
     const env: Record<string, string> = {};
 
-    // 标准 envMapping（如 GitHub 的 GITHUB_PERSONAL_ACCESS_TOKEN）
-    if (tokenData) {
+    // 根据运行时 authType 决定环境变量来源
+    const resolvedAuthType = this.resolveAuthType(provider);
+
+    // OAuth 模式：envMapping 把 tokenData 的字段映射到环境变量
+    if (resolvedAuthType === 'oauth' && tokenData) {
       for (const [envKey, tokenField] of Object.entries(provider.mcpServer.envMapping)) {
         const value = tokenData[tokenField];
         if (value) {
           env[envKey] = value;
         }
       }
-    }
-
-    // Slack MCP：额外传入 SLACK_TEAM_ID
-    if (provider.id === 'slack' && tokenData?.teamId) {
-      env['SLACK_TEAM_ID'] = tokenData.teamId;
+      // Slack OAuth 额外传入 SLACK_TEAM_ID（从 token 交换响应中获取）
+      if (provider.id === 'slack' && tokenData.teamId) {
+        env['SLACK_TEAM_ID'] = tokenData.teamId;
+      }
     }
 
     // Google 系列：传入 GOOGLE_CLIENT_ID/SECRET，token 通过文件传递

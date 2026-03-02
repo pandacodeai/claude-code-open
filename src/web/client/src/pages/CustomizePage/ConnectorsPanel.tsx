@@ -371,16 +371,9 @@ export default function ConnectorsPanel() {
 
   // 凭据直连
   const handleDirectConnect = async (connector: ConnectorStatus) => {
-    // 构建凭据
+    // 构建凭据（统一用 configFields map）
     const bodyData: Record<string, string> = {};
-    if (connector.credentialFields && connector.credentialFields.length > 2) {
-      // 多字段模式（如 Jira 有 3 个字段）
-      Object.entries(configFields).forEach(([k, v]) => { if (v) bodyData[k] = v; });
-    } else {
-      // 兼容旧的双字段模式
-      if (configClientId) bodyData.clientId = configClientId;
-      if (configClientSecret) bodyData.clientSecret = configClientSecret;
-    }
+    Object.entries(configFields).forEach(([k, v]) => { if (v) bodyData[k] = v; });
 
     // 如果环境变量已配置，后端可以补齐缺失字段
     const hasEnvConfig = connector.configured;
@@ -662,19 +655,10 @@ export default function ConnectorsPanel() {
                   // 凭据直连：用 provider 定义的字段
                   <>
                     {currentSelected.credentialFields.map((field) => {
-                      // 多字段（>2）用 configFields map，双字段用旧 state 保持兼容
-                      const isMultiField = currentSelected.credentialFields!.length > 2;
-                      const value = isMultiField
-                        ? (configFields[field.key] || '')
-                        : (field.key === 'clientId' ? configClientId : configClientSecret);
+                      // 统一用 configFields map 管理所有凭据字段
+                      const value = configFields[field.key] || '';
                       const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-                        if (isMultiField) {
-                          setConfigFields(prev => ({ ...prev, [field.key]: e.target.value }));
-                        } else {
-                          field.key === 'clientId'
-                            ? setConfigClientId(e.target.value)
-                            : setConfigClientSecret(e.target.value);
-                        }
+                        setConfigFields(prev => ({ ...prev, [field.key]: e.target.value }));
                       };
                       return (
                         <div key={field.key} className={styles.configField}>
@@ -724,7 +708,7 @@ export default function ConnectorsPanel() {
                         : handleSaveConfig(currentSelected)
                     }
                     disabled={configSaving || (
-                      currentSelected.credentialFields && currentSelected.credentialFields.length > 2
+                      currentSelected.credentialFields
                         ? !Object.values(configFields).some(v => v)
                         : (!configClientId || !configClientSecret)
                     )}

@@ -183,7 +183,7 @@ export class McpConfigManager {
         return this.extractMcpServers(data);
       }
     } catch (error) {
-      console.warn(`加载 MCP 配置失败: ${filePath}`, error);
+      console.warn(`Failed to load MCP config: ${filePath}`, error);
     }
     return {};
   }
@@ -199,7 +199,7 @@ export class McpConfigManager {
         return this.extractMcpServers(data);
       }
     } catch (error) {
-      console.warn(`加载 MCP 配置失败: ${filePath}`, error);
+      console.warn(`Failed to load MCP config: ${filePath}`, error);
     }
     return {};
   }
@@ -212,7 +212,7 @@ export class McpConfigManager {
       try {
         return ExtendedMcpConfigSchema.parse(data.mcpServers);
       } catch (error) {
-        console.warn('MCP 配置验证失败', error);
+        console.warn('MCP config validation failed', error);
         return data.mcpServers || {};
       }
     }
