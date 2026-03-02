@@ -371,12 +371,18 @@ function copyDirRecursive(src: string, dest: string): void {
 
 // ============ 默认 marketplace (对应官方 e51/j6z/vxA) ============
 
-const DEFAULT_MARKETPLACE_NAME = 'claude-plugins-official';
-const DEFAULT_MARKETPLACE_REPO = 'anthropics/claude-plugins-official';
-const DEFAULT_MARKETPLACE_SOURCE: MarketplaceSource = {
-  source: 'github',
-  repo: DEFAULT_MARKETPLACE_REPO,
-};
+const DEFAULT_MARKETPLACES: Array<{ name: string; repo: string; source: MarketplaceSource }> = [
+  {
+    name: 'claude-plugins-official',
+    repo: 'anthropics/claude-plugins-official',
+    source: { source: 'github', repo: 'anthropics/claude-plugins-official' },
+  },
+  {
+    name: 'anthropic-agent-skills',
+    repo: 'anthropics/skills',
+    source: { source: 'github', repo: 'anthropics/skills' },
+  },
+];
 
 // ============ MarketplaceManager (主类) ============
 
@@ -400,29 +406,32 @@ export class MarketplaceManager {
   async ensureDefaultMarketplace(
     onProgress?: (msg: string) => void,
   ): Promise<void> {
-    try {
-      const known = await loadKnownMarketplaces();
-      if (known[DEFAULT_MARKETPLACE_NAME]) {
-        return; // 已存在
+    const known = await loadKnownMarketplaces();
+
+    for (const mp of DEFAULT_MARKETPLACES) {
+      if (known[mp.name]) {
+        continue; // 已存在
       }
 
-      console.log(`[Marketplace] Auto-adding default marketplace: ${DEFAULT_MARKETPLACE_NAME}`);
-      onProgress?.(`Installing marketplace ${DEFAULT_MARKETPLACE_REPO}`);
+      try {
+        console.log(`[Marketplace] Auto-adding default marketplace: ${mp.name}`);
+        onProgress?.(`Installing marketplace ${mp.repo}`);
 
-      const { manifest, cachePath } = await fetchMarketplace(DEFAULT_MARKETPLACE_SOURCE, onProgress);
+        const { manifest, cachePath } = await fetchMarketplace(mp.source, onProgress);
 
-      known[manifest.name] = {
-        source: DEFAULT_MARKETPLACE_SOURCE,
-        installLocation: cachePath,
-        lastUpdated: new Date().toISOString(),
-      };
+        known[manifest.name] = {
+          source: mp.source,
+          installLocation: cachePath,
+          lastUpdated: new Date().toISOString(),
+        };
 
-      await saveKnownMarketplaces(known);
-      console.log(`[Marketplace] Default marketplace installed: ${manifest.name} (${manifest.plugins.length} plugins)`);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[Marketplace] Failed to auto-add default marketplace: ${msg}`);
-      // 不抛异常，不阻塞启动
+        await saveKnownMarketplaces(known);
+        console.log(`[Marketplace] Default marketplace installed: ${manifest.name} (${manifest.plugins.length} plugins)`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[Marketplace] Failed to auto-add default marketplace ${mp.name}: ${msg}`);
+        // 不抛异常，不阻塞启动，继续下一个
+      }
     }
   }
 
