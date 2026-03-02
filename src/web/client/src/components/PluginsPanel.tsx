@@ -8,7 +8,33 @@ import { useLanguage } from '../i18n';
 import { PluginInfo, SkillInfo } from '../../shared/types';
 import './PluginsPanel.css';
 
-// 图标常量
+// SVG 图标组件
+const SvgEye = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 8s3-5.5 7-5.5S15 8 15 8s-3 5.5-7 5.5S1 8 1 8z" />
+    <circle cx="8" cy="8" r="2" />
+  </svg>
+);
+
+const SvgTrash = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 011.34-1.34h2.66a1.33 1.33 0 011.34 1.34V4M12.67 4v9.33a1.33 1.33 0 01-1.34 1.34H4.67a1.33 1.33 0 01-1.34-1.34V4" />
+  </svg>
+);
+
+const SvgChevronDown = () => (
+  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 6l4 4 4-4" />
+  </svg>
+);
+
+const SvgChevronUp = () => (
+  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 10l4-4 4 4" />
+  </svg>
+);
+
+// 图标常量（用于非按钮场景）
 const ICONS = {
   tick: '✓',
   cross: '✗',
@@ -273,7 +299,7 @@ function SkillsTab({
                       onViewContent(skill.name);
                     }}
                   >
-                    {ICONS.eye}
+                    <SvgEye />
                   </button>
                   {skill.source !== 'plugin' && (
                     <button
@@ -286,15 +312,18 @@ function SkillsTab({
                         }
                       }}
                     >
-                      {ICONS.cross}
+                      <SvgTrash />
                     </button>
                   )}
-                  <span
+                  <button
                     className="plugins-skill-expand-icon"
-                    onClick={() => setExpandedSkill(isExpanded ? null : skill.name)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedSkill(isExpanded ? null : skill.name);
+                    }}
                   >
-                    {isExpanded ? ICONS.arrowUp : ICONS.arrowDown}
-                  </span>
+                    {isExpanded ? <SvgChevronUp /> : <SvgChevronDown />}
+                  </button>
                 </div>
               </div>
 
